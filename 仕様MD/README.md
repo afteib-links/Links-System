@@ -17,5 +17,5 @@ Excel管理の運送業務（案件・パートナー・収支）をWeb化する
 ## 重要なお知らせ
 
 個別機能仕様書には「HTML5 SPA + IndexedDB」とあります。  
-実運用は **4名同時利用・Asustor NAS稼働** のため、データ保存は共有DB（MariaDB）へ変更します。  
+実運用は **4名同時利用・QNAP TS-464（QTS）稼働** のため、データ保存は共有DB（MariaDB）へ変更します。  
 詳細は `06_development_environment.md` を参照してください。
