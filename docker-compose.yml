@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-links_root_change_me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-links_system}
+      MYSQL_USER: ${MYSQL_USER:-links}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-links_pass_change_me}
+      TZ: ${TZ:-Asia/Tokyo}
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # 一部環境では bridge 内通信が不通なため、公開ポート経由でDBへ接続する
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_PORT: ${APP_PORT:-3000}
+      TZ: ${TZ:-Asia/Tokyo}
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-links_system}
+      DB_USER: ${DB_USER:-links}
+      DB_PASSWORD: ${DB_PASSWORD:-links_pass_change_me}
+      SESSION_SECRET: ${SESSION_SECRET:-links_session_secret_change_me}
+      ADMIN_LOGIN_ID: ${ADMIN_LOGIN_ID:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
+      ADMIN_DISPLAY_NAME: ${ADMIN_DISPLAY_NAME:-管理者}
+    ports:
+      - "8080:3000"
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./data/pdf:/app/pdf
