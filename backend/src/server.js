@@ -7,6 +7,7 @@ const { getPool, ping } = require('./db');
 const { runMigrationsAndSeed } = require('./migrate');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
 
 
 async function createApp() {
@@ -72,12 +73,34 @@ async function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/users', usersRoutes);
 
-  // ロールミドルウェアの動作確認用（管理画面は後続フェーズ）
+  // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {
     res.json({
       ok: true,
       message: 'admin role ok',
+      user: req.session.user,
+    });
+  });
+
+  app.get('/api/permissions/check/:feature', requireAuth, (req, res) => {
+    const { hasPermission } = require('./permissions');
+    const feature = String(req.params.feature || '');
+    const allowed = hasPermission(req.session.user, feature);
+    if (!allowed) {
+      return res.status(403).json({
+        ok: false,
+        error: 'forbidden',
+        message: 'この機能を利用する権限がありません',
+        feature,
+        allowed: false,
+      });
+    }
+    return res.json({
+      ok: true,
+      feature,
+      allowed: true,
       user: req.session.user,
     });
   });
