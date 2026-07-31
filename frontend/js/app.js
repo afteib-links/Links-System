@@ -14,11 +14,15 @@
   const FEATURE_FALLBACK = [
     { key: 'companies', label: '企業マスタ', desc: '企業情報を登録・管理します', group: 'master' },
     { key: 'partners', label: 'パートナーマスタ', desc: 'パートナー企業を登録・管理します', group: 'master' },
-    { key: 'projects', label: '案件マスタ', desc: '案件情報を登録・管理します', group: 'master' },
+    { key: 'base_projects', label: '基本案件', desc: '基本案件テンプレートを管理します', group: 'master' },
+    { key: 'projects', label: '個別案件', desc: '個別案件を登録・管理します', group: 'master' },
+    { key: 'price_sets', label: '金額データ管理', desc: '料金セットを登録・管理します', group: 'master' },
     { key: 'daily_reports', label: '日報', desc: '日々の業務内容を登録・管理します', group: 'daily' },
     { key: 'advances', label: '先払い', desc: '先払いの申請・管理を行います', group: 'billing' },
     { key: 'invoices', label: '請求', desc: '請求の作成・管理を行います', group: 'billing' },
     { key: 'payments', label: '支払', desc: '支払の処理・管理を行います', group: 'billing' },
+    { key: 'master_settings', label: 'マスター設定', desc: '担当者・区分・システム設定', group: 'settings' },
+    { key: 'ui_builder', label: 'UIビルダー', desc: '画面レイアウトを編集します', group: 'settings' },
     { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },
   ];
 
@@ -72,11 +76,13 @@
   }
 
   function enrichFeatures(list) {
-    return (list || FEATURE_FALLBACK).map((f) => {
+    const source = Array.isArray(list) && list.length ? list : FEATURE_FALLBACK;
+    return source.map((f) => {
       const base = FEATURE_FALLBACK.find((x) => x.key === f.key) || {};
       return {
         ...base,
         ...f,
+        label: f.label || base.label || f.key,
         desc: f.desc || base.desc || '',
         group: f.group || base.group || 'settings',
       };
@@ -209,8 +215,16 @@
       window.LinksPartners.open(ctx);
       return;
     }
+    if (featureKey === 'base_projects' && window.LinksProjects) {
+      window.LinksProjects.open(ctx, { ...options, tab: 'base', featureKey: 'base_projects' });
+      return;
+    }
     if (featureKey === 'projects' && window.LinksProjects) {
-      window.LinksProjects.open(ctx, options);
+      window.LinksProjects.open(ctx, { ...options, tab: options.tab || 'projects', featureKey: 'projects' });
+      return;
+    }
+    if (featureKey === 'price_sets' && window.LinksPriceSets) {
+      window.LinksPriceSets.open(ctx);
       return;
     }
     if (featureKey === 'daily_reports' && window.LinksDailyReports) {
@@ -227,6 +241,14 @@
     }
     if (featureKey === 'payments' && window.LinksPayments) {
       window.LinksPayments.open(ctx);
+      return;
+    }
+    if (featureKey === 'master_settings' && window.LinksMasterSettings) {
+      window.LinksMasterSettings.open(ctx);
+      return;
+    }
+    if (featureKey === 'ui_builder' && window.LinksUiBuilder) {
+      window.LinksUiBuilder.open(ctx, options);
       return;
     }
     if (featureKey === 'users') {

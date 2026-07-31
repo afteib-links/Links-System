@@ -74,6 +74,10 @@ router.get('/', async (req, res) => {
           : Number(p.installment_amount || 0);
         const isTarget = saved ? !!saved.is_target : false;
         const total = isTarget ? unitPrice * workDays : 0;
+        const daysInput =
+          saved && saved.work_days_input != null ? Number(saved.work_days_input) : null;
+        const effectiveDays = daysInput != null ? daysInput : workDays;
+        const cycleTotal = isTarget ? unitPrice * effectiveDays : 0;
         cycles.push({
           cycle_number: cycle,
           advance_payment_id: saved?.advance_payment_id || null,
@@ -81,7 +85,9 @@ router.get('/', async (req, res) => {
           unit_price: unitPrice,
           is_price_overridden: saved ? !!saved.is_price_overridden : false,
           work_days: workDays,
-          total_amount: saved && saved.is_target ? Number(saved.total_amount) : total,
+          work_days_input: daysInput,
+          title: saved?.title || '',
+          total_amount: saved && saved.is_target ? Number(saved.total_amount) : cycleTotal,
           applied_transfer_fee: saved ? Number(saved.applied_transfer_fee) : 0,
           version: saved?.version || null,
         });

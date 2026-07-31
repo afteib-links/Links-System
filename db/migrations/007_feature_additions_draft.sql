@@ -154,10 +154,7 @@ ALTER TABLE payments
   ADD COLUMN IF NOT EXISTS is_confirmed TINYINT(1) NOT NULL DEFAULT 0 AFTER approval_status,
   ADD COLUMN IF NOT EXISTS is_printed TINYINT(1) NOT NULL DEFAULT 0 AFTER is_confirmed,
   ADD COLUMN IF NOT EXISTS is_excluded TINYINT(1) NOT NULL DEFAULT 0 AFTER is_printed,
-  ADD COLUMN IF NOT EXISTS issue_type VARCHAR(16) NOT NULL DEFAULT 'final' AFTER is_excluded,
-  ADD COLUMN IF NOT EXISTS advance_deduction DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER total_amount,
-  ADD COLUMN IF NOT EXISTS transfer_fee DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER advance_deduction,
-  ADD COLUMN IF NOT EXISTS fixed_deduction DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER transfer_fee;
+  ADD COLUMN IF NOT EXISTS issue_type VARCHAR(16) NOT NULL DEFAULT 'final' AFTER is_excluded;
 
 -- ===== 請求除外リスト =====
 CREATE TABLE IF NOT EXISTS invoice_exclusions (

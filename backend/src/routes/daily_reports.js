@@ -119,6 +119,7 @@ router.get('/', async (req, res) => {
     const status = String(req.query.status || '').trim();
     const companyId = Number(req.query.company_id || 0);
     const partnerId = Number(req.query.partner_id || 0);
+    const projectId = Number(req.query.project_id || 0);
     const q = String(req.query.q || '').trim();
 
     const where = ['d.is_deleted = 0'];
@@ -139,23 +140,22 @@ router.get('/', async (req, res) => {
       where.push('d.partner_id = ?');
       params.push(partnerId);
     }
+    if (projectId > 0) {
+      where.push('d.project_id = ?');
+      params.push(projectId);
+    }
     if (q) {
       where.push('(c.company_name LIKE ? OR p.partner_name LIKE ? OR CAST(d.project_id AS CHAR) LIKE ?)');
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
 
     const rows = await query(
-      `SELECT d.daily_report_id, d.project_id, d.company_id, d.partner_id, d.vehicle_id,
-              d.target_year_month, d.work_date, d.start_time, d.end_time, d.break_time,
-              d.status, d.billing_status, d.payment_status,
-              d.calculated_billing_amount, d.calculated_payment_amount,
-              d.override_billing_amount, d.override_payment_amount, d.version,
-              c.company_name, p.partner_name
+      `SELECT d.*, c.company_name, p.partner_name
        FROM daily_reports d
        LEFT JOIN companies c ON c.company_id = d.company_id
        LEFT JOIN partners p ON p.partner_id = d.partner_id
        WHERE ${where.join(' AND ')}
-       ORDER BY d.work_date DESC, d.daily_report_id DESC`,
+       ORDER BY d.work_date ASC, d.daily_report_id ASC`,
       params
     );
 

@@ -8,6 +8,11 @@
       await this.showList();
     },
 
+    calcTotal(isTarget, unitPrice, days) {
+      if (!isTarget) return 0;
+      return Math.round(Number(unitPrice || 0) * Number(days || 0) * 100) / 100;
+    },
+
     async showList(message = '') {
       this.ctx.renderLoading();
       const params = new URLSearchParams({ target_year_month: this.ym, q: this.q });
@@ -24,20 +29,44 @@
       const bodyRows = (data.rows || [])
         .map((row) => {
           const cycles = row.cycles
-            .map(
-              (c) => `
-              <td>
-                <label class="check-item"><input type="checkbox" data-p="${row.project_id}" data-c="${c.cycle_number}" data-field="is_target" ${c.is_target ? 'checked' : ''} /><span>対象</span></label>
-                <input type="number" step="0.01" style="width:6rem" data-p="${row.project_id}" data-c="${c.cycle_number}" data-field="unit_price" value="${this.ctx.escapeHtml(c.unit_price)}" />
-                ${c.is_price_overridden ? '<span class="muted">（変）</span>' : ''}
-                <div class="muted">日数:${c.work_days} / 合計:${c.total_amount}</div>
-                <input type="number" step="0.01" style="width:6rem" placeholder="手数料" data-p="${row.project_id}" data-c="${c.cycle_number}" data-field="applied_transfer_fee" value="${this.ctx.escapeHtml(c.applied_transfer_fee)}" />
-              </td>`
-            )
+            .map((c) => {
+              const days =
+                c.work_days_input != null && c.work_days_input !== ''
+                  ? Number(c.work_days_input)
+                  : Number(c.work_days || 0);
+              const total = this.calcTotal(c.is_target, c.unit_price, days);
+              return `
+              <td class="adv-cycle" data-p="${row.project_id}" data-c="${c.cycle_number}">
+                <div class="adv-title">
+                  <input type="text" placeholder="タイトル" data-field="title" value="${this.ctx.escapeHtml(c.title || `${row.template_name || ''} 第${c.cycle_number}回`)}" />
+                </div>
+                <label class="check-item"><input type="checkbox" data-field="is_target" ${c.is_target ? 'checked' : ''} /><span>対象</span></label>
+                <div class="adv-row">
+                  <label>単価</label>
+                  <input type="number" step="0.01" data-field="unit_price" value="${this.ctx.escapeHtml(c.unit_price)}" />
+                  ${c.is_price_overridden ? '<span class="muted">（変）</span>' : ''}
+                </div>
+                <div class="adv-row">
+                  <label>日数</label>
+                  <button type="button" class="btn btn-ghost btn-small" data-spin="-1">−</button>
+                  <input type="number" step="0.1" data-field="work_days_input" value="${this.ctx.escapeHtml(days)}" />
+                  <button type="button" class="btn btn-ghost btn-small" data-spin="1">＋</button>
+                  <span class="muted">自動:${this.ctx.escapeHtml(c.work_days)}</span>
+                </div>
+                <div class="adv-row">
+                  <label>手数料</label>
+                  <input type="number" step="0.01" data-field="applied_transfer_fee" value="${this.ctx.escapeHtml(c.applied_transfer_fee)}" />
+                </div>
+                <div class="adv-total">合計: <strong data-total>${this.ctx.escapeHtml(total)}</strong></div>
+              </td>`;
+            })
             .join('');
           return `
             <tr>
-              <td>${this.ctx.escapeHtml(row.project_id)}<br/><span class="muted">${this.ctx.escapeHtml(row.template_name || '')}</span></td>
+              <td>
+                <div><strong>#${this.ctx.escapeHtml(row.project_id)}</strong></div>
+                <div class="muted">${this.ctx.escapeHtml(row.template_name || '')}</div>
+              </td>
               <td>${this.ctx.escapeHtml(row.company_name || '-')}</td>
               <td>${this.ctx.escapeHtml(row.partner_name || '-')}</td>
               ${cycles}
@@ -49,7 +78,7 @@
         '先払い（仮組）',
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <p class="muted">分割案件のみ表示。サイクル境界は仮組固定（1-10 / 11-20 / 21-末）。PDFなし。</p>
+          <p class="muted">分割案件のみ。日数は小数第1位まで手入力可。スピンは1刻み。</p>
           <div class="toolbar">
             <input type="month" id="ym" value="${this.ctx.escapeHtml(this.ym)}" />
             <input id="q" type="text" placeholder="企業・パートナー・案件" value="${this.ctx.escapeHtml(this.q)}" />
@@ -57,7 +86,7 @@
             <button type="button" class="btn" id="save">保存</button>
           </div>
           <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table data-table-compact">
               <thead>
                 <tr>
                   <th>案件</th><th>企業</th><th>パートナー</th>
@@ -76,22 +105,50 @@
         this.showList();
       });
       document.getElementById('save')?.addEventListener('click', () => this.save());
+      this.bindLiveCalc();
+    },
+
+    recalcCell(cell) {
+      const isTarget = cell.querySelector('[data-field="is_target"]')?.checked;
+      const unit = cell.querySelector('[data-field="unit_price"]')?.value;
+      const days = cell.querySelector('[data-field="work_days_input"]')?.value;
+      const totalEl = cell.querySelector('[data-total]');
+      if (totalEl) totalEl.textContent = String(this.calcTotal(isTarget, unit, days));
+    },
+
+    bindLiveCalc() {
+      document.querySelectorAll('.adv-cycle').forEach((cell) => {
+        cell.querySelectorAll('[data-field]').forEach((el) => {
+          el.addEventListener('input', () => this.recalcCell(cell));
+          el.addEventListener('change', () => this.recalcCell(cell));
+        });
+        cell.querySelectorAll('[data-spin]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const input = cell.querySelector('[data-field="work_days_input"]');
+            if (!input) return;
+            const delta = Number(btn.getAttribute('data-spin'));
+            const next = Math.round((Number(input.value || 0) + delta) * 10) / 10;
+            input.value = String(Math.max(0, next));
+            this.recalcCell(cell);
+          });
+        });
+      });
     },
 
     async save() {
       const map = new Map();
-      document.querySelectorAll('[data-p][data-c][data-field]').forEach((el) => {
-        const key = `${el.getAttribute('data-p')}:${el.getAttribute('data-c')}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            project_id: Number(el.getAttribute('data-p')),
-            cycle_number: Number(el.getAttribute('data-c')),
-          });
-        }
-        const item = map.get(key);
-        const field = el.getAttribute('data-field');
-        if (field === 'is_target') item.is_target = el.checked;
-        else item[field] = el.value;
+      document.querySelectorAll('.adv-cycle').forEach((cell) => {
+        const key = `${cell.getAttribute('data-p')}:${cell.getAttribute('data-c')}`;
+        const item = {
+          project_id: Number(cell.getAttribute('data-p')),
+          cycle_number: Number(cell.getAttribute('data-c')),
+        };
+        cell.querySelectorAll('[data-field]').forEach((el) => {
+          const field = el.getAttribute('data-field');
+          if (field === 'is_target') item.is_target = el.checked;
+          else item[field] = el.value;
+        });
+        map.set(key, item);
       });
       const result = await this.ctx.api('/api/advances/upsert', {
         method: 'PUT',

@@ -3,20 +3,14 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
-      this.listState = {
-        target_year_month: this.kit.currentYearMonth(),
-        status: '',
-        q: '',
-      };
-      const [companies, partners, projects] = await Promise.all([
-        this.ctx.api('/api/lookups/companies'),
-        this.ctx.api('/api/lookups/partners'),
-        this.ctx.api('/api/lookups/projects'),
-      ]);
-      this.companies = companies.data?.companies || [];
-      this.partners = partners.data?.partners || [];
-      this.projects = projects.data?.projects || [];
-      await this.showList();
+      this.ym = this.kit.currentYearMonth();
+      await this.showMonthList();
+    },
+
+    shiftMonth(delta) {
+      const [y, m] = this.ym.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      this.ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     },
 
     statusLabel(s) {
@@ -26,14 +20,15 @@
           confirmed: '確定',
           approved: '承認',
           rejected: '却下',
-        }[s] || s
+        }[s] || s || '-'
       );
     },
 
-    async showList(message = '') {
+    async showMonthList(message = '') {
       this.ctx.renderLoading();
-      const params = new URLSearchParams(this.listState);
-      const { res, data } = await this.ctx.api(`/api/daily-reports?${params}`);
+      const { res, data } = await this.ctx.api(
+        `/api/daily-reports/month-projects?target_year_month=${encodeURIComponent(this.ym)}`
+      );
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
           '日報',
@@ -42,23 +37,21 @@
         this.kit.bindShell();
         return;
       }
-      const rows = (data.reports || [])
+      const summary = data.summary || {};
+      const rows = (data.rows || [])
         .map(
           (r) => `
           <tr>
-            <td>${this.ctx.escapeHtml(r.daily_report_id)}</td>
-            <td>${this.ctx.escapeHtml(this.kit.dateValue(r.work_date))}</td>
-            <td>${this.ctx.escapeHtml(r.company_name || r.company_id)}</td>
-            <td>${this.ctx.escapeHtml(r.partner_name || '-')}</td>
             <td>${this.ctx.escapeHtml(r.project_id)}</td>
-            <td><span class="status-badge status-${this.ctx.escapeHtml(r.status)}">${this.ctx.escapeHtml(
-              this.statusLabel(r.status)
-            )}</span></td>
-            <td>${this.ctx.escapeHtml(r.effective_billing_amount)}</td>
-            <td>${this.ctx.escapeHtml(r.effective_payment_amount)}</td>
+            <td>${this.ctx.escapeHtml(r.company_name || '-')}</td>
+            <td>${this.ctx.escapeHtml(r.partner_name || '-')}</td>
+            <td>${this.ctx.escapeHtml(r.template_name || r.manager_name || '-')}</td>
+            <td>${this.ctx.escapeHtml(r.input_days)}/${this.ctx.escapeHtml(r.days_in_month)}</td>
+            <td>${this.ctx.escapeHtml(r.completion_rate)}%</td>
+            <td>${this.ctx.escapeHtml(r.input_status)}</td>
             <td>
-              <button type="button" class="btn btn-ghost btn-small" data-edit="${r.daily_report_id}">開く</button>
-              <button type="button" class="btn btn-danger btn-small" data-del="${r.daily_report_id}">削除</button>
+              <button type="button" class="btn btn-small" data-input="${r.project_id}"
+                data-company="${r.company_id || ''}" data-partner="${r.partner_id || ''}">入力</button>
             </td>
           </tr>`
         )
@@ -68,197 +61,366 @@
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="toolbar">
-            <input type="month" id="ym" value="${this.ctx.escapeHtml(this.listState.target_year_month)}" />
-            <select id="status">
-              <option value="">ステータスすべて</option>
-              <option value="draft" ${this.listState.status === 'draft' ? 'selected' : ''}>下書き</option>
-              <option value="confirmed" ${this.listState.status === 'confirmed' ? 'selected' : ''}>確定</option>
-              <option value="approved" ${this.listState.status === 'approved' ? 'selected' : ''}>承認</option>
-              <option value="rejected" ${this.listState.status === 'rejected' ? 'selected' : ''}>却下</option>
-            </select>
-            <input id="q" type="text" placeholder="企業・パートナー・案件No" value="${this.ctx.escapeHtml(this.listState.q)}" />
-            <button type="button" class="btn" id="search">検索</button>
-            <button type="button" class="btn" id="new">＋ 新規日報</button>
+            <button type="button" class="btn btn-ghost" id="prev-month">← 前月</button>
+            <input type="month" id="ym" value="${this.ctx.escapeHtml(this.ym)}" />
+            <button type="button" class="btn btn-ghost" id="next-month">次月 →</button>
+            <button type="button" class="btn" id="reload">表示</button>
           </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>No</th><th>勤務日</th><th>企業</th><th>パートナー</th><th>案件</th><th>状態</th><th>請求</th><th>支払</th><th>操作</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="9">データがありません</td></tr>'}</tbody>
+          <p class="muted">対象案件 ${this.ctx.escapeHtml(summary.project_count ?? 0)} /
+            入力あり ${this.ctx.escapeHtml(summary.input_project_count ?? 0)} /
+            平均完了率 ${this.ctx.escapeHtml(summary.avg_completion_rate ?? 0)}%</p>
+          <div class="table-wrap table-wrap-sticky">
+            <table class="data-table data-table-compact">
+              <thead><tr><th>案件</th><th>企業</th><th>パートナー</th><th>名称</th><th>入力日数</th><th>完了率</th><th>状況</th><th>操作</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="8">案件がありません</td></tr>'}</tbody>
             </table>
           </div>
         </section>`
       );
       this.kit.bindShell();
-      document.getElementById('search')?.addEventListener('click', () => {
-        this.listState.target_year_month = document.getElementById('ym').value;
-        this.listState.status = document.getElementById('status').value;
-        this.listState.q = document.getElementById('q').value.trim();
-        this.showList();
+      document.getElementById('prev-month')?.addEventListener('click', () => {
+        this.shiftMonth(-1);
+        this.showMonthList();
       });
-      document.getElementById('new')?.addEventListener('click', () => this.showDetail(null));
-      document.querySelectorAll('[data-edit]').forEach((btn) =>
-        btn.addEventListener('click', () => this.showDetail(Number(btn.getAttribute('data-edit'))))
-      );
-      document.querySelectorAll('[data-del]').forEach((btn) =>
-        btn.addEventListener('click', async () => {
-          if (!window.confirm('削除しますか？')) return;
-          const result = await this.ctx.api(`/api/daily-reports/${btn.getAttribute('data-del')}`, {
-            method: 'DELETE',
+      document.getElementById('next-month')?.addEventListener('click', () => {
+        this.shiftMonth(1);
+        this.showMonthList();
+      });
+      document.getElementById('reload')?.addEventListener('click', () => {
+        this.ym = document.getElementById('ym').value || this.ym;
+        this.showMonthList();
+      });
+      document.querySelectorAll('[data-input]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          this.kit.pushNav(() => this.showMonthList());
+          this.showInputGrid({
+            project_id: Number(btn.getAttribute('data-input')),
+            company_id: Number(btn.getAttribute('data-company') || 0) || null,
+            partner_id: Number(btn.getAttribute('data-partner') || 0) || null,
           });
-          if (!result.res.ok) {
-            window.alert(result.data?.message || '削除失敗');
-            return;
-          }
-          await this.showList('削除しました');
         })
       );
     },
 
-    async showDetail(id) {
-      this.ctx.renderLoading();
-      let report = {
+    daysInMonth(ym) {
+      const [y, m] = ym.split('-').map(Number);
+      return new Date(y, m, 0).getDate();
+    },
+
+    emptyDay(dateStr, meta) {
+      return {
         daily_report_id: null,
         version: 1,
         status: 'draft',
-        project_id: '',
-        company_id: '',
-        partner_id: '',
-        vehicle_id: '',
-        target_year_month: this.listState.target_year_month,
-        work_date: '',
+        project_id: meta.project_id,
+        company_id: meta.company_id,
+        partner_id: meta.partner_id,
+        target_year_month: this.ym,
+        work_date: dateStr,
         start_time: '',
         end_time: '',
         break_time: '',
-        memo: '',
-        calculated_billing_amount: '',
-        calculated_payment_amount: '',
+        is_absent: 0,
+        is_training: 0,
+        binding_hours: '',
+        work_hours: '',
+        overtime_hours: '',
+        shortage_hours: '',
+        start_meter: '',
+        end_meter: '',
+        total_distance: '',
+        toll_fee: '',
+        parking_fee: '',
+        transport_fee: '',
+        night_hours: '',
+        spot_amount: '',
+        row_comment: '',
         override_billing_amount: '',
         override_payment_amount: '',
-        rejection_reason: '',
+        calculated_billing_amount: '',
+        calculated_payment_amount: '',
+        _dirty: false,
+        _expanded: false,
       };
-      if (id) {
-        const { res, data } = await this.ctx.api(`/api/daily-reports/${id}`);
-        if (!res.ok || !data?.ok) {
-          this.ctx.app.innerHTML = this.kit.shell(
-            '日報詳細',
-            `<section class="panel"><p class="error">${this.ctx.escapeHtml(data?.message || '取得失敗')}</p></section>`
-          );
-          this.kit.bindShell();
-          return;
-        }
-        report = data.report;
+    },
+
+    async showInputGrid(meta) {
+      this.ctx.renderLoading();
+      this.gridMeta = meta;
+      const params = new URLSearchParams({
+        target_year_month: this.ym,
+        project_id: meta.project_id,
+      });
+      const { res, data } = await this.ctx.api(`/api/daily-reports?${params}`);
+      if (!res.ok || !data?.ok) {
+        this.ctx.app.innerHTML = this.kit.shell(
+          '日報入力',
+          `<section class="panel"><p class="error">${this.ctx.escapeHtml(data?.message || '取得失敗')}</p></section>`,
+          { onBack: () => this.showMonthList() }
+        );
+        this.kit.bindShell({ onBack: () => this.showMonthList() });
+        return;
       }
-      const locked = report.status === 'approved';
-      const confirmedLock = report.status === 'confirmed';
+      const byDate = new Map();
+      for (const r of data.reports || []) {
+        byDate.set(this.kit.dateValue(r.work_date), { ...r, _dirty: false, _expanded: false });
+      }
+      const days = this.daysInMonth(this.ym);
+      this.gridRows = [];
+      for (let d = 1; d <= days; d += 1) {
+        const dateStr = `${this.ym}-${String(d).padStart(2, '0')}`;
+        this.gridRows.push(byDate.get(dateStr) || this.emptyDay(dateStr, meta));
+      }
+      this.renderGrid();
+    },
+
+    summaryFromGrid() {
+      let workDays = 0;
+      let overtime = 0;
+      let shortage = 0;
+      let distance = 0;
+      for (const r of this.gridRows) {
+        if (r.daily_report_id || r.start_time || r.is_absent || r.is_training) workDays += 1;
+        overtime += Number(r.overtime_hours || 0);
+        shortage += Number(r.shortage_hours || 0);
+        distance += Number(r.total_distance || 0);
+      }
+      return { workDays, overtime, shortage, distance };
+    },
+
+    renderGrid(message = '') {
+      const sum = this.summaryFromGrid();
+      const body = this.gridRows
+        .map((r, idx) => {
+          const locked = r.status === 'approved';
+          const main = `
+            <tr class="dr-main" data-idx="${idx}">
+              <td><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}">${r._expanded ? '▼' : '▶'}</button> ${this.ctx.escapeHtml(this.kit.dateValue(r.work_date))}</td>
+              <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
+              <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
+              <td><input type="time" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="time" data-f="end_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.end_time))}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" style="width:4rem" data-f="binding_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.binding_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" style="width:4rem" data-f="work_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.work_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" style="width:4rem" data-f="overtime_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.overtime_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" style="width:4rem" data-f="shortage_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.shortage_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.1" style="width:5rem" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" style="width:5rem" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" style="width:5rem" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" style="width:5rem" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><span class="status-badge status-${this.ctx.escapeHtml(r.status || 'draft')}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</span></td>
+            </tr>`;
+          const expand = r._expanded
+            ? `<tr class="dr-expand" data-expand-row="${idx}">
+                <td colspan="14">
+                  <div class="form-grid">
+                    <div><label>深夜時間</label><input type="number" step="0.25" data-f="night_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.night_hours ?? '')}" ${locked ? 'disabled' : ''} /></div>
+                    <div><label>スポット加算</label><input type="number" step="0.01" data-f="spot_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.spot_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
+                    <div><label>上書・請求</label><input type="number" step="0.01" data-f="override_billing_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.override_billing_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
+                    <div><label>上書・支払</label><input type="number" step="0.01" data-f="override_payment_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.override_payment_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
+                    <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${locked ? 'disabled' : ''} /></div>
+                    <div class="full btn-row">
+                      <button type="button" class="btn btn-small" data-save-row="${idx}" ${locked ? 'disabled' : ''}>行保存</button>
+                      ${
+                        r.daily_report_id && (r.status === 'draft' || r.status === 'rejected')
+                          ? `<button type="button" class="btn btn-small" data-status-row="${idx}" data-status="confirmed">承認依頼</button>`
+                          : ''
+                      }
+                      ${
+                        r.daily_report_id && r.status === 'confirmed'
+                          ? `<button type="button" class="btn btn-small" data-status-row="${idx}" data-status="approved">承認</button>`
+                          : ''
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>`
+            : '';
+          return main + expand;
+        })
+        .join('');
 
       this.ctx.app.innerHTML = this.kit.shell(
-        id ? `日報（No.${id} / ${this.statusLabel(report.status)}）` : '日報新規',
+        `日報入力（案件#${this.gridMeta.project_id} / ${this.ym}）`,
         `<section class="panel">
-          <p class="error" id="form-error"></p>
-          ${report.rejection_reason ? `<p class="flash">却下理由: ${this.ctx.escapeHtml(report.rejection_reason)}</p>` : ''}
-          <form id="report-form">
-            <div class="form-grid">
-              <div><label>対象年月</label><input type="month" name="target_year_month" value="${this.ctx.escapeHtml(report.target_year_month || '')}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>勤務日（必須）</label><input type="date" name="work_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(report.work_date))}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>案件（必須）</label><select name="project_id" required ${locked || confirmedLock ? 'disabled' : ''}>${this.kit.optionsFromList(this.projects, 'project_id', 'template_name', report.project_id).replace(/template_name/g, 'project_id') /* fallback */}</select></div>
-              <div><label>企業（必須）</label><select name="company_id" required ${locked || confirmedLock ? 'disabled' : ''}>${this.kit.optionsFromList(this.companies, 'company_id', 'company_name', report.company_id)}</select></div>
-              <div><label>パートナー</label><select name="partner_id" ${locked || confirmedLock ? 'disabled' : ''}>${this.kit.optionsFromList(this.partners, 'partner_id', 'partner_name', report.partner_id)}</select></div>
-              <div><label>車両ID</label><input type="number" name="vehicle_id" value="${this.ctx.escapeHtml(report.vehicle_id || '')}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>開始</label><input type="time" name="start_time" value="${this.ctx.escapeHtml(this.kit.timeValue(report.start_time))}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>終了</label><input type="time" name="end_time" value="${this.ctx.escapeHtml(this.kit.timeValue(report.end_time))}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>休憩(h)</label><input type="number" step="0.25" name="break_time" value="${this.ctx.escapeHtml(report.break_time ?? '')}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div class="full"><label>メモ</label><textarea name="memo" rows="2" ${locked ? 'disabled' : ''}>${this.ctx.escapeHtml(report.memo || '')}</textarea></div>
-              <div><label>計算・請求</label><input type="number" step="0.01" name="calculated_billing_amount" value="${this.ctx.escapeHtml(report.calculated_billing_amount ?? '')}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>計算・支払</label><input type="number" step="0.01" name="calculated_payment_amount" value="${this.ctx.escapeHtml(report.calculated_payment_amount ?? '')}" ${locked || confirmedLock ? 'disabled' : ''} /></div>
-              <div><label>上書・請求</label><input type="number" step="0.01" name="override_billing_amount" value="${this.ctx.escapeHtml(report.override_billing_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
-              <div><label>上書・支払</label><input type="number" step="0.01" name="override_payment_amount" value="${this.ctx.escapeHtml(report.override_payment_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
-            </div>
-            <div class="btn-row">
-              ${locked ? '' : '<button class="btn" type="submit">保存</button>'}
-              <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
-            </div>
-          </form>
-          ${
-            id
-              ? `<div class="btn-row" style="margin-top:1rem">
-            ${report.status === 'draft' || report.status === 'rejected' ? '<button type="button" class="btn" id="to-confirmed">確定する</button>' : ''}
-            ${report.status === 'confirmed' ? '<button type="button" class="btn" id="to-approved">承認する</button>' : ''}
-            ${report.status === 'confirmed' ? '<button type="button" class="btn btn-danger" id="to-rejected">却下する</button>' : ''}
-            ${report.status === 'confirmed' ? '<button type="button" class="btn btn-ghost" id="to-draft">下書きに戻す</button>' : ''}
-          </div>`
-              : ''
-          }
-        </section>`
+          ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
+          <div class="dr-summary">
+            <span>稼働日数: <strong>${sum.workDays}</strong></span>
+            <span>超過合計: <strong>${sum.overtime}</strong></span>
+            <span>不足合計: <strong>${sum.shortage}</strong></span>
+            <span>総距離: <strong>${sum.distance}</strong></span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="save-all">一括保存</button>
+            <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
+            <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
+            <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
+          </div>
+          <div class="table-wrap table-wrap-sticky">
+            <table class="data-table data-table-compact">
+              <thead>
+                <tr>
+                  <th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
+                  <th>拘束</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
+                  <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th>
+                </tr>
+              </thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        </section>`,
+        { onBack: () => this.showMonthList() }
       );
+      this.kit.bindShell({ onBack: () => this.showMonthList() });
+      this.bindGrid();
+    },
 
-      // Fix project options to show readable labels
-      const projectSelect = document.querySelector('[name="project_id"]');
-      if (projectSelect) {
-        projectSelect.innerHTML = [`<option value="">（未選択）</option>`]
-          .concat(
-            this.projects.map((p) => {
-              const label = `${p.company_name || ''} / ${p.partner_name || '-'} / ${p.template_name || p.manager_name || ''}`;
-              return `<option value="${p.project_id}" ${
-                Number(p.project_id) === Number(report.project_id) ? 'selected' : ''
-              }>${this.ctx.escapeHtml(label)} (#${p.project_id})</option>`;
-            })
-          )
-          .join('');
-        if (locked || confirmedLock) projectSelect.disabled = true;
-      }
+    collectField(el) {
+      const idx = Number(el.getAttribute('data-idx'));
+      const field = el.getAttribute('data-f');
+      const row = this.gridRows[idx];
+      if (!row) return;
+      if (el.type === 'checkbox') row[field] = el.checked ? 1 : 0;
+      else row[field] = el.value;
+      row._dirty = true;
+    },
 
-      this.kit.bindShell();
-      document.getElementById('cancel')?.addEventListener('click', () => this.showList());
-      document.getElementById('report-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const form = e.currentTarget;
-        const payload = {
-          target_year_month: form.target_year_month?.value || report.target_year_month,
-          work_date: form.work_date?.value || report.work_date,
-          project_id: Number(form.project_id?.value || report.project_id),
-          company_id: Number(form.company_id?.value || report.company_id),
-          partner_id: form.partner_id?.value ? Number(form.partner_id.value) : report.partner_id,
-          vehicle_id: form.vehicle_id?.value ? Number(form.vehicle_id.value) : null,
-          start_time: form.start_time?.value || null,
-          end_time: form.end_time?.value || null,
-          break_time: form.break_time?.value || null,
-          memo: form.memo.value,
-          calculated_billing_amount: form.calculated_billing_amount?.value || null,
-          calculated_payment_amount: form.calculated_payment_amount?.value || null,
-          override_billing_amount: form.override_billing_amount.value || null,
-          override_payment_amount: form.override_payment_amount.value || null,
-          version: report.version || 1,
-        };
-        const result = id
-          ? await this.ctx.api(`/api/daily-reports/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
-          : await this.ctx.api('/api/daily-reports', { method: 'POST', body: JSON.stringify(payload) });
-        if (!result.res.ok || !result.data?.ok) {
-          document.getElementById('form-error').textContent = result.data?.message || '保存失敗';
-          return;
-        }
-        await this.showList(id ? '更新しました' : '登録しました');
+    bindGrid() {
+      document.querySelectorAll('[data-f][data-idx]').forEach((el) => {
+        el.addEventListener('change', () => this.collectField(el));
+        el.addEventListener('input', () => this.collectField(el));
       });
-
-      const changeStatus = async (status) => {
-        let rejection_reason = null;
-        if (status === 'rejected') {
-          rejection_reason = window.prompt('却下理由を入力してください');
-          if (!rejection_reason) return;
-        }
-        const result = await this.ctx.api(`/api/daily-reports/${id}/status`, {
-          method: 'POST',
-          body: JSON.stringify({ status, rejection_reason }),
+      document.querySelectorAll('[data-expand]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          const idx = Number(btn.getAttribute('data-expand'));
+          this.gridRows[idx]._expanded = !this.gridRows[idx]._expanded;
+          this.renderGrid();
+        })
+      );
+      document.getElementById('expand-all')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+        const anyClosed = this.gridRows.some((r) => !r._expanded);
+        this.gridRows.forEach((r) => {
+          r._expanded = anyClosed;
         });
-        if (!result.res.ok) {
-          window.alert(result.data?.message || 'ステータス更新失敗');
-          return;
+        this.renderGrid();
+      });
+      document.getElementById('amount-check')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+        let billing = 0;
+        let payment = 0;
+        for (const r of this.gridRows) {
+          billing += Number(r.override_billing_amount ?? r.calculated_billing_amount ?? 0);
+          payment += Number(r.override_payment_amount ?? r.calculated_payment_amount ?? 0);
         }
-        await this.showDetail(id);
+        window.alert(`請求合計: ${billing}\n支払合計: ${payment}`);
+      });
+      document.getElementById('back-month')?.addEventListener('click', () => this.showMonthList());
+      document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
+      document.querySelectorAll('[data-save-row]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          await this.saveRow(Number(btn.getAttribute('data-save-row')));
+        })
+      );
+      document.querySelectorAll('[data-status-row]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const idx = Number(btn.getAttribute('data-status-row'));
+          const status = btn.getAttribute('data-status');
+          const row = this.gridRows[idx];
+          if (!row.daily_report_id) return;
+          const result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}/status`, {
+            method: 'POST',
+            body: JSON.stringify({ status }),
+          });
+          if (!result.res.ok) {
+            window.alert(result.data?.message || 'ステータス更新失敗');
+            return;
+          }
+          await this.showInputGrid(this.gridMeta);
+        })
+      );
+    },
+
+    rowPayload(row) {
+      return {
+        project_id: row.project_id || this.gridMeta.project_id,
+        company_id: row.company_id || this.gridMeta.company_id,
+        partner_id: row.partner_id || this.gridMeta.partner_id || null,
+        target_year_month: this.ym,
+        work_date: this.kit.dateValue(row.work_date),
+        start_time: row.start_time || null,
+        end_time: row.end_time || null,
+        break_time: row.break_time || null,
+        is_absent: row.is_absent ? 1 : 0,
+        is_training: row.is_training ? 1 : 0,
+        binding_hours: row.binding_hours || null,
+        work_hours: row.work_hours || null,
+        overtime_hours: row.overtime_hours || null,
+        shortage_hours: row.shortage_hours || null,
+        total_distance: row.total_distance || null,
+        toll_fee: row.toll_fee || null,
+        parking_fee: row.parking_fee || null,
+        transport_fee: row.transport_fee || null,
+        night_hours: row.night_hours || null,
+        spot_amount: row.spot_amount || null,
+        row_comment: row.row_comment || null,
+        override_billing_amount: row.override_billing_amount || null,
+        override_payment_amount: row.override_payment_amount || null,
+        version: row.version || 1,
       };
-      document.getElementById('to-confirmed')?.addEventListener('click', () => changeStatus('confirmed'));
-      document.getElementById('to-approved')?.addEventListener('click', () => changeStatus('approved'));
-      document.getElementById('to-rejected')?.addEventListener('click', () => changeStatus('rejected'));
-      document.getElementById('to-draft')?.addEventListener('click', () => changeStatus('draft'));
+    },
+
+    async saveRow(idx) {
+      const row = this.gridRows[idx];
+      const hasData =
+        row.start_time ||
+        row.end_time ||
+        row.is_absent ||
+        row.is_training ||
+        row.toll_fee ||
+        row.parking_fee ||
+        row.transport_fee ||
+        row.row_comment;
+      if (!hasData && !row.daily_report_id) return true;
+      if (!row.company_id && !this.gridMeta.company_id) {
+        window.alert('企業情報がありません');
+        return false;
+      }
+      const payload = this.rowPayload(row);
+      const result = row.daily_report_id
+        ? await this.ctx.api(`/api/daily-reports/${row.daily_report_id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          })
+        : await this.ctx.api('/api/daily-reports', { method: 'POST', body: JSON.stringify(payload) });
+      if (!result.res.ok || !result.data?.ok) {
+        window.alert(result.data?.message || `${row.work_date} の保存に失敗`);
+        return false;
+      }
+      const saved = result.data.report;
+      if (saved) {
+        this.gridRows[idx] = { ...this.gridRows[idx], ...saved, _dirty: false, _expanded: row._expanded };
+      }
+      return true;
+    },
+
+    async saveAll() {
+      document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+      for (let i = 0; i < this.gridRows.length; i += 1) {
+        const row = this.gridRows[i];
+        if (!row._dirty && !row.daily_report_id) {
+          const hasData = row.start_time || row.end_time || row.is_absent || row.is_training;
+          if (!hasData) continue;
+        }
+        if (row._dirty || (!row.daily_report_id && (row.start_time || row.is_absent || row.is_training))) {
+          const ok = await this.saveRow(i);
+          if (!ok) return;
+        }
+      }
+      await this.showInputGrid(this.gridMeta);
+      this.ctx.showToast('保存しました');
     },
   };
 
