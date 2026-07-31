@@ -1,0 +1,45 @@
+# Links-System 配備用 Docker Compose（QNAP Container Station / ローカル再現用）
+# 仕様: 06_development_environment.md §5.3
+#
+# ローカルでDBだけ起動する場合:  docker compose up -d db
+# アプリも含めて起動する場合:     docker compose up -d --build
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-links_system}
+      MARIADB_USER: ${DB_USER:-links}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-changeme}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme-root}
+      TZ: Asia/Tokyo
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306" # 本番では社外公開しない
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-links_system}
+      DB_USER: ${DB_USER:-links}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      SESSION_SECRET: ${SESSION_SECRET:-changeme}
+      ADMIN_LOGIN_ID: ${ADMIN_LOGIN_ID:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      TZ: Asia/Tokyo
+    ports:
+      - "8080:3000" # http://<NASのIP>:8080 でアクセス
