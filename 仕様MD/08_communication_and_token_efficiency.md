@@ -27,7 +27,7 @@ Keep **user-facing** surfaces in Japanese where required, without forcing Japane
 
 ## Explicitly not required
 
-- Japanizing internal reasoning / planning / deliberation / tool consideration while working
+- Japanizing internal reasoning / Thought UI / planning / deliberation / tool-step narration while working — keep those **English and short** (Japanese here wastes tokens)
 - Translating every English term in chat (a short gloss on first useful mention is enough)
 - Long Japanese restatements of completed work
 - Maintaining a Japanese copy of these rules until requested

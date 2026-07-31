@@ -24,7 +24,7 @@ Use **Japanese** for:
 
 ## Do NOT Japanize
 
-- Internal reasoning, planning, deliberation, and tool-use consideration while working a task
+- Internal reasoning / Thought / planning / deliberation / tool-step narration while working a task — keep these **English and short** (token waste if Japanized)
 - Re-translating English identifiers beyond a short gloss on first useful mention
 - Long Japanese restatements of completed work
 
