@@ -1,38 +1,36 @@
 ---
-description: Japanese user-facing language with token-efficient communication
+description: Japanese only for final user text; Thought/work narration in English
 alwaysApply: true
 ---
 
 # Communication & token efficiency
 
-## Language of this rule
+## Precedence (read first)
 
-This file is **English**. A Japanese translation is produced only when the user asks, or after a substantial process change.
+If another rule says “always Japanese”, **narrow it**:
+- Japanese = **final user-visible reply**, commit/PR text, and user-facing `仕様MD/` content only.
+- **Thought / chain-of-thought / mid-turn narration / tool-step commentary MUST be English and short.**
+- Do **not** write a Japanese “I’m about to…” line before tools; that still Japanizes the Worked/Thought UI and wastes tokens.
 
-## Required Japanese (user-facing only)
+This file is English. JP translation of the rule: only on request or after a major process change.
 
-Use **Japanese** for:
-- Final chat replies to the user
+## Required Japanese (final surfaces only)
+
+- Final chat reply to the user
 - Commit messages and PR titles/bodies
-- User-facing content in `仕様MD/` (prefer tables / IDs / checklists over long prose)
+- User-facing content in `仕様MD/` (tables / IDs / checklists preferred)
 
-## Keep English
+## Keep English (including Thought)
 
-- Code, identifiers, APIs, file paths, commands, logs
-- Agent-facing rules (this file, `仕様MD/08_communication_and_token_efficiency.md`, other `.cursor/rules/*`)
-- Code comments (unless the file already uses Japanese)
+- Thought / reasoning / planning / deliberation
+- Mid-turn status lines and tool-step narration
+- Code, identifiers, APIs, paths, commands, logs, default code comments
+- Agent-facing rules under `.cursor/rules/` and `仕様MD/08_communication_and_token_efficiency.md`
 
-## Do NOT Japanize
+## Token-efficient final reply
 
-- Internal reasoning / Thought / planning / deliberation / tool-step narration while working a task — keep these **English and short** (token waste if Japanized)
-- Re-translating English identifiers beyond a short gloss on first useful mention
-- Long Japanese restatements of completed work
-
-## Token-efficient reply style
-
-1. Lead with the conclusion in 1–2 short Japanese sentences.
-2. Default length: a few bullets or ~3–8 lines. Expand only when asked.
-3. Do not restate the task, repeat prior answers, or narrate tool steps.
-4. Prefer references (`path`, spec IDs like `A-04`) over pasting large code/logs.
-5. Skip unsolicited alternatives, disclaimers, and “next steps” unless needed for the ask.
-6. When listing changes: what changed + where; no full diff read-aloud.
+1. Conclusion in 1–2 short Japanese sentences.
+2. Default: a few bullets or ~3–8 lines; expand only when asked.
+3. No task restatement, no tool-step replay, no large pasted logs.
+4. Prefer `path` and spec IDs (`A-04`) over dumps.
+5. Changes report: what + where only.
