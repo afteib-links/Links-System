@@ -10,6 +10,13 @@ const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const mastersRoutes = require('./routes/masters');
 const companiesRoutes = require('./routes/companies');
+const partnersRoutes = require('./routes/partners');
+const projectsRoutes = require('./routes/projects');
+const dailyReportsRoutes = require('./routes/daily_reports');
+const advancesRoutes = require('./routes/advances');
+const invoicesRoutes = require('./routes/invoices');
+const paymentsRoutes = require('./routes/payments');
+const lookupsRoutes = require('./routes/lookups');
 
 
 async function createApp() {
@@ -77,7 +84,14 @@ async function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
   app.use('/api/masters', mastersRoutes);
+  app.use('/api/lookups', lookupsRoutes);
   app.use('/api/companies', companiesRoutes);
+  app.use('/api/partners', partnersRoutes);
+  app.use('/api/projects', projectsRoutes);
+  app.use('/api/daily-reports', dailyReportsRoutes);
+  app.use('/api/advances', advancesRoutes);
+  app.use('/api/invoices', invoicesRoutes);
+  app.use('/api/payments', paymentsRoutes);
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {

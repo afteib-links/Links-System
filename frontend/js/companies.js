@@ -179,9 +179,12 @@
       });
       document.querySelectorAll('[data-base-project]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-base-project');
-          console.log('[companies] 基本案件へ遷移（準備中） company_id=', id);
-          this.ctx.showToast('基本案件画面は準備中です');
+          const id = Number(btn.getAttribute('data-base-project'));
+          if (this.ctx.openFeature) {
+            this.ctx.openFeature('projects', { company_id: id, tab: 'base' });
+          } else {
+            this.ctx.showToast('基本案件画面は準備中です');
+          }
         });
       });
     },

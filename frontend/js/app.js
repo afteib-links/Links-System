@@ -184,19 +184,49 @@
     });
   }
 
-  function openFeature(featureKey) {
+  function featureContext() {
+    return {
+      app,
+      api,
+      escapeHtml,
+      headerHtml,
+      bindLogout,
+      showHome,
+      renderLoading,
+      showToast,
+      can,
+      openFeature,
+    };
+  }
+
+  function openFeature(featureKey, options = {}) {
+    const ctx = featureContext();
     if (featureKey === 'companies' && window.LinksCompanies) {
-      window.LinksCompanies.open({
-        app,
-        api,
-        escapeHtml,
-        headerHtml,
-        bindLogout,
-        showHome,
-        renderLoading,
-        showToast,
-        can,
-      });
+      window.LinksCompanies.open(ctx);
+      return;
+    }
+    if (featureKey === 'partners' && window.LinksPartners) {
+      window.LinksPartners.open(ctx);
+      return;
+    }
+    if (featureKey === 'projects' && window.LinksProjects) {
+      window.LinksProjects.open(ctx, options);
+      return;
+    }
+    if (featureKey === 'daily_reports' && window.LinksDailyReports) {
+      window.LinksDailyReports.open(ctx);
+      return;
+    }
+    if (featureKey === 'advances' && window.LinksAdvances) {
+      window.LinksAdvances.open(ctx);
+      return;
+    }
+    if (featureKey === 'invoices' && window.LinksInvoices) {
+      window.LinksInvoices.open(ctx);
+      return;
+    }
+    if (featureKey === 'payments' && window.LinksPayments) {
+      window.LinksPayments.open(ctx);
       return;
     }
     if (featureKey === 'users') {

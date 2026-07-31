@@ -564,6 +564,28 @@ select {
   margin-bottom: 0.5rem;
 }
 
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: #e8eee8;
+}
+
+.status-draft { background: #eceff1; }
+.status-confirmed { background: #fff3cd; }
+.status-approved { background: #d1e7dd; }
+.status-rejected { background: #f8d7da; }
+
+.flash {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  color: #1b5e20;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  margin-bottom: 0.85rem;
+}
+
 @media (max-width: 860px) {
   .feature-grid {
     grid-template-columns: 1fr;
