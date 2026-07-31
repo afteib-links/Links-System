@@ -185,6 +185,20 @@
   }
 
   function openFeature(featureKey) {
+    if (featureKey === 'companies' && window.LinksCompanies) {
+      window.LinksCompanies.open({
+        app,
+        api,
+        escapeHtml,
+        headerHtml,
+        bindLogout,
+        showHome,
+        renderLoading,
+        showToast,
+        can,
+      });
+      return;
+    }
     if (featureKey === 'users') {
       showUsers();
       return;

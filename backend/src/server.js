@@ -8,6 +8,8 @@ const { runMigrationsAndSeed } = require('./migrate');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
+const mastersRoutes = require('./routes/masters');
+const companiesRoutes = require('./routes/companies');
 
 
 async function createApp() {
@@ -74,6 +76,8 @@ async function createApp() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
+  app.use('/api/masters', mastersRoutes);
+  app.use('/api/companies', companiesRoutes);
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {

@@ -1,0 +1,445 @@
+const express = require('express');
+const { getPool, query } = require('../db');
+const { requireAuth, requirePermission } = require('../middleware/auth');
+
+const router = express.Router();
+
+router.use(requireAuth, requirePermission('companies'));
+
+const COMPANY_FIELDS = [
+  'office_no',
+  'company_name',
+  'company_name_kana',
+  'zip_code',
+  'address',
+  'contact',
+  'contract_manager',
+  'our_manager',
+  'our_contract_manager',
+  'closing_date_code',
+  'payment_date_code',
+  'contract_date',
+  'business_content',
+  'bank_name',
+  'branch_name',
+  'account_number',
+  'deposit_type',
+  'account_name',
+  'invoice_send_method',
+];
+
+function pickCompany(body) {
+  const out = {};
+  for (const key of COMPANY_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      const val = body[key];
+      out[key] = val === '' || val === undefined ? null : val;
+    }
+  }
+  return out;
+}
+
+function normalizeBillings(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((row) => ({
+    billing_id: row.billing_id ? Number(row.billing_id) : null,
+    billing_print_name: row.billing_print_name || null,
+    billing_address: row.billing_address || null,
+    billing_phone: row.billing_phone || null,
+    billing_fax: row.billing_fax || null,
+    billing_manager: row.billing_manager || null,
+    billing_summary_no: row.billing_summary_no || null,
+  }));
+}
+
+function normalizeVehicles(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((row) => ({
+    vehicle_id: row.vehicle_id ? Number(row.vehicle_id) : null,
+    vehicle_name: row.vehicle_name || null,
+    vehicle_number: row.vehicle_number || null,
+    inspection_expiry_date: row.inspection_expiry_date || null,
+    insurance_expiry_date: row.insurance_expiry_date || null,
+  }));
+}
+
+async function fetchCompanyDetail(companyId) {
+  const companies = await query(
+    `SELECT * FROM companies WHERE company_id = ? AND is_deleted = 0 LIMIT 1`,
+    [companyId]
+  );
+  if (!companies.length) return null;
+
+  const billings = await query(
+    `SELECT * FROM company_billings
+     WHERE company_id = ? AND is_deleted = 0
+     ORDER BY billing_id ASC`,
+    [companyId]
+  );
+  const vehicles = await query(
+    `SELECT * FROM company_vehicles
+     WHERE company_id = ? AND is_deleted = 0
+     ORDER BY vehicle_id ASC`,
+    [companyId]
+  );
+
+  return {
+    ...companies[0],
+    billings,
+    vehicles,
+  };
+}
+
+async function syncBillings(conn, companyId, billings) {
+  const [existing] = await conn.query(
+    `SELECT billing_id FROM company_billings WHERE company_id = ? AND is_deleted = 0`,
+    [companyId]
+  );
+  const keepIds = new Set(
+    billings.filter((b) => b.billing_id).map((b) => Number(b.billing_id))
+  );
+
+  for (const row of existing) {
+    if (!keepIds.has(Number(row.billing_id))) {
+      await conn.query(
+        `UPDATE company_billings
+         SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE billing_id = ? AND company_id = ?`,
+        [row.billing_id, companyId]
+      );
+    }
+  }
+
+  for (const b of billings) {
+    if (b.billing_id) {
+      await conn.query(
+        `UPDATE company_billings
+         SET billing_print_name = ?, billing_address = ?, billing_phone = ?,
+             billing_fax = ?, billing_manager = ?, billing_summary_no = ?,
+             version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE billing_id = ? AND company_id = ? AND is_deleted = 0`,
+        [
+          b.billing_print_name,
+          b.billing_address,
+          b.billing_phone,
+          b.billing_fax,
+          b.billing_manager,
+          b.billing_summary_no,
+          b.billing_id,
+          companyId,
+        ]
+      );
+    } else {
+      await conn.query(
+        `INSERT INTO company_billings
+          (company_id, billing_print_name, billing_address, billing_phone,
+           billing_fax, billing_manager, billing_summary_no)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          companyId,
+          b.billing_print_name,
+          b.billing_address,
+          b.billing_phone,
+          b.billing_fax,
+          b.billing_manager,
+          b.billing_summary_no,
+        ]
+      );
+    }
+  }
+}
+
+async function syncVehicles(conn, companyId, vehicles) {
+  const [existing] = await conn.query(
+    `SELECT vehicle_id FROM company_vehicles WHERE company_id = ? AND is_deleted = 0`,
+    [companyId]
+  );
+  const keepIds = new Set(
+    vehicles.filter((v) => v.vehicle_id).map((v) => Number(v.vehicle_id))
+  );
+
+  for (const row of existing) {
+    if (!keepIds.has(Number(row.vehicle_id))) {
+      await conn.query(
+        `UPDATE company_vehicles
+         SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE vehicle_id = ? AND company_id = ?`,
+        [row.vehicle_id, companyId]
+      );
+    }
+  }
+
+  for (const v of vehicles) {
+    if (v.vehicle_id) {
+      await conn.query(
+        `UPDATE company_vehicles
+         SET vehicle_name = ?, vehicle_number = ?,
+             inspection_expiry_date = ?, insurance_expiry_date = ?,
+             version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE vehicle_id = ? AND company_id = ? AND is_deleted = 0`,
+        [
+          v.vehicle_name,
+          v.vehicle_number,
+          v.inspection_expiry_date,
+          v.insurance_expiry_date,
+          v.vehicle_id,
+          companyId,
+        ]
+      );
+    } else {
+      await conn.query(
+        `INSERT INTO company_vehicles
+          (company_id, vehicle_name, vehicle_number,
+           inspection_expiry_date, insurance_expiry_date)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          companyId,
+          v.vehicle_name,
+          v.vehicle_number,
+          v.inspection_expiry_date,
+          v.insurance_expiry_date,
+        ]
+      );
+    }
+  }
+}
+
+router.get('/', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const closing = String(req.query.closing_date_code || '').trim();
+    const sort = String(req.query.sort || 'company_id');
+    const order = String(req.query.order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+    const sortMap = {
+      company_id: 'company_id',
+      company_name: 'company_name',
+      closing_date_code: 'closing_date_code',
+    };
+    const sortCol = sortMap[sort] || 'company_id';
+
+    const where = ['is_deleted = 0'];
+    const params = [];
+    if (q) {
+      where.push('company_name LIKE ?');
+      params.push(`%${q}%`);
+    }
+    if (closing) {
+      where.push('closing_date_code = ?');
+      params.push(closing);
+    }
+
+    const rows = await query(
+      `SELECT company_id, office_no, company_name, company_name_kana,
+              closing_date_code, payment_date_code, invoice_send_method,
+              version, updated_at
+       FROM companies
+       WHERE ${where.join(' AND ')}
+       ORDER BY ${sortCol} ${order}`,
+      params
+    );
+
+    return res.json({ ok: true, companies: rows });
+  } catch (err) {
+    console.error('[companies/list]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: '企業一覧の取得に失敗しました',
+    });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'validation_error',
+        message: '企業IDが不正です',
+      });
+    }
+    const detail = await fetchCompanyDetail(id);
+    if (!detail) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: '企業が見つかりません',
+      });
+    }
+    return res.json({ ok: true, company: detail });
+  } catch (err) {
+    console.error('[companies/get]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: '企業詳細の取得に失敗しました',
+    });
+  }
+});
+
+router.post('/', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const data = pickCompany(req.body || {});
+    if (!data.company_name || !String(data.company_name).trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: 'validation_error',
+        message: '企業名は必須です',
+      });
+    }
+    data.company_name = String(data.company_name).trim();
+    const billings = normalizeBillings(req.body.billings);
+    const vehicles = normalizeVehicles(req.body.vehicles);
+
+    await conn.beginTransaction();
+    const cols = Object.keys(data);
+    const placeholders = cols.map(() => '?').join(', ');
+    const [result] = await conn.query(
+      `INSERT INTO companies (${cols.join(', ')}) VALUES (${placeholders})`,
+      cols.map((c) => data[c])
+    );
+    const companyId = result.insertId;
+    await syncBillings(conn, companyId, billings);
+    await syncVehicles(conn, companyId, vehicles);
+    await conn.commit();
+
+    const detail = await fetchCompanyDetail(companyId);
+    return res.status(201).json({ ok: true, company: detail });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[companies/create]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: '企業の作成に失敗しました',
+    });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'validation_error',
+        message: '企業IDが不正です',
+      });
+    }
+
+    const data = pickCompany(req.body || {});
+    if (!data.company_name || !String(data.company_name).trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: 'validation_error',
+        message: '企業名は必須です',
+      });
+    }
+    data.company_name = String(data.company_name).trim();
+    const billings = normalizeBillings(req.body.billings);
+    const vehicles = normalizeVehicles(req.body.vehicles);
+    const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
+
+    await conn.beginTransaction();
+    const sets = COMPANY_FIELDS.map((f) => `${f} = ?`);
+    const params = COMPANY_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));
+    let sql = `
+      UPDATE companies
+      SET ${sets.join(', ')},
+          version = version + 1,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE company_id = ? AND is_deleted = 0
+    `;
+    params.push(id);
+    if (expectedVersion != null && Number.isInteger(expectedVersion)) {
+      sql += ' AND version = ?';
+      params.push(expectedVersion);
+    }
+
+    const [result] = await conn.query(sql, params);
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(409).json({
+        ok: false,
+        error: 'conflict',
+        message: '他のユーザーが先に更新しました。再読み込みしてください',
+      });
+    }
+
+    await syncBillings(conn, id, billings);
+    await syncVehicles(conn, id, vehicles);
+    await conn.commit();
+
+    const detail = await fetchCompanyDetail(id);
+    return res.json({ ok: true, company: detail });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[companies/update]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: '企業の更新に失敗しました',
+    });
+  } finally {
+    conn.release();
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'validation_error',
+        message: '企業IDが不正です',
+      });
+    }
+
+    const header = await query(
+      `UPDATE companies
+       SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE company_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    if (!header || header.affectedRows === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: '企業が見つかりません',
+      });
+    }
+
+    await query(
+      `UPDATE company_billings
+       SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE company_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    await query(
+      `UPDATE company_vehicles
+       SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE company_id = ? AND is_deleted = 0`,
+      [id]
+    );
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[companies/delete]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: '企業の削除に失敗しました',
+    });
+  }
+});
+
+module.exports = router;
