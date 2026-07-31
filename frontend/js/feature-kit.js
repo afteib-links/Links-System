@@ -21,15 +21,17 @@
           <div class="app-shell">
             ${ctx.headerHtml()}
             <main class="app-main">
-              <div class="back-row">
-                <button type="button" class="btn btn-ghost" id="back-launcher">← 機能一覧へ</button>
-                ${
-                  showHistoryBack
-                    ? '<button type="button" class="btn btn-ghost" id="back-history">← 戻る</button>'
-                    : ''
-                }
+              <div class="page-header-row">
+                <div class="back-row">
+                  <button type="button" class="btn btn-ghost" id="back-launcher">← 機能一覧へ</button>
+                  ${
+                    showHistoryBack
+                      ? '<button type="button" class="btn btn-ghost" id="back-history">← 戻る</button>'
+                      : ''
+                  }
+                </div>
+                <h2 class="page-title">${ctx.escapeHtml(title)}</h2>
               </div>
-              <h2 class="page-title">${ctx.escapeHtml(title)}</h2>
               ${bodyHtml}
             </main>
           </div>`;

@@ -380,8 +380,11 @@
       <div class="app-shell">
         ${headerHtml()}
         <main class="app-main">
-          <div class="back-row">
-            <button type="button" class="btn btn-ghost" id="back-home">← 機能一覧へ戻る</button>
+          <div class="page-header-row">
+            <div class="back-row">
+              <button type="button" class="btn btn-ghost" id="back-home">← 機能一覧へ戻る</button>
+            </div>
+            <h2 class="page-title">ユーザー管理</h2>
           </div>
           <section class="panel">
             ${message ? `<p class="flash">${escapeHtml(message)}</p>` : ''}

@@ -24,6 +24,20 @@
       );
     },
 
+    weekdayLabel(dateStr) {
+      const s = this.kit.dateValue(dateStr);
+      if (!s || s.length < 10) return '';
+      const d = new Date(`${s}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return '';
+      return ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    },
+
+    formatDateWithWeekday(dateStr) {
+      const s = this.kit.dateValue(dateStr);
+      const w = this.weekdayLabel(s);
+      return w ? `${s}（${w}）` : s;
+    },
+
     async showMonthList(message = '') {
       this.ctx.renderLoading();
       const { res, data } = await this.ctx.api(
@@ -195,7 +209,8 @@
           const locked = r.status === 'approved';
           const main = `
             <tr class="dr-main" data-idx="${idx}">
-              <td><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}">${r._expanded ? '▼' : '▶'}</button> ${this.ctx.escapeHtml(this.kit.dateValue(r.work_date))}</td>
+              <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
+              <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="time" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" ${locked ? 'disabled' : ''} /></td>
@@ -212,7 +227,7 @@
             </tr>`;
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
-                <td colspan="14">
+                <td colspan="15">
                   <div class="form-grid">
                     <div><label>深夜時間</label><input type="number" step="0.25" data-f="night_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.night_hours ?? '')}" ${locked ? 'disabled' : ''} /></div>
                     <div><label>スポット加算</label><input type="number" step="0.01" data-f="spot_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.spot_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
@@ -244,23 +259,25 @@
         `日報入力（案件#${this.gridMeta.project_id} / ${this.ym}）`,
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <div class="dr-summary">
-            <span>稼働日数: <strong>${sum.workDays}</strong></span>
-            <span>超過合計: <strong>${sum.overtime}</strong></span>
-            <span>不足合計: <strong>${sum.shortage}</strong></span>
-            <span>総距離: <strong>${sum.distance}</strong></span>
-          </div>
-          <div class="btn-row">
-            <button type="button" class="btn" id="save-all">一括保存</button>
-            <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
-            <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
-            <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
+          <div class="dr-toolbar">
+            <div class="dr-summary">
+              <span>稼働日数: <strong>${sum.workDays}</strong></span>
+              <span>超過合計: <strong>${sum.overtime}</strong></span>
+              <span>不足合計: <strong>${sum.shortage}</strong></span>
+              <span>総距離: <strong>${sum.distance}</strong></span>
+            </div>
+            <div class="btn-row">
+              <button type="button" class="btn" id="save-all">一括保存</button>
+              <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
+              <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
+              <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
+            </div>
           </div>
           <div class="table-wrap table-wrap-sticky">
             <table class="data-table data-table-compact">
               <thead>
                 <tr>
-                  <th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
+                  <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
                   <th>拘束</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
                   <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th>
                 </tr>
