@@ -139,8 +139,18 @@ TZ=Asia/Tokyo
 | メモリ | **8 GB** |
 | コンテナ基盤 | Container Station（Docker / Compose） |
 
-> 以前の文脈では Asustor / ADM と記載していたが、実機確認により **QNAP / QTS** に訂正する。アーキテクチャ（Intel x86_64）は同一のため、Dockerイメージ選定への影響は小さい。
+> 以前の文脈では Asustor / ADM と記載していたが、**本番実機**は **QNAP / QTS** に確定した。  
+> **テスト環境**として **ASUSTOR AS3202T / ADM 4.3** を使用する（メモリ2GBのためテスト専用）。  
+> アーキテクチャはいずれも Intel x86_64 のため、Docker amd64 イメージは共通利用できる。  
+> Asustor への画面クリック順手順: [`計画/07_AsustorテストNAS配備手順.md`](計画/07_AsustorテストNAS配備手順.md)
 
+### 5.1a 環境分担
+
+| 環境 | 機種 | 用途 |
+|------|------|------|
+| 開発 | Cursor / ローカル Docker | 実装・単体確認 |
+| テスト | **ASUSTOR AS3202T / ADM 4.3.3**（メモリ2GB） | 実機・複数人試験 |
+| 本番 | **QNAP TS-464 / QTS**（メモリ8GB） | 本稼働 |
 ### 5.2 NAS側の前提作業
 
 * App Center から **Container Station** を導入
@@ -255,11 +265,12 @@ services:
 
 | 項目 | 決定内容 |
 |------|----------|
-| NAS実機 | **QNAP TS-464 / QTS 5.2.9.3499** |
+| NAS実機（本番） | **QNAP TS-464 / QTS 5.2.9.3499** |
+| NAS実機（テスト） | **ASUSTOR AS3202T / ADM 4.3.3**（メモリ2GB・テスト専用） |
 | CPU | **Intel Celeron N5105（x86_64）**。Docker公式 amd64 イメージを使用 |
 | メモリ | **8 GB** |
 | アクセス方法 | **`http://<NASのIP>:8080`**。社内LANからのHTTP。ドメイン/HTTPSはMVP対象外 |
-| 認証 | **簡易ID / パスワード**。ロールは「事務担当」「管理者」の2種。無認証公開はしない |
+| 認証 | **Login.md 準拠**。権限は複数付与可（管理者/システム担当者/経営者/総務/営業/パートナー/企業） |
 | 帳票 | **PDF出力を優先**。補助手段としてブラウザ印刷（印刷用CSS）も用意する |
 
 ### 9.1 認証の実装方針（MVP）
@@ -288,7 +299,7 @@ services:
 
 * UIは HTML5 SPA を維持する  
 * データ保存は IndexedDB ではなく、NAS上の共有DB（MariaDB）とする  
-* 実行基盤は **QNAP TS-464（QTS）+ Docker Compose**（Intel / x86_64）  
+* 実行基盤は **本番: QNAP TS-464（QTS）** / **テスト: ASUSTOR AS3202T（ADM）** + Docker Compose（いずれも Intel / x86_64）  
 * 公開URLは `http://<NASのIP>:8080`  
 * 認証は簡易ID/パスワード（事務担当・管理者）  
 * 帳票は **PDF優先**、ブラウザ印刷も可  

@@ -7,6 +7,19 @@ const { getPool, ping } = require('./db');
 const { runMigrationsAndSeed } = require('./migrate');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
+const mastersRoutes = require('./routes/masters');
+const companiesRoutes = require('./routes/companies');
+const partnersRoutes = require('./routes/partners');
+const projectsRoutes = require('./routes/projects');
+const dailyReportsRoutes = require('./routes/daily_reports');
+const advancesRoutes = require('./routes/advances');
+const invoicesRoutes = require('./routes/invoices');
+const paymentsRoutes = require('./routes/payments');
+const lookupsRoutes = require('./routes/lookups');
+const layoutsRoutes = require('./routes/layouts');
+const priceSetsRoutes = require('./routes/price_sets');
+const masterSettingsRoutes = require('./routes/master_settings');
 
 
 async function createApp() {
@@ -72,12 +85,46 @@ async function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/users', usersRoutes);
+  app.use('/api/masters', mastersRoutes);
+  app.use('/api/lookups', lookupsRoutes);
+  app.use('/api/companies', companiesRoutes);
+  app.use('/api/partners', partnersRoutes);
+  app.use('/api/projects', projectsRoutes);
+  app.use('/api/daily-reports', dailyReportsRoutes);
+  app.use('/api/advances', advancesRoutes);
+  app.use('/api/invoices', invoicesRoutes);
+  app.use('/api/payments', paymentsRoutes);
+  app.use('/api/layouts', layoutsRoutes);
+  app.use('/api/price-sets', priceSetsRoutes);
+  app.use('/api/master-settings', masterSettingsRoutes);
 
-  // ロールミドルウェアの動作確認用（管理画面は後続フェーズ）
+  // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {
     res.json({
       ok: true,
       message: 'admin role ok',
+      user: req.session.user,
+    });
+  });
+
+  app.get('/api/permissions/check/:feature', requireAuth, (req, res) => {
+    const { hasPermission } = require('./permissions');
+    const feature = String(req.params.feature || '');
+    const allowed = hasPermission(req.session.user, feature);
+    if (!allowed) {
+      return res.status(403).json({
+        ok: false,
+        error: 'forbidden',
+        message: 'この機能を利用する権限がありません',
+        feature,
+        allowed: false,
+      });
+    }
+    return res.json({
+      ok: true,
+      feature,
+      allowed: true,
       user: req.session.user,
     });
   });

@@ -80,9 +80,17 @@ async function seedAdminIfNeeded() {
 
   const hash = await bcrypt.hash(config.admin.password, 10);
   await pool.execute(
-    `INSERT INTO users (login_id, password_hash, display_name, role)
-     VALUES (?, ?, ?, 'admin')`,
-    [config.admin.loginId, hash, config.admin.displayName]
+    `INSERT INTO users
+      (login_id, password_hash, display_name, role, roles, is_active, departments, areas)
+     VALUES (?, ?, ?, 'admin', ?, 1, ?, ?)`,
+    [
+      config.admin.loginId,
+      hash,
+      config.admin.displayName,
+      JSON.stringify(['admin']),
+      JSON.stringify([]),
+      JSON.stringify([]),
+    ]
   );
   console.log(`[seed] created admin user: ${config.admin.loginId}`);
 }

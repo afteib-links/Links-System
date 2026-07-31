@@ -1,0 +1,36 @@
+---
+description: Japanese only for final user text; Thought/work narration in English
+alwaysApply: true
+---
+
+# Communication & token efficiency
+
+## Precedence (read first)
+
+If another rule says “always Japanese”, **narrow it**:
+- Japanese = **final user-visible reply**, commit/PR text, and user-facing `仕様MD/` content only.
+- **Thought / chain-of-thought / mid-turn narration / tool-step commentary MUST be English and short.**
+- Do **not** write a Japanese “I’m about to…” line before tools; that still Japanizes the Worked/Thought UI and wastes tokens.
+
+This file is English. JP translation of the rule: only on request or after a major process change.
+
+## Required Japanese (final surfaces only)
+
+- Final chat reply to the user
+- Commit messages and PR titles/bodies
+- User-facing content in `仕様MD/` (tables / IDs / checklists preferred)
+
+## Keep English (including Thought)
+
+- Thought / reasoning / planning / deliberation
+- Mid-turn status lines and tool-step narration
+- Code, identifiers, APIs, paths, commands, logs, default code comments
+- Agent-facing rules under `.cursor/rules/` and `仕様MD/08_communication_and_token_efficiency.md`
+
+## Token-efficient final reply
+
+1. Conclusion in 1–2 short Japanese sentences.
+2. Default: a few bullets or ~3–8 lines; expand only when asked.
+3. No task restatement, no tool-step replay, no large pasted logs.
+4. Prefer `path` and spec IDs (`A-04`) over dumps.
+5. Changes report: what + where only.

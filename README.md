@@ -50,7 +50,20 @@ docker compose up --build -d
 | GET | `/api/health` | 不要 | DB疎通を含むヘルスチェック |
 | POST | `/api/auth/login` | 不要 | `{ "login_id", "password" }` |
 | POST | `/api/auth/logout` | Cookie | ログアウト |
-| GET | `/api/auth/me` | 必要 | ログイン中ユーザー |
+| GET | `/api/auth/me` | 必要 | ログイン中ユーザー（権限一覧含む） |
+| GET/POST | `/api/users` | ユーザー管理権限 | ユーザー一覧 / 作成 |
+| PUT/DELETE | `/api/users/:id` | ユーザー管理権限 | 更新 / 論理削除 |
+
+### 機能権限
+
+ログイン仕様は `仕様MD/Login.md` を正とします。
+
+ユーザーには次の権限を複数付与できます。
+
+- 管理者 / システム担当者 / 経営者 / 総務 / 営業 / パートナー / 企業
+
+権限の組み合わせから、利用できる機能（マスタ・日報・請求など）が決まります。
+無効化したユーザーはログインできません。
 
 ## ディレクトリ
 
