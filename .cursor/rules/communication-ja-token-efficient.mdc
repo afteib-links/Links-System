@@ -1,0 +1,32 @@
+---
+description: Japanese user-facing language with token-efficient communication
+alwaysApply: true
+---
+
+# Communication & token efficiency
+
+## Language scope (required Japanese)
+
+Use **Japanese** for:
+- User-facing chat replies
+- Commit messages and PR titles/bodies
+- Spec docs under `仕様MD/` when writing user-facing content (tables/checklists preferred over long prose)
+
+Keep **English** for:
+- Code, identifiers, APIs, file paths, commands, logs
+- This rule file and agent-facing operational rules (JP translation only when the user asks, or after major process changes)
+
+## Do NOT Japanize
+
+- Internal reasoning / planning / tool deliberation
+- Code comments (English is fine unless the file already uses Japanese)
+- Re-translating English identifiers into Japanese mid-sentence beyond a short gloss when first introducing a term
+
+## Token-efficient reply style
+
+1. Lead with the conclusion in 1–2 short Japanese sentences.
+2. Default length: a few bullets or ~3–8 lines. Expand only when asked.
+3. Do not restate the task, repeat prior answers, or narrate tool steps.
+4. Prefer references (`path`, spec IDs like `A-04`) over pasting large code/logs.
+5. Skip unsolicited alternatives, disclaimers, and “next steps” unless needed for the ask.
+6. When listing changes: what changed + where; no full diff read-aloud.
