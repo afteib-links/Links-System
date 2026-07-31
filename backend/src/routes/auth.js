@@ -2,12 +2,12 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { FEATURES, publicUser } = require('../permissions');
+const { ROLES, FEATURES, publicUser } = require('../permissions');
 
 const router = express.Router();
 
 router.get('/features', (_req, res) => {
-  res.json({ ok: true, features: FEATURES });
+  res.json({ ok: true, features: FEATURES, roles: ROLES });
 });
 
 router.post('/login', async (req, res) => {
@@ -24,7 +24,8 @@ router.post('/login', async (req, res) => {
     }
 
     const rows = await query(
-      `SELECT user_id, login_id, password_hash, display_name, role, is_active, permissions
+      `SELECT user_id, login_id, password_hash, display_name, role, roles,
+              is_active, permissions, departments, areas
        FROM users
        WHERE login_id = ? AND is_deleted = 0
        LIMIT 1`,
@@ -62,6 +63,7 @@ router.post('/login', async (req, res) => {
       ok: true,
       user: req.session.user,
       features: FEATURES,
+      roles: ROLES,
     });
   } catch (err) {
     console.error('[auth/login]', err);
@@ -93,6 +95,7 @@ router.get('/me', requireAuth, (req, res) => {
     ok: true,
     user: req.session.user,
     features: FEATURES,
+    roles: ROLES,
   });
 });
 

@@ -34,7 +34,11 @@ function requireRole(...roles) {
         message: 'ログインが必要です',
       });
     }
-    if (!roles.includes(req.session.user.role)) {
+    const userRoles = Array.isArray(req.session.user.roles)
+      ? req.session.user.roles
+      : [req.session.user.role].filter(Boolean);
+    const allowed = roles.some((role) => userRoles.includes(role));
+    if (!allowed) {
       return res.status(403).json({
         ok: false,
         error: 'forbidden',

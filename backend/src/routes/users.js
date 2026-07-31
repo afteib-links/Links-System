@@ -3,9 +3,12 @@ const bcrypt = require('bcryptjs');
 const { query, getPool } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const {
+  ROLES,
   FEATURES,
-  normalizePermissions,
+  normalizeRoles,
+  normalizeStringList,
   publicUser,
+  hasPermission,
 } = require('../permissions');
 
 const router = express.Router();
@@ -23,9 +26,25 @@ function toUserDto(row) {
   };
 }
 
+function parseListInput(value) {
+  if (Array.isArray(value)) {
+    return normalizeStringList(value);
+  }
+  if (typeof value === 'string') {
+    return normalizeStringList(
+      value
+        .split(/[,、\n]/)
+        .map((v) => v.trim())
+        .filter(Boolean)
+    );
+  }
+  return [];
+}
+
 async function findUserById(userId) {
   const rows = await query(
-    `SELECT user_id, login_id, display_name, role, is_active, permissions, version
+    `SELECT user_id, login_id, display_name, role, roles, is_active,
+            permissions, departments, areas, version
      FROM users
      WHERE user_id = ? AND is_deleted = 0
      LIMIT 1`,
@@ -34,11 +53,26 @@ async function findUserById(userId) {
   return rows[0] || null;
 }
 
+async function countActiveAdmins(excludeUserId = null) {
+  const rows = await query(
+    `SELECT user_id, roles, role
+     FROM users
+     WHERE is_deleted = 0 AND is_active = 1`
+  );
+  return rows.filter((row) => {
+    if (excludeUserId != null && Number(row.user_id) === Number(excludeUserId)) {
+      return false;
+    }
+    const dto = publicUser(row);
+    return dto.roles.includes('admin');
+  }).length;
+}
+
 router.get('/', async (_req, res) => {
   try {
     const rows = await query(
-      `SELECT user_id, login_id, display_name, role, is_active, permissions, version,
-              created_at, updated_at
+      `SELECT user_id, login_id, display_name, role, roles, is_active,
+              permissions, departments, areas, version, created_at, updated_at
        FROM users
        WHERE is_deleted = 0
        ORDER BY user_id ASC`
@@ -47,6 +81,7 @@ router.get('/', async (_req, res) => {
       ok: true,
       users: rows.map((row) => toUserDto(row)),
       features: FEATURES,
+      roles: ROLES,
     });
   } catch (err) {
     console.error('[users/list]', err);
@@ -63,9 +98,11 @@ router.post('/', async (req, res) => {
     const loginId = String(req.body.login_id || '').trim();
     const displayName = String(req.body.display_name || '').trim();
     const password = String(req.body.password || '');
-    const role = req.body.role === 'admin' ? 'admin' : 'staff';
+    const roles = normalizeRoles(req.body.roles);
+    const departments = parseListInput(req.body.departments);
+    const areas = parseListInput(req.body.areas);
     const isActive = req.body.is_active === false || req.body.is_active === 0 ? 0 : 1;
-    const permissions = normalizePermissions(req.body.permissions, role);
+    const legacyRole = roles.includes('admin') ? 'admin' : 'staff';
 
     if (!validateLoginId(loginId)) {
       return res.status(400).json({
@@ -88,11 +125,11 @@ router.post('/', async (req, res) => {
         message: 'パスワードは6文字以上にしてください',
       });
     }
-    if (role !== 'admin' && permissions.length === 0) {
+    if (roles.length === 0) {
       return res.status(400).json({
         ok: false,
         error: 'validation_error',
-        message: '利用できる機能を1つ以上選択してください',
+        message: '権限を1つ以上選択してください',
       });
     }
 
@@ -112,9 +149,18 @@ router.post('/', async (req, res) => {
     const pool = getPool();
     const [result] = await pool.execute(
       `INSERT INTO users
-        (login_id, password_hash, display_name, role, is_active, permissions)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [loginId, hash, displayName, role, isActive, JSON.stringify(permissions)]
+        (login_id, password_hash, display_name, role, roles, is_active, departments, areas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        loginId,
+        hash,
+        displayName,
+        legacyRole,
+        JSON.stringify(roles),
+        isActive,
+        JSON.stringify(departments),
+        JSON.stringify(areas),
+      ]
     );
 
     const created = await findUserById(result.insertId);
@@ -152,17 +198,23 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    const currentDto = toUserDto(current);
     const displayName = String(req.body.display_name ?? current.display_name).trim();
-    const role = req.body.role === 'admin' ? 'admin' : (req.body.role === 'staff' ? 'staff' : current.role);
+    const roles = req.body.roles !== undefined
+      ? normalizeRoles(req.body.roles)
+      : currentDto.roles;
+    const departments = req.body.departments !== undefined
+      ? parseListInput(req.body.departments)
+      : currentDto.departments;
+    const areas = req.body.areas !== undefined
+      ? parseListInput(req.body.areas)
+      : currentDto.areas;
     const isActive = req.body.is_active === false || req.body.is_active === 0
       ? 0
       : (req.body.is_active === true || req.body.is_active === 1 ? 1 : Number(current.is_active));
-    const permissions = normalizePermissions(
-      req.body.permissions !== undefined ? req.body.permissions : current.permissions,
-      role
-    );
     const password = req.body.password != null ? String(req.body.password) : '';
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
+    const legacyRole = roles.includes('admin') ? 'admin' : 'staff';
 
     if (!displayName) {
       return res.status(400).json({
@@ -171,11 +223,11 @@ router.put('/:id', async (req, res) => {
         message: '表示名を入力してください',
       });
     }
-    if (role !== 'admin' && permissions.length === 0) {
+    if (roles.length === 0) {
       return res.status(400).json({
         ok: false,
         error: 'validation_error',
-        message: '利用できる機能を1つ以上選択してください',
+        message: '権限を1つ以上選択してください',
       });
     }
     if (password && password.length < 6) {
@@ -186,7 +238,6 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // 自分自身を無効化・権限剥奪できないようにする
     if (Number(req.session.user.user_id) === userId) {
       if (!isActive) {
         return res.status(400).json({
@@ -195,7 +246,8 @@ router.put('/:id', async (req, res) => {
           message: '自分自身を無効化することはできません',
         });
       }
-      if (role !== 'admin' && !permissions.includes('users')) {
+      const selfFeatures = publicUser({ ...current, roles, is_active: isActive });
+      if (!hasPermission(selfFeatures, 'users')) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',
@@ -204,14 +256,10 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // 最後の管理者を降格・無効化しない
-    if (current.role === 'admin' && (role !== 'admin' || !isActive)) {
-      const admins = await query(
-        `SELECT COUNT(*) AS cnt FROM users
-         WHERE is_deleted = 0 AND is_active = 1 AND role = 'admin' AND user_id <> ?`,
-        [userId]
-      );
-      if (Number(admins[0].cnt) === 0) {
+    const willRemainAdmin = roles.includes('admin') && isActive;
+    if (currentDto.roles.includes('admin') && !willRemainAdmin) {
+      const remaining = await countActiveAdmins(userId);
+      if (remaining === 0) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',
@@ -220,13 +268,22 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const params = [displayName, role, isActive, JSON.stringify(permissions)];
+    const params = [
+      displayName,
+      legacyRole,
+      JSON.stringify(roles),
+      isActive,
+      JSON.stringify(departments),
+      JSON.stringify(areas),
+    ];
     let sql = `
       UPDATE users
       SET display_name = ?,
           role = ?,
+          roles = ?,
           is_active = ?,
-          permissions = ?,
+          departments = ?,
+          areas = ?,
           version = version + 1,
           updated_at = CURRENT_TIMESTAMP
     `;
@@ -256,8 +313,6 @@ router.put('/:id', async (req, res) => {
     }
 
     const updated = await findUserById(userId);
-
-    // 自分の情報を更新した場合はセッションも更新
     if (Number(req.session.user.user_id) === userId) {
       req.session.user = publicUser(updated);
     }
@@ -304,13 +359,10 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    if (current.role === 'admin') {
-      const admins = await query(
-        `SELECT COUNT(*) AS cnt FROM users
-         WHERE is_deleted = 0 AND is_active = 1 AND role = 'admin' AND user_id <> ?`,
-        [userId]
-      );
-      if (Number(admins[0].cnt) === 0) {
+    const currentDto = toUserDto(current);
+    if (currentDto.roles.includes('admin')) {
+      const remaining = await countActiveAdmins(userId);
+      if (remaining === 0) {
         return res.status(400).json({
           ok: false,
           error: 'validation_error',

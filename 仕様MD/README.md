@@ -24,7 +24,8 @@ Excel管理の運送業務（案件・パートナー・収支）をWeb化する
 | `04_calculation_logic.md` | 日報計算・金額保持仕様 |
 | `05_decision_log.md` | 決定事項ログ |
 | `06_development_environment.md` | 開発環境・NAS実行基盤仕様 |
-| `07_auth_and_permissions.md` | ログイン・ユーザー・機能権限仕様 |
+| `07_auth_and_permissions.md` | ログイン実装メモ（要約） |
+| **`Login.md`** | **ログイン・ユーザー権限の正式仕様** |
 | `個別機能仕様書：*.md` | 各画面の詳細仕様 |
 
 ## 重要なお知らせ
