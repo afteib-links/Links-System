@@ -17,10 +17,12 @@
       /** A-10 / A-11: launcher + previous-screen back */
       shell(title, bodyHtml, options = {}) {
         const showHistoryBack = options.showHistoryBack !== false && (options.onBack || navStack.length);
+        const mainClass = options.wide ? 'app-main app-main-wide' : 'app-main';
+        const shellClass = options.wide ? 'app-shell app-shell-wide' : 'app-shell';
         return `
-          <div class="app-shell">
+          <div class="${shellClass}">
             ${ctx.headerHtml()}
-            <main class="app-main">
+            <main class="${mainClass}">
               <div class="page-header-row">
                 <div class="back-row">
                   <button type="button" class="btn btn-ghost" id="back-launcher">← 機能一覧へ</button>

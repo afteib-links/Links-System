@@ -34,8 +34,10 @@
 
     formatDateWithWeekday(dateStr) {
       const s = this.kit.dateValue(dateStr);
+      if (!s || s.length < 10) return s || '';
       const w = this.weekdayLabel(s);
-      return w ? `${s}（${w}）` : s;
+      const md = `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
+      return w ? `${md}（${w}）` : md;
     },
 
     async showMonthList(message = '') {
@@ -215,14 +217,14 @@
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="time" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="time" data-f="end_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.end_time))}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" style="width:4rem" data-f="binding_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.binding_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" style="width:4rem" data-f="work_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.work_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" style="width:4rem" data-f="overtime_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.overtime_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" style="width:4rem" data-f="shortage_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.shortage_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.1" style="width:5rem" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" style="width:5rem" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" style="width:5rem" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" style="width:5rem" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" data-f="binding_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.binding_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" data-f="work_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.work_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" data-f="overtime_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.overtime_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.25" data-f="shortage_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.shortage_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="0.1" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" step="1" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><span class="status-badge status-${this.ctx.escapeHtml(r.status || 'draft')}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</span></td>
             </tr>`;
           const expand = r._expanded
@@ -257,7 +259,7 @@
 
       this.ctx.app.innerHTML = this.kit.shell(
         `日報入力（案件#${this.gridMeta.project_id} / ${this.ym}）`,
-        `<section class="panel">
+        `<section class="panel dr-grid-screen">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="dr-toolbar">
             <div class="dr-summary">
@@ -273,8 +275,8 @@
               <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
             </div>
           </div>
-          <div class="table-wrap table-wrap-sticky">
-            <table class="data-table data-table-compact">
+          <div class="table-wrap table-wrap-sticky dr-grid-wrap">
+            <table class="data-table data-table-compact dr-month-table">
               <thead>
                 <tr>
                   <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
@@ -286,7 +288,7 @@
             </table>
           </div>
         </section>`,
-        { onBack: () => this.showMonthList() }
+        { onBack: () => this.showMonthList(), wide: true }
       );
       this.kit.bindShell({ onBack: () => this.showMonthList() });
       this.bindGrid();
