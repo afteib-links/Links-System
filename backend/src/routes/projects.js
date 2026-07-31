@@ -7,11 +7,32 @@ router.use(requireAuth, requirePermission('projects'));
 
 const BASE_FIELDS = [
   'company_id',
+  'partner_id',
+  'vehicle_id',
   'template_name',
   'default_manager',
   'business_type',
   'basic_work_hours',
   'work_time_type',
+  'payment_type',
+  'installment_type',
+  'installment_amount',
+  'operation_start_date',
+  'closing_date',
+  'execution_time_start',
+  'execution_time_end',
+  'binding_time',
+  'break_time',
+  'overtime_calc_type',
+  'daily_count_type',
+  'work_mode_code',
+  'rounding_timing_type',
+  'overtime_accumulation_type',
+  'distance_calc_mode',
+  'distance_calc_amount',
+  'gogo_site_calc_type',
+  'gogo_site_area',
+  'price_set_id',
 ];
 
 const PROJECT_FIELDS = [
@@ -31,6 +52,8 @@ const PROJECT_FIELDS = [
   'binding_time',
   'break_time',
   'overtime_calc_type',
+  'daily_count_type',
+  'work_mode_code',
   'rounding_timing_type',
   'overtime_accumulation_type',
   'distance_calc_mode',
@@ -38,6 +61,7 @@ const PROJECT_FIELDS = [
   'distance_table_json',
   'gogo_site_calc_type',
   'gogo_site_area',
+  'price_set_id',
 ];
 
 const REVISION_FIELDS = [
@@ -231,6 +255,51 @@ router.delete('/base/:id', async (req, res) => {
   } catch (err) {
     console.error('[projects/base/delete]', err);
     return res.status(500).json({ ok: false, message: '基本案件の削除に失敗しました' });
+  }
+});
+
+/** D-02/D-03: 基本案件から個別案件を起こす（同項目コピー） */
+router.post('/base/:id/create-project', async (req, res) => {
+  try {
+    const base = await fetchBase(Number(req.params.id));
+    if (!base) return res.status(404).json({ ok: false, message: '基本案件が見つかりません' });
+    const overrides = pick(req.body || {}, PROJECT_FIELDS);
+    const data = {
+      base_project_id: base.base_project_id,
+      company_id: overrides.company_id || base.company_id,
+      partner_id: overrides.partner_id != null ? overrides.partner_id : base.partner_id,
+      vehicle_id: overrides.vehicle_id != null ? overrides.vehicle_id : base.vehicle_id,
+      manager_name: overrides.manager_name || base.default_manager,
+      business_type: overrides.business_type || base.business_type,
+      payment_type: overrides.payment_type || base.payment_type || 'normal',
+      installment_type: overrides.installment_type || base.installment_type,
+      installment_amount: overrides.installment_amount != null ? overrides.installment_amount : base.installment_amount,
+      operation_start_date: overrides.operation_start_date || base.operation_start_date,
+      closing_date: overrides.closing_date || base.closing_date,
+      execution_time_start: overrides.execution_time_start || base.execution_time_start,
+      execution_time_end: overrides.execution_time_end || base.execution_time_end,
+      binding_time: overrides.binding_time != null ? overrides.binding_time : base.binding_time,
+      break_time: overrides.break_time != null ? overrides.break_time : base.break_time,
+      overtime_calc_type: overrides.overtime_calc_type || base.overtime_calc_type,
+      daily_count_type: overrides.daily_count_type || base.daily_count_type,
+      work_mode_code: overrides.work_mode_code || base.work_mode_code,
+      rounding_timing_type: overrides.rounding_timing_type || base.rounding_timing_type,
+      overtime_accumulation_type: overrides.overtime_accumulation_type || base.overtime_accumulation_type,
+      distance_calc_mode: overrides.distance_calc_mode || base.distance_calc_mode,
+      distance_calc_amount: overrides.distance_calc_amount != null ? overrides.distance_calc_amount : base.distance_calc_amount,
+      gogo_site_calc_type: overrides.gogo_site_calc_type || base.gogo_site_calc_type,
+      gogo_site_area: overrides.gogo_site_area || base.gogo_site_area,
+      price_set_id: overrides.price_set_id != null ? overrides.price_set_id : base.price_set_id,
+    };
+    const cols = Object.keys(data).filter((k) => data[k] !== undefined);
+    const result = await query(
+      `INSERT INTO projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      cols.map((c) => data[c])
+    );
+    return res.status(201).json({ ok: true, project: await fetchProject(result.insertId) });
+  } catch (err) {
+    console.error('[projects/base/create-project]', err);
+    return res.status(500).json({ ok: false, message: '案件作成に失敗しました' });
   }
 });
 

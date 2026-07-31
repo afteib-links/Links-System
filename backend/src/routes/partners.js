@@ -11,6 +11,9 @@ const PARTNER_FIELDS = [
   'zip_code',
   'address',
   'contact_phone',
+  'blood_type',
+  'birth_date',
+  'work_start_date',
   'contract_date',
   'partner_category_code',
   'employment_type_code',
@@ -137,28 +140,39 @@ router.get('/', async (req, res) => {
     const sortCol = sortMap[String(req.query.sort || '')] || 'partner_id';
     const order = String(req.query.order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
-    const where = ['is_deleted = 0'];
+    const where = ['p.is_deleted = 0'];
     const params = [];
     if (q) {
-      where.push('(partner_name LIKE ? OR partner_name_kana LIKE ? OR contact_phone LIKE ?)');
+      where.push('(p.partner_name LIKE ? OR p.partner_name_kana LIKE ? OR p.contact_phone LIKE ?)');
       params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
     if (category) {
-      where.push('partner_category_code = ?');
+      where.push('p.partner_category_code = ?');
       params.push(category);
     }
     if (employment) {
-      where.push('employment_type_code = ?');
+      where.push('p.employment_type_code = ?');
       params.push(employment);
     }
 
     const rows = await query(
-      `SELECT partner_id, partner_name, partner_name_kana, contact_phone,
-              partner_category_code, employment_type_code, invoice_number,
-              advance_payment_enabled, payment_output_code, version, updated_at
-       FROM partners
+      `SELECT p.partner_id, p.partner_name, p.partner_name_kana, p.contact_phone,
+              p.partner_category_code, p.employment_type_code, p.invoice_number,
+              p.advance_payment_enabled, p.payment_output_code,
+              p.bank_name, p.branch_name, p.license_expiry_date, p.work_start_date,
+              p.blood_type, p.birth_date,
+              p.accident_insurance_code, p.contractor_liability_code,
+              p.cargo_insurance_code, p.g_association_code,
+              p.version, p.updated_at,
+              (SELECT COUNT(*) FROM projects pr
+               WHERE pr.partner_id = p.partner_id AND pr.is_deleted = 0) AS project_count,
+              CASE
+                WHEN p.work_start_date IS NULL THEN NULL
+                ELSE TIMESTAMPDIFF(YEAR, p.work_start_date, CURDATE())
+              END AS continuity_years
+       FROM partners p
        WHERE ${where.join(' AND ')}
-       ORDER BY ${sortCol} ${order}`,
+       ORDER BY p.${sortCol} ${order}`,
       params
     );
     return res.json({ ok: true, partners: rows });

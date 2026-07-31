@@ -282,4 +282,69 @@ router.post('/close', async (req, res) => {
   }
 });
 
+router.post('/:id/unconfirm', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT * FROM payments WHERE payment_id = ? AND is_deleted = 0 FOR UPDATE`,
+      [id]
+    );
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, message: '支払が見つかりません' });
+    }
+    const [links] = await conn.query(
+      `SELECT daily_report_id FROM payment_daily_reports WHERE payment_id = ?`,
+      [id]
+    );
+    for (const link of links) {
+      await conn.query(
+        `UPDATE daily_reports SET payment_status = 'none', version = version + 1 WHERE daily_report_id = ?`,
+        [link.daily_report_id]
+      );
+    }
+    await conn.query(
+      `UPDATE payments
+       SET is_confirmed = 0, approval_status = 'draft', payment_status = 'draft',
+           version = version + 1 WHERE payment_id = ?`,
+      [id]
+    );
+    await conn.commit();
+    return res.json({ ok: true });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[payments/unconfirm]', err);
+    return res.status(500).json({ ok: false, message: '確定解除に失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/:id/approve', async (req, res) => {
+  try {
+    await query(
+      `UPDATE payments SET approval_status = 'approved', version = version + 1 WHERE payment_id = ?`,
+      [Number(req.params.id)]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ ok: false, message: '承認に失敗しました' });
+  }
+});
+
+router.post('/:id/print', async (req, res) => {
+  try {
+    await query(
+      `UPDATE payments SET is_printed = 1, version = version + 1 WHERE payment_id = ?`,
+      [Number(req.params.id)]
+    );
+    return res.json({ ok: true, message: '印刷済みにしました（PDF本作成は後続）' });
+  } catch (err) {
+    return res.status(500).json({ ok: false, message: '印刷フラグ更新に失敗しました' });
+  }
+});
+
 module.exports = router;

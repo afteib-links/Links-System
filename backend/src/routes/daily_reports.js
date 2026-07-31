@@ -15,6 +15,21 @@ const FIELDS = [
   'start_time',
   'end_time',
   'break_time',
+  'is_absent',
+  'is_training',
+  'binding_hours',
+  'work_hours',
+  'overtime_hours',
+  'shortage_hours',
+  'start_meter',
+  'end_meter',
+  'total_distance',
+  'toll_fee',
+  'parking_fee',
+  'transport_fee',
+  'night_hours',
+  'spot_amount',
+  'row_comment',
   'expenses_json',
   'memo',
   'calculated_billing_amount',
@@ -39,6 +54,10 @@ function pick(body) {
           out[key] = JSON.stringify({ note: val });
         }
       } else out[key] = JSON.stringify(val);
+      continue;
+    }
+    if (['is_absent', 'is_training'].includes(key)) {
+      out[key] = val === true || val === 1 || val === '1' ? 1 : 0;
       continue;
     }
     out[key] = val === '' || val === undefined ? null : val;
@@ -149,6 +168,81 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('[daily_reports/list]', err);
     return res.status(500).json({ ok: false, message: '日報一覧の取得に失敗しました' });
+  }
+});
+
+/** F-01: 対象月×案件の入力状況一覧 */
+router.get('/month-projects', async (req, res) => {
+  try {
+    const ym = String(req.query.target_year_month || '').trim();
+    if (!ym) return res.status(400).json({ ok: false, message: '対象年月は必須です' });
+    const [y, m] = ym.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+
+    const projects = await query(
+      `SELECT p.project_id, p.company_id, p.partner_id, p.manager_name, p.business_type,
+              c.company_name, pt.partner_name, b.template_name
+       FROM projects p
+       LEFT JOIN companies c ON c.company_id = p.company_id
+       LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       LEFT JOIN base_projects b ON b.base_project_id = p.base_project_id
+       WHERE p.is_deleted = 0
+       ORDER BY p.project_id ASC`
+    );
+
+    const reports = await query(
+      `SELECT project_id, status, work_date, COUNT(*) AS cnt
+       FROM daily_reports
+       WHERE is_deleted = 0 AND target_year_month = ?
+       GROUP BY project_id, status, work_date`,
+      [ym]
+    );
+
+    const byProject = new Map();
+    for (const r of reports) {
+      if (!byProject.has(r.project_id)) {
+        byProject.set(r.project_id, { dates: new Set(), byStatus: {} });
+      }
+      const bag = byProject.get(r.project_id);
+      bag.dates.add(String(r.work_date).slice(0, 10));
+      bag.byStatus[r.status] = (bag.byStatus[r.status] || 0) + Number(r.cnt || 0);
+    }
+
+    const rows = projects.map((p) => {
+      const bag = byProject.get(p.project_id) || { dates: new Set(), byStatus: {} };
+      const inputDays = bag.dates.size;
+      const approved = bag.byStatus.approved || 0;
+      const confirmed = bag.byStatus.confirmed || 0;
+      const draft = bag.byStatus.draft || 0;
+      const totalRows = Object.values(bag.byStatus).reduce((a, b) => a + b, 0);
+      return {
+        ...p,
+        input_days: inputDays,
+        days_in_month: daysInMonth,
+        completion_rate: daysInMonth ? Math.round((inputDays / daysInMonth) * 1000) / 10 : 0,
+        status_summary: { draft, confirmed, approved, total: totalRows },
+        input_status: totalRows === 0 ? '未入力' : approved > 0 && draft === 0 ? '承認済あり' : '入力中',
+      };
+    });
+
+    const active = rows.filter((r) => r.status_summary.total > 0 || true);
+    const withInput = rows.filter((r) => r.input_days > 0);
+    return res.json({
+      ok: true,
+      target_year_month: ym,
+      summary: {
+        project_count: active.length,
+        input_project_count: withInput.length,
+        avg_completion_rate:
+          active.length
+            ? Math.round((active.reduce((s, r) => s + r.completion_rate, 0) / active.length) * 10) / 10
+            : 0,
+      },
+      rows,
+    });
+  } catch (err) {
+    console.error('[daily_reports/month-projects]', err);
+    return res.status(500).json({ ok: false, message: '月次案件一覧の取得に失敗しました' });
   }
 });
 

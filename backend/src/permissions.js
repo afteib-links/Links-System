@@ -1,5 +1,5 @@
 /**
- * Login.md に基づく権限・機能カタログ
+ * Login.md に基づく権限・機能カタログ（06機能追加の仮キー含む）
  */
 
 const ROLES = [
@@ -15,14 +15,18 @@ const ROLES = [
 const ROLE_KEYS = ROLES.map((r) => r.key);
 
 const FEATURES = [
-  { key: 'companies', label: '企業マスタ' },
-  { key: 'partners', label: 'パートナーマスタ' },
-  { key: 'projects', label: '案件マスタ' },
-  { key: 'daily_reports', label: '日報' },
-  { key: 'advances', label: '先払い' },
-  { key: 'invoices', label: '請求' },
-  { key: 'payments', label: '支払' },
-  { key: 'users', label: 'ユーザー管理' },
+  { key: 'companies', label: '企業マスタ', group: 'master' },
+  { key: 'partners', label: 'パートナーマスタ', group: 'master' },
+  { key: 'base_projects', label: '基本案件', group: 'master' },
+  { key: 'projects', label: '個別案件', group: 'master' },
+  { key: 'price_sets', label: '金額データ管理', group: 'master' },
+  { key: 'daily_reports', label: '日報', group: 'daily' },
+  { key: 'advances', label: '先払い', group: 'billing' },
+  { key: 'invoices', label: '請求', group: 'billing' },
+  { key: 'payments', label: '支払', group: 'billing' },
+  { key: 'master_settings', label: 'マスター設定', group: 'settings' },
+  { key: 'ui_builder', label: 'UIビルダー', group: 'settings' },
+  { key: 'users', label: 'ユーザー管理', group: 'settings' },
 ];
 
 const FEATURE_KEYS = FEATURES.map((f) => f.key);
@@ -31,11 +35,15 @@ const FEATURE_KEYS = FEATURES.map((f) => f.key);
 const FEATURE_ROLE_MAP = {
   companies: ['admin', 'system', 'soumu'],
   partners: ['admin', 'system', 'soumu'],
+  base_projects: ['admin', 'system', 'soumu', 'sales'],
   projects: ['admin', 'system', 'soumu', 'sales'],
+  price_sets: ['admin', 'system', 'soumu', 'sales'],
   daily_reports: ['admin', 'system', 'soumu', 'sales', 'partner', 'executive'],
   advances: ['admin', 'executive', 'soumu'],
   invoices: ['admin', 'executive', 'soumu', 'sales', 'company'],
   payments: ['admin', 'executive', 'soumu'],
+  master_settings: ['admin', 'system', 'soumu'],
+  ui_builder: ['admin', 'system'],
   users: ['admin', 'system'],
 };
 
@@ -78,7 +86,6 @@ function resolveRoles(userOrRoles) {
   if (Array.isArray(userOrRoles.roles)) {
     return normalizeRoles(userOrRoles.roles);
   }
-  // 旧データ互換: role 単一カラム
   if (userOrRoles.role === 'admin') {
     return ['admin'];
   }

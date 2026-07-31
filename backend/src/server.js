@@ -17,6 +17,9 @@ const advancesRoutes = require('./routes/advances');
 const invoicesRoutes = require('./routes/invoices');
 const paymentsRoutes = require('./routes/payments');
 const lookupsRoutes = require('./routes/lookups');
+const layoutsRoutes = require('./routes/layouts');
+const priceSetsRoutes = require('./routes/price_sets');
+const masterSettingsRoutes = require('./routes/master_settings');
 
 
 async function createApp() {
@@ -92,6 +95,9 @@ async function createApp() {
   app.use('/api/advances', advancesRoutes);
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/payments', paymentsRoutes);
+  app.use('/api/layouts', layoutsRoutes);
+  app.use('/api/price-sets', priceSetsRoutes);
+  app.use('/api/master-settings', masterSettingsRoutes);
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {

@@ -254,4 +254,193 @@ router.post('/close', async (req, res) => {
   }
 });
 
+/** G-07: 請求確定解除 → 再編集可、日報の billed を戻す */
+router.post('/:id/unconfirm', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT * FROM invoices WHERE invoice_id = ? AND is_deleted = 0 FOR UPDATE`,
+      [id]
+    );
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, message: '請求が見つかりません' });
+    }
+    const [links] = await conn.query(
+      `SELECT daily_report_id FROM invoice_daily_reports WHERE invoice_id = ?`,
+      [id]
+    );
+    for (const link of links) {
+      await conn.query(
+        `UPDATE daily_reports
+         SET billing_status = 'none', version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE daily_report_id = ?`,
+        [link.daily_report_id]
+      );
+    }
+    await conn.query(
+      `UPDATE invoices
+       SET is_confirmed = 0, approval_status = 'draft', invoice_status = 'draft',
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE invoice_id = ?`,
+      [id]
+    );
+    await conn.commit();
+    return res.json({ ok: true, message: '請求確定を解除しました' });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[invoices/unconfirm]', err);
+    return res.status(500).json({ ok: false, message: '確定解除に失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/:id/confirm', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await query(
+      `UPDATE invoices
+       SET is_confirmed = 1, approval_status = 'confirmed', invoice_status = 'confirmed',
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE invoice_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[invoices/confirm]', err);
+    return res.status(500).json({ ok: false, message: '確定に失敗しました' });
+  }
+});
+
+router.post('/:id/approve', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await query(
+      `UPDATE invoices
+       SET approval_status = 'approved', version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE invoice_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[invoices/approve]', err);
+    return res.status(500).json({ ok: false, message: '承認に失敗しました' });
+  }
+});
+
+router.post('/:id/print', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await query(
+      `UPDATE invoices
+       SET is_printed = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE invoice_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    return res.json({ ok: true, message: '印刷済みにしました（PDF本作成は後続）' });
+  } catch (err) {
+    console.error('[invoices/print]', err);
+    return res.status(500).json({ ok: false, message: '印刷フラグ更新に失敗しました' });
+  }
+});
+
+router.post('/exclude', async (req, res) => {
+  try {
+    const companyId = Number(req.body.company_id);
+    const ym = String(req.body.target_year_month || '').trim();
+    const reason = req.body.reason || null;
+    if (!companyId || !ym) {
+      return res.status(400).json({ ok: false, message: '企業と年月は必須です' });
+    }
+    await query(
+      `INSERT INTO invoice_exclusions (company_id, target_year_month, reason)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE reason = VALUES(reason), is_deleted = 0, version = version + 1`,
+      [companyId, ym, reason]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[invoices/exclude]', err);
+    return res.status(500).json({ ok: false, message: '除外登録に失敗しました' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    const [rows] = await conn.query(
+      `SELECT * FROM invoices WHERE invoice_id = ? AND is_deleted = 0 FOR UPDATE`,
+      [id]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ ok: false, message: '請求が見つかりません' });
+    }
+    if (Number(rows[0].is_confirmed) === 1) {
+      return res.status(400).json({ ok: false, message: '確定中です。先に確定解除してください' });
+    }
+    const adjustmentAmount = Number(req.body.adjustment_amount || rows[0].adjustment_amount || 0);
+    const subtotal = Number(req.body.subtotal_amount != null ? req.body.subtotal_amount : rows[0].subtotal_amount);
+    const taxable = subtotal + adjustmentAmount;
+    const tax = Math.floor(taxable * 0.1);
+    const total = taxable + tax;
+    const issueType = req.body.issue_type || rows[0].issue_type || 'final';
+    if (issueType === 'final' && rows[0].approval_status !== 'approved') {
+      // 本請求は承認後のみ（仮は可）— 更新自体は下書きとして許可
+    }
+    await conn.query(
+      `UPDATE invoices
+       SET subtotal_amount = ?, adjustment_amount = ?, taxable_amount = ?,
+           tax_amount = ?, total_amount = ?, issue_type = ?,
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE invoice_id = ?`,
+      [subtotal, adjustmentAmount, taxable, tax, total, issueType, id]
+    );
+
+    const details = Array.isArray(req.body.details) ? req.body.details : null;
+    if (details) {
+      await conn.query(`UPDATE invoice_details SET is_deleted = 1 WHERE invoice_id = ?`, [id]);
+      for (const d of details) {
+        await conn.query(
+          `INSERT INTO invoice_details
+            (invoice_id, price_name, unit_price, quantity, amount, is_adjustment_row, source_type, daily_report_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            d.price_name || '明細',
+            Number(d.unit_price || 0),
+            Number(d.quantity || 1),
+            Number(d.amount || 0),
+            d.is_adjustment_row ? 1 : 0,
+            d.source_type || 'manual',
+            d.daily_report_id || null,
+          ]
+        );
+      }
+    }
+    await conn.commit();
+    const inv = await query(
+      `SELECT i.*, c.company_name FROM invoices i
+       LEFT JOIN companies c ON c.company_id = i.company_id WHERE i.invoice_id = ?`,
+      [id]
+    );
+    const detailRows = await query(
+      `SELECT * FROM invoice_details WHERE invoice_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    return res.json({ ok: true, invoice: { ...inv[0], details: detailRows } });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[invoices/update]', err);
+    return res.status(500).json({ ok: false, message: '請求更新に失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

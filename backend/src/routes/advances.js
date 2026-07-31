@@ -130,7 +130,11 @@ router.put('/upsert', async (req, res) => {
       if (!projects.length) continue;
       const project = projects[0];
 
-      const workDays = await countWorkDays(projectId, ym, cycle);
+      const workDaysInput =
+        item.work_days_input != null && item.work_days_input !== ''
+          ? Number(item.work_days_input)
+          : null;
+      const workDays = workDaysInput != null ? workDaysInput : await countWorkDays(projectId, ym, cycle);
       const isTarget = item.is_target === true || item.is_target === 1 || item.is_target === '1';
       const defaultPrice = Number(project.installment_amount || 0);
       let unitPrice = item.unit_price != null && item.unit_price !== ''
@@ -142,19 +146,24 @@ router.put('/upsert', async (req, res) => {
         Number(unitPrice) !== Number(defaultPrice);
       const fee = Number(item.applied_transfer_fee || 0);
       const total = isTarget ? unitPrice * workDays : 0;
+      const title = item.title || null;
+      const recordType = item.record_type || 'cycle';
 
       await conn.query(
         `INSERT INTO advance_payments
-          (project_id, partner_id, company_id, target_year_month, cycle_number,
-           is_target, unit_price, is_price_overridden, work_days, total_amount, applied_transfer_fee)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (project_id, partner_id, company_id, target_year_month, cycle_number, record_type, title,
+           is_target, unit_price, is_price_overridden, work_days, work_days_input, total_amount, applied_transfer_fee)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            partner_id = VALUES(partner_id),
            company_id = VALUES(company_id),
+           record_type = VALUES(record_type),
+           title = VALUES(title),
            is_target = VALUES(is_target),
            unit_price = VALUES(unit_price),
            is_price_overridden = VALUES(is_price_overridden),
            work_days = VALUES(work_days),
+           work_days_input = VALUES(work_days_input),
            total_amount = VALUES(total_amount),
            applied_transfer_fee = VALUES(applied_transfer_fee),
            version = version + 1,
@@ -166,10 +175,13 @@ router.put('/upsert', async (req, res) => {
           project.company_id,
           ym,
           cycle,
+          recordType,
+          title,
           isTarget ? 1 : 0,
           unitPrice,
           overridden ? 1 : 0,
-          workDays,
+          Math.round(workDays),
+          workDaysInput,
           total,
           fee,
         ]

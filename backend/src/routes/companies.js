@@ -13,6 +13,7 @@ const COMPANY_FIELDS = [
   'zip_code',
   'address',
   'contact',
+  'fax',
   'contract_manager',
   'our_manager',
   'our_contract_manager',
@@ -26,7 +27,21 @@ const COMPANY_FIELDS = [
   'deposit_type',
   'account_name',
   'invoice_send_method',
+  'invoice_send_address',
+  'work_mode_code',
 ];
+
+function normalizeManagerPeriods(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((row) => ({
+    period_id: row.period_id ? Number(row.period_id) : null,
+    role_type: row.role_type || 'our_manager',
+    name_or_user: row.name_or_user || '',
+    staff_master_id: row.staff_master_id ? Number(row.staff_master_id) : null,
+    start_date: row.start_date || null,
+    end_date: row.end_date || null,
+  })).filter((r) => r.name_or_user && r.start_date);
+}
 
 function pickCompany(body) {
   const out = {};
@@ -82,12 +97,63 @@ async function fetchCompanyDetail(companyId) {
      ORDER BY vehicle_id ASC`,
     [companyId]
   );
+  const manager_periods = await query(
+    `SELECT * FROM company_manager_periods
+     WHERE company_id = ? AND is_deleted = 0
+     ORDER BY start_date DESC, period_id DESC`,
+    [companyId]
+  );
 
   return {
     ...companies[0],
     billings,
     vehicles,
+    manager_periods,
   };
+}
+
+async function syncManagerPeriods(conn, companyId, periods) {
+  const [existing] = await conn.query(
+    `SELECT period_id FROM company_manager_periods WHERE company_id = ? AND is_deleted = 0`,
+    [companyId]
+  );
+  const keepIds = new Set(periods.filter((p) => p.period_id).map((p) => Number(p.period_id)));
+  for (const row of existing) {
+    if (!keepIds.has(Number(row.period_id))) {
+      await conn.query(
+        `UPDATE company_manager_periods
+         SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE period_id = ? AND company_id = ?`,
+        [row.period_id, companyId]
+      );
+    }
+  }
+  for (const p of periods) {
+    if (p.period_id) {
+      await conn.query(
+        `UPDATE company_manager_periods
+         SET role_type = ?, name_or_user = ?, staff_master_id = ?,
+             start_date = ?, end_date = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE period_id = ? AND company_id = ? AND is_deleted = 0`,
+        [
+          p.role_type,
+          p.name_or_user,
+          p.staff_master_id,
+          p.start_date,
+          p.end_date,
+          p.period_id,
+          companyId,
+        ]
+      );
+    } else {
+      await conn.query(
+        `INSERT INTO company_manager_periods
+          (company_id, role_type, name_or_user, staff_master_id, start_date, end_date)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [companyId, p.role_type, p.name_or_user, p.staff_master_id, p.start_date, p.end_date]
+      );
+    }
+  }
 }
 
 async function syncBillings(conn, companyId, billings) {
@@ -218,24 +284,27 @@ router.get('/', async (req, res) => {
     };
     const sortCol = sortMap[sort] || 'company_id';
 
-    const where = ['is_deleted = 0'];
+    const where = ['c.is_deleted = 0'];
     const params = [];
     if (q) {
-      where.push('company_name LIKE ?');
+      where.push('c.company_name LIKE ?');
       params.push(`%${q}%`);
     }
     if (closing) {
-      where.push('closing_date_code = ?');
+      where.push('c.closing_date_code = ?');
       params.push(closing);
     }
 
     const rows = await query(
-      `SELECT company_id, office_no, company_name, company_name_kana,
-              closing_date_code, payment_date_code, invoice_send_method,
-              version, updated_at
-       FROM companies
+      `SELECT c.company_id, c.office_no, c.company_name, c.company_name_kana,
+              c.closing_date_code, c.payment_date_code, c.invoice_send_method,
+              c.work_mode_code, c.our_manager, c.fax, c.invoice_send_address,
+              c.version, c.updated_at,
+              (SELECT COUNT(*) FROM base_projects b
+               WHERE b.company_id = c.company_id AND b.is_deleted = 0) AS base_project_count
+       FROM companies c
        WHERE ${where.join(' AND ')}
-       ORDER BY ${sortCol} ${order}`,
+       ORDER BY c.${sortCol} ${order}`,
       params
     );
 
@@ -294,6 +363,7 @@ router.post('/', async (req, res) => {
     data.company_name = String(data.company_name).trim();
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
+    const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);
 
     await conn.beginTransaction();
     const cols = Object.keys(data);
@@ -305,6 +375,7 @@ router.post('/', async (req, res) => {
     const companyId = result.insertId;
     await syncBillings(conn, companyId, billings);
     await syncVehicles(conn, companyId, vehicles);
+    await syncManagerPeriods(conn, companyId, managerPeriods);
     await conn.commit();
 
     const detail = await fetchCompanyDetail(companyId);
@@ -346,6 +417,7 @@ router.put('/:id', async (req, res) => {
     data.company_name = String(data.company_name).trim();
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
+    const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
 
     await conn.beginTransaction();
@@ -376,6 +448,7 @@ router.put('/:id', async (req, res) => {
 
     await syncBillings(conn, id, billings);
     await syncVehicles(conn, id, vehicles);
+    await syncManagerPeriods(conn, id, managerPeriods);
     await conn.commit();
 
     const detail = await fetchCompanyDetail(id);
