@@ -12,14 +12,21 @@
   ];
 
   const FEATURE_FALLBACK = [
-    { key: 'companies', label: '企業マスタ' },
-    { key: 'partners', label: 'パートナーマスタ' },
-    { key: 'projects', label: '案件マスタ' },
-    { key: 'daily_reports', label: '日報' },
-    { key: 'advances', label: '先払い' },
-    { key: 'invoices', label: '請求' },
-    { key: 'payments', label: '支払' },
-    { key: 'users', label: 'ユーザー管理' },
+    { key: 'companies', label: '企業マスタ', desc: '企業情報を登録・管理します', group: 'master' },
+    { key: 'partners', label: 'パートナーマスタ', desc: 'パートナー企業を登録・管理します', group: 'master' },
+    { key: 'projects', label: '案件マスタ', desc: '案件情報を登録・管理します', group: 'master' },
+    { key: 'daily_reports', label: '日報', desc: '日々の業務内容を登録・管理します', group: 'daily' },
+    { key: 'advances', label: '先払い', desc: '先払いの申請・管理を行います', group: 'billing' },
+    { key: 'invoices', label: '請求', desc: '請求の作成・管理を行います', group: 'billing' },
+    { key: 'payments', label: '支払', desc: '支払の処理・管理を行います', group: 'billing' },
+    { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },
+  ];
+
+  const GROUPS = [
+    { key: 'master', label: 'マスタ' },
+    { key: 'daily', label: '日々の運用' },
+    { key: 'billing', label: '精算' },
+    { key: 'settings', label: '設定' },
   ];
 
   let currentUser = null;
@@ -64,105 +71,94 @@
     return roleCatalog.find((r) => r.key === key)?.label || key;
   }
 
-  function featureLabel(key) {
-    return featureCatalog.find((f) => f.key === key)?.label || key;
+  function enrichFeatures(list) {
+    return (list || FEATURE_FALLBACK).map((f) => {
+      const base = FEATURE_FALLBACK.find((x) => x.key === f.key) || {};
+      return {
+        ...base,
+        ...f,
+        desc: f.desc || base.desc || '',
+        group: f.group || base.group || 'settings',
+      };
+    });
+  }
+
+  function showToast(message) {
+    document.querySelectorAll('.toast').forEach((el) => el.remove());
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
   }
 
   function renderLoading() {
     app.innerHTML = '<div class="loading-panel">読み込み中…</div>';
   }
 
-  function shellHtml(title, bodyHtml) {
-    const navItems = [
-      { view: 'home', label: 'ホーム', feature: null },
-      { view: 'users', label: 'ユーザー管理', feature: 'users' },
-    ].filter((item) => !item.feature || can(item.feature));
-
-    const nav = navItems
-      .map(
-        (item) => `
-        <button type="button" class="nav-link ${currentView === item.view ? 'active' : ''}" data-view="${item.view}">
-          ${escapeHtml(item.label)}
-        </button>`
-      )
-      .join('');
-
-    const roleChips = (currentUser?.roles || [])
-      .map((key) => `<span class="chip">${escapeHtml(roleLabel(key))}</span>`)
-      .join('');
-
-    const featureChips = (currentUser?.permissions || [])
-      .map((key) => `<span class="chip">${escapeHtml(featureLabel(key))}</span>`)
-      .join('');
-
+  function headerHtml() {
+    const rolesText = (currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし';
     return `
-      <div class="app-shell">
-        <header class="app-header">
-          <div>
-            <h1 class="brand brand-sm">Links-System</h1>
-            <p class="header-sub">${escapeHtml(title)}</p>
+      <header class="app-header">
+        <div class="brand-mark">
+          <span class="brand-icon" aria-hidden="true"></span>
+          <h1 class="brand">Links-System</h1>
+        </div>
+        <div class="header-actions">
+          <div class="user-pill">
+            <strong>${escapeHtml(currentUser.display_name)}</strong>
+            <span>${escapeHtml(rolesText)}</span>
           </div>
-          <div class="header-actions">
-            <div class="user-pill">
-              <strong>${escapeHtml(currentUser.display_name)}</strong>
-              <span>${escapeHtml((currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし')}</span>
-            </div>
-            <button class="btn btn-secondary" type="button" id="logout-btn">ログアウト</button>
-          </div>
-        </header>
-        <nav class="app-nav">${nav}</nav>
-        <main class="app-main">
-          ${bodyHtml}
-          <section class="perm-summary">
-            <h2>付与権限</h2>
-            <div class="chip-row">${roleChips || '<span class="muted">なし</span>'}</div>
-            <h2>利用可能な機能</h2>
-            <div class="chip-row">${featureChips || '<span class="muted">なし</span>'}</div>
-          </section>
-        </main>
-      </div>
+          <button class="btn btn-secondary" type="button" id="logout-btn">ログアウト</button>
+        </div>
+      </header>
     `;
   }
 
-  function bindShellEvents() {
+  function bindLogout() {
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
       await api('/api/auth/logout', { method: 'POST', body: '{}' });
       currentUser = null;
       renderLogin();
-    });
-
-    document.querySelectorAll('[data-view]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const view = btn.getAttribute('data-view');
-        if (view === 'users') {
-          showUsers();
-        } else {
-          showHome();
-        }
-      });
     });
   }
 
   function renderLogin(errorMessage = '') {
     currentView = 'login';
     app.innerHTML = `
-      <div class="center-wrap">
-        <section class="login-card">
+      <div class="login-screen">
+        <div class="login-inner">
           <h1 class="brand">Links-System</h1>
-          <p class="lead">運送業務基幹システム（ログイン）</p>
+          <p class="login-lead">運送業務基幹システム</p>
           <p class="error" id="login-error">${escapeHtml(errorMessage)}</p>
-          <form id="login-form">
-            <label for="login_id">ログインID</label>
-            <input id="login_id" name="login_id" autocomplete="username" required />
-            <label for="password">パスワード</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required />
-            <div class="btn-row">
-              <button class="btn" type="submit">ログイン</button>
+          <form class="login-form" id="login-form">
+            <div class="field">
+              <label for="login_id">ログインID</label>
+              <input id="login_id" name="login_id" type="text"
+                placeholder="ログインIDを入力してください"
+                autocomplete="username" required />
             </div>
+            <div class="field">
+              <label for="password">パスワード</label>
+              <div class="password-wrap">
+                <input id="password" name="password" type="password"
+                  placeholder="パスワードを入力してください"
+                  autocomplete="current-password" required />
+                <button type="button" class="password-toggle" id="toggle-password" aria-label="パスワード表示切替">表示</button>
+              </div>
+            </div>
+            <button class="btn btn-block" type="submit">ログイン</button>
           </form>
-        </section>
+        </div>
       </div>
     `;
+
+    const passwordInput = document.getElementById('password');
+    document.getElementById('toggle-password').addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      document.getElementById('toggle-password').textContent = isPassword ? '隠す' : '表示';
+    });
 
     document.getElementById('login-form').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -182,70 +178,74 @@
       }
 
       currentUser = data.user;
-      featureCatalog = data.features || FEATURE_FALLBACK;
+      featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
       await showHome();
     });
+  }
+
+  function openFeature(featureKey) {
+    if (featureKey === 'users') {
+      showUsers();
+      return;
+    }
+    const label = featureCatalog.find((f) => f.key === featureKey)?.label || featureKey;
+    showToast(`「${label}」は準備中です`);
   }
 
   async function showHome() {
     currentView = 'home';
     renderLoading();
 
-    const health = await api('/api/health');
-    const healthOk = Boolean(health.res.ok && health.data?.ok);
-    const dbStatus = healthOk ? health.data.db : 'down';
+    const groupsHtml = GROUPS.map((group) => {
+      const items = featureCatalog.filter((f) => f.group === group.key && can(f.key));
+      if (!items.length) {
+        return '';
+      }
+      const oneCol = items.length === 1 ? ' one-col' : '';
+      const buttons = items
+        .map(
+          (f) => `
+          <button type="button" class="feature-btn" data-feature="${escapeHtml(f.key)}">
+            <span class="title">${escapeHtml(f.label)}</span>
+            <span class="desc">${escapeHtml(f.desc || '')}</span>
+          </button>`
+        )
+        .join('');
 
-    const upcoming = featureCatalog
-      .filter((f) => f.key !== 'users')
-      .map((f) => {
-        const allowed = can(f.key);
-        return `
-          <li class="${allowed ? 'allowed' : 'denied'}">
-            <span>${escapeHtml(f.label)}</span>
-            <em>${allowed ? '利用可' : '権限なし'}</em>
-          </li>`;
-      })
-      .join('');
+      return `
+        <section class="feature-group">
+          <h2 class="feature-group-title">${escapeHtml(group.label)}</h2>
+          <div class="feature-grid${oneCol}">${buttons}</div>
+        </section>`;
+    }).join('');
 
-    app.innerHTML = shellHtml(
-      'ホーム',
-      `
-      <section class="panel">
-        <p class="lead">ログイン中です。付与された権限に応じて利用できる機能が決まります（仕様: Login.md）。</p>
-        <dl class="meta-grid">
-          <dt>No</dt>
-          <dd>${escapeHtml(currentUser.user_id)}</dd>
-          <dt>ID</dt>
-          <dd>${escapeHtml(currentUser.login_id)}</dd>
-          <dt>名</dt>
-          <dd>${escapeHtml(currentUser.display_name)}</dd>
-          <dt>権限</dt>
-          <dd>${escapeHtml((currentUser.roles || []).map(roleLabel).join('、') || 'なし')}</dd>
-          <dt>所属部署</dt>
-          <dd>${escapeHtml((currentUser.departments || []).join('、') || '未設定')}</dd>
-          <dt>所属エリア</dt>
-          <dd>${escapeHtml((currentUser.areas || []).join('、') || '未設定')}</dd>
-          <dt>APIヘルス</dt>
-          <dd class="${healthOk ? 'status-ok' : 'status-ng'}">
-            ${healthOk ? `正常 (DB: ${escapeHtml(dbStatus)})` : '異常'}
-          </dd>
-        </dl>
-        <h2>機能アクセス状況</h2>
-        <ul class="feature-status">${upcoming}</ul>
-      </section>`
-    );
-    bindShellEvents();
+    app.innerHTML = `
+      <div class="app-shell">
+        ${headerHtml()}
+        <main class="app-main">
+          <p class="launcher-intro">やりたい機能のボタンを押してください。権限のある機能だけ表示しています。</p>
+          ${groupsHtml || '<p class="muted">利用できる機能がありません。管理者に連絡してください。</p>'}
+        </main>
+      </div>
+    `;
+
+    bindLogout();
+    document.querySelectorAll('[data-feature]').forEach((btn) => {
+      btn.addEventListener('click', () => openFeature(btn.getAttribute('data-feature')));
+    });
   }
 
   function roleCheckboxes(selectedKeys) {
     const selected = new Set(selectedKeys || []);
     return roleCatalog
-      .map((r) => `
+      .map(
+        (r) => `
         <label class="check-item">
           <input type="checkbox" name="role" value="${escapeHtml(r.key)}" ${selected.has(r.key) ? 'checked' : ''} />
           <span>${escapeHtml(r.label)}</span>
-        </label>`)
+        </label>`
+      )
       .join('');
   }
 
@@ -275,15 +275,18 @@
 
     const { res, data } = await api('/api/users');
     if (!res.ok || !data?.ok) {
-      app.innerHTML = shellHtml(
-        'ユーザー管理',
-        `<section class="panel"><p class="error">${escapeHtml(data?.message || '一覧を取得できませんでした')}</p></section>`
-      );
-      bindShellEvents();
+      app.innerHTML = `
+        <div class="app-shell">
+          ${headerHtml()}
+          <main class="app-main">
+            <section class="panel"><p class="error">${escapeHtml(data?.message || '一覧を取得できませんでした')}</p></section>
+          </main>
+        </div>`;
+      bindLogout();
       return;
     }
 
-    featureCatalog = data.features || featureCatalog;
+    featureCatalog = enrichFeatures(data.features);
     roleCatalog = data.roles || roleCatalog;
 
     const rows = (data.users || [])
@@ -299,7 +302,7 @@
             <td>${escapeHtml((user.areas || []).join('、') || '-')}</td>
             <td>${user.is_active ? '<span class="status-ok">有効</span>' : '<span class="status-ng">無効</span>'}</td>
             <td>
-              <button type="button" class="btn btn-secondary btn-small" data-edit-user="${user.user_id}">編集</button>
+              <button type="button" class="btn btn-ghost btn-small" data-edit-user="${user.user_id}">編集</button>
               <button type="button" class="btn btn-danger btn-small" data-delete-user="${user.user_id}"
                 ${Number(user.user_id) === Number(currentUser.user_id) ? 'disabled' : ''}>削除</button>
             </td>
@@ -307,37 +310,43 @@
       })
       .join('');
 
-    app.innerHTML = shellHtml(
-      'ユーザー管理',
-      `
-      <section class="panel">
-        ${message ? `<p class="flash">${escapeHtml(message)}</p>` : ''}
-        <div class="section-head">
-          <h2>ユーザー一覧</h2>
-          <button type="button" class="btn" id="new-user-btn">＋ 新規ユーザー</button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>No</th>
-                <th>ID</th>
-                <th>名</th>
-                <th>権限</th>
-                <th>所属部署</th>
-                <th>所属エリア</th>
-                <th>状態</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>${rows || '<tr><td colspan="8">ユーザーがいません</td></tr>'}</tbody>
-          </table>
-        </div>
-      </section>
-      <div id="user-editor"></div>`
-    );
-    bindShellEvents();
+    app.innerHTML = `
+      <div class="app-shell">
+        ${headerHtml()}
+        <main class="app-main">
+          <div class="back-row">
+            <button type="button" class="btn btn-ghost" id="back-home">← 機能一覧へ戻る</button>
+          </div>
+          <section class="panel">
+            ${message ? `<p class="flash">${escapeHtml(message)}</p>` : ''}
+            <div class="section-head">
+              <h2>ユーザー一覧</h2>
+              <button type="button" class="btn" id="new-user-btn">＋ 新規ユーザー</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>ID</th>
+                    <th>名</th>
+                    <th>権限</th>
+                    <th>所属部署</th>
+                    <th>所属エリア</th>
+                    <th>状態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>${rows || '<tr><td colspan="8">ユーザーがいません</td></tr>'}</tbody>
+              </table>
+            </div>
+          </section>
+          <div id="user-editor"></div>
+        </main>
+      </div>`;
 
+    bindLogout();
+    document.getElementById('back-home')?.addEventListener('click', () => showHome());
     document.getElementById('new-user-btn')?.addEventListener('click', () => openUserEditor(null));
 
     document.querySelectorAll('[data-edit-user]').forEach((btn) => {
@@ -411,7 +420,7 @@
           </div>
           <div class="btn-row">
             <button class="btn" type="submit">${isNew ? '作成' : '保存'}</button>
-            <button class="btn btn-secondary" type="button" id="cancel-edit">キャンセル</button>
+            <button class="btn btn-ghost" type="button" id="cancel-edit">キャンセル</button>
           </div>
         </form>
       </section>
@@ -476,7 +485,7 @@
     const { res, data } = await api('/api/auth/me');
     if (res.ok && data?.ok && data.user) {
       currentUser = data.user;
-      featureCatalog = data.features || FEATURE_FALLBACK;
+      featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
       await showHome();
       return;
