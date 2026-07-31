@@ -25,6 +25,7 @@ Excel管理の運送業務（案件・パートナー・収支）をWeb化する
 | `05_decision_log.md` | 決定事項ログ |
 | `06_development_environment.md` | 開発環境・NAS実行基盤仕様 |
 | `07_auth_and_permissions.md` | ログイン実装メモ（要約） |
+| `08_communication_and_token_efficiency.md` | 日本語化範囲とトークン節約の運用（本文は英語） |
 | **`Login.md`** | **ログイン・ユーザー権限の正式仕様** |
 | **`計画/`** | **実装計画の保管場所**（基盤・画面UI・企業マスタなど） |
 | **`画面一覧/`** | **画面キャプチャ一式**（LinksSys UIの見た目参照・差分洗い出し用） |

@@ -1,18 +1,19 @@
 # Communication language & token efficiency
 
 > Status: **Active**  
-> Language of this doc: English (Japanese translation on request or after major process changes)  
+> Language of this doc: **English**  
+> Japanese translation: only when the user asks, or after a substantial process change  
 > Related agent rule: `.cursor/rules/communication-ja-token-efficient.mdc`
 
 ## Goal
 
-Keep user-facing work in Japanese where required, while avoiding token waste from verbose or duplicated Japanese during agent deliberation.
+Keep **user-facing** surfaces in Japanese where required, without forcing Japanese during agent deliberation, and without wasting tokens on verbose replies.
 
 ## Required Japanese (scope B)
 
 | Surface | Language |
 |---------|----------|
-| Chat replies to the user | Japanese (concise) |
+| Final chat replies to the user | Japanese (concise) |
 | Commit messages / PR title & body | Japanese (1–2 lines preferred) |
 | User-facing content in `仕様MD/` | Japanese; prefer tables, IDs, checklists over long prose |
 
@@ -26,9 +27,10 @@ Keep user-facing work in Japanese where required, while avoiding token waste fro
 
 ## Explicitly not required
 
-- Japanizing internal agent reasoning / consideration / tool planning
-- Translating every English term in chat (short gloss on first use is enough when helpful)
+- Japanizing internal reasoning / planning / deliberation / tool consideration while working
+- Translating every English term in chat (a short gloss on first useful mention is enough)
 - Long Japanese restatements of completed work
+- Maintaining a Japanese copy of these rules until requested
 
 ## Token-efficiency rules
 
@@ -40,5 +42,5 @@ Keep user-facing work in Japanese where required, while avoiding token waste fro
 
 ## Change control
 
-- Update this English rule when process changes.
-- Produce a Japanese translation of this doc only when the user asks, or when the process changes substantially.
+- Update this English rule when the process changes.
+- Produce a Japanese translation only when the user asks, or when the process changes substantially.
