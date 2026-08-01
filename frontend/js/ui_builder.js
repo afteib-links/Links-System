@@ -12,7 +12,8 @@
       label: '企業マスタ',
       columns: [
         { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所' },
+        { key: 'office_no', label: '事業所No' },
+        { key: 'office_name', label: '事業所名' },
         { key: 'company_name', label: '企業名' },
         { key: 'work_mode_code', label: '稼働形態' },
         { key: 'our_manager', label: '営業担当' },
