@@ -39,6 +39,7 @@
       actionsHeader = '操作',
       renderActions,
       tableId = 'shared-data-table',
+      showColumnPicker = false,
     } = options;
 
     const { order, hidden } = normalizeLayout(columns, layout);
@@ -98,17 +99,17 @@
       })
       .join('');
 
-    const colPicker = columns
-      .map((c) => {
-        const checked = !hidden.has(c.key) && order.includes(c.key) ? 'checked' : '';
-        return `<label class="dt-col-item"><input type="checkbox" data-col-key="${escapeHtml(
-          c.key
-        )}" ${checked}/> ${escapeHtml(c.label)}</label>`;
-      })
-      .join('');
-
-    return {
-      html: `
+    let pickerHtml = '';
+    if (showColumnPicker) {
+      const colPicker = columns
+        .map((c) => {
+          const checked = !hidden.has(c.key) && order.includes(c.key) ? 'checked' : '';
+          return `<label class="dt-col-item"><input type="checkbox" data-col-key="${escapeHtml(
+            c.key
+          )}" ${checked}/> ${escapeHtml(c.label)}</label>`;
+        })
+        .join('');
+      pickerHtml = `
         <div class="dt-toolbar-extra">
           <button type="button" class="btn btn-ghost btn-small" id="dt-layout-toggle" data-screen="${escapeHtml(
             screenKey || ''
@@ -117,7 +118,12 @@
             ${colPicker}
             <button type="button" class="btn btn-small" id="dt-layout-save">保存</button>
           </div>
-        </div>
+        </div>`;
+    }
+
+    return {
+      html: `
+        ${pickerHtml}
         <div class="table-wrap table-wrap-sticky">
           <table class="data-table data-table-compact" id="${escapeHtml(tableId)}">
             <thead>
