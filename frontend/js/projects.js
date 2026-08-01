@@ -67,7 +67,7 @@
         .map(
           (ps) => `
           <tr>
-            <td>${this.ctx.escapeHtml(ps.price_set_id)}</td>
+            <td>${this.ctx.escapeHtml(ps.price_set_no || ps.price_set_id)}</td>
             <td>${this.ctx.escapeHtml(ps.price_set_name)}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_start_date) || '-')}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_end_date) || '〜')}</td>

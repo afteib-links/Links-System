@@ -154,6 +154,33 @@ async function softDeletePriceSetsForProject(projectId, conn) {
   }
 }
 
+async function allocatePriceSetNo(conn) {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const prefix = `PS-${today}-`;
+  const [rows] = await conn.query(
+    `SELECT price_set_no FROM price_sets
+     WHERE price_set_no LIKE ? AND is_deleted = 0
+     ORDER BY price_set_no DESC LIMIT 1`,
+    [`${prefix}%`]
+  );
+  let next = 1;
+  if (rows.length && rows[0].price_set_no) {
+    const suffix = String(rows[0].price_set_no).slice(prefix.length);
+    const n = Number(suffix);
+    if (Number.isFinite(n)) next = n + 1;
+  }
+  return `${prefix}${String(next).padStart(3, '0')}`;
+}
+
+function assertValidFromRequired(applyStartDate) {
+  if (!normDate(applyStartDate)) {
+    const err = new Error('適用開始日（validFrom）は必須です');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+}
+
 async function copyLines(conn, fromSetId, toSetId) {
   const [lines] = await conn.query(
     `SELECT weekday_code, calc_type_code, price_type_code,
@@ -191,12 +218,14 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
   );
   let copied = 0;
   for (const src of sets) {
+    const priceSetNo = await allocatePriceSetNo(conn);
     const [result] = await conn.query(
       `INSERT INTO price_sets
-        (price_set_name, company_id, base_project_id, project_id,
+        (price_set_no, price_set_name, company_id, base_project_id, project_id,
          apply_start_date, apply_end_date, note)
-       VALUES (?, ?, NULL, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
       [
+        priceSetNo,
         src.price_set_name,
         src.company_id,
         Number(projectId),
@@ -213,11 +242,13 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
 
 module.exports = {
   assertOwnerExclusive,
+  assertValidFromRequired,
   validateNoOverlappingPeriods,
   listPriceSetsForBase,
   listPriceSetsForProject,
   softDeletePriceSetsForBase,
   softDeletePriceSetsForProject,
   deepCopyPriceSetsFromBaseToProject,
+  allocatePriceSetNo,
   periodsOverlap,
 };

@@ -21,8 +21,8 @@
 * **金額**: 案件専用 **`price_sets`**（`project_id`、テンプレとは別 ID）。計算・画面の正
 
 ## 5. 金額データ (price_sets / price_set_lines)
-* **price_sets**: 名称、企業、適用開始・終了、`base_project_id` または `project_id`（同時非 NULL 禁止）、備考
-* **price_set_lines**: 曜日区分、計算区分、料金種別、請求単価、支払単価、並び順
+* **price_sets**: 名称、`price_set_no`（`PS-YYYYMMDD-001`）、企業、適用開始・終了、`base_project_id` または `project_id`（同時非 NULL 禁止）、備考
+* **price_set_lines**: `weekday_code`（`day_type` マスタ: weekday=平日, half=半日…）、`calc_type_code`（daily/hourly）、`price_type_code`、請求／支払単価、並び順
 * 同一 owner（基本案件 or 個別案件）内で適用期間の重複不可
 
 ## 6. 案件条件改定履歴 (project_revisions) 【レガシー】
