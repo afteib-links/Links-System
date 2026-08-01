@@ -713,6 +713,11 @@ select {
   width: 100%;
 }
 
+/* display:flex が [hidden] を上書きしないようにする */
+.dt-col-panel[hidden] {
+  display: none !important;
+}
+
 .dt-col-item {
   display: inline-flex;
   align-items: center;
