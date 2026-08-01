@@ -126,7 +126,7 @@ async function assertValidOfficeNo(officeNo) {
     [String(officeNo)]
   );
   if (!rows.length) {
-    const err = new Error('事業所Noがマスタに存在しません');
+    const err = new Error('事業所番号がマスタに存在しません');
     err.status = 400;
     err.code = 'validation_error';
     throw err;
