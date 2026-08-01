@@ -235,9 +235,6 @@ router.post('/offices', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const name = String(req.body.office_name || '').trim();
-    if (!name) {
-      return res.status(400).json({ ok: false, message: '事業所名は必須です' });
-    }
     const sortOrder = Number(req.body.sort_order || 0);
     const isActive = req.body.is_active === false || req.body.is_active === 0 ? 0 : 1;
 
@@ -274,7 +271,7 @@ router.post('/offices', async (req, res) => {
     const [result] = await conn.query(
       `INSERT INTO office_masters (office_no, office_name, is_active, sort_order)
        VALUES (?, ?, ?, ?)`,
-      [officeNo, name, isActive, sortOrder]
+      [officeNo, name || '', isActive, sortOrder]
     );
     await conn.query(
       `UPDATE numbering_rules
@@ -301,16 +298,13 @@ router.put('/offices/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     const name = String(req.body.office_name || '').trim();
-    if (!name) {
-      return res.status(400).json({ ok: false, message: '事業所名は必須です' });
-    }
     await query(
       `UPDATE office_masters
        SET office_name = ?, is_active = ?, sort_order = ?,
            version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE office_id = ? AND is_deleted = 0`,
       [
-        name,
+        name || '',
         req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
         Number(req.body.sort_order || 0),
         id,
