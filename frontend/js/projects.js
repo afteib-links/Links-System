@@ -7,14 +7,12 @@
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
       this.codes = await this.kit.loadCodes();
-      const [companies, partners, priceSets] = await Promise.all([
+      const [companies, partners] = await Promise.all([
         this.ctx.api('/api/lookups/companies'),
         this.ctx.api('/api/lookups/partners'),
-        this.ctx.api('/api/price-sets').catch(() => ({ res: { ok: false }, data: null })),
       ]);
       this.companies = companies.data?.companies || [];
       this.partners = partners.data?.partners || [];
-      this.priceSets = priceSets.data?.price_sets || [];
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },
@@ -35,7 +33,6 @@
         <div><label>終了時刻</label><input type="time" name="execution_time_end" value="${this.ctx.escapeHtml(this.kit.timeValue(row.execution_time_end))}" /></div>
         <div><label>拘束時間</label><input name="binding_time" type="number" step="0.25" value="${this.ctx.escapeHtml(row.binding_time ?? '')}" /></div>
         <div><label>休憩</label><input name="break_time" type="number" step="0.25" value="${this.ctx.escapeHtml(row.break_time ?? '')}" /></div>
-        <div><label>金額データ</label><select name="price_set_id">${this.kit.optionsFromList(this.priceSets, 'price_set_id', 'price_set_name', row.price_set_id)}</select></div>
         <div><label>支払区分</label>
           <select name="payment_type">
             <option value="normal" ${row.payment_type !== 'installment' ? 'selected' : ''}>通常</option>
@@ -58,12 +55,71 @@
         execution_time_end: form.execution_time_end?.value || null,
         binding_time: form.binding_time?.value || null,
         break_time: form.break_time?.value || null,
-        price_set_id: form.price_set_id?.value ? Number(form.price_set_id.value) : null,
         payment_type: form.payment_type?.value || 'normal',
         installment_amount: form.installment_amount?.value || null,
         operation_start_date: form.operation_start_date?.value || null,
         closing_date: form.closing_date?.value || null,
       };
+    },
+
+    priceSetsSectionHtml(priceSets, ownerKind, ownerId, companyId) {
+      const rows = (priceSets || [])
+        .map(
+          (ps) => `
+          <tr>
+            <td>${this.ctx.escapeHtml(ps.price_set_id)}</td>
+            <td>${this.ctx.escapeHtml(ps.price_set_name)}</td>
+            <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_start_date) || '-')}</td>
+            <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_end_date) || '〜')}</td>
+            <td>${this.ctx.escapeHtml(ps.line_count ?? 0)}</td>
+            <td>
+              <button type="button" class="btn btn-ghost btn-small" data-edit-ps="${ps.price_set_id}">編集</button>
+            </td>
+          </tr>`
+        )
+        .join('');
+      const ownerAttr =
+        ownerKind === 'base'
+          ? `data-owner-base="${ownerId}" data-owner-company="${companyId || ''}"`
+          : `data-owner-project="${ownerId}" data-owner-company="${companyId || ''}"`;
+      return `
+        <h3 class="section-title">金額データ</h3>
+        <p class="muted">適用期間ごとに料金セットを登録します（案件作成時はテンプレから複製されます）。</p>
+        <div class="toolbar">
+          <button type="button" class="btn" id="add-price-set" ${ownerAttr}>＋ 金額データ追加</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table data-table-compact">
+            <thead><tr><th>No</th><th>名称</th><th>適用開始</th><th>適用終了</th><th>行数</th><th></th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6">金額データがありません</td></tr>'}</tbody>
+          </table>
+        </div>`;
+    },
+
+    bindPriceSetsSection(ownerKind, ownerId, companyId, refreshFn) {
+      document.getElementById('add-price-set')?.addEventListener('click', () => {
+        const opts =
+          ownerKind === 'base'
+            ? {
+                base_project_id: ownerId,
+                company_id: companyId,
+                new_with_owner: true,
+                returnTo: refreshFn,
+              }
+            : {
+                project_id: ownerId,
+                company_id: companyId,
+                new_with_owner: true,
+                returnTo: refreshFn,
+              };
+        this.ctx.openFeature?.('price_sets', opts);
+      });
+      document.querySelectorAll('[data-edit-ps]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          const psId = Number(btn.getAttribute('data-edit-ps'));
+          this.ctx.openFeature?.('price_sets', { price_set_id: psId, returnTo: refreshFn });
+        })
+      );
     },
 
     async showBaseList(message = '') {
@@ -150,6 +206,8 @@
             window.alert(result.data?.message || '案件作成失敗');
             return;
           }
+          const n = result.data.copied_price_set_count;
+          if (n != null) this.ctx.showToast(`金額データを${n}件コピーしました`);
           const projectId = result.data.project?.project_id;
           this.tab = 'projects';
           this.kit.pushNav(() => this.showBaseList());
@@ -189,11 +247,11 @@
         execution_time_end: '',
         binding_time: '',
         break_time: '',
-        price_set_id: '',
         payment_type: 'normal',
         installment_amount: '',
         operation_start_date: '',
         closing_date: '',
+        price_sets: [],
       };
       if (id) {
         const { res, data } = await this.ctx.api(`/api/projects/base/${id}`);
@@ -228,6 +286,7 @@
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>
           </form>
+          ${id ? this.priceSetsSectionHtml(row.price_sets, 'base', id, row.company_id) : ''}
         </section>`,
         { onBack: () => this.showBaseList() }
       );
@@ -242,6 +301,8 @@
           window.alert(result.data?.message || '案件作成失敗');
           return;
         }
+        const n = result.data.copied_price_set_count;
+        if (n != null) this.ctx.showToast(`金額データを${n}件コピーしました`);
         this.tab = 'projects';
         this.kit.pushNav(() => this.showBaseList());
         await this.showProjectDetail(result.data.project.project_id);
@@ -268,6 +329,9 @@
         }
         await this.showBaseList(id ? '更新しました' : '登録しました');
       });
+      if (id) {
+        this.bindPriceSetsSection('base', id, row.company_id, () => this.showBaseDetail(id));
+      }
     },
 
     async showProjectList(message = '') {
@@ -384,8 +448,8 @@
         work_mode_code: '',
         daily_count_type: '',
         overtime_calc_type: '',
-        price_set_id: '',
         revisions: [],
+        price_sets: [],
       };
       if (id) {
         const { res, data } = await this.ctx.api(`/api/projects/${id}`);
@@ -414,7 +478,6 @@
             <td>${r.is_auto_generated ? '自動' : '手動'}</td>
             <td>${this.ctx.escapeHtml(r.billing_base_price ?? '-')}</td>
             <td>${this.ctx.escapeHtml(r.payment_base_price ?? '-')}</td>
-            <td><button type="button" class="btn btn-danger btn-small" data-del-rev="${r.revision_id}">削除</button></td>
           </tr>`
         )
         .join('');
@@ -457,19 +520,15 @@
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>
           </form>
+          ${id ? this.priceSetsSectionHtml(project.price_sets, 'project', id, project.company_id) : ''}
           ${
             id
-              ? `<h3 class="section-title">改定履歴</h3>
-            <div class="toolbar">
-              <input type="date" id="new-rev-start" />
-              <input type="number" step="0.01" id="new-rev-billing" placeholder="請求基本" />
-              <input type="number" step="0.01" id="new-rev-payment" placeholder="支払基本" />
-              <button type="button" class="btn" id="add-rev">＋ 改定追加</button>
-            </div>
+              ? `<h3 class="section-title">改定履歴（レガシー・参照のみ）</h3>
+            <p class="muted">金額の正は上の金額データ（PriceSet）です。改定履歴は移行前データの参照用です。</p>
             <div class="table-wrap">
               <table class="data-table data-table-compact">
-                <thead><tr><th>開始</th><th>終了</th><th>種別</th><th>請求単価</th><th>支払単価</th><th></th></tr></thead>
-                <tbody>${revRows || '<tr><td colspan="6">改定なし</td></tr>'}</tbody>
+                <thead><tr><th>開始</th><th>終了</th><th>種別</th><th>請求単価</th><th>支払単価</th></tr></thead>
+                <tbody>${revRows || '<tr><td colspan="5">改定なし</td></tr>'}</tbody>
               </table>
             </div>`
               : ''
@@ -510,7 +569,6 @@
         form.execution_time_end.value = this.kit.timeValue(b.execution_time_end);
         form.binding_time.value = b.binding_time ?? '';
         form.break_time.value = b.break_time ?? '';
-        form.price_set_id.value = b.price_set_id || '';
         form.payment_type.value = b.payment_type || 'normal';
         form.installment_amount.value = b.installment_amount ?? '';
         form.operation_start_date.value = this.kit.dateValue(b.operation_start_date);
@@ -545,42 +603,15 @@
           return;
         }
         if (id) await this.showProjectDetail(id);
-        else await this.showProjectList('登録しました');
-      });
-      document.getElementById('add-rev')?.addEventListener('click', async () => {
-        const start = document.getElementById('new-rev-start').value;
-        if (!start) {
-          window.alert('適用開始日を入力してください');
-          return;
+        else {
+          const n = result.data.copied_price_set_count;
+          if (n != null && n > 0) this.ctx.showToast(`金額データを${n}件コピーしました`);
+          await this.showProjectList('登録しました');
         }
-        const result = await this.ctx.api(`/api/projects/${id}/revisions`, {
-          method: 'POST',
-          body: JSON.stringify({
-            revision_start_date: start,
-            billing_base_price: document.getElementById('new-rev-billing').value || null,
-            payment_base_price: document.getElementById('new-rev-payment').value || null,
-          }),
-        });
-        if (!result.res.ok) {
-          window.alert(result.data?.message || '改定追加失敗');
-          return;
-        }
-        await this.showProjectDetail(id);
       });
-      document.querySelectorAll('[data-del-rev]').forEach((btn) =>
-        btn.addEventListener('click', async () => {
-          if (!window.confirm('この改定を削除しますか？')) return;
-          const result = await this.ctx.api(
-            `/api/projects/${id}/revisions/${btn.getAttribute('data-del-rev')}`,
-            { method: 'DELETE' }
-          );
-          if (!result.res.ok) {
-            window.alert(result.data?.message || '削除失敗');
-            return;
-          }
-          await this.showProjectDetail(id);
-        })
-      );
+      if (id) {
+        this.bindPriceSetsSection('project', id, project.company_id, () => this.showProjectDetail(id));
+      }
     },
   };
 

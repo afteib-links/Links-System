@@ -1,13 +1,43 @@
 (() => {
   const LinksPriceSets = {
-    async open(ctx) {
+    async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.codes = await this.kit.loadCodes();
       const companies = await this.ctx.api('/api/lookups/companies');
       this.companies = companies.data?.companies || [];
       this.q = '';
+      this.filterBaseProjectId = options.base_project_id ? Number(options.base_project_id) : null;
+      this.filterProjectId = options.project_id ? Number(options.project_id) : null;
+      this.prefillCompanyId = options.company_id ? Number(options.company_id) : null;
+      this.returnTo = options.returnTo || null;
+      if (options.price_set_id) {
+        this.kit.pushNav(() => this.showList());
+        await this.showDetail(Number(options.price_set_id));
+        return;
+      }
+      if (options.new_with_owner) {
+        this.kit.pushNav(() => this.showList());
+        await this.showDetail(null, {
+          base_project_id: this.filterBaseProjectId,
+          project_id: this.filterProjectId,
+          company_id: this.prefillCompanyId,
+        });
+        return;
+      }
       await this.showList();
+    },
+
+    linkLabel(ps) {
+      if (ps.project_id) {
+        const name = ps.project_manager_name || ps.project_id;
+        return `個別案件 No.${ps.project_id}（${name}）`;
+      }
+      if (ps.base_project_id) {
+        const name = ps.base_template_name || ps.base_project_id;
+        return `基本案件 No.${ps.base_project_id}（${name}）`;
+      }
+      return '未紐付け';
     },
 
     weekdayLabel(code) {
@@ -28,6 +58,8 @@
     async showList(message = '') {
       this.ctx.renderLoading();
       const params = new URLSearchParams({ q: this.q || '' });
+      if (this.filterBaseProjectId) params.set('base_project_id', this.filterBaseProjectId);
+      if (this.filterProjectId) params.set('project_id', this.filterProjectId);
       const { res, data } = await this.ctx.api(`/api/price-sets?${params}`);
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
@@ -44,6 +76,7 @@
             <td>${this.ctx.escapeHtml(ps.price_set_id)}</td>
             <td>${this.ctx.escapeHtml(ps.price_set_name)}</td>
             <td>${this.ctx.escapeHtml(ps.company_name || '-')}</td>
+            <td>${this.ctx.escapeHtml(this.linkLabel(ps))}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_start_date) || '-')}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_end_date) || '〜')}</td>
             <td>${this.ctx.escapeHtml(ps.line_count ?? 0)}</td>
@@ -66,8 +99,8 @@
           </div>
           <div class="table-wrap table-wrap-sticky">
             <table class="data-table data-table-compact">
-              <thead><tr><th>No</th><th>名称</th><th>企業</th><th>適用開始</th><th>適用終了</th><th>行数</th><th>操作</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="7">データがありません</td></tr>'}</tbody>
+              <thead><tr><th>No</th><th>名称</th><th>企業</th><th>連携先</th><th>適用開始</th><th>適用終了</th><th>行数</th><th>操作</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="8">データがありません</td></tr>'}</tbody>
             </table>
           </div>
         </section>`
@@ -79,7 +112,11 @@
       });
       document.getElementById('new')?.addEventListener('click', () => {
         this.kit.pushNav(() => this.showList());
-        this.showDetail(null);
+        this.showDetail(null, {
+          base_project_id: this.filterBaseProjectId,
+          project_id: this.filterProjectId,
+          company_id: this.prefillCompanyId,
+        });
       });
       document.querySelectorAll('[data-edit]').forEach((btn) =>
         btn.addEventListener('click', () => {
@@ -206,13 +243,15 @@
       });
     },
 
-    async showDetail(id) {
+    async showDetail(id, prefill = null) {
       this.ctx.renderLoading();
       let row = {
         price_set_id: null,
         version: 1,
         price_set_name: '',
-        company_id: '',
+        company_id: prefill?.company_id || this.prefillCompanyId || '',
+        base_project_id: prefill?.base_project_id || this.filterBaseProjectId || null,
+        project_id: prefill?.project_id || this.filterProjectId || null,
         apply_start_date: '',
         apply_end_date: '',
         note: '',
@@ -269,7 +308,13 @@
         document.getElementById('lines-area').innerHTML = this.linesGridHtml();
         this.bindLinesGrid();
       });
-      document.getElementById('cancel')?.addEventListener('click', () => this.showList());
+      document.getElementById('cancel')?.addEventListener('click', () => {
+        if (this.returnTo) {
+          this.returnTo();
+          return;
+        }
+        this.showList();
+      });
       document.getElementById('ps-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -277,6 +322,8 @@
         const payload = {
           price_set_name: form.price_set_name.value.trim(),
           company_id: form.company_id.value ? Number(form.company_id.value) : null,
+          base_project_id: row.base_project_id || null,
+          project_id: row.project_id || null,
           apply_start_date: form.apply_start_date.value || null,
           apply_end_date: form.apply_end_date.value || null,
           note: form.note.value,
@@ -291,6 +338,10 @@
           : await this.ctx.api('/api/price-sets', { method: 'POST', body: JSON.stringify(payload) });
         if (!result.res.ok || !result.data?.ok) {
           document.getElementById('form-error').textContent = result.data?.message || '保存失敗';
+          return;
+        }
+        if (this.returnTo) {
+          await this.returnTo();
           return;
         }
         await this.showList(this.detailState.id ? '更新しました' : '登録しました');

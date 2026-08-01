@@ -1,6 +1,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const { applyDailyPriceCalc } = require('../services/price_calc');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'));
@@ -34,6 +35,7 @@ const FIELDS = [
   'memo',
   'calculated_billing_amount',
   'calculated_payment_amount',
+  'applied_price_set_id',
   'override_billing_amount',
   'override_payment_amount',
   'input_source_type',
@@ -87,30 +89,7 @@ async function fetchDetail(id) {
 }
 
 async function applySimpleCalc(data) {
-  // 仮組: 勤務日時点の改定から請求/支払基本単価を拾う（なければ0）
-  if (!data.project_id || !data.work_date) return data;
-  const revs = await query(
-    `SELECT billing_base_price, payment_base_price
-     FROM project_revisions
-     WHERE project_id = ? AND is_deleted = 0
-       AND revision_start_date <= ?
-       AND (revision_end_date IS NULL OR revision_end_date >= ?)
-     ORDER BY revision_start_date DESC, revision_id DESC
-     LIMIT 1`,
-    [data.project_id, data.work_date, data.work_date]
-  );
-  if (revs.length) {
-    if (data.calculated_billing_amount == null) {
-      data.calculated_billing_amount = revs[0].billing_base_price || 0;
-    }
-    if (data.calculated_payment_amount == null) {
-      data.calculated_payment_amount = revs[0].payment_base_price || 0;
-    }
-  } else {
-    if (data.calculated_billing_amount == null) data.calculated_billing_amount = 0;
-    if (data.calculated_payment_amount == null) data.calculated_payment_amount = 0;
-  }
-  return data;
+  return applyDailyPriceCalc(data);
 }
 
 router.get('/', async (req, res) => {
