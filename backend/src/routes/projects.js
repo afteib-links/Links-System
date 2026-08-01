@@ -1,6 +1,13 @@
 const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const {
+  listPriceSetsForBase,
+  listPriceSetsForProject,
+  deepCopyPriceSetsFromBaseToProject,
+  softDeletePriceSetsForBase,
+  softDeletePriceSetsForProject,
+} = require('../services/price_set_lifecycle');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('projects'));
@@ -118,7 +125,10 @@ async function fetchBase(id) {
      LIMIT 1`,
     [id]
   );
-  return rows[0] || null;
+  const base = rows[0] || null;
+  if (!base) return null;
+  const price_sets = await listPriceSetsForBase(id);
+  return { ...base, price_sets };
 }
 
 async function fetchProject(id) {
@@ -142,7 +152,8 @@ async function fetchProject(id) {
      ORDER BY revision_start_date DESC, revision_id DESC`,
     [id]
   );
-  return { ...rows[0], revisions };
+  const price_sets = await listPriceSetsForProject(id);
+  return { ...rows[0], revisions, price_sets };
 }
 
 /* ===== 基本案件 ===== */
@@ -240,26 +251,36 @@ router.put('/base/:id', async (req, res) => {
 });
 
 router.delete('/base/:id', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const id = Number(req.params.id);
-    const result = await query(
+    await conn.beginTransaction();
+    const [result] = await conn.query(
       `UPDATE base_projects
        SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE base_project_id = ? AND is_deleted = 0`,
       [id]
     );
     if (!result || result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(404).json({ ok: false, message: '基本案件が見つかりません' });
     }
+    await softDeletePriceSetsForBase(id, conn);
+    await conn.commit();
     return res.json({ ok: true });
   } catch (err) {
+    await conn.rollback();
     console.error('[projects/base/delete]', err);
     return res.status(500).json({ ok: false, message: '基本案件の削除に失敗しました' });
+  } finally {
+    conn.release();
   }
 });
 
-/** D-02/D-03: 基本案件から個別案件を起こす（同項目コピー） */
 router.post('/base/:id/create-project', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const base = await fetchBase(Number(req.params.id));
     if (!base) return res.status(404).json({ ok: false, message: '基本案件が見つかりません' });
@@ -289,17 +310,33 @@ router.post('/base/:id/create-project', async (req, res) => {
       distance_calc_amount: overrides.distance_calc_amount != null ? overrides.distance_calc_amount : base.distance_calc_amount,
       gogo_site_calc_type: overrides.gogo_site_calc_type || base.gogo_site_calc_type,
       gogo_site_area: overrides.gogo_site_area || base.gogo_site_area,
-      price_set_id: overrides.price_set_id != null ? overrides.price_set_id : base.price_set_id,
+      price_set_id: null,
     };
     const cols = Object.keys(data).filter((k) => data[k] !== undefined);
-    const result = await query(
+    await conn.beginTransaction();
+    const [insertResult] = await conn.query(
       `INSERT INTO projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
       cols.map((c) => data[c])
     );
-    return res.status(201).json({ ok: true, project: await fetchProject(result.insertId) });
+    const projectId = insertResult.insertId;
+    const copiedPriceSets = await deepCopyPriceSetsFromBaseToProject(
+      base.base_project_id,
+      projectId,
+      conn
+    );
+    await conn.commit();
+    const project = await fetchProject(projectId);
+    return res.status(201).json({
+      ok: true,
+      project,
+      copied_price_set_count: copiedPriceSets,
+    });
   } catch (err) {
+    await conn.rollback();
     console.error('[projects/base/create-project]', err);
     return res.status(500).json({ ok: false, message: '案件作成に失敗しました' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -360,18 +397,30 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const data = pick(req.body || {}, PROJECT_FIELDS);
     if (!data.company_id) {
       return res.status(400).json({ ok: false, message: '企業は必須です' });
     }
     if (!data.payment_type) data.payment_type = 'normal';
+    data.price_set_id = null;
     const cols = Object.keys(data);
-    const result = await query(
+    await conn.beginTransaction();
+    const [insertResult] = await conn.query(
       `INSERT INTO projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
       cols.map((c) => data[c])
     );
-    const projectId = result.insertId;
+    const projectId = insertResult.insertId;
+    let copiedPriceSets = 0;
+    if (data.base_project_id) {
+      copiedPriceSets = await deepCopyPriceSetsFromBaseToProject(
+        data.base_project_id,
+        projectId,
+        conn
+      );
+    }
 
     // 仮組: 初回改定を任意で同時作成
     if (req.body.initial_revision) {
@@ -379,18 +428,26 @@ router.post('/', async (req, res) => {
       if (rev.revision_start_date) {
         rev.is_auto_generated = rev.is_auto_generated || 0;
         const rcols = Object.keys(rev);
-        await query(
+        await conn.query(
           `INSERT INTO project_revisions (project_id, ${rcols.join(', ')})
            VALUES (?, ${rcols.map(() => '?').join(', ')})`,
           [projectId, ...rcols.map((c) => rev[c])]
         );
       }
     }
-
-    return res.status(201).json({ ok: true, project: await fetchProject(projectId) });
+    await conn.commit();
+    const project = await fetchProject(projectId);
+    return res.status(201).json({
+      ok: true,
+      project,
+      copied_price_set_count: copiedPriceSets,
+    });
   } catch (err) {
+    await conn.rollback();
     console.error('[projects/create]', err);
     return res.status(500).json({ ok: false, message: '案件の作成に失敗しました' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -426,27 +483,36 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const id = Number(req.params.id);
-    const result = await query(
+    await conn.beginTransaction();
+    const [result] = await conn.query(
       `UPDATE projects
        SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE project_id = ? AND is_deleted = 0`,
       [id]
     );
     if (!result || result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(404).json({ ok: false, message: '案件が見つかりません' });
     }
-    await query(
+    await conn.query(
       `UPDATE project_revisions
        SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE project_id = ? AND is_deleted = 0`,
       [id]
     );
+    await softDeletePriceSetsForProject(id, conn);
+    await conn.commit();
     return res.json({ ok: true });
   } catch (err) {
+    await conn.rollback();
     console.error('[projects/delete]', err);
     return res.status(500).json({ ok: false, message: '案件の削除に失敗しました' });
+  } finally {
+    conn.release();
   }
 });
 

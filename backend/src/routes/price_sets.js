@@ -1,6 +1,10 @@
 const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const {
+  assertOwnerExclusive,
+  validateNoOverlappingPeriods,
+} = require('../services/price_set_lifecycle');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('price_sets'));
@@ -36,6 +40,21 @@ function normalizeLines(list) {
     payment_unit_price: Number(row.payment_unit_price || 0),
     sort_order: Number(row.sort_order != null ? row.sort_order : idx * 10),
   }));
+}
+
+function handleRouteError(res, err, fallbackMessage) {
+  if (err.status && err.code) {
+    return res.status(err.status).json({ ok: false, message: err.message, code: err.code });
+  }
+  console.error(fallbackMessage, err);
+  return res.status(500).json({ ok: false, message: fallbackMessage });
+}
+
+function ownerFromData(data) {
+  const owner = {};
+  if (data.base_project_id) owner.base_project_id = Number(data.base_project_id);
+  if (data.project_id) owner.project_id = Number(data.project_id);
+  return owner;
 }
 
 function profitRate(billing, payment) {
@@ -129,16 +148,29 @@ router.get('/', async (req, res) => {
     const q = String(req.query.q || '').trim();
     const where = ['ps.is_deleted = 0'];
     const params = [];
+    const baseProjectId = Number(req.query.base_project_id || 0);
+    const projectId = Number(req.query.project_id || 0);
+    if (baseProjectId > 0) {
+      where.push('ps.base_project_id = ? AND ps.project_id IS NULL');
+      params.push(baseProjectId);
+    }
+    if (projectId > 0) {
+      where.push('ps.project_id = ? AND ps.base_project_id IS NULL');
+      params.push(projectId);
+    }
     if (q) {
       where.push('(ps.price_set_name LIKE ? OR c.company_name LIKE ?)');
       params.push(`%${q}%`, `%${q}%`);
     }
     const rows = await query(
-      `SELECT ps.*, c.company_name,
+      `SELECT ps.*, c.company_name, b.template_name AS base_template_name,
+              p.manager_name AS project_manager_name,
               (SELECT COUNT(*) FROM price_set_lines l
                WHERE l.price_set_id = ps.price_set_id AND l.is_deleted = 0) AS line_count
        FROM price_sets ps
        LEFT JOIN companies c ON c.company_id = ps.company_id
+       LEFT JOIN base_projects b ON b.base_project_id = ps.base_project_id
+       LEFT JOIN projects p ON p.project_id = ps.project_id
        WHERE ${where.join(' AND ')}
        ORDER BY ps.price_set_id DESC`,
       params
@@ -169,6 +201,17 @@ router.post('/', async (req, res) => {
     if (!data.price_set_name) {
       return res.status(400).json({ ok: false, message: '名称は必須です' });
     }
+    assertOwnerExclusive(data);
+    const owner = ownerFromData(data);
+    if (owner.base_project_id || owner.project_id) {
+      await validateNoOverlappingPeriods(
+        owner,
+        data.apply_start_date,
+        data.apply_end_date,
+        null,
+        conn
+      );
+    }
     const lines = normalizeLines(req.body.lines);
     await conn.beginTransaction();
     const [result] = await conn.query(
@@ -192,8 +235,7 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ ok: true, price_set: detail });
   } catch (err) {
     await conn.rollback();
-    console.error('[price_sets/create]', err);
-    return res.status(500).json({ ok: false, message: '金額データの作成に失敗しました' });
+    return handleRouteError(res, err, '金額データの作成に失敗しました');
   } finally {
     conn.release();
   }
@@ -204,7 +246,21 @@ router.put('/:id', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const id = Number(req.params.id);
+    const current = await fetchDetail(id);
+    if (!current) return res.status(404).json({ ok: false, message: '金額データが見つかりません' });
     const data = pick(req.body, SET_FIELDS);
+    const merged = { ...current, ...data };
+    assertOwnerExclusive(merged);
+    const owner = ownerFromData(merged);
+    if (owner.base_project_id || owner.project_id) {
+      await validateNoOverlappingPeriods(
+        owner,
+        merged.apply_start_date,
+        merged.apply_end_date,
+        id,
+        conn
+      );
+    }
     const lines = normalizeLines(req.body.lines);
     await conn.beginTransaction();
     const fields = [];
@@ -230,8 +286,7 @@ router.put('/:id', async (req, res) => {
     return res.json({ ok: true, price_set: detail });
   } catch (err) {
     await conn.rollback();
-    console.error('[price_sets/update]', err);
-    return res.status(500).json({ ok: false, message: '金額データの更新に失敗しました' });
+    return handleRouteError(res, err, '金額データの更新に失敗しました');
   } finally {
     conn.release();
   }
@@ -244,6 +299,23 @@ router.post('/:id/copy', async (req, res) => {
     const pool = getPool();
     const conn = await pool.getConnection();
     try {
+      const targetBase = req.body.base_project_id != null ? Number(req.body.base_project_id) : src.base_project_id;
+      const targetProject = req.body.project_id != null ? Number(req.body.project_id) : src.project_id;
+      const copyData = {
+        base_project_id: targetBase,
+        project_id: targetProject,
+        apply_start_date: req.body.apply_start_date || src.apply_start_date,
+        apply_end_date: req.body.apply_end_date || src.apply_end_date,
+      };
+      assertOwnerExclusive(copyData);
+      const owner = ownerFromData(copyData);
+      await validateNoOverlappingPeriods(
+        owner,
+        copyData.apply_start_date,
+        copyData.apply_end_date,
+        null,
+        conn
+      );
       await conn.beginTransaction();
       const [result] = await conn.query(
         `INSERT INTO price_sets
@@ -252,10 +324,10 @@ router.post('/:id/copy', async (req, res) => {
         [
           `${src.price_set_name}（コピー）`,
           src.company_id,
-          src.base_project_id,
-          src.project_id,
-          src.apply_start_date,
-          src.apply_end_date,
+          targetBase || null,
+          targetProject || null,
+          copyData.apply_start_date,
+          copyData.apply_end_date,
           src.note,
         ]
       );
@@ -275,8 +347,7 @@ router.post('/:id/copy', async (req, res) => {
       conn.release();
     }
   } catch (err) {
-    console.error('[price_sets/copy]', err);
-    return res.status(500).json({ ok: false, message: 'コピーに失敗しました' });
+    return handleRouteError(res, err, 'コピーに失敗しました');
   }
 });
 
@@ -284,7 +355,13 @@ router.delete('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     await query(
-      `UPDATE price_sets SET is_deleted = 1, version = version + 1 WHERE price_set_id = ?`,
+      `UPDATE price_set_lines SET is_deleted = 1, version = version + 1
+       WHERE price_set_id = ? AND is_deleted = 0`,
+      [id]
+    );
+    await query(
+      `UPDATE price_sets SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE price_set_id = ?`,
       [id]
     );
     return res.json({ ok: true });
