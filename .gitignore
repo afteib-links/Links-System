@@ -1,6 +1,7 @@
 node_modules/
 .env
 data/
+backups/
 *.log
 .DS_Store
 backend/uploads/

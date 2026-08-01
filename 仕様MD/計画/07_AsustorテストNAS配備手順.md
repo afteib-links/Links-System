@@ -192,20 +192,25 @@ DB の **3306** は社外公開しない。テストでも可能なら LAN 内�
 
 ## 10. 更新手順（2回目以降）
 
-コードをテストNASへ反映するとき:
+コード／DBをテストNASへ反映するときの詳細は、次を正とする。
+
+→ **[08_Asustor更新・DB手順.md](08_Asustor更新・DB手順.md)**
+
+要約（通常はこれだけ）:
 
 ```bash
 cd /volume1/docker/Links-System
 git fetch
-git checkout <反映したいブランチまたはタグ>
+git checkout main
 git pull
 docker compose up --build -d
-docker compose logs app --tail 30
+docker compose logs app --tail 50
 ```
 
 - DBマイグレーションは起動時に自動適用される  
 - `data/mysql` は Volume のため、通常はデータが残る  
 - 壊れたとき以外、`data/mysql` を消さない  
+- バックアップ／リストア／初期化は 08 を参照  
 
 ## 11. 停止・再起動
 
@@ -246,6 +251,7 @@ NAS再起動後は `restart: unless-stopped` により、Dockerサービスが�
 1. 本手順で Asustor 上のテスト運用を安定させる  
 2. 試験データを投入し、業務シナリオを確認  
 3. 問題なければ **テスト→QNAP本番** のデータ移行手順を作成・実施  
+4. 日々のソース／DB更新は [08_Asustor更新・DB手順.md](08_Asustor更新・DB手順.md)  
 
 ---
 
