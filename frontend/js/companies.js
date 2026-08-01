@@ -93,11 +93,6 @@
           this.listState.filters = filters;
           this.showList(message);
         },
-        onSaveLayout: async (layout) => {
-          await this.kit.saveLayout('companies', layout);
-          this.layout = layout;
-          this.ctx.showToast('表示列を保存しました');
-        },
       });
       document.getElementById('company-search')?.addEventListener('click', () => {
         this.listState.q = document.getElementById('company-q').value.trim();
