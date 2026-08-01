@@ -67,7 +67,8 @@ flowchart TD
 ### 4.2 適用期間（validFrom / validTo）
 
 - 1 案件（または 1 テンプレ）に **複数 `PriceSet`** を持てる。改定時は **上書きせず** `validFrom = 改定日` の **新規 PriceSet** を追加する。
-- **validFrom は必須**。同一 owner で期間重複は API が拒否する。
+- **validFrom は必須**。**適用期間の重複登録は許可**する（重なった日は §5.1 の開始日優先ルールで解決）。
+- **コピー運用**: 既存 PriceSet を `POST /api/price-sets/:id/copy` で複製し、適用開始日・単価を変更して登録する（一覧・案件画面・詳細の「コピーして改定」）。
 
 ### 4.3 削除
 
@@ -83,9 +84,15 @@ flowchart TD
 
 ### 5.1 日報日付での PriceSet 選択
 
-`entry.date >= validFrom && (validTo == null || entry.date <= validTo)`
+勤務日 `D` について:
 
-複数ヒット時は **開始日が新しい** セットを優先（最小仮組）。
+```text
+候補: apply_start_date <= D
+      AND (apply_end_date IS NULL OR D <= apply_end_date)
+採用: 候補のうち apply_start_date が最大（同値なら price_set_id 大）
+```
+
+適用終了日は **値があるときのみ**上限。未入力は無期限。
 
 ### 5.2 曜日区分フォールバック（厳密順）
 
@@ -116,7 +123,7 @@ flowchart TD
 
 | 項目 | 状態 |
 |------|------|
-| 期間重複バリデーション | 実装済（`validateNoOverlappingPeriods`） |
+| 期間重複 | **許可**（開始日優先で日報適用） |
 | ディープコピー | 実装済（`deepCopyPriceSetsFromBaseToProject`） |
 | validFrom 必須 | 実装済（`assertValidFromRequired`） |
 | PriceSet 採番 `PS-YYYYMMDD-001` | 実装済（`allocatePriceSetNo`） |

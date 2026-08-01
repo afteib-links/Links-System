@@ -35,16 +35,26 @@ function dayTypesForWorkDate(workDate) {
   return types;
 }
 
-function dateInRange(workDate, start, end) {
-  const w = String(workDate).slice(0, 10);
-  const s = start ? String(start).slice(0, 10) : '1900-01-01';
-  const e = end ? String(end).slice(0, 10) : '9999-12-31';
-  return w >= s && w <= e;
+function normYmd(d) {
+  if (!d) return null;
+  const s = String(d).slice(0, 10);
+  return s || null;
+}
+
+/** 勤務日 D に適用する PriceSet: start<=D, end があれば D<=end, 最大 apply_start_date */
+function isPriceSetCandidate(workDate, priceSet) {
+  const w = normYmd(workDate);
+  if (!w) return false;
+  const start = normYmd(priceSet.apply_start_date);
+  if (!start || w < start) return false;
+  const end = normYmd(priceSet.apply_end_date);
+  if (end && w > end) return false;
+  return true;
 }
 
 async function pickPriceSetForDate(projectId, workDate) {
   const sets = await listPriceSetsForProject(projectId);
-  const hits = sets.filter((ps) => dateInRange(workDate, ps.apply_start_date, ps.apply_end_date));
+  const hits = sets.filter((ps) => isPriceSetCandidate(workDate, ps));
   if (!hits.length) return null;
   hits.sort((a, b) => {
     const as = String(a.apply_start_date || '').localeCompare(String(b.apply_start_date || ''));

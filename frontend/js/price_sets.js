@@ -40,6 +40,31 @@
       return '未紐付け';
     },
 
+    todayTokyoDate() {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+    },
+
+    async promptApplyStartDate() {
+      const v = window.prompt('新しい適用開始日（必須）', this.todayTokyoDate());
+      if (!v) return null;
+      const trimmed = v.trim();
+      return trimmed || null;
+    },
+
+    async copyPriceSet(priceSetId, extraBody = {}) {
+      const applyStart = extraBody.apply_start_date || (await this.promptApplyStartDate());
+      if (!applyStart) return null;
+      const result = await this.ctx.api(`/api/price-sets/${priceSetId}/copy`, {
+        method: 'POST',
+        body: JSON.stringify({ apply_start_date: applyStart, ...extraBody }),
+      });
+      if (!result.res.ok || !result.data?.ok) {
+        window.alert(result.data?.message || 'コピー失敗');
+        return null;
+      }
+      return result.data.price_set;
+    },
+
     weekdayLabel(code) {
       return (
         {
@@ -126,17 +151,10 @@
       );
       document.querySelectorAll('[data-copy]').forEach((btn) =>
         btn.addEventListener('click', async () => {
-          const result = await this.ctx.api(`/api/price-sets/${btn.getAttribute('data-copy')}/copy`, {
-            method: 'POST',
-            body: '{}',
-          });
-          if (!result.res.ok || !result.data?.ok) {
-            window.alert(result.data?.message || 'コピー失敗');
-            return;
-          }
-          const newId = result.data.price_set?.price_set_id;
+          const copied = await this.copyPriceSet(Number(btn.getAttribute('data-copy')));
+          if (!copied) return;
           this.kit.pushNav(() => this.showList());
-          await this.showDetail(newId);
+          await this.showDetail(copied.price_set_id);
         })
       );
       document.querySelectorAll('[data-del]').forEach((btn) =>
@@ -283,7 +301,7 @@
             <div class="form-grid">
               <div><label>名称（必須）</label><input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></div>
               <div><label>企業</label><select name="company_id">${this.kit.optionsFromList(this.companies, 'company_id', 'company_name', row.company_id)}</select></div>
-              <div><label>適用開始</label><input type="date" name="apply_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></div>
+              <div><label>適用開始（必須）</label><input type="date" name="apply_start_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></div>
               <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
               <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
             </div>
@@ -294,6 +312,7 @@
             <div class="table-wrap" id="lines-area">${this.linesGridHtml()}</div>
             <div class="btn-row">
               <button class="btn" type="submit">保存</button>
+              ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>
           </form>
@@ -314,6 +333,12 @@
           return;
         }
         this.showList();
+      });
+      document.getElementById('copy-revision')?.addEventListener('click', async () => {
+        const copied = await this.copyPriceSet(id);
+        if (!copied) return;
+        this.kit.pushNav(() => this.showDetail(id));
+        await this.showDetail(copied.price_set_id);
       });
       document.getElementById('ps-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();

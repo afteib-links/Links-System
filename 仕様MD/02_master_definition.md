@@ -23,7 +23,7 @@
 ## 5. 金額データ (price_sets / price_set_lines)
 * **price_sets**: 名称、`price_set_no`（`PS-YYYYMMDD-001`）、企業、適用開始・終了、`base_project_id` または `project_id`（同時非 NULL 禁止）、備考
 * **price_set_lines**: `weekday_code`（`day_type` マスタ: weekday=平日, half=半日…）、`calc_type_code`（daily/hourly）、`price_type_code`、請求／支払単価、並び順
-* 同一 owner（基本案件 or 個別案件）内で適用期間の重複不可
+* 同一 owner 内で **適用期間の重複は許可**（日報は開始日が新しい PriceSet を採用）
 
 ## 6. 案件条件改定履歴 (project_revisions) 【レガシー】
 旧モデル。「何月何日から改定されるか」の履歴と単価を期間別に管理（個別案件に1対多）。

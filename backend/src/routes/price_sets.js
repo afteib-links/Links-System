@@ -4,9 +4,12 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 const {
   assertOwnerExclusive,
   assertValidFromRequired,
-  validateNoOverlappingPeriods,
   allocatePriceSetNo,
 } = require('../services/price_set_lifecycle');
+
+function todayTokyoYmd() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('price_sets'));
@@ -205,16 +208,6 @@ router.post('/', async (req, res) => {
     }
     assertOwnerExclusive(data);
     assertValidFromRequired(data.apply_start_date);
-    const owner = ownerFromData(data);
-    if (owner.base_project_id || owner.project_id) {
-      await validateNoOverlappingPeriods(
-        owner,
-        data.apply_start_date,
-        data.apply_end_date,
-        null,
-        conn
-      );
-    }
     const lines = normalizeLines(req.body.lines);
     await conn.beginTransaction();
     const priceSetNo = await allocatePriceSetNo(conn);
@@ -259,16 +252,6 @@ router.put('/:id', async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(data, 'apply_start_date') || merged.apply_start_date) {
       assertValidFromRequired(merged.apply_start_date);
     }
-    const owner = ownerFromData(merged);
-    if (owner.base_project_id || owner.project_id) {
-      await validateNoOverlappingPeriods(
-        owner,
-        merged.apply_start_date,
-        merged.apply_end_date,
-        id,
-        conn
-      );
-    }
     const lines = normalizeLines(req.body.lines);
     await conn.beginTransaction();
     const fields = [];
@@ -312,19 +295,18 @@ router.post('/:id/copy', async (req, res) => {
       const copyData = {
         base_project_id: targetBase,
         project_id: targetProject,
-        apply_start_date: req.body.apply_start_date || src.apply_start_date,
-        apply_end_date: req.body.apply_end_date || src.apply_end_date,
+        apply_start_date: req.body.apply_start_date || todayTokyoYmd(),
+        apply_end_date:
+          req.body.apply_end_date !== undefined && req.body.apply_end_date !== ''
+            ? req.body.apply_end_date
+            : null,
       };
       assertOwnerExclusive(copyData);
       assertValidFromRequired(copyData.apply_start_date);
-      const owner = ownerFromData(copyData);
-      await validateNoOverlappingPeriods(
-        owner,
-        copyData.apply_start_date,
-        copyData.apply_end_date,
-        null,
-        conn
-      );
+      const copyName =
+        req.body.price_set_name && String(req.body.price_set_name).trim()
+          ? String(req.body.price_set_name).trim()
+          : `${src.price_set_name}（コピー）`;
       await conn.beginTransaction();
       const priceSetNo = await allocatePriceSetNo(conn);
       const [result] = await conn.query(
@@ -333,7 +315,7 @@ router.post('/:id/copy', async (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           priceSetNo,
-          `${src.price_set_name}（コピー）`,
+          copyName,
           src.company_id,
           targetBase || null,
           targetProject || null,
