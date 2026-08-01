@@ -18,7 +18,7 @@
     listColumns() {
       return [
         { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所No' },
+        { key: 'office_no', label: '事業所番号' },
         { key: 'office_name', label: '事業所名' },
         { key: 'company_name', label: '企業名' },
         {

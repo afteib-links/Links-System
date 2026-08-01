@@ -192,11 +192,11 @@
         '事業所マスタ',
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <p class="muted">事業所Noは採番ルールに従い自動採番されます。</p>
+          <p class="muted">事業所番号は採番ルールに従い自動採番されます。</p>
           <div class="toolbar"><button type="button" class="btn" id="new-office">＋ 追加</button></div>
           <div class="table-wrap">
             <table class="data-table data-table-compact">
-              <thead><tr><th>事業所No</th><th>事業所名</th><th>状態</th><th>並び</th><th>操作</th></tr></thead>
+              <thead><tr><th>事業所番号</th><th>事業所名</th><th>状態</th><th>並び</th><th>操作</th></tr></thead>
               <tbody>${rows || '<tr><td colspan="5">なし</td></tr>'}</tbody>
             </table>
           </div>
@@ -230,8 +230,8 @@
         `<div class="form-grid">
           ${
             isNew
-              ? `<div class="full"><p class="muted">事業所Noは保存時に自動採番されます。</p></div>`
-              : `<div><label>事業所No</label><input value="${this.ctx.escapeHtml(row.office_no)}" disabled /></div>`
+              ? `<div class="full"><p class="muted">事業所番号は保存時に自動採番されます。</p></div>`
+              : `<div><label>事業所番号</label><input value="${this.ctx.escapeHtml(row.office_no)}" disabled /></div>`
           }
           <div class="full"><label>事業所名（必須）</label><input id="m_office_name" value="${this.ctx.escapeHtml(
             row?.office_name || ''
