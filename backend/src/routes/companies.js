@@ -80,7 +80,12 @@ function normalizeVehicles(list) {
 
 async function fetchCompanyDetail(companyId) {
   const companies = await query(
-    `SELECT * FROM companies WHERE company_id = ? AND is_deleted = 0 LIMIT 1`,
+    `SELECT c.*, o.office_name
+     FROM companies c
+     LEFT JOIN office_masters o
+       ON o.office_no = c.office_no AND o.is_deleted = 0
+     WHERE c.company_id = ? AND c.is_deleted = 0
+     LIMIT 1`,
     [companyId]
   );
   if (!companies.length) return null;
@@ -110,6 +115,23 @@ async function fetchCompanyDetail(companyId) {
     vehicles,
     manager_periods,
   };
+}
+
+async function assertValidOfficeNo(officeNo) {
+  if (officeNo == null || officeNo === '') return null;
+  const rows = await query(
+    `SELECT office_no FROM office_masters
+     WHERE office_no = ? AND is_deleted = 0 AND is_active = 1
+     LIMIT 1`,
+    [String(officeNo)]
+  );
+  if (!rows.length) {
+    const err = new Error('事業所Noがマスタに存在しません');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+  return String(officeNo);
 }
 
 async function syncManagerPeriods(conn, companyId, periods) {
@@ -296,13 +318,15 @@ router.get('/', async (req, res) => {
     }
 
     const rows = await query(
-      `SELECT c.company_id, c.office_no, c.company_name, c.company_name_kana,
+      `SELECT c.company_id, c.office_no, o.office_name, c.company_name, c.company_name_kana,
               c.closing_date_code, c.payment_date_code, c.invoice_send_method,
               c.work_mode_code, c.our_manager, c.fax, c.invoice_send_address,
               c.version, c.updated_at,
               (SELECT COUNT(*) FROM base_projects b
                WHERE b.company_id = c.company_id AND b.is_deleted = 0) AS base_project_count
        FROM companies c
+       LEFT JOIN office_masters o
+         ON o.office_no = c.office_no AND o.is_deleted = 0
        WHERE ${where.join(' AND ')}
        ORDER BY c.${sortCol} ${order}`,
       params
@@ -361,6 +385,15 @@ router.post('/', async (req, res) => {
       });
     }
     data.company_name = String(data.company_name).trim();
+    try {
+      data.office_no = await assertValidOfficeNo(data.office_no);
+    } catch (verr) {
+      return res.status(verr.status || 400).json({
+        ok: false,
+        error: verr.code || 'validation_error',
+        message: verr.message,
+      });
+    }
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
     const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);
@@ -415,6 +448,17 @@ router.put('/:id', async (req, res) => {
       });
     }
     data.company_name = String(data.company_name).trim();
+    try {
+      if (Object.prototype.hasOwnProperty.call(data, 'office_no')) {
+        data.office_no = await assertValidOfficeNo(data.office_no);
+      }
+    } catch (verr) {
+      return res.status(verr.status || 400).json({
+        ok: false,
+        error: verr.code || 'validation_error',
+        message: verr.message,
+      });
+    }
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
     const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);

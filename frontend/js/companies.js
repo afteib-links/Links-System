@@ -7,6 +7,8 @@
       this.codes = await this.kit.loadCodes();
       const staffRes = await this.ctx.api('/api/master-settings/staff');
       this.staff = staffRes.data?.staff || [];
+      const officeRes = await this.ctx.api('/api/master-settings/offices');
+      this.offices = (officeRes.data?.offices || []).filter((o) => Number(o.is_active) !== 0);
       this.layout = null;
       const saved = await this.kit.loadLayout('companies');
       this.layout = saved?.columns_json || null;
@@ -16,7 +18,8 @@
     listColumns() {
       return [
         { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所' },
+        { key: 'office_no', label: '事業所No' },
+        { key: 'office_name', label: '事業所名' },
         { key: 'company_name', label: '企業名' },
         {
           key: 'work_mode_code',
@@ -36,6 +39,26 @@
           getValue: (r) => this.kit.codeLabel(this.codes.invoice_send_method, r.invoice_send_method),
         },
       ];
+    },
+
+    officeOptionsHtml(selected) {
+      const list = [...(this.offices || [])];
+      if (selected && !list.some((o) => String(o.office_no) === String(selected))) {
+        list.unshift({
+          office_no: selected,
+          office_name: '(マスタに無い／無効)',
+        });
+      }
+      const opts = [`<option value="">（未選択）</option>`].concat(
+        list.map((o) => {
+          const label = `${o.office_no} ${o.office_name}`;
+          const sel = String(o.office_no) === String(selected || '') ? 'selected' : '';
+          return `<option value="${this.ctx.escapeHtml(o.office_no)}" ${sel}>${this.ctx.escapeHtml(
+            label
+          )}</option>`;
+        })
+      );
+      return opts.join('');
     },
 
     async showList(message = '') {
@@ -219,7 +242,9 @@
           <form id="company-form">
             <h3 class="section-title">基本情報・銀行情報</h3>
             <div class="form-grid">
-              <div><label>事業所No</label><input name="office_no" value="${this.ctx.escapeHtml(company.office_no || '')}" /></div>
+              <div><label>事業所</label><select name="office_no">${this.officeOptionsHtml(
+                company.office_no
+              )}</select></div>
               <div><label>企業名（必須）</label><input name="company_name" required value="${this.ctx.escapeHtml(company.company_name || '')}" /></div>
               <div><label>企業名カナ</label><input name="company_name_kana" value="${this.ctx.escapeHtml(company.company_name_kana || '')}" /></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(company.zip_code || '')}" /></div>
