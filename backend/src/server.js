@@ -139,13 +139,24 @@ async function createApp() {
   });
 
   const frontendDir = path.resolve(__dirname, '../../frontend');
-  app.use(express.static(frontendDir));
+  app.use(
+    express.static(frontendDir, {
+      etag: false,
+      lastModified: false,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+      },
+    })
+  );
 
   // SPAフォールバック（API以外のGET）
   app.use((req, res, next) => {
     if (req.method !== 'GET' || req.path.startsWith('/api/')) {
       return next();
     }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     return res.sendFile(path.join(frontendDir, 'index.html'));
   });
 
