@@ -222,8 +222,8 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
     const [result] = await conn.query(
       `INSERT INTO price_sets
         (price_set_no, price_set_name, company_id, base_project_id, project_id,
-         apply_start_date, apply_end_date, note)
-       VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+         apply_start_date, apply_end_date, note, extra_data)
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
       [
         priceSetNo,
         src.price_set_name,
@@ -232,6 +232,11 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
         src.apply_start_date,
         src.apply_end_date,
         src.note,
+        src.extra_data
+          ? typeof src.extra_data === 'string'
+            ? src.extra_data
+            : JSON.stringify(src.extra_data)
+          : null,
       ]
     );
     await copyLines(conn, src.price_set_id, result.insertId);
