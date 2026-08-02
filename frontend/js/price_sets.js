@@ -1,4 +1,6 @@
 (() => {
+  const Fee = () => window.LinksPriceSetFeeModel;
+
   const LinksPriceSets = {
     async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
@@ -66,18 +68,31 @@
     },
 
     weekdayLabel(code) {
-      return (
-        {
-          all: '全日',
-          mon: '月',
-          tue: '火',
-          wed: '水',
-          thu: '木',
-          fri: '金',
-          sat: '土',
-          sun: '日',
-        }[code] || code || '-'
-      );
+      return Fee().WEEKDAY_LABELS[code] || code || '-';
+    },
+
+    priceTypeList() {
+      const list = this.codes?.price_type || [];
+      if (!list.length) return [{ code_value: 'basic', code_label: '基本' }];
+      return list;
+    },
+
+    priceTypeLabel(code) {
+      const hit = this.priceTypeList().find((c) => (c.code_value || c.value) === code);
+      return hit?.code_label || hit?.label || code;
+    },
+
+    calcLabel(code) {
+      const list = this.codes?.price_calc_type || this.codes?.overtime_calc || [];
+      const hit = list.find((c) => (c.code_value || c.value) === code);
+      return hit?.code_label || code;
+    },
+
+    profitRate(billing, payment) {
+      const b = Number(billing || 0);
+      const p = Number(payment || 0);
+      if (!b) return '-';
+      return `${Math.round(((b - p) / b) * 1000) / 10}%`;
     },
 
     async showList(message = '') {
@@ -172,93 +187,213 @@
       );
     },
 
-    emptyLine() {
-      return {
-        price_set_line_id: null,
-        weekday_code: 'all',
-        calc_type_code: '',
-        price_type_code: '',
-        billing_unit_price: 0,
-        payment_unit_price: 0,
-        sort_order: (this.detailState?.lines?.length || 0) * 10,
-        profit_rate: null,
-      };
-    },
-
-    profitRate(billing, payment) {
-      const b = Number(billing || 0);
-      const p = Number(payment || 0);
-      if (!b) return '-';
-      return `${Math.round(((b - p) / b) * 1000) / 10}%`;
-    },
-
-    linesGridHtml() {
-      const weekdayOpts = ['all', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        .map((c) => `<option value="${c}">${this.weekdayLabel(c)}</option>`)
-        .join('');
-      const rows = this.detailState.lines
-        .map((l, idx) => {
-          const wOpts = weekdayOpts.replace(
-            `value="${l.weekday_code || 'all'}"`,
-            `value="${l.weekday_code || 'all'}" selected`
-          );
-          return `
-          <tr data-line-idx="${idx}">
-            <td><select data-f="weekday_code">${wOpts}</select></td>
-            <td><select data-f="calc_type_code">${this.kit.codeOptions(this.codes.price_calc_type || this.codes.overtime_calc, l.calc_type_code)}</select></td>
-            <td><select data-f="price_type_code">${this.kit.codeOptions(this.codes.price_type, l.price_type_code)}</select></td>
-            <td><input type="number" step="0.01" data-f="billing_unit_price" value="${this.ctx.escapeHtml(l.billing_unit_price ?? 0)}" /></td>
-            <td><input type="number" step="0.01" data-f="payment_unit_price" value="${this.ctx.escapeHtml(l.payment_unit_price ?? 0)}" /></td>
-            <td class="dt-profit">${this.ctx.escapeHtml(this.profitRate(l.billing_unit_price, l.payment_unit_price))}</td>
-            <td><button type="button" class="btn btn-danger btn-small" data-del-line="${idx}">削除</button></td>
-          </tr>`;
+    feeItemMatrixHtml(item, itemIdx) {
+      const pts = this.priceTypeList();
+      if (item.mode === 'distance') {
+        const pt = pts[0]?.code_value || 'basic';
+        const cell = item.matrix?.distance?.[pt] || Fee().emptyCell();
+        return `
+          <p class="hint">距離超過は曜日に依存しません（計算区分: 距離）。</p>
+          <table class="data-table data-table-compact fee-matrix">
+            <thead><tr><th>料金種別</th><th>請求単価</th><th>支払単価</th><th>利益率</th></tr></thead>
+            <tbody>
+              <tr data-item="${itemIdx}" data-calc="distance" data-pt="${pt}">
+                <td>${this.ctx.escapeHtml(this.priceTypeLabel(pt))}</td>
+                <td><input type="number" step="0.01" data-f="billing" value="${this.ctx.escapeHtml(cell.billing ?? '')}" /></td>
+                <td><input type="number" step="0.01" data-f="payment" value="${this.ctx.escapeHtml(cell.payment ?? '')}" /></td>
+                <td class="dt-profit">${this.ctx.escapeHtml(this.profitRate(cell.billing, cell.payment))}</td>
+              </tr>
+            </tbody>
+          </table>`;
+      }
+      const calcs = [
+        { code: 'daily', label: this.calcLabel('daily') || '日極' },
+        { code: 'hourly', label: this.calcLabel('hourly') || '時間' },
+      ];
+      const headPts = pts.map((p) => this.ctx.escapeHtml(p.code_label || p.code_value)).join('</th><th>');
+      const rows = calcs
+        .map((calc) => {
+          const cells = pts
+            .map((p) => {
+              const pt = p.code_value || p.value;
+              const cell = item.matrix?.[calc.code]?.[pt] || Fee().emptyCell();
+              return `
+                <td class="fee-matrix-cell" data-item="${itemIdx}" data-calc="${calc.code}" data-pt="${pt}">
+                  <div class="fee-matrix-pair">
+                    <label>請求</label><input type="number" step="0.01" data-f="billing" value="${this.ctx.escapeHtml(cell.billing ?? '')}" />
+                    <label>支払</label><input type="number" step="0.01" data-f="payment" value="${this.ctx.escapeHtml(cell.payment ?? '')}" />
+                    <span class="dt-profit">${this.ctx.escapeHtml(this.profitRate(cell.billing, cell.payment))}</span>
+                  </div>
+                </td>`;
+            })
+            .join('');
+          return `<tr><th>${this.ctx.escapeHtml(calc.label)}</th>${cells}</tr>`;
         })
         .join('');
       return `
-        <table class="data-table data-table-compact" id="lines-grid">
-          <thead><tr><th>曜日</th><th>計算区分</th><th>料金種別</th><th>請求単価</th><th>支払単価</th><th>利益率</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="7">行がありません</td></tr>'}</tbody>
+        <table class="data-table data-table-compact fee-matrix fee-matrix-wide">
+          <thead><tr><th>計算</th><th>${headPts}</th></tr></thead>
+          <tbody>${rows}</tbody>
         </table>`;
     },
 
-    collectLines() {
-      const lines = [];
-      document.querySelectorAll('#lines-grid tbody tr[data-line-idx]').forEach((tr) => {
-        const idx = Number(tr.getAttribute('data-line-idx'));
-        const prev = this.detailState.lines[idx] || {};
-        const billing = tr.querySelector('[data-f="billing_unit_price"]')?.value;
-        const payment = tr.querySelector('[data-f="payment_unit_price"]')?.value;
-        lines.push({
-          price_set_line_id: prev.price_set_line_id || null,
-          weekday_code: tr.querySelector('[data-f="weekday_code"]')?.value || 'all',
-          calc_type_code: tr.querySelector('[data-f="calc_type_code"]')?.value || null,
-          price_type_code: tr.querySelector('[data-f="price_type_code"]')?.value || null,
-          billing_unit_price: Number(billing || 0),
-          payment_unit_price: Number(payment || 0),
-          sort_order: idx * 10,
-        });
-      });
-      this.detailState.lines = lines;
+    feeItemCardHtml(item, itemIdx) {
+      const weekdayChecks =
+        item.mode === 'distance'
+          ? '<p class="hint">曜日の指定は不要です。</p>'
+          : Fee()
+              .WEEKDAY_CODES.map(
+                (wd) => `
+            <label class="weekday-chip">
+              <input type="checkbox" data-wd="${wd}" ${item.weekdays?.[wd] ? 'checked' : ''} />
+              ${this.weekdayLabel(wd)}
+            </label>`
+              )
+              .join('');
+      const quick =
+        item.mode === 'distance'
+          ? ''
+          : `
+          <div class="weekday-quick">
+            <button type="button" class="btn btn-ghost btn-small" data-preset="weekdays" data-item="${itemIdx}">月〜金</button>
+            <button type="button" class="btn btn-ghost btn-small" data-preset="weekend_holiday" data-item="${itemIdx}">土日祝</button>
+            <button type="button" class="btn btn-ghost btn-small" data-preset="all" data-item="${itemIdx}">全曜日</button>
+          </div>`;
+      return `
+        <article class="fee-item-card panel" data-fee-item="${itemIdx}">
+          <div class="fee-item-head">
+            <input type="text" class="fee-item-name" data-item="${itemIdx}" value="${this.ctx.escapeHtml(item.name || '')}" placeholder="料金項目名" />
+            <div class="fee-item-actions">
+              <button type="button" class="btn btn-ghost btn-small" data-dup-item="${itemIdx}">項目コピー</button>
+              <button type="button" class="btn btn-danger btn-small" data-del-item="${itemIdx}">削除</button>
+            </div>
+          </div>
+          <div class="fee-weekdays">${weekdayChecks}${quick}</div>
+          <div class="fee-matrix-wrap" data-matrix-for="${itemIdx}">${this.feeItemMatrixHtml(item, itemIdx)}</div>
+        </article>`;
     },
 
-    bindLinesGrid() {
-      document.querySelectorAll('[data-del-line]').forEach((btn) =>
+    feeItemsAreaHtml() {
+      const cards = (this.detailState.items || [])
+        .map((item, idx) => this.feeItemCardHtml(item, idx))
+        .join('');
+      return cards || '<p class="hint">料金項目がありません。「＋ 料金項目」で追加してください。</p>';
+    },
+
+    importBarHtml(currentId) {
+      const others = (this.importCandidates || []).filter((ps) => Number(ps.price_set_id) !== Number(currentId));
+      if (!others.length) {
+        return '<p class="hint">他セットから取込: 取込可能な金額データがありません。</p>';
+      }
+      const opts = others
+        .map(
+          (ps) =>
+            `<option value="${ps.price_set_id}">${this.ctx.escapeHtml(ps.price_set_no || ps.price_set_id)} — ${this.ctx.escapeHtml(ps.price_set_name)}</option>`
+        )
+        .join('');
+      return `
+        <div class="toolbar fee-import-bar">
+          <label>他セットから行を取込</label>
+          <select id="import-source">${opts}</select>
+          <select id="import-mode">
+            <option value="replace">上書き</option>
+            <option value="merge">マージ</option>
+          </select>
+          <button type="button" class="btn btn-ghost" id="import-lines-btn">取込</button>
+        </div>`;
+    },
+
+    collectFeeItemsFromDom() {
+      const items = this.detailState.items || [];
+      items.forEach((item, itemIdx) => {
+        const card = document.querySelector(`[data-fee-item="${itemIdx}"]`);
+        if (!card) return;
+        const nameInp = card.querySelector('.fee-item-name');
+        if (nameInp) item.name = nameInp.value.trim();
+        if (item.mode !== 'distance') {
+          Fee().WEEKDAY_CODES.forEach((wd) => {
+            const cb = card.querySelector(`input[data-wd="${wd}"]`);
+            item.weekdays[wd] = cb ? cb.checked : false;
+          });
+        }
+        if (item.mode === 'distance') {
+          const tr = card.querySelector('tr[data-calc="distance"]');
+          if (tr) {
+            const pt = tr.getAttribute('data-pt');
+            const billing = tr.querySelector('[data-f="billing"]')?.value;
+            const payment = tr.querySelector('[data-f="payment"]')?.value;
+            if (!item.matrix.distance[pt]) item.matrix.distance[pt] = Fee().emptyCell();
+            const cell = item.matrix.distance[pt];
+            cell.billing = billing;
+            cell.payment = payment;
+          }
+        } else {
+          card.querySelectorAll('.fee-matrix-cell').forEach((td) => {
+            const calc = td.getAttribute('data-calc');
+            const pt = td.getAttribute('data-pt');
+            const billing = td.querySelector('[data-f="billing"]')?.value;
+            const payment = td.querySelector('[data-f="payment"]')?.value;
+            if (!item.matrix[calc]) item.matrix[calc] = {};
+            if (!item.matrix[calc][pt]) item.matrix[calc][pt] = Fee().emptyCell();
+            const cell = item.matrix[calc][pt];
+            cell.billing = billing;
+            cell.payment = payment;
+          });
+        }
+      });
+      this.detailState.items = items;
+    },
+
+    bindFeeItemsArea() {
+      document.querySelectorAll('[data-del-item]').forEach((btn) =>
         btn.addEventListener('click', () => {
-          this.collectLines();
-          this.detailState.lines.splice(Number(btn.getAttribute('data-del-line')), 1);
-          document.getElementById('lines-area').innerHTML = this.linesGridHtml();
-          this.bindLinesGrid();
+          this.collectFeeItemsFromDom();
+          const idx = Number(btn.getAttribute('data-del-item'));
+          this.detailState.items.splice(idx, 1);
+          this.refreshFeeItemsDom();
         })
       );
-      document.querySelectorAll('#lines-grid [data-f="billing_unit_price"], #lines-grid [data-f="payment_unit_price"]').forEach((inp) => {
+      document.querySelectorAll('[data-dup-item]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          this.collectFeeItemsFromDom();
+          const idx = Number(btn.getAttribute('data-dup-item'));
+          const copy = Fee().duplicateFeeItem(this.detailState.items[idx], this.codes);
+          this.detailState.items.splice(idx + 1, 0, copy);
+          this.refreshFeeItemsDom();
+        })
+      );
+      document.querySelectorAll('[data-preset]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          this.collectFeeItemsFromDom();
+          const idx = Number(btn.getAttribute('data-item'));
+          const preset = btn.getAttribute('data-preset');
+          Fee().applyWeekdayPreset(this.detailState.items[idx], preset);
+          this.refreshFeeItemsDom();
+        })
+      );
+      document.querySelectorAll('.fee-matrix input[data-f]').forEach((inp) => {
         inp.addEventListener('input', () => {
-          const tr = inp.closest('tr');
-          const b = tr.querySelector('[data-f="billing_unit_price"]').value;
-          const p = tr.querySelector('[data-f="payment_unit_price"]').value;
-          const cell = tr.querySelector('.dt-profit');
-          if (cell) cell.textContent = this.profitRate(b, p);
+          const cell = inp.closest('.fee-matrix-cell') || inp.closest('tr');
+          const b = cell.querySelector('[data-f="billing"]')?.value;
+          const p = cell.querySelector('[data-f="payment"]')?.value;
+          const profit = cell.querySelector('.dt-profit');
+          if (profit) profit.textContent = this.profitRate(b, p);
         });
       });
+    },
+
+    refreshFeeItemsDom() {
+      const area = document.getElementById('fee-items-area');
+      if (area) area.innerHTML = this.feeItemsAreaHtml();
+      this.bindFeeItemsArea();
+    },
+
+    async loadImportCandidates(row) {
+      const params = new URLSearchParams();
+      if (row.base_project_id) params.set('base_project_id', row.base_project_id);
+      if (row.project_id) params.set('project_id', row.project_id);
+      const { res, data } = await this.ctx.api(`/api/price-sets?${params}`);
+      this.importCandidates = res.ok && data?.ok ? data.price_sets || [] : [];
     },
 
     async showDetail(id, prefill = null) {
@@ -274,6 +409,7 @@
         apply_end_date: '',
         note: '',
         lines: [],
+        extra_data: null,
       };
       if (id) {
         const { res, data } = await this.ctx.api(`/api/price-sets/${id}`);
@@ -288,11 +424,22 @@
         }
         row = data.price_set;
       }
+      await this.loadImportCandidates(row);
+
+      let items = Fee().hydrateFeeItems(row, this.codes);
+      const isBlankNew = !id && !(row.lines || []).length;
+      if (!items && isBlankNew) {
+        items = Fee().defaultFeeItemTemplates(this.codes);
+      }
+      if (!items) items = [];
+
       this.detailState = {
         id: row.price_set_id,
         version: row.version || 1,
-        lines: (row.lines || []).map((l) => ({ ...l })),
+        items,
+        rowMeta: row,
       };
+
       this.ctx.app.innerHTML = this.kit.shell(
         id ? `金額データ編集（No.${id}）` : '金額データ新規',
         `<section class="panel">
@@ -305,28 +452,75 @@
               <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
               <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
             </div>
+            ${id ? this.importBarHtml(id) : ''}
             <div class="section-head">
-              <h3 class="section-title">料金行</h3>
-              <button type="button" class="btn btn-ghost" id="add-line">＋ 行追加</button>
+              <h3 class="section-title">料金項目（曜日 × 計算 × 種別）</h3>
+              <button type="button" class="btn btn-ghost" id="add-fee-item">＋ 料金項目</button>
             </div>
-            <div class="table-wrap" id="lines-area">${this.linesGridHtml()}</div>
+            <div id="fee-items-area" class="fee-items-stack">${this.feeItemsAreaHtml()}</div>
             <div class="btn-row">
               <button class="btn" type="submit">保存</button>
               ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>
           </form>
-        </section>`,
+        </section>
+        <style>
+          .fee-items-stack { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
+          .fee-item-card { border: 1px solid var(--border, #ccc); padding: 0.75rem; }
+          .fee-item-head { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+          .fee-item-name { flex: 1; font-weight: 600; }
+          .fee-weekdays { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; align-items: center; margin-bottom: 0.5rem; }
+          .weekday-chip { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.9rem; }
+          .weekday-quick { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+          .fee-matrix-pair { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; }
+          .fee-matrix-pair input { width: 100%; max-width: 7rem; }
+          .fee-matrix-wide th, .fee-matrix-wide td { vertical-align: top; }
+          .fee-import-bar { margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+          .hint { color: var(--muted, #666); font-size: 0.9rem; }
+        </style>`,
         { onBack: () => this.showList() }
       );
       this.kit.bindShell({ onBack: () => this.showList() });
-      this.bindLinesGrid();
-      document.getElementById('add-line')?.addEventListener('click', () => {
-        this.collectLines();
-        this.detailState.lines.push(this.emptyLine());
-        document.getElementById('lines-area').innerHTML = this.linesGridHtml();
-        this.bindLinesGrid();
+      this.bindFeeItemsArea();
+
+      document.getElementById('add-fee-item')?.addEventListener('click', () => {
+        this.collectFeeItemsFromDom();
+        const pts = Fee().defaultPriceTypeCodes(this.codes);
+        this.detailState.items.push(
+          Fee().normalizeItem(
+            {
+              id: Fee().nextItemId(),
+              name: '料金項目',
+              mode: 'weekdays',
+              weekdays: Fee().emptyWeekdays(),
+            },
+            pts
+          )
+        );
+        this.refreshFeeItemsDom();
       });
+
+      document.getElementById('import-lines-btn')?.addEventListener('click', async () => {
+        const sourceId = document.getElementById('import-source')?.value;
+        const mode = document.getElementById('import-mode')?.value || 'replace';
+        if (!sourceId) return;
+        const msg =
+          mode === 'merge'
+            ? '選択した金額データの行をマージします。続行しますか？'
+            : '現在の行を上書きして取込します。続行しますか？';
+        if (!window.confirm(msg)) return;
+        const result = await this.ctx.api(`/api/price-sets/${id}/import-lines`, {
+          method: 'POST',
+          body: JSON.stringify({ source_price_set_id: Number(sourceId), mode }),
+        });
+        if (!result.res.ok || !result.data?.ok) {
+          window.alert(result.data?.message || '取込失敗');
+          return;
+        }
+        await this.showDetail(id);
+      });
+
       document.getElementById('cancel')?.addEventListener('click', () => {
         if (this.returnTo) {
           this.returnTo();
@@ -343,7 +537,9 @@
       document.getElementById('ps-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
-        this.collectLines();
+        this.collectFeeItemsFromDom();
+        const lines = Fee().itemsToLines(this.detailState.items);
+        const extra_data = { fee_items: Fee().feeItemsForExtraData(this.detailState.items) };
         const payload = {
           price_set_name: form.price_set_name.value.trim(),
           company_id: form.company_id.value ? Number(form.company_id.value) : null,
@@ -352,7 +548,8 @@
           apply_start_date: form.apply_start_date.value || null,
           apply_end_date: form.apply_end_date.value || null,
           note: form.note.value,
-          lines: this.detailState.lines,
+          lines,
+          extra_data,
           version: this.detailState.version,
         };
         const result = this.detailState.id

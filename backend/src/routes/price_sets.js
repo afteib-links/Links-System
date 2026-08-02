@@ -34,6 +34,22 @@ function pick(body, fields) {
   return out;
 }
 
+function parseExtraDataField(val) {
+  if (val == null || val === '') return null;
+  if (typeof val === 'object') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return null;
+  }
+}
+
+function mergeExtraData(current, patch) {
+  const base = parseExtraDataField(current) || {};
+  if (!patch || typeof patch !== 'object') return base;
+  return { ...base, ...patch };
+}
+
 function normalizeLines(list) {
   if (!Array.isArray(list)) return [];
   return list.map((row, idx) => ({
@@ -209,12 +225,13 @@ router.post('/', async (req, res) => {
     assertOwnerExclusive(data);
     assertValidFromRequired(data.apply_start_date);
     const lines = normalizeLines(req.body.lines);
+    const extraData = mergeExtraData(null, req.body.extra_data);
     await conn.beginTransaction();
     const priceSetNo = await allocatePriceSetNo(conn);
     const [result] = await conn.query(
       `INSERT INTO price_sets
-        (price_set_no, price_set_name, company_id, base_project_id, project_id, apply_start_date, apply_end_date, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (price_set_no, price_set_name, company_id, base_project_id, project_id, apply_start_date, apply_end_date, note, extra_data)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         priceSetNo,
         data.price_set_name,
@@ -224,6 +241,7 @@ router.post('/', async (req, res) => {
         data.apply_start_date,
         data.apply_end_date,
         data.note,
+        extraData ? JSON.stringify(extraData) : null,
       ]
     );
     const id = result.insertId;
@@ -261,6 +279,11 @@ router.put('/:id', async (req, res) => {
         fields.push(`${key} = ?`);
         params.push(data[key]);
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'extra_data')) {
+      const extraData = mergeExtraData(current.extra_data, req.body.extra_data);
+      fields.push('extra_data = ?');
+      params.push(extraData ? JSON.stringify(extraData) : null);
     }
     if (fields.length) {
       fields.push('version = version + 1');
@@ -311,8 +334,8 @@ router.post('/:id/copy', async (req, res) => {
       const priceSetNo = await allocatePriceSetNo(conn);
       const [result] = await conn.query(
         `INSERT INTO price_sets
-          (price_set_no, price_set_name, company_id, base_project_id, project_id, apply_start_date, apply_end_date, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (price_set_no, price_set_name, company_id, base_project_id, project_id, apply_start_date, apply_end_date, note, extra_data)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           priceSetNo,
           copyName,
@@ -322,6 +345,7 @@ router.post('/:id/copy', async (req, res) => {
           copyData.apply_start_date,
           copyData.apply_end_date,
           src.note,
+          src.extra_data ? JSON.stringify(parseExtraDataField(src.extra_data) || src.extra_data) : null,
         ]
       );
       const id = result.insertId;
@@ -341,6 +365,60 @@ router.post('/:id/copy', async (req, res) => {
     }
   } catch (err) {
     return handleRouteError(res, err, 'コピーに失敗しました');
+  }
+});
+
+router.post('/:id/import-lines', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    const sourceId = Number(req.body.source_price_set_id || 0);
+    const mode = String(req.body.mode || 'replace');
+    if (!sourceId) {
+      return res.status(400).json({ ok: false, message: 'コピー元の金額データを指定してください' });
+    }
+    const target = await fetchDetail(id);
+    if (!target) return res.status(404).json({ ok: false, message: '金額データが見つかりません' });
+    const source = await fetchDetail(sourceId);
+    if (!source) return res.status(404).json({ ok: false, message: 'コピー元が見つかりません' });
+
+    const imported = (source.lines || []).map((l) => ({
+      ...l,
+      price_set_line_id: null,
+    }));
+    let lines;
+    if (mode === 'merge') {
+      const existing = normalizeLines(target.lines || []);
+      lines = [...existing, ...normalizeLines(imported)];
+    } else {
+      lines = normalizeLines(imported);
+    }
+
+    let extraData = parseExtraDataField(source.extra_data);
+    if (mode !== 'merge') {
+      extraData = extraData || null;
+    } else {
+      extraData = mergeExtraData(target.extra_data, extraData ? { fee_items: extraData.fee_items } : null);
+    }
+
+    await conn.beginTransaction();
+    if (mode !== 'merge' && extraData) {
+      await conn.query(
+        `UPDATE price_sets SET extra_data = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE price_set_id = ? AND is_deleted = 0`,
+        [JSON.stringify(extraData), id]
+      );
+    }
+    await syncLines(conn, id, lines);
+    await conn.commit();
+    const detail = await fetchDetail(id);
+    return res.json({ ok: true, price_set: detail });
+  } catch (err) {
+    await conn.rollback();
+    return handleRouteError(res, err, '行の取込に失敗しました');
+  } finally {
+    conn.release();
   }
 });
 
