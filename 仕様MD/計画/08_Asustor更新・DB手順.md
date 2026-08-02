@@ -41,6 +41,16 @@ Asustor で git pull → docker compose up --build -d
 
 SSH で Asustor に入り、リポジトリへ移動する。
 
+**ワンコマンド（推奨）:**
+
+```bash
+cd /volume1/docker/Links-System
+./scripts/nas-sync.sh --backup   # バックアップしてから同期
+# またはバックアップ省略: ./scripts/nas-sync.sh
+```
+
+手動で行う場合:
+
 ```bash
 cd /volume1/docker/Links-System
 
