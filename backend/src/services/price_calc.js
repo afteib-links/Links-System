@@ -1,7 +1,21 @@
 const { query } = require('../db');
 const { listPriceSetsForProject } = require('./price_set_lifecycle');
 
-const WEEKDAY_FALLBACK = ['all', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+/** 仕様: 平日 → 半日 → 土曜 → 日曜 → 祝日 → その他 */
+const DAY_TYPE_FALLBACK_ORDER = [
+  'weekday',
+  'half',
+  'sat',
+  'sun',
+  'holiday',
+  'other',
+  'all',
+  'mon',
+  'tue',
+  'wed',
+  'thu',
+  'fri',
+];
 
 function jsWeekdayCode(workDate) {
   const d = new Date(`${String(workDate).slice(0, 10)}T12:00:00Z`);
@@ -12,24 +26,63 @@ function jsWeekdayCode(workDate) {
   return map[day];
 }
 
-function dateInRange(workDate, start, end) {
-  const w = String(workDate).slice(0, 10);
-  const s = start ? String(start).slice(0, 10) : '1900-01-01';
-  const e = end ? String(end).slice(0, 10) : '9999-12-31';
-  return w >= s && w <= e;
+function dayTypesForWorkDate(workDate) {
+  const code = jsWeekdayCode(workDate);
+  const types = [];
+  if (code === 'sat') types.push('sat');
+  else if (code === 'sun') types.push('sun');
+  else types.push('weekday', code);
+  return types;
+}
+
+function normYmd(d) {
+  if (!d) return null;
+  const s = String(d).slice(0, 10);
+  return s || null;
+}
+
+/** 勤務日 D に適用する PriceSet: start<=D, end があれば D<=end, 最大 apply_start_date */
+function isPriceSetCandidate(workDate, priceSet) {
+  const w = normYmd(workDate);
+  if (!w) return false;
+  const start = normYmd(priceSet.apply_start_date);
+  if (!start || w < start) return false;
+  const end = normYmd(priceSet.apply_end_date);
+  if (end && w > end) return false;
+  return true;
 }
 
 async function pickPriceSetForDate(projectId, workDate) {
   const sets = await listPriceSetsForProject(projectId);
-  const hits = sets.filter((ps) => dateInRange(workDate, ps.apply_start_date, ps.apply_end_date));
+  const hits = sets.filter((ps) => isPriceSetCandidate(workDate, ps));
   if (!hits.length) return null;
-  // 期間が狭い（より新しい開始）を優先
   hits.sort((a, b) => {
     const as = String(a.apply_start_date || '').localeCompare(String(b.apply_start_date || ''));
     if (as !== 0) return -as;
     return Number(b.price_set_id) - Number(a.price_set_id);
   });
   return hits[0];
+}
+
+function resolvePriceRow(lines, workDate, calcType = 'daily') {
+  const tryDayTypes = [...dayTypesForWorkDate(workDate), ...DAY_TYPE_FALLBACK_ORDER];
+  const seen = new Set();
+  for (const dayType of tryDayTypes) {
+    if (seen.has(dayType)) continue;
+    seen.add(dayType);
+    let row = lines.find(
+      (l) => String(l.weekday_code || '') === dayType && String(l.calc_type_code || '') === calcType
+    );
+    if (row) return row;
+    row = lines.find((l) => String(l.weekday_code || '') === dayType);
+    if (row) return row;
+  }
+  return lines[0] || null;
+}
+
+function getHourlyRate(dailyPrice, stdRestraintHours, stdBreakMinutes) {
+  const net = Math.max(0, Number(stdRestraintHours || 0) - Number(stdBreakMinutes || 0) / 60);
+  return net > 0 ? Number(dailyPrice || 0) / net : 0;
 }
 
 async function pickLineForDay(priceSetId, workDate) {
@@ -40,19 +93,13 @@ async function pickLineForDay(priceSetId, workDate) {
     [Number(priceSetId)]
   );
   if (!lines.length) return null;
-  const dayCode = jsWeekdayCode(workDate);
-  const tryKeys = [dayCode, ...WEEKDAY_FALLBACK.filter((k) => k !== dayCode)];
-  for (const key of tryKeys) {
-    const hit = lines.find((l) => String(l.weekday_code || '') === key);
-    if (hit) return hit;
-  }
-  return lines[0];
+  return resolvePriceRow(lines, workDate, 'daily');
 }
 
 /**
  * 日報1行の計算（最小仮組）
- * - spot_amount があればマスタ無視
- * - それ以外は案件紐づき PriceSet から基本単価
+ * - spot_amount があればマスタ無視（useSpotPrice 相当）
+ * - それ以外は validFrom/validTo で PriceSet を選択し PriceRow を解決
  */
 async function applyDailyPriceCalc(data) {
   const spot = data.spot_amount != null && data.spot_amount !== '' ? Number(data.spot_amount) : null;
@@ -78,11 +125,27 @@ async function applyDailyPriceCalc(data) {
   data.applied_price_set_id = priceSet.price_set_id;
   const line = await pickLineForDay(priceSet.price_set_id, data.work_date);
   if (line) {
+    const billingBase = Number(line.billing_unit_price || 0);
+    const paymentBase = Number(line.payment_unit_price || 0);
     if (data.calculated_billing_amount == null) {
-      data.calculated_billing_amount = Number(line.billing_unit_price || 0);
+      data.calculated_billing_amount = billingBase;
     }
     if (data.calculated_payment_amount == null) {
-      data.calculated_payment_amount = Number(line.payment_unit_price || 0);
+      data.calculated_payment_amount = paymentBase;
+    }
+    // 不足時間控除（次段で拘束時間を案件から取得して拡張）
+    const workHours = data.work_hours != null ? Number(data.work_hours) : null;
+    const binding = data.binding_hours != null ? Number(data.binding_hours) : null;
+    const breakH = data.break_time != null ? Number(data.break_time) : 0;
+    if (workHours != null && binding != null && workHours < binding - breakH) {
+      const hourlyBill = getHourlyRate(billingBase, binding, breakH * 60);
+      const hourlyPay = getHourlyRate(paymentBase, binding, breakH * 60);
+      if (data.calculated_billing_amount == null || data.calculated_billing_amount === billingBase) {
+        data.calculated_billing_amount = Math.round(workHours * hourlyBill * 100) / 100;
+      }
+      if (data.calculated_payment_amount == null || data.calculated_payment_amount === paymentBase) {
+        data.calculated_payment_amount = Math.round(workHours * hourlyPay * 100) / 100;
+      }
     }
   } else {
     if (data.calculated_billing_amount == null) data.calculated_billing_amount = 0;
@@ -94,4 +157,6 @@ async function applyDailyPriceCalc(data) {
 module.exports = {
   applyDailyPriceCalc,
   pickPriceSetForDate,
+  resolvePriceRow,
+  DAY_TYPE_FALLBACK_ORDER,
 };

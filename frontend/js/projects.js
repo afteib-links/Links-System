@@ -67,13 +67,14 @@
         .map(
           (ps) => `
           <tr>
-            <td>${this.ctx.escapeHtml(ps.price_set_id)}</td>
+            <td>${this.ctx.escapeHtml(ps.price_set_no || ps.price_set_id)}</td>
             <td>${this.ctx.escapeHtml(ps.price_set_name)}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_start_date) || '-')}</td>
             <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_end_date) || '〜')}</td>
             <td>${this.ctx.escapeHtml(ps.line_count ?? 0)}</td>
             <td>
               <button type="button" class="btn btn-ghost btn-small" data-edit-ps="${ps.price_set_id}">編集</button>
+              <button type="button" class="btn btn-ghost btn-small" data-copy-ps="${ps.price_set_id}">コピー</button>
             </td>
           </tr>`
         )
@@ -84,7 +85,7 @@
           : `data-owner-project="${ownerId}" data-owner-company="${companyId || ''}"`;
       return `
         <h3 class="section-title">金額データ</h3>
-        <p class="muted">適用期間ごとに料金セットを登録します（案件作成時はテンプレから複製されます）。</p>
+        <p class="muted">前回の金額をコピーし、適用開始日・単価を変更して登録できます（期間が重なっても可。日報は開始日が新しいセットを優先）。</p>
         <div class="toolbar">
           <button type="button" class="btn" id="add-price-set" ${ownerAttr}>＋ 金額データ追加</button>
         </div>
@@ -118,6 +119,28 @@
         btn.addEventListener('click', () => {
           const psId = Number(btn.getAttribute('data-edit-ps'));
           this.ctx.openFeature?.('price_sets', { price_set_id: psId, returnTo: refreshFn });
+        })
+      );
+      document.querySelectorAll('[data-copy-ps]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const psId = Number(btn.getAttribute('data-copy-ps'));
+          const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+          const applyStart = window.prompt('新しい適用開始日（必須）', today);
+          if (!applyStart || !applyStart.trim()) return;
+          const body =
+            ownerKind === 'base'
+              ? { base_project_id: ownerId, apply_start_date: applyStart.trim() }
+              : { project_id: ownerId, apply_start_date: applyStart.trim() };
+          const result = await this.ctx.api(`/api/price-sets/${psId}/copy`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+          });
+          if (!result.res.ok || !result.data?.ok) {
+            window.alert(result.data?.message || 'コピー失敗');
+            return;
+          }
+          const newId = result.data.price_set?.price_set_id;
+          this.ctx.openFeature?.('price_sets', { price_set_id: newId, returnTo: refreshFn });
         })
       );
     },
