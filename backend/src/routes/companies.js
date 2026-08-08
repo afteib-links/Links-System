@@ -8,6 +8,7 @@ router.use(requireAuth, requirePermission('companies'));
 
 const COMPANY_FIELDS = [
   'office_no',
+  'office_name',
   'company_name',
   'company_name_kana',
   'zip_code',
@@ -30,6 +31,12 @@ const COMPANY_FIELDS = [
   'invoice_send_address',
   'work_mode_code',
 ];
+
+function formatSerial(prefix, padDigits, nextNumber) {
+  const pad = Math.max(0, Math.min(12, Number(padDigits) || 0));
+  const n = Math.max(0, Number(nextNumber) || 0);
+  return `${prefix || ''}${String(n).padStart(pad, '0')}`;
+}
 
 function normalizeManagerPeriods(list) {
   if (!Array.isArray(list)) return [];
@@ -110,6 +117,50 @@ async function fetchCompanyDetail(companyId) {
     vehicles,
     manager_periods,
   };
+}
+
+/** 採番ルール office から次の事業所Noを発行（conn 上で FOR UPDATE） */
+async function allocateOfficeNo(conn) {
+  const [rules] = await conn.query(
+    `SELECT * FROM numbering_rules
+     WHERE rule_key = 'office' AND is_deleted = 0
+     LIMIT 1
+     FOR UPDATE`
+  );
+  if (!rules.length) {
+    const err = new Error('事業所の採番ルールが未登録です');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+  const rule = rules[0];
+  if (!Number(rule.is_active)) {
+    const err = new Error('事業所の採番ルールが無効です');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+  let nextNum = Number(rule.next_number) || 1;
+  let officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
+  for (let i = 0; i < 50; i += 1) {
+    const [dup] = await conn.query(
+      `SELECT company_id AS id FROM companies WHERE office_no = ? AND is_deleted = 0
+       UNION ALL
+       SELECT office_id AS id FROM office_masters WHERE office_no = ? AND is_deleted = 0
+       LIMIT 1`,
+      [officeNo, officeNo]
+    );
+    if (!dup.length) break;
+    nextNum += 1;
+    officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
+  }
+  await conn.query(
+    `UPDATE numbering_rules
+     SET next_number = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+     WHERE numbering_rule_id = ?`,
+    [nextNum + 1, rule.numbering_rule_id]
+  );
+  return officeNo;
 }
 
 async function syncManagerPeriods(conn, companyId, periods) {
@@ -296,7 +347,7 @@ router.get('/', async (req, res) => {
     }
 
     const rows = await query(
-      `SELECT c.company_id, c.office_no, c.company_name, c.company_name_kana,
+      `SELECT c.company_id, c.office_no, c.office_name, c.company_name, c.company_name_kana,
               c.closing_date_code, c.payment_date_code, c.invoice_send_method,
               c.work_mode_code, c.our_manager, c.fax, c.invoice_send_address,
               c.version, c.updated_at,
@@ -361,11 +412,17 @@ router.post('/', async (req, res) => {
       });
     }
     data.company_name = String(data.company_name).trim();
+    if (Object.prototype.hasOwnProperty.call(data, 'office_name')) {
+      data.office_name = data.office_name == null ? null : String(data.office_name).trim() || null;
+    }
+    // 事業所Noはクライアント指定不可。登録時に自動採番。
+    delete data.office_no;
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
     const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);
 
     await conn.beginTransaction();
+    data.office_no = await allocateOfficeNo(conn);
     const cols = Object.keys(data);
     const placeholders = cols.map(() => '?').join(', ');
     const [result] = await conn.query(
@@ -382,6 +439,13 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ ok: true, company: detail });
   } catch (err) {
     await conn.rollback();
+    if (err.status) {
+      return res.status(err.status).json({
+        ok: false,
+        error: err.code || 'validation_error',
+        message: err.message,
+      });
+    }
     console.error('[companies/create]', err);
     return res.status(500).json({
       ok: false,
@@ -415,12 +479,31 @@ router.put('/:id', async (req, res) => {
       });
     }
     data.company_name = String(data.company_name).trim();
+    if (Object.prototype.hasOwnProperty.call(data, 'office_name')) {
+      data.office_name = data.office_name == null ? null : String(data.office_name).trim() || null;
+    }
+    // 事業所Noは既存値を維持。未採番なら自動採番。クライアントからの上書きは不可。
+    delete data.office_no;
     const billings = normalizeBillings(req.body.billings);
     const vehicles = normalizeVehicles(req.body.vehicles);
     const managerPeriods = normalizeManagerPeriods(req.body.manager_periods);
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
 
     await conn.beginTransaction();
+    const [currentRows] = await conn.query(
+      `SELECT office_no FROM companies WHERE company_id = ? AND is_deleted = 0 LIMIT 1 FOR UPDATE`,
+      [id]
+    );
+    if (!currentRows.length) {
+      await conn.rollback();
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: '企業が見つかりません',
+      });
+    }
+    data.office_no = currentRows[0].office_no || (await allocateOfficeNo(conn));
+
     const sets = COMPANY_FIELDS.map((f) => `${f} = ?`);
     const params = COMPANY_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));
     let sql = `
@@ -455,6 +538,13 @@ router.put('/:id', async (req, res) => {
     return res.json({ ok: true, company: detail });
   } catch (err) {
     await conn.rollback();
+    if (err.status) {
+      return res.status(err.status).json({
+        ok: false,
+        error: err.code || 'validation_error',
+        message: err.message,
+      });
+    }
     console.error('[companies/update]', err);
     return res.status(500).json({
       ok: false,

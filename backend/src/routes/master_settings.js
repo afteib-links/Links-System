@@ -1,9 +1,15 @@
 const express = require('express');
-const { query } = require('../db');
+const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('master_settings'));
+
+function formatSerial(prefix, padDigits, nextNumber) {
+  const pad = Math.max(0, Math.min(12, Number(padDigits) || 0));
+  const n = Math.max(0, Number(nextNumber) || 0);
+  return `${prefix || ''}${String(n).padStart(pad, '0')}`;
+}
 
 /** Hub summary */
 router.get('/hub', async (_req, res) => {
@@ -17,12 +23,20 @@ router.get('/hub', async (_req, res) => {
     const [settingCnt] = await query(
       `SELECT COUNT(*) AS cnt FROM system_settings WHERE is_deleted = 0`
     );
+    const [officeCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM office_masters WHERE is_deleted = 0`
+    );
+    const [ruleCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM numbering_rules WHERE is_deleted = 0`
+    );
     return res.json({
       ok: true,
       hub: {
         staff_masters: Number(staffCnt.cnt || 0),
         code_masters: Number(codeCnt.cnt || 0),
         system_settings: Number(settingCnt.cnt || 0),
+        office_masters: Number(officeCnt.cnt || 0),
+        numbering_rules: Number(ruleCnt.cnt || 0),
       },
     });
   } catch (err) {
@@ -198,6 +212,193 @@ router.put('/codes/:id', async (req, res) => {
   } catch (err) {
     console.error('[master_settings/codes/update]', err);
     return res.status(500).json({ ok: false, message: '区分の更新に失敗しました' });
+  }
+});
+
+/** 事業所マスタ */
+router.get('/offices', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT * FROM office_masters
+       WHERE is_deleted = 0
+       ORDER BY sort_order ASC, office_no ASC, office_id ASC`
+    );
+    return res.json({ ok: true, offices: rows });
+  } catch (err) {
+    console.error('[master_settings/offices/list]', err);
+    return res.status(500).json({ ok: false, message: '事業所一覧の取得に失敗しました' });
+  }
+});
+
+router.post('/offices', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const name = String(req.body.office_name || '').trim();
+    const sortOrder = Number(req.body.sort_order || 0);
+    const isActive = req.body.is_active === false || req.body.is_active === 0 ? 0 : 1;
+
+    await conn.beginTransaction();
+    const [rules] = await conn.query(
+      `SELECT * FROM numbering_rules
+       WHERE rule_key = 'office' AND is_deleted = 0
+       LIMIT 1
+       FOR UPDATE`
+    );
+    if (!rules.length) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, message: '事業所の採番ルールが未登録です' });
+    }
+    const rule = rules[0];
+    if (!Number(rule.is_active)) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, message: '事業所の採番ルールが無効です' });
+    }
+
+    let nextNum = Number(rule.next_number) || 1;
+    let officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
+    // 衝突時は次番号を進めて再試行（仮組）
+    for (let i = 0; i < 50; i += 1) {
+      const [dup] = await conn.query(
+        `SELECT office_id FROM office_masters WHERE office_no = ? AND is_deleted = 0 LIMIT 1`,
+        [officeNo]
+      );
+      if (!dup.length) break;
+      nextNum += 1;
+      officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
+    }
+
+    const [result] = await conn.query(
+      `INSERT INTO office_masters (office_no, office_name, is_active, sort_order)
+       VALUES (?, ?, ?, ?)`,
+      [officeNo, name || '', isActive, sortOrder]
+    );
+    await conn.query(
+      `UPDATE numbering_rules
+       SET next_number = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE numbering_rule_id = ?`,
+      [nextNum + 1, rule.numbering_rule_id]
+    );
+    await conn.commit();
+    return res.status(201).json({
+      ok: true,
+      office_id: result.insertId,
+      office_no: officeNo,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[master_settings/offices/create]', err);
+    return res.status(500).json({ ok: false, message: '事業所の作成に失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/offices/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body.office_name || '').trim();
+    await query(
+      `UPDATE office_masters
+       SET office_name = ?, is_active = ?, sort_order = ?,
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE office_id = ? AND is_deleted = 0`,
+      [
+        name || '',
+        req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
+        Number(req.body.sort_order || 0),
+        id,
+      ]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/offices/update]', err);
+    return res.status(500).json({ ok: false, message: '事業所の更新に失敗しました' });
+  }
+});
+
+router.delete('/offices/:id', async (req, res) => {
+  try {
+    await query(
+      `UPDATE office_masters SET is_deleted = 1, version = version + 1 WHERE office_id = ?`,
+      [Number(req.params.id)]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/offices/delete]', err);
+    return res.status(500).json({ ok: false, message: '事業所の削除に失敗しました' });
+  }
+});
+
+/** 採番ルール */
+router.get('/numbering-rules', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT * FROM numbering_rules
+       WHERE is_deleted = 0
+       ORDER BY rule_key ASC`
+    );
+    return res.json({ ok: true, rules: rows });
+  } catch (err) {
+    console.error('[master_settings/numbering-rules/list]', err);
+    return res.status(500).json({ ok: false, message: '採番ルール一覧の取得に失敗しました' });
+  }
+});
+
+router.post('/numbering-rules', async (req, res) => {
+  try {
+    const ruleKey = String(req.body.rule_key || '').trim();
+    const ruleLabel = String(req.body.rule_label || '').trim();
+    if (!ruleKey || !ruleLabel) {
+      return res.status(400).json({ ok: false, message: 'キーと表示名は必須です' });
+    }
+    const result = await query(
+      `INSERT INTO numbering_rules (rule_key, rule_label, prefix, pad_digits, next_number, is_active)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        ruleKey,
+        ruleLabel,
+        String(req.body.prefix || ''),
+        Math.max(0, Math.min(12, Number(req.body.pad_digits ?? 4))),
+        Math.max(1, Number(req.body.next_number || 1)),
+        req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
+      ]
+    );
+    return res.status(201).json({ ok: true, numbering_rule_id: result.insertId });
+  } catch (err) {
+    console.error('[master_settings/numbering-rules/create]', err);
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, message: '同じキーの採番ルールが既にあります' });
+    }
+    return res.status(500).json({ ok: false, message: '採番ルールの作成に失敗しました' });
+  }
+});
+
+router.put('/numbering-rules/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const ruleLabel = String(req.body.rule_label || '').trim();
+    if (!ruleLabel) {
+      return res.status(400).json({ ok: false, message: '表示名は必須です' });
+    }
+    await query(
+      `UPDATE numbering_rules
+       SET rule_label = ?, prefix = ?, pad_digits = ?, next_number = ?, is_active = ?,
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE numbering_rule_id = ? AND is_deleted = 0`,
+      [
+        ruleLabel,
+        String(req.body.prefix || ''),
+        Math.max(0, Math.min(12, Number(req.body.pad_digits ?? 4))),
+        Math.max(1, Number(req.body.next_number || 1)),
+        req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
+        id,
+      ]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/numbering-rules/update]', err);
+    return res.status(500).json({ ok: false, message: '採番ルールの更新に失敗しました' });
   }
 });
 

@@ -1,6 +1,7 @@
 (() => {
   /**
-   * Shared list table: sticky header, compact rows, sort, inline filter, column layout (A-04〜A-08)
+   * Shared list table: sticky header, compact rows, sort, inline filter。
+   * 列の表示／順序は layout 読込で適用（操作UIは UIビルダー側）。
    */
   function normalizeLayout(columns, saved) {
     const byKey = new Map((columns || []).map((c) => [c.key, c]));
@@ -98,26 +99,9 @@
       })
       .join('');
 
-    const colPicker = columns
-      .map((c) => {
-        const checked = !hidden.has(c.key) && order.includes(c.key) ? 'checked' : '';
-        return `<label class="dt-col-item"><input type="checkbox" data-col-key="${escapeHtml(
-          c.key
-        )}" ${checked}/> ${escapeHtml(c.label)}</label>`;
-      })
-      .join('');
-
+    // 表示列操作UIは置かない（編集は UIビルダー）。layout の読込適用のみ行う。
     return {
       html: `
-        <div class="dt-toolbar-extra">
-          <button type="button" class="btn btn-ghost btn-small" id="dt-layout-toggle" data-screen="${escapeHtml(
-            screenKey || ''
-          )}">表示列</button>
-          <div class="dt-col-panel" id="dt-col-panel" hidden>
-            ${colPicker}
-            <button type="button" class="btn btn-small" id="dt-layout-save">保存</button>
-          </div>
-        </div>
         <div class="table-wrap table-wrap-sticky">
           <table class="data-table data-table-compact" id="${escapeHtml(tableId)}">
             <thead>
@@ -156,22 +140,6 @@
           handlers.onFilter?.(filters);
         }, 200);
       });
-    });
-
-    el.querySelector('#dt-layout-toggle')?.addEventListener('click', () => {
-      const panel = el.querySelector('#dt-col-panel');
-      if (panel) panel.hidden = !panel.hidden;
-    });
-
-    el.querySelector('#dt-layout-save')?.addEventListener('click', () => {
-      const order = [];
-      const hidden = [];
-      el.querySelectorAll('[data-col-key]').forEach((cb) => {
-        const key = cb.getAttribute('data-col-key');
-        if (cb.checked) order.push(key);
-        else hidden.push(key);
-      });
-      handlers.onSaveLayout?.({ columns: order, hidden });
     });
   }
 

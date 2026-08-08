@@ -713,6 +713,11 @@ select {
   width: 100%;
 }
 
+/* display:flex が [hidden] を上書きしないようにする */
+.dt-col-panel[hidden] {
+  display: none !important;
+}
+
 .dt-col-item {
   display: inline-flex;
   align-items: center;
@@ -1065,4 +1070,64 @@ select {
 .adv-total {
   margin-top: 0.35rem;
   font-size: 0.9rem;
+}
+
+/* UIビルダー選択カード（明るいパネル上で読めるコントラスト） */
+.ui-builder-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.ui-builder-card {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  text-align: left;
+  min-height: 4.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(26, 46, 36, 0.04);
+}
+
+.ui-builder-card strong {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ui-builder-card-key {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ui-builder-card:hover {
+  border-color: var(--brand);
+  background: #f4faf5;
+}
+
+.ui-builder-card:focus-visible {
+  outline: 2px solid rgba(31, 92, 64, 0.35);
+  outline-offset: 2px;
+}
+
+.ui-builder-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ui-builder-body {
+  margin-top: 1rem;
 }

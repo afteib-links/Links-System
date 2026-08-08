@@ -115,11 +115,6 @@
           this.listState.filters = filters;
           this.showList(message);
         },
-        onSaveLayout: async (layout) => {
-          await this.kit.saveLayout('partners', layout);
-          this.layout = layout;
-          this.ctx.showToast('表示列を保存しました');
-        },
       });
       document.getElementById('search')?.addEventListener('click', () => {
         this.listState.q = document.getElementById('q').value.trim();

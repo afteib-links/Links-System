@@ -224,7 +224,7 @@
       return;
     }
     if (featureKey === 'price_sets' && window.LinksPriceSets) {
-      window.LinksPriceSets.open(ctx);
+      window.LinksPriceSets.open(ctx, options);
       return;
     }
     if (featureKey === 'daily_reports' && window.LinksDailyReports) {

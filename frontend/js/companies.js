@@ -16,7 +16,8 @@
     listColumns() {
       return [
         { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所' },
+        { key: 'office_no', label: '事業所No' },
+        { key: 'office_name', label: '事業所名' },
         { key: 'company_name', label: '企業名' },
         {
           key: 'work_mode_code',
@@ -93,11 +94,6 @@
           this.listState.filters = filters;
           this.showList(message);
         },
-        onSaveLayout: async (layout) => {
-          await this.kit.saveLayout('companies', layout);
-          this.layout = layout;
-          this.ctx.showToast('表示列を保存しました');
-        },
       });
       document.getElementById('company-search')?.addEventListener('click', () => {
         this.listState.q = document.getElementById('company-q').value.trim();
@@ -171,6 +167,7 @@
         company_id: null,
         version: 1,
         office_no: '',
+        office_name: '',
         company_name: '',
         company_name_kana: '',
         zip_code: '',
@@ -224,7 +221,12 @@
           <form id="company-form">
             <h3 class="section-title">基本情報・銀行情報</h3>
             <div class="form-grid">
-              <div><label>事業所No</label><input name="office_no" value="${this.ctx.escapeHtml(company.office_no || '')}" /></div>
+              <div><label>事業所No</label><input name="office_no" value="${this.ctx.escapeHtml(
+                company.office_no || ''
+              )}" disabled placeholder="保存時に自動採番" /></div>
+              <div><label>事業所名</label><input name="office_name" value="${this.ctx.escapeHtml(
+                company.office_name || ''
+              )}" placeholder="任意（入力なし可）" /></div>
               <div><label>企業名（必須）</label><input name="company_name" required value="${this.ctx.escapeHtml(company.company_name || '')}" /></div>
               <div><label>企業名カナ</label><input name="company_name_kana" value="${this.ctx.escapeHtml(company.company_name_kana || '')}" /></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(company.zip_code || '')}" /></div>
@@ -500,7 +502,7 @@
       const errorEl = document.getElementById('company-form-error');
       errorEl.textContent = '';
       const payload = {
-        office_no: form.office_no.value,
+        office_name: form.office_name.value,
         company_name: form.company_name.value.trim(),
         company_name_kana: form.company_name_kana.value,
         zip_code: form.zip_code.value,

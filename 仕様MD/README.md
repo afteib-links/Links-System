@@ -22,6 +22,7 @@ Excel管理の運送業務（案件・パートナー・収支）をWeb化する
 | `02_master_definition.md` | マスタ（DB）定義 |
 | `03_function_scope.md` | MVP機能スコープ |
 | `04_calculation_logic.md` | 日報計算・金額保持仕様 |
+| `05_project_price_relationship.md` | 基本案件・個別案件・金額データの関係 |
 | `05_decision_log.md` | 決定事項ログ |
 | `06_development_environment.md` | 開発環境・NAS実行基盤仕様 |
 | `07_auth_and_permissions.md` | ログイン実装メモ（要約） |
