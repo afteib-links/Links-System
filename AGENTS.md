@@ -29,6 +29,7 @@ git log origin/main -1 --oneline
 
 ## Antigravity
 
+- **ルール貼り付け用の正本**: [`ANTIGRAVITY.md`](ANTIGRAVITY.md)（全文を Antigravity の Instructions にコピー可）
 - **この `AGENTS.md` と `仕様MD/00_*` をワークスペースに常時含める**
 - 開発も行う場合: **実装前に `git fetch` と現状スナップショットを確認**し、ブランチを Cursor と重複させない（ガイド §4）
 - 仕様・レビュー中心ブランチ: `Antigravity-making`（docs / 試験的変更）
