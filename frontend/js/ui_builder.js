@@ -79,7 +79,7 @@
           <p class="muted">機能画面 → エリア → 項目の表示／順序を設定します（仮組）</p>
         </div>
         ${renderStepper()}
-        <div class="ui-builder-body" style="margin-top:1rem">
+        <div class="ui-builder-body">
           ${state.step === 1 ? renderStep1() : ''}
           ${state.step === 2 ? renderStep2() : ''}
           ${state.step === 3 ? renderStep3() : ''}
@@ -117,12 +117,12 @@
   function renderStep1() {
     return `
       <h3>Step1. 機能画面を選択</h3>
-      <div class="ui-builder-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;margin-top:0.75rem">
+      <div class="ui-builder-cards">
         ${SCREENS.map(
           (s) => `
-          <button type="button" class="btn btn-secondary ui-builder-screen" data-screen="${s.key}" style="text-align:left;padding:1rem;min-height:4.5rem">
+          <button type="button" class="ui-builder-card ui-builder-screen" data-screen="${s.key}">
             <strong>${escapeHtml(s.label)}</strong>
-            <div class="muted" style="font-size:0.8rem;margin-top:0.25rem">${escapeHtml(s.key)}</div>
+            <span class="ui-builder-card-key">${escapeHtml(s.key)}</span>
           </button>`
         ).join('')}
       </div>
@@ -134,17 +134,17 @@
     return `
       <h3>Step2. エリアを選択</h3>
       <p class="muted">対象: <strong>${escapeHtml(screen ? screen.label : state.screenKey)}</strong></p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;margin-top:0.75rem">
+      <div class="ui-builder-cards">
         ${AREAS.map(
           (a) => `
-          <button type="button" class="btn btn-secondary ui-builder-area" data-area="${a.key}" style="text-align:left;padding:1rem;min-height:4.5rem">
+          <button type="button" class="ui-builder-card ui-builder-area" data-area="${a.key}">
             <strong>${escapeHtml(a.label)}</strong>
-            <div class="muted" style="font-size:0.8rem;margin-top:0.25rem">${a.supported ? '項目設定可' : '未対応（選択可）'}</div>
+            <span class="ui-builder-card-key">${a.supported ? '項目設定可' : '未対応（選択可）'}</span>
           </button>`
         ).join('')}
       </div>
-      <div style="margin-top:1rem">
-        <button type="button" class="btn btn-secondary" id="ui-builder-back">戻る</button>
+      <div class="ui-builder-actions">
+        <button type="button" class="btn btn-ghost" id="ui-builder-back">戻る</button>
       </div>
     `;
   }
@@ -157,8 +157,8 @@
         <h3>Step3. 項目設定</h3>
         <p class="muted">対象: ${escapeHtml(screen ? screen.label : '')} / ${escapeHtml(area ? area.label : state.areaKey)}</p>
         <p class="alert" style="margin-top:1rem">このエリアの項目設定は未対応です（仮組）。リストエリアを選択してください。</p>
-        <div style="margin-top:1rem;display:flex;gap:0.5rem">
-          <button type="button" class="btn btn-secondary" id="ui-builder-back">戻る</button>
+        <div class="ui-builder-actions">
+          <button type="button" class="btn btn-ghost" id="ui-builder-back">戻る</button>
         </div>
       `;
     }
@@ -171,8 +171,8 @@
         <td>${escapeHtml(item.label)}</td>
         <td class="muted" style="font-size:0.8rem">${escapeHtml(item.key)}</td>
         <td style="white-space:nowrap">
-          <button type="button" class="btn btn-secondary ui-builder-up" data-idx="${idx}" ${idx === 0 ? 'disabled' : ''}>↑</button>
-          <button type="button" class="btn btn-secondary ui-builder-down" data-idx="${idx}" ${idx === state.items.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="btn btn-ghost btn-small ui-builder-up" data-idx="${idx}" ${idx === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" class="btn btn-ghost btn-small ui-builder-down" data-idx="${idx}" ${idx === state.items.length - 1 ? 'disabled' : ''}>↓</button>
         </td>
       </tr>`
       )
@@ -189,9 +189,9 @@
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-        <button type="button" class="btn btn-secondary" id="ui-builder-back">戻る</button>
-        <button type="button" class="btn btn-primary" id="ui-builder-save">保存</button>
+      <div class="ui-builder-actions">
+        <button type="button" class="btn btn-ghost" id="ui-builder-back">戻る</button>
+        <button type="button" class="btn" id="ui-builder-save">保存</button>
         <span id="ui-builder-msg" class="muted" role="status"></span>
       </div>
     `;
