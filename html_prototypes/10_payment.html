@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支払管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .stat-icon-blue { background: #dbeafe; }
+  .stat-icon-green { background: #dcfce7; }
+  .stat-icon-amber { background: #fef3c7; }
+  .stat-icon-red { background: #fee2e2; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
+  .stat-label { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+
+  .filter-bar {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .detail-grid-item { font-size: 13px; }
+  .detail-grid-label { color: var(--color-text-muted); font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item active" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">支払管理</h1>
+    <div class="flex gap-2">
+      <button class="btn btn-outline" id="fbExportBtn" onclick="exportFbData()">💾 総振込FBデータ出力</button>
+      <button class="btn btn-primary" onclick="generatePaymentData()">⚡ 支払データ生成</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- サマリーカード -->
+    <div class="grid-4 mb-4">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-blue">💳</div>
+        <div>
+          <div class="stat-value">¥3,140,000</div>
+          <div class="stat-label">当月総振込対象 (5件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-green">✅</div>
+        <div>
+          <div class="stat-value">¥1,300,000</div>
+          <div class="stat-label">振込完了 (2件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-amber">⏳</div>
+        <div>
+          <div class="stat-value">¥1,280,000</div>
+          <div class="stat-label">未処理 (2件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-red">⛔</div>
+        <div>
+          <div class="stat-value">¥560,000</div>
+          <div class="stat-label">振込保留 (1件)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- フィルターバー -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">対象月</label>
+          <input type="month" class="form-control form-control-sm" id="monthFilter" value="2026-07">
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">パートナー選択</label>
+          <select class="form-control form-control-sm" id="partnerFilter" style="min-width: 170px;">
+            <option value="">すべてのパートナー</option>
+            <option value="山田 太郎">山田 太郎</option>
+            <option value="佐藤 次郎">佐藤 次郎</option>
+            <option value="鈴木 一郎">鈴木 一郎</option>
+            <option value="高橋 健太">高橋 健太</option>
+            <option value="渡辺 美咲">渡辺 美咲</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">ステータス</label>
+          <select class="form-control form-control-sm" id="statusFilter">
+            <option value="">すべて</option>
+            <option value="未処理">未処理</option>
+            <option value="振込完了">振込完了</option>
+            <option value="振込保留">振込保留</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">キーワード検索</label>
+          <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="支払No、パートナー名..." style="width: 180px;">
+        </div>
+      </div>
+      <div class="flex gap-2" style="margin-top: 18px;">
+        <button class="btn btn-outline btn-sm" onclick="resetFilters()">リセット</button>
+        <button class="btn btn-primary btn-sm" onclick="applyFilters()">絞り込み</button>
+      </div>
+    </div>
+
+    <!-- 支払明細一覧テーブル -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">支払明細一覧</span>
+        <span class="text-sm text-muted">該当件数: 5件</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="mainTable">
+          <thead>
+            <tr>
+              <th>支払No</th>
+              <th>パートナー名</th>
+              <th>対象月</th>
+              <th class="text-center">稼働日数</th>
+              <th class="text-right">総支払額</th>
+              <th class="text-right">控除合計</th>
+              <th class="text-right">振込金額 (ネット支給額)</th>
+              <th>ステータス</th>
+              <th style="text-align: center;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-bold">PAY-202607-001</td>
+              <td>山田 太郎</td>
+              <td>2026年07月</td>
+              <td class="text-center">21 日</td>
+              <td class="text-right">¥680,000</td>
+              <td class="text-right text-muted">¥30,000</td>
+              <td class="text-right font-bold" style="color:var(--color-primary);">¥650,000</td>
+              <td><span class="badge badge-green">振込完了</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-001', '山田 太郎', '2026年07月', '21日 (168時間)', '¥680,000', '¥30,000', '¥650,000', '振込完了', '三菱UFJ銀行 新宿支店 (普通 1234567)', 650000, 30000, 0)">明細詳細</button>
+                  <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">PAY-202607-002</td>
+              <td>佐藤 次郎</td>
+              <td>2026年07月</td>
+              <td class="text-center">20 日</td>
+              <td class="text-right">¥580,000</td>
+              <td class="text-right text-muted">¥20,000</td>
+              <td class="text-right font-bold" style="color:var(--color-primary);">¥560,000</td>
+              <td><span class="badge badge-amber">未処理</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-002', '佐藤 次郎', '2026年07月', '20日 (160時間)', '¥580,000', '¥20,000', '¥560,000', '未処理', '三井住友銀行 渋谷支店 (普通 9876543)', 550000, 20000, 30000)">明細詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, 'PAY-202607-002')">振込実行</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">PAY-202607-003</td>
+              <td>鈴木 一郎</td>
+              <td>2026年07月</td>
+              <td class="text-center">22 日</td>
+              <td class="text-right">¥750,000</td>
+              <td class="text-right text-muted">¥100,000</td>
+              <td class="text-right font-bold" style="color:var(--color-primary);">¥650,000</td>
+              <td><span class="badge badge-green">振込完了</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-003', '鈴木 一郎', '2026年07月', '22日 (176時間)', '¥750,000', '¥100,000', '¥650,000', '振込完了', 'みずほ銀行 池袋支店 (普通 4567890)', 700000, 50000, 50000)">明細詳細</button>
+                  <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">PAY-202607-004</td>
+              <td>高橋 健太</td>
+              <td>2026年07月</td>
+              <td class="text-center">18 日</td>
+              <td class="text-right">¥520,000</td>
+              <td class="text-right text-muted">¥15,000</td>
+              <td class="text-right font-bold" style="color:var(--color-primary);">¥505,000</td>
+              <td><span class="badge badge-amber">未処理</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-004', '高橋 健太', '2026年07月', '18日 (144時間)', '¥520,000', '¥15,000', '¥505,000', '未処理', 'りそな銀行 品川支店 (普通 1122334)', 500000, 15000, 20000)">明細詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, 'PAY-202607-004')">振込実行</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">PAY-202607-005</td>
+              <td>渡辺 美咲</td>
+              <td>2026年07月</td>
+              <td class="text-center">19 日</td>
+              <td class="text-right">¥610,000</td>
+              <td class="text-right text-muted">¥50,000</td>
+              <td class="text-right font-bold" style="color:var(--color-primary);">¥560,000</td>
+              <td><span class="badge badge-red">振込保留</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-005', '渡辺 美咲', '2026年07月', '19日 (152時間)', '¥610,000', '¥50,000', '¥560,000', '振込保留', '楽天銀行 ジャズ支店 (普通 5566778)', 580000, 50000, 30000)">明細詳細</button>
+                  <button class="btn btn-warning btn-sm" onclick="confirmAction('保留を解除して未処理に変更しますか？', () => unholdPayment(this))">保留解除</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 支払詳細 modal -->
+<div class="modal-overlay hidden" id="paymentDetailModal">
+  <div class="modal" style="max-width: 750px;">
+    <div class="modal-header">
+      <h3 class="modal-title">支払明細詳細 <span id="detailPayNo" class="text-muted" style="font-size:14px; margin-left:8px;">PAY-202607-001</span></h3>
+      <button class="modal-close" onclick="closeModal('paymentDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 概要グリッド -->
+      <div class="detail-grid">
+        <div class="detail-grid-item">
+          <div class="detail-grid-label">パートナー名</div>
+          <div class="font-bold" id="detailPartnerName" style="font-size: 15px;">山田 太郎</div>
+        </div>
+        <div class="detail-grid-item">
+          <div class="detail-grid-label">対象月 / 稼働実績</div>
+          <div><span id="detailTargetMonth">2026年07月</span> (<span id="detailWorkDays">21日 / 168h</span>)</div>
+        </div>
+        <div class="detail-grid-item">
+          <div class="detail-grid-label">振込先口座</div>
+          <div id="detailBankInfo">三菱UFJ銀行 新宿支店 (普通 1234567)</div>
+        </div>
+        <div class="detail-grid-item">
+          <div class="detail-grid-label">ステータス</div>
+          <div><span class="badge badge-green" id="detailStatusBadge">振込完了</span></div>
+        </div>
+      </div>
+
+      <!-- 支払支給・控除明細テーブル -->
+      <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">支給・控除・精算明細</h4>
+      <div class="table-wrap mb-4">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>項目名</th>
+              <th class="text-center">稼働日 / 数量</th>
+              <th class="text-right">基本単価</th>
+              <th class="text-right">残業/調整額</th>
+              <th class="text-right">各種控除</th>
+              <th class="text-right">先払精算</th>
+              <th class="text-right">差引支給額 (円)</th>
+            </tr>
+          </thead>
+          <tbody id="detailItemsTable">
+            <tr>
+              <td>基本業務報酬 (案件: A社開発PJ)</td>
+              <td class="text-center">20日</td>
+              <td class="text-right">¥550,000</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right font-bold">¥550,000</td>
+            </tr>
+            <tr>
+              <td>超過時間精算 (残業15h分)</td>
+              <td class="text-center">15時間</td>
+              <td class="text-right">¥2,000 /h</td>
+              <td class="text-right text-success">+¥30,000</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right font-bold">¥30,000</td>
+            </tr>
+            <tr>
+              <td>安全協力会費・システム使用料</td>
+              <td class="text-center">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right text-danger">▲¥10,000</td>
+              <td class="text-right">-</td>
+              <td class="text-right font-bold text-danger">▲¥10,000</td>
+            </tr>
+            <tr>
+              <td>源泉徴収税相当分 (控除)</td>
+              <td class="text-center">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right text-danger">▲¥20,000</td>
+              <td class="text-right">-</td>
+              <td class="text-right font-bold text-danger">▲¥20,000</td>
+            </tr>
+            <tr>
+              <td>先払い精算金 (当月相殺)</td>
+              <td class="text-center">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right">-</td>
+              <td class="text-right text-danger">▲¥0</td>
+              <td class="text-right font-bold">¥0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 合計集計エリア -->
+      <div style="background: #f1f5f9; border-radius: var(--radius); padding: 14px 20px;">
+        <div class="grid-3" style="text-align: center;">
+          <div>
+            <div class="text-sm text-muted">① 総支払額 (基本+残業)</div>
+            <div class="font-bold" style="font-size: 16px; margin-top: 4px;" id="detailGrossAmount">¥680,000</div>
+          </div>
+          <div>
+            <div class="text-sm text-muted">② 控除・精算額 合計</div>
+            <div class="font-bold text-danger" style="font-size: 16px; margin-top: 4px;" id="detailDeductionTotal">▲¥30,000</div>
+          </div>
+          <div>
+            <div class="text-sm text-muted">③ 差引振込金額 (① - ②)</div>
+            <div class="font-bold" style="font-size: 20px; color: var(--color-primary); margin-top: 2px;" id="detailNetAmount">¥650,000</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="showToast('支払明細書のPDFを出力しました', 'success')">📄 支払明細PDF</button>
+      <button class="btn btn-primary" onclick="closeModal('paymentDetailModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'mainTable');
+  });
+
+  function exportFbData() {
+    showToast('CSVを出力しました', 'success');
+  }
+
+  function generatePaymentData() {
+    showToast('2026年7月期の支払データを自動生成・計算しました', 'info');
+  }
+
+  function applyFilters() {
+    const partner = document.getElementById('partnerFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+
+    const rows = document.querySelectorAll('#mainTable tbody tr');
+    rows.forEach(tr => {
+      const partnerText = tr.children[1].textContent;
+      const statusText = tr.children[7].textContent;
+      const fullText = tr.textContent.toLowerCase();
+
+      let match = true;
+      if (partner && !partnerText.includes(partner)) match = false;
+      if (status && !statusText.includes(status)) match = false;
+      if (search && !fullText.includes(search)) match = false;
+
+      tr.style.display = match ? '' : 'none';
+    });
+    showToast('条件で絞り込みました', 'info');
+  }
+
+  function resetFilters() {
+    document.getElementById('monthFilter').value = '2026-07';
+    document.getElementById('partnerFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    document.querySelectorAll('#mainTable tbody tr').forEach(tr => tr.style.display = '');
+    showToast('フィルターをリセットしました', 'info');
+  }
+
+  function markAsCompleted(btn, payNo) {
+    confirmAction(`${payNo} の振込完了処理を実行しますか？`, () => {
+      const tr = btn.closest('tr');
+      const statusTd = tr.children[7];
+      statusTd.innerHTML = '<span class="badge badge-green">振込完了</span>';
+      const actionTd = tr.children[8];
+      actionTd.innerHTML = `
+        <div class="flex justify-end gap-2" style="justify-content: center;">
+          <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('${payNo}', '${tr.children[1].textContent}', '2026年07月', '${tr.children[3].textContent}', '${tr.children[4].textContent}', '${tr.children[5].textContent}', '${tr.children[6].textContent}', '振込完了', '三菱UFJ銀行 新宿支店 (普通 1234567)', 600000, 20000, 0)">明細詳細</button>
+          <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
+        </div>
+      `;
+      showToast(`${payNo} を振込完了に更新しました`, 'success');
+    });
+  }
+
+  function unholdPayment(btn) {
+    const tr = btn.closest('tr');
+    const payNo = tr.children[0].textContent;
+    const statusTd = tr.children[7];
+    statusTd.innerHTML = '<span class="badge badge-amber">未処理</span>';
+    const actionTd = tr.children[8];
+    actionTd.innerHTML = `
+      <div class="flex justify-end gap-2" style="justify-content: center;">
+        <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('${payNo}', '${tr.children[1].textContent}', '2026年07月', '${tr.children[3].textContent}', '${tr.children[4].textContent}', '${tr.children[5].textContent}', '${tr.children[6].textContent}', '未処理', '楽天銀行 ジャズ支店 (普通 5566778)', 610000, 50000, 0)">明細詳細</button>
+        <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, '${payNo}')">振込実行</button>
+      </div>
+    `;
+    showToast(`${payNo} の保留を解除しました`, 'info');
+  }
+
+  function openPaymentDetail(payNo, partner, month, workDays, gross, ded, net, status, bank, baseAmt, dedAmt, advAmt) {
+    document.getElementById('detailPayNo').textContent = payNo;
+    document.getElementById('detailPartnerName').textContent = partner;
+    document.getElementById('detailTargetMonth').textContent = month;
+    document.getElementById('detailWorkDays').textContent = workDays;
+    document.getElementById('detailBankInfo').textContent = bank;
+
+    const badge = document.getElementById('detailStatusBadge');
+    badge.textContent = status;
+    badge.className = 'badge ';
+    if (status === '振込完了') badge.classList.add('badge-green');
+    else if (status === '未処理') badge.classList.add('badge-amber');
+    else badge.classList.add('badge-red');
+
+    document.getElementById('detailGrossAmount').textContent = gross;
+    document.getElementById('detailDeductionTotal').textContent = '▲' + ded;
+    document.getElementById('detailNetAmount').textContent = net;
+
+    // テーブル明細更新
+    const tbody = document.getElementById('detailItemsTable');
+    tbody.innerHTML = `
+      <tr>
+        <td>基本業務報酬 (当月稼働分)</td>
+        <td class="text-center">${workDays}</td>
+        <td class="text-right">${formatYen(baseAmt)}</td>
+        <td class="text-right">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right font-bold">${formatYen(baseAmt)}</td>
+      </tr>
+      <tr>
+        <td>源泉徴収・事務各種控除</td>
+        <td class="text-center">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right text-danger">▲${formatYen(dedAmt)}</td>
+        <td class="text-right">-</td>
+        <td class="text-right font-bold text-danger">▲${formatYen(dedAmt)}</td>
+      </tr>
+      <tr>
+        <td>先払い精算金 (当月控除分)</td>
+        <td class="text-center">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right">-</td>
+        <td class="text-right text-danger">▲${formatYen(advAmt)}</td>
+        <td class="text-right font-bold text-danger">▲${formatYen(advAmt)}</td>
+      </tr>
+    `;
+
+    openModal('paymentDetailModal');
+  }
+</script>
+</body>
+</html>

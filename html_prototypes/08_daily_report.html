@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日報管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* ---- 日報固有スタイル ---- */
+  .report-header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 20px; flex-shrink: 0; }
+  .report-title { font-size: 16px; font-weight: 700; color: #1e293b; }
+  .report-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+  .progress-bar-wrap { width: 120px; background: #e2e8f0; border-radius: 9999px; height: 8px; }
+  .progress-bar-fill { background: var(--color-primary); border-radius: 9999px; height: 8px; transition: width 0.3s; }
+
+  .summary-row { display: flex; gap: 6px; padding: 10px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; flex-shrink: 0; }
+  .sum-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 14px; text-align: center; min-width: 90px; }
+  .sum-label { font-size: 10px; color: #64748b; font-weight: 500; }
+  .sum-value { font-size: 16px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+  .sum-value.warn { color: #d97706; }
+
+  /* グリッドテーブル */
+  .report-grid-wrap { flex: 1; overflow: auto; }
+  table.report-grid { border-collapse: collapse; font-size: 12px; min-width: 1500px; width: 100%; background: #fff; }
+  .report-grid th { background: #f1f5f9; padding: 7px 6px; text-align: center; font-size: 11px; font-weight: 600; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap; position: sticky; top: 0; z-index: 5; }
+  .report-grid td { border: 1px solid #e2e8f0; padding: 2px; vertical-align: middle; }
+  .report-grid tr.row-sat td { background: #eff6ff; }
+  .report-grid tr.row-sun td { background: #fff1f2; }
+  .report-grid tr.accordion-open > td:first-child { border-left: 3px solid var(--color-primary); }
+  .report-grid tr.accordion-row td { border-left: 3px solid var(--color-primary); background: #f8fafc !important; }
+
+  .gi { width: 100%; border: none; background: transparent; outline: none; text-align: center; font-size: 12px; padding: 5px 4px; font-family: inherit; }
+  .gi:focus { background: #fff; outline: 1.5px solid var(--color-primary); border-radius: 2px; }
+  .gi.ro { color: #94a3b8; background: #f8fafc; }
+  .gi.calc { font-weight: 600; color: #1e293b; background: #f0f9ff; }
+
+  .ti-wrap { display: flex; align-items: center; gap: 2px; padding: 2px 4px; }
+  .ti-input { width: 46px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px 3px; text-align: center; font-size: 12px; font-family: inherit; background: #fff; }
+  .ti-input:focus { outline: 1.5px solid var(--color-primary); }
+  .ti-btn { width: 18px; height: 18px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; flex-shrink: 0; color: #475569; }
+  .ti-btn:hover { background: #e2e8f0; }
+
+  .acc-btn { cursor: pointer; font-size: 10px; color: #94a3b8; padding: 4px 6px; }
+  .acc-btn:hover { color: var(--color-primary); }
+
+  /* アコーディオンパネル */
+  .acc-panel { padding: 14px 20px; display: grid; grid-template-columns: 160px 1fr 220px; gap: 20px; }
+  .acc-section-title { font-size: 12px; font-weight: 700; color: #374151; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px; }
+  .acc-field { margin-bottom: 8px; }
+  .acc-label { font-size: 10px; color: #64748b; margin-bottom: 3px; }
+  .acc-input { border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px 8px; font-size: 12px; width: 100%; background: #fff; font-family: inherit; }
+  .acc-input:focus { outline: 1.5px solid var(--color-primary); }
+  .spot-grid { border-collapse: collapse; width: 100%; font-size: 11px; }
+  .spot-grid th, .spot-grid td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: center; }
+  .spot-grid th { background: #f1f5f9; color: #475569; font-weight: 600; }
+  .spot-grid td input { border: none; width: 100%; text-align: center; font-size: 11px; background: transparent; outline: none; padding: 2px; }
+  .spot-grid td input:focus { background: #fff; outline: 1px solid #3b82f6; }
+  .row-op { display: flex; gap: 2px; justify-content: center; align-items: center; }
+  .op-add { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; width: 18px; height: 18px; font-size: 12px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .op-del { background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; width: 18px; height: 18px; font-size: 11px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .op-add:hover { background: #dbeafe; } .op-del:hover { background: #ffe4e6; }
+
+  /* 報告一覧（月次一覧タブ） */
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; padding: 0 20px; background: #fff; flex-shrink: 0; }
+  .tab-btn { padding: 10px 18px; font-size: 13px; font-weight: 500; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -2px; transition: all 0.15s; }
+  .tab-btn:hover { color: #1e293b; }
+  .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14"/></svg>企業管理</a>
+    <a class="sidebar-item" href="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item active" href="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main-content" id="viewList">
+  <header class="page-header">
+    <h1 class="page-title">日報管理</h1>
+    <div class="flex gap-2 items-center">
+      <input type="month" id="filterMonth" value="2026-07" class="form-control" style="width:140px">
+      <select id="filterPartner" class="form-control" style="width:180px">
+        <option value="">すべてのパートナー</option>
+        <option value="1">鈴木 運送太郎</option>
+        <option value="2">高橋 ドライバー</option>
+        <option value="3">田中 物流</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="initTableSearch('searchReport','reportTable')">検索</button>
+    </div>
+  </header>
+  <div class="page-body" style="padding:0;display:flex;flex-direction:column;height:100%">
+    <div style="padding:16px 20px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <input type="text" id="searchReport" class="form-control" placeholder="企業名・パートナー名で検索..." style="max-width:300px">
+      <button class="btn btn-primary btn-sm" onclick="openReport()">+ 新規日報作成</button>
+    </div>
+    <div class="flex-1 overflow-auto">
+      <table class="data-table" id="reportTable">
+        <thead>
+          <tr>
+            <th>案件No</th><th>パートナー名</th><th>企業名</th><th>対象月</th><th>稼働日数</th><th>実働時間</th><th>経費合計</th><th>ステータス</th><th>提出日</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>PJ_P00001_C0156_Z001</td><td>鈴木 運送太郎</td><td>株式会社 大物</td><td>2026年7月</td><td>21日</td><td>168.0h</td><td>¥12,500</td><td><span class="badge badge-amber">承認待ち</span></td><td>8/12</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button> <button class="btn btn-success btn-sm" onclick="showToast('承認しました','success')">承認</button></td></tr>
+          <tr><td>PJ_P00002_C0157_Z001</td><td>高橋 ドライバー</td><td>株式会社 B社</td><td>2026年7月</td><td>18日</td><td>144.0h</td><td>¥8,200</td><td><span class="badge badge-amber">承認待ち</span></td><td>8/10</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button> <button class="btn btn-success btn-sm" onclick="showToast('承認しました','success')">承認</button></td></tr>
+          <tr><td>PJ_P00003_C0158_Z001</td><td>田中 物流</td><td>株式会社 A社</td><td>2026年6月</td><td>20日</td><td>160.0h</td><td>¥15,000</td><td><span class="badge badge-red">差戻し</span></td><td>7/15</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button></td></tr>
+          <tr><td>PJ_P00001_C0156_Z001</td><td>鈴木 運送太郎</td><td>株式会社 大物</td><td>2026年6月</td><td>21日</td><td>172.5h</td><td>¥9,800</td><td><span class="badge badge-green">承認済</span></td><td>7/5</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">詳細</button></td></tr>
+          <tr><td>PJ_P00004_C0159_Z001</td><td>山田 配達</td><td>株式会社 C社</td><td>2026年7月</td><td>0日</td><td>0.0h</td><td>¥0</td><td><span class="badge badge-gray">入力中</span></td><td>—</td><td><button class="btn btn-primary btn-sm" onclick="openReport()">日報入力</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 日報入力グリッド画面 ===== -->
+<div class="main-content hidden" id="viewInput" style="flex-direction:column">
+  <!-- 入力ヘッダー -->
+  <div class="report-header">
+    <div class="flex justify-between items-start">
+      <div>
+        <div class="report-title" id="reportTitle">鈴木 運送太郎 / 株式会社 大物　2026年7月 日報入力</div>
+        <div class="report-meta">株式会社 大物 / 鈴木 運送太郎</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+          <span style="font-size:11px;color:#64748b">入力完了率</span>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:35%" id="progressBar"></div></div>
+          <span style="font-size:12px;font-weight:600" id="progressPct">35%</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openModal('priceCheckModal')">💰 金額確認</button>
+        <button class="btn btn-outline btn-sm" onclick="showToast('一括表示を切り替えました','info')">一括表示</button>
+        <button class="btn btn-primary btn-sm" onclick="saveReport()">保存</button>
+        <button class="btn btn-outline btn-sm" onclick="backToList()">戻る</button>
+      </div>
+    </div>
+    <!-- 案件情報 -->
+    <div class="flex justify-between items-center mt-2">
+      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:6px 14px;font-size:12px;display:flex;gap:16px">
+        <div>案件No: <span style="color:#2563eb;font-weight:700;background:#dbeafe;padding:1px 6px;border-radius:3px">PJ_P00001_C0156_Z001</span></div>
+        <div>期間: <span style="font-weight:600">2026-06-21 〜 2026-07-20</span></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="badge badge-gray" style="padding:6px 16px;font-size:12px">入力中</span>
+        <button class="btn btn-warning btn-sm" onclick="showToast('承認依頼を送信しました','success')">承認依頼</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-label">稼働日数</div><div class="sum-value" id="sDays">7日</div></div>
+    <div class="sum-card"><div class="sum-label">稼働時間</div><div class="sum-value" id="sHours">56.0h</div></div>
+    <div class="sum-card"><div class="sum-label">超過時間</div><div class="sum-value warn" id="sOvertime">8.5h</div></div>
+    <div class="sum-card"><div class="sum-label">不足時間</div><div class="sum-value" id="sLack">0.0h</div></div>
+    <div class="sum-card"><div class="sum-label">深夜時間</div><div class="sum-value" id="sNight">2.0h</div></div>
+    <div class="sum-card"><div class="sum-label">総距離</div><div class="sum-value" id="sDist">0 km</div></div>
+    <div class="sum-card"><div class="sum-label">超過距離</div><div class="sum-value" id="sExDist">0 km</div></div>
+    <div class="sum-card"><div class="sum-label">通行料</div><div class="sum-value" id="sToll">¥2,500</div></div>
+    <div class="sum-card"><div class="sum-label">駐車料</div><div class="sum-value" id="sPark">¥800</div></div>
+  </div>
+
+  <!-- グリッド -->
+  <div class="report-grid-wrap">
+    <table class="report-grid" id="reportGrid">
+      <thead>
+        <tr>
+          <th style="width:30px"></th>
+          <th style="width:28px">不要</th>
+          <th style="width:28px">研修</th>
+          <th style="width:48px">日付</th>
+          <th style="width:26px">曜</th>
+          <th style="width:100px">開始</th>
+          <th style="width:100px">終了</th>
+          <th style="width:60px">休憩</th>
+          <th style="width:55px">拘束</th>
+          <th style="width:55px">稼働</th>
+          <th style="width:55px">割増</th>
+          <th style="width:55px">不足</th>
+          <th style="width:55px">距離</th>
+          <th style="width:55px">超過距離</th>
+          <th style="width:70px">通行料</th>
+          <th style="width:70px">駐車料</th>
+          <th style="width:70px">交通費</th>
+          <th>備考</th>
+          <th style="width:50px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 金額確認モーダル ===== -->
+<div class="modal-overlay hidden" id="priceCheckModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">💰 金額確認（入力中）</div>
+      <button class="modal-close" onclick="closeModal('priceCheckModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="data-table" style="border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="background:#f8fafc"><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#475569">項目</td><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;color:#475569">金額</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">基本稼働分（7日 × ¥18,000）</td><td style="padding:10px 14px;text-align:right;border-bottom:1px solid #e2e8f0">¥126,000</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">残業加算（8.5h × ¥2,200）</td><td style="padding:10px 14px;text-align:right;border-bottom:1px solid #e2e8f0">¥18,700</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">深夜加算（2.0h × ¥1,500）</td><td style="padding:10px 14px;text-align:right;border-bottom:1px solid #e2e8f0">¥3,000</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0">通行料（実費）</td><td style="padding:10px 14px;text-align:right;border-bottom:1px solid #e2e8f0">¥2,500</td></tr>
+          <tr style="background:#f0fdf4"><td style="padding:10px 14px;font-weight:700;color:#15803d">請求合計（暫定）</td><td style="padding:10px 14px;text-align:right;font-weight:700;font-size:15px;color:#15803d">¥150,200</td></tr>
+        </table>
+      </div>
+      <div class="alert alert-info mt-2">現在入力中のデータに基づく暫定計算値です。確定は承認後に行われます。</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('priceCheckModal')">閉じる</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+// ========== データ定義 ==========
+const DAYS_OF_WEEK = ['日','月','火','水','木','金','土'];
+
+const sampleData = [
+  { date: '6/21', dow: '日', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'sun' },
+  { date: '6/22', dow: '月', start: '08:00', end: '18:00', rest: '1:00', dist: '', toll: '1500', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/23', dow: '火', start: '08:00', end: '19:30', rest: '1:00', dist: '120', toll: '', park: '500', trans: '', note: '渋滞遅延', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/24', dow: '水', start: '08:00', end: '17:00', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/25', dow: '木', start: '08:00', end: '20:00', rest: '1:00', dist: '', toll: '1000', park: '300', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/26', dow: '金', start: '08:00', end: '17:00', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/27', dow: '土', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: true, isTrain: false, type: 'sat' },
+  { date: '6/28', dow: '日', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: true, isTrain: false, type: 'sun' },
+  { date: '6/29', dow: '月', start: '09:00', end: '18:00', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '6/30', dow: '火', start: '08:00', end: '17:30', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '7/1', dow: '水', start: '08:00', end: '17:00', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '7/2', dow: '木', start: '08:00', end: '17:00', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '7/3', dow: '金', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: false, isTrain: false, type: 'week' },
+  { date: '7/4', dow: '土', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: true, isTrain: false, type: 'sat' },
+  { date: '7/5', dow: '日', start: '', end: '', rest: '1:00', dist: '', toll: '', park: '', trans: '', note: '', isUnnec: true, isTrain: false, type: 'sun' },
+];
+
+// ========== 計算関数 ==========
+function parseTime(s) {
+  if (!s || !s.includes(':')) return null;
+  const [h, m] = s.split(':').map(Number);
+  return h * 60 + m;
+}
+function minsToHour(m) { return m < 0 ? 0 : Math.round(m / 60 * 10) / 10; }
+function calcRow(start, end, rest) {
+  const s = parseTime(start), e = parseTime(end), r = parseTime(rest) || 60;
+  if (s === null || e === null) return { koso: '-', jido: '-', zangy: '-', fusok: '-' };
+  let total = (e < s ? e + 24*60 - s : e - s);
+  const koso = minsToHour(total);
+  const jido = minsToHour(total - r);
+  const std = 8.0;
+  const zangy = jido > std ? Math.round((jido - std) * 10) / 10 : 0;
+  const fusok = jido < std ? Math.round((std - jido) * 10) / 10 : 0;
+  return { koso, jido, zangy, fusok };
+}
+
+const YEN_FIELDS = new Set(['toll', 'park', 'trans']);
+function parseYen(val) {
+  return String(val ?? '').replace(/[¥,]/g, '').trim();
+}
+function formatYen(val) {
+  const num = parseYen(val);
+  return num ? '¥' + num : '';
+}
+
+// ========== グリッド描画 ==========
+function renderGrid() {
+  const body = document.getElementById('gridBody');
+  body.innerHTML = '';
+  sampleData.forEach((row, i) => {
+    const calc = calcRow(row.start, row.end, row.rest);
+    const rowClass = row.type === 'sat' ? 'row-sat' : row.type === 'sun' ? 'row-sun' : '';
+    const dowColor = row.type === 'sat' ? 'color:#2563eb;font-weight:700' : row.type === 'sun' ? 'color:#dc2626;font-weight:700' : 'color:#374151';
+    const disabled = row.isUnnec ? 'style="opacity:0.35"' : '';
+    
+    // メイン行
+    const tr = document.createElement('tr');
+    tr.className = rowClass;
+    tr.dataset.idx = i;
+    tr.innerHTML = `
+      <td style="text-align:center"><span class="acc-btn" onclick="toggleAccordion(this)">▶</span></td>
+      <td style="text-align:center"><input type="checkbox" ${row.isUnnec?'checked':''} onchange="toggleUnnec(${i},this)" style="width:14px;height:14px"></td>
+      <td style="text-align:center"><input type="checkbox" ${row.isTrain?'checked':''} style="width:14px;height:14px"></td>
+      <td style="text-align:center;font-weight:700;font-size:12px" ${disabled}>${row.date}</td>
+      <td style="text-align:center;font-size:12px;${dowColor}">${row.dow}</td>
+      <td>
+        <div class="ti-wrap" ${disabled}>
+          <input type="text" class="ti-input" value="${row.start}" placeholder="--:--" data-field="start" data-idx="${i}" oninput="updateRow(${i},'start',this.value)">
+          <span style="font-size:11px;color:#94a3b8">🕐</span>
+          <span class="ti-btn" onclick="adjustTime(${i},'start',-5)">-</span>
+          <span class="ti-btn" onclick="adjustTime(${i},'start',5)">+</span>
+        </div>
+      </td>
+      <td>
+        <div class="ti-wrap" ${disabled}>
+          <input type="text" class="ti-input" value="${row.end}" placeholder="--:--" data-field="end" data-idx="${i}" oninput="updateRow(${i},'end',this.value)">
+          <span style="font-size:11px;color:#94a3b8">🕐</span>
+          <span class="ti-btn" onclick="adjustTime(${i},'end',-5)">-</span>
+          <span class="ti-btn" onclick="adjustTime(${i},'end',5)">+</span>
+        </div>
+      </td>
+      <td><input type="text" class="gi" value="${row.rest}" oninput="updateRow(${i},'rest',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi calc ro" value="${calc.koso}" readonly></td>
+      <td><input type="text" class="gi calc ro" value="${calc.jido}" readonly></td>
+      <td><input type="text" class="gi calc ro" style="${calc.zangy>0?'color:#d97706;font-weight:700':''}" value="${calc.zangy||'-'}" readonly></td>
+      <td><input type="text" class="gi calc ro" value="${calc.fusok||'-'}" readonly></td>
+      <td><input type="text" class="gi" value="${row.dist}" placeholder="" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi ro" value="" readonly></td>
+      <td><input type="text" class="gi" value="${formatYen(row.toll)}" oninput="updateRow(${i},'toll',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" value="${formatYen(row.park)}" oninput="updateRow(${i},'park',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" value="${formatYen(row.trans)}" oninput="updateRow(${i},'trans',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" style="text-align:left;padding:0 6px" value="${row.note}" ${row.isUnnec?'disabled':''}></td>
+      <td>
+        <div class="row-op">
+          <span class="op-add" title="行を追加" onclick="addSubRow(${i})">+</span>
+          <span class="op-del" title="削除" onclick="showToast('行を削除しました','info')">×</span>
+        </div>
+      </td>
+    `;
+    body.appendChild(tr);
+
+    // アコーディオン行
+    const accTr = document.createElement('tr');
+    accTr.className = 'accordion-row hidden';
+    accTr.innerHTML = `
+      <td colspan="19" style="padding:0;border-top:none">
+        <div class="acc-panel">
+          <div>
+            <div class="acc-section-title">時間調整</div>
+            <div class="acc-field"><div class="acc-label">深夜時間</div><input class="acc-input" placeholder="0:00"></div>
+            <div class="acc-field"><div class="acc-label">深夜超過</div><input class="acc-input" placeholder="0:00"></div>
+          </div>
+          <div>
+            <div class="acc-section-title">スポット加算</div>
+            <table class="spot-grid">
+              <thead><tr><th></th><th>基本加算</th><th>超過</th><th>深夜</th><th>深夜超過</th></tr></thead>
+              <tbody>
+                <tr><td style="background:#f8fafc;font-weight:600;font-size:11px;color:#475569;text-align:right;padding-right:6px">請求額</td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td></tr>
+                <tr><td style="background:#f8fafc;font-weight:600;font-size:11px;color:#475569;text-align:right;padding-right:6px">支払額</td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td><td><input placeholder="¥0"></td></tr>
+              </tbody>
+            </table>
+            <div class="acc-field mt-2"><div class="acc-label">行コメント（ロック中でも編集可）</div>
+              <textarea class="acc-input" rows="2" placeholder="コメントを入力..."></textarea>
+            </div>
+          </div>
+          <div>
+            <div class="acc-section-title">金額訂正（全額訂正依頼）</div>
+            <div class="acc-field"><div class="acc-label">請求金額</div><input class="acc-input" placeholder="¥ 0" style="text-align:right"></div>
+            <div class="acc-field"><div class="acc-label">支払金額</div><input class="acc-input" placeholder="¥ 0" style="text-align:right"></div>
+            <div class="acc-field"><div class="acc-label">その他加算</div><input class="acc-input" placeholder="¥ 0" style="text-align:right"></div>
+          </div>
+        </div>
+      </td>
+    `;
+    body.appendChild(accTr);
+  });
+}
+
+function toggleUnnec(idx, cb) {
+  sampleData[idx].isUnnec = cb.checked;
+  renderGrid();
+}
+
+function updateRow(idx, field, val) {
+  if (YEN_FIELDS.has(field)) {
+    val = parseYen(val);
+  }
+  sampleData[idx][field] = val;
+  // 計算列を更新
+  const calc = calcRow(sampleData[idx].start, sampleData[idx].end, sampleData[idx].rest);
+  const row = document.querySelector(`#gridBody tr[data-idx="${idx}"]`);
+  if (!row) return;
+  const inputs = row.querySelectorAll('.gi.calc.ro');
+  if (inputs.length >= 4) {
+    inputs[0].value = calc.koso;
+    inputs[1].value = calc.jido;
+    inputs[2].value = calc.zangy || '-';
+    inputs[2].style.color = calc.zangy > 0 ? '#d97706' : '';
+    inputs[3].value = calc.fusok || '-';
+  }
+}
+
+function adjustTime(idx, field, delta) {
+  let t = parseTime(sampleData[idx][field]);
+  if (t === null) t = field === 'start' ? 480 : 1020; // 8:00 or 17:00
+  t += delta;
+  if (t < 0) t += 24 * 60;
+  const h = Math.floor(t / 60) % 24;
+  const m = t % 60;
+  const val = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  sampleData[idx][field] = val;
+  renderGrid();
+}
+
+function addSubRow(idx) {
+  showToast('行を追加しました（同日複数行対応）', 'info');
+}
+
+function openReport() {
+  document.getElementById('viewList').classList.add('hidden');
+  document.getElementById('viewInput').classList.remove('hidden');
+  renderGrid();
+}
+
+function backToList() {
+  document.getElementById('viewInput').classList.add('hidden');
+  document.getElementById('viewList').classList.remove('hidden');
+}
+
+function saveReport() {
+  showToast('日報データを保存しました', 'success');
+}
+</script>
+</body>
+</html>

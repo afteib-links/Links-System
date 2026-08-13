@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請求管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .stat-icon-blue { background: #dbeafe; }
+  .stat-icon-green { background: #dcfce7; }
+  .stat-icon-amber { background: #fef3c7; }
+  .stat-icon-red { background: #fee2e2; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
+  .stat-label { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+
+  .filter-bar {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item active" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">請求管理</h1>
+    <div class="flex gap-2">
+      <button class="btn btn-outline" onclick="showToast('請求書の一括PDF出力処理を開始しました', 'info')">📄 一括PDF出力</button>
+      <button class="btn btn-primary" onclick="openModal('createInvoiceModal')">＋ 請求書作成</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- サマリーカード -->
+    <div class="grid-4 mb-4">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-blue">🧾</div>
+        <div>
+          <div class="stat-value">¥12,450,000</div>
+          <div class="stat-label">当月請求合計 (6件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-green">✅</div>
+        <div>
+          <div class="stat-value">¥6,250,000</div>
+          <div class="stat-label">入金済合計 (2件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-amber">⏳</div>
+        <div>
+          <div class="stat-value">¥5,750,000</div>
+          <div class="stat-label">未入金・一部入金 (3件)</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-red">⚠️</div>
+        <div>
+          <div class="stat-value">¥450,000</div>
+          <div class="stat-label">期日超過 (1件)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- フィルターバー -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">対象月</label>
+          <input type="month" class="form-control form-control-sm" id="monthFilter" value="2026-07">
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">企業選択</label>
+          <select class="form-control form-control-sm" id="companyFilter" style="min-width: 180px;">
+            <option value="">すべての企業</option>
+            <option value="株式会社テクノソリューションズ">株式会社テクノソリューションズ</option>
+            <option value="有限会社ロジスティクスパートナー">有限会社ロジスティクスパートナー</option>
+            <option value="株式会社グローバルサービス">株式会社グローバルサービス</option>
+            <option value="ネットワークソリューションズ株式会社">ネットワークソリューションズ株式会社</option>
+            <option value="大和運輸システム株式会社">大和運輸システム株式会社</option>
+            <option value="新日本ITソリューションズ株式会社">新日本ITソリューションズ株式会社</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">入金消込ステータス</label>
+          <select class="form-control form-control-sm" id="statusFilter">
+            <option value="">すべて</option>
+            <option value="未入金">未入金</option>
+            <option value="入金済">入金済</option>
+            <option value="一部入金">一部入金</option>
+            <option value="期日超過">期日超過</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="margin-bottom:2px;">キーワード検索</label>
+          <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="請求書No、企業名など..." style="width: 200px;">
+        </div>
+      </div>
+      <div class="flex gap-2" style="margin-top: 18px;">
+        <button class="btn btn-outline btn-sm" onclick="resetFilters()">リセット</button>
+        <button class="btn btn-primary btn-sm" onclick="applyFilters()">絞り込み</button>
+      </div>
+    </div>
+
+    <!-- 請求書一覧テーブル -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">請求書一覧</span>
+        <span class="text-sm text-muted">該当件数: 6件</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="mainTable">
+          <thead>
+            <tr>
+              <th>請求書No</th>
+              <th>企業名</th>
+              <th class="text-right">請求金額 (税込)</th>
+              <th>請求日</th>
+              <th>支払期日</th>
+              <th>入金状況 (既入金額 / 請求額)</th>
+              <th>ステータス</th>
+              <th style="text-align: center;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-bold">INV-202607-001</td>
+              <td>株式会社テクノソリューションズ</td>
+              <td class="text-right font-bold">¥3,410,000</td>
+              <td>2026/07/31</td>
+              <td>2026/08/31</td>
+              <td>¥3,410,000 / ¥3,410,000</td>
+              <td><span class="badge badge-green">入金済</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202607-001', '株式会社テクノソリューションズ', '¥3,410,000', '2026/07/31', '2026/08/31', '入金済')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202607-001', '株式会社テクノソリューションズ', 3410000, 3410000)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">INV-202607-002</td>
+              <td>有限会社ロジスティクスパートナー</td>
+              <td class="text-right font-bold">¥1,850,000</td>
+              <td>2026/07/31</td>
+              <td>2026/08/31</td>
+              <td>¥0 / ¥1,850,000</td>
+              <td><span class="badge badge-red">未入金</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202607-002', '有限会社ロジスティクスパートナー', '¥1,850,000', '2026/07/31', '2026/08/31', '未入金')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202607-002', '有限会社ロジスティクスパートナー', 1850000, 0)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">INV-202607-003</td>
+              <td>株式会社グローバルサービス</td>
+              <td class="text-right font-bold">¥2,200,000</td>
+              <td>2026/07/31</td>
+              <td>2026/08/31</td>
+              <td>¥1,000,000 / ¥2,200,000</td>
+              <td><span class="badge badge-amber">一部入金</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202607-003', '株式会社グローバルサービス', '¥2,200,000', '2026/07/31', '2026/08/31', '一部入金')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202607-003', '株式会社グローバルサービス', 2200000, 1000000)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">INV-202606-004</td>
+              <td>ネットワークソリューションズ株式会社</td>
+              <td class="text-right font-bold">¥450,000</td>
+              <td>2026/06/30</td>
+              <td>2026/07/31</td>
+              <td>¥0 / ¥450,000</td>
+              <td><span class="badge badge-red">期日超過</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202606-004', 'ネットワークソリューションズ株式会社', '¥450,000', '2026/06/30', '2026/07/31', '期日超過')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202606-004', 'ネットワークソリューションズ株式会社', 450000, 0)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">INV-202607-005</td>
+              <td>大和運輸システム株式会社</td>
+              <td class="text-right font-bold">¥2,840,000</td>
+              <td>2026/07/31</td>
+              <td>2026/08/31</td>
+              <td>¥2,840,000 / ¥2,840,000</td>
+              <td><span class="badge badge-green">入金済</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202607-005', '大和運輸システム株式会社', '¥2,840,000', '2026/07/31', '2026/08/31', '入金済')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202607-005', '大和運輸システム株式会社', 2840000, 2840000)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-bold">INV-202607-006</td>
+              <td>新日本ITソリューションズ株式会社</td>
+              <td class="text-right font-bold">¥1,700,000</td>
+              <td>2026/07/31</td>
+              <td>2026/08/31</td>
+              <td>¥0 / ¥1,700,000</td>
+              <td><span class="badge badge-red">未入金</span></td>
+              <td class="text-center">
+                <div class="flex justify-end gap-2" style="justify-content: center;">
+                  <button class="btn btn-outline btn-sm" onclick="openInvoiceDetail('INV-202607-006', '新日本ITソリューションズ株式会社', '¥1,700,000', '2026/07/31', '2026/08/31', '未入金')">詳細</button>
+                  <button class="btn btn-success btn-sm" onclick="openClearingModal('INV-202607-006', '新日本ITソリューションズ株式会社', 1700000, 0)">消込登録</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 入金消込 modal -->
+<div class="modal-overlay hidden" id="paymentClearingModal">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <h3 class="modal-title">入金消込登録</h3>
+      <button class="modal-close" onclick="closeModal('paymentClearingModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom: 16px;">
+        <div>
+          <strong id="clearingInvoiceNo">INV-202607-001</strong> - <span id="clearingCompanyName">株式会社テクノソリューションズ</span><br>
+          請求金額: <strong id="clearingTotalAmount">¥3,410,000</strong> (残額: <span id="clearingRemainingAmount" class="font-bold text-danger">¥3,410,000</span>)
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">入金日 <span style="color:var(--color-danger)">*</span></label>
+        <input type="date" class="form-control" id="clearingDate" value="2026-08-10">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">入金金額 (円) <span style="color:var(--color-danger)">*</span></label>
+        <input type="number" class="form-control" id="clearingAmount" placeholder="例: 3410000">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">入金口座 <span style="color:var(--color-danger)">*</span></label>
+        <select class="form-control" id="clearingAccount">
+          <option value="1">三菱UFJ銀行 本店営業部 (普通 1234567)</option>
+          <option value="2">三井住友銀行 渋谷支店 (普通 7654321)</option>
+          <option value="3">みずほ銀行 新宿支店 (普通 8889990)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">備考・メモ</label>
+        <textarea class="form-control" id="clearingMemo" rows="3" placeholder="振込名義人相違や手数料差額など特記事項があれば入力"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('paymentClearingModal')">キャンセル</button>
+      <button class="btn btn-success" onclick="submitClearing()">消込を保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 請求書詳細 modal -->
+<div class="modal-overlay hidden" id="invoiceDetailModal">
+  <div class="modal" style="max-width: 750px;">
+    <div class="modal-header">
+      <h3 class="modal-title">請求書詳細 <span id="detailInvoiceNo" class="text-muted" style="font-size:14px; margin-left:8px;">INV-202607-001</span></h3>
+      <button class="modal-close" onclick="closeModal('invoiceDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 請求書ヘッダー情報 -->
+      <div style="display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed var(--color-border-dark);">
+        <div>
+          <h2 id="detailCompanyName" style="font-size: 18px; font-weight: 700; color: var(--color-text); margin-bottom: 6px;">株式会社テクノソリューションズ 御中</h2>
+          <div class="text-sm text-muted">〒100-0005 東京都千代田区丸の内1-1-1</div>
+          <div class="text-sm text-muted">件名: 2026年7月度 システム開発・業務委託費用</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="badge badge-green" id="detailStatusBadge" style="margin-bottom: 8px;">入金済</div>
+          <div class="text-sm text-muted">発行日: <span id="detailIssueDate">2026/07/31</span></div>
+          <div class="text-sm text-muted">支払期日: <span id="detailDueDate">2026/08/31</span></div>
+        </div>
+      </div>
+
+      <!-- 請求金額サマリー -->
+      <div style="background: #f8fafc; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <span style="font-size: 14px; font-weight: 600;">ご請求金額 (税込)</span>
+        <span style="font-size: 24px; font-weight: 700; color: var(--color-primary);" id="detailTotalAmount">¥3,410,000</span>
+      </div>
+
+      <!-- 請求明細テーブル -->
+      <div class="table-wrap mb-4">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>日付 / 期間</th>
+              <th>案件名 / 業務内容</th>
+              <th class="text-center">稼働日数 / 時間</th>
+              <th class="text-right">単価</th>
+              <th class="text-right">金額 (税抜)</th>
+            </tr>
+          </thead>
+          <tbody id="detailItemsBody">
+            <tr>
+              <td>2026/07/01 - 2026/07/31</td>
+              <td>基幹システム刷新PJ - リードエンジニア業務</td>
+              <td class="text-center">20 日 (160h)</td>
+              <td class="text-right">¥1,200,000</td>
+              <td class="text-right font-bold">¥1,200,000</td>
+            </tr>
+            <tr>
+              <td>2026/07/01 - 2026/07/31</td>
+              <td>基幹システム刷新PJ - フロントエンド開発</td>
+              <td class="text-center">21 日 (168h)</td>
+              <td class="text-right">¥900,000</td>
+              <td class="text-right font-bold">¥900,000</td>
+            </tr>
+            <tr>
+              <td>2026/07/01 - 2026/07/31</td>
+              <td>クラウドインフラ構築・保守支援</td>
+              <td class="text-center">20 日 (160h)</td>
+              <td class="text-right">¥1,000,000</td>
+              <td class="text-right font-bold">¥1,000,000</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 計算内訳 -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+        <div style="width: 260px;">
+          <div class="flex justify-between text-sm mb-4" style="margin-bottom: 6px;">
+            <span class="text-muted">小計 (税抜):</span>
+            <span class="font-bold" id="detailSubtotal">¥3,100,000</span>
+          </div>
+          <div class="flex justify-between text-sm mb-4" style="margin-bottom: 6px;">
+            <span class="text-muted">消費税 (10%):</span>
+            <span class="font-bold" id="detailTax">¥310,000</span>
+          </div>
+          <div class="flex justify-between" style="border-top: 2px solid var(--color-border-dark); padding-top: 6px; font-size: 15px;">
+            <span class="font-bold">合計:</span>
+            <span class="font-bold" style="color: var(--color-primary);" id="detailGrandTotal">¥3,410,000</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">備考</label>
+        <div class="text-sm text-muted" style="background:#f1f5f9; padding:10px; border-radius:4px;" id="detailMemo">
+          お振込先: 三菱UFJ銀行 本店営業部 普通 1234567 LinksSys株式会社<br>※振込手数料は貴社にてご負担願います。
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="showToast('PDFのダウンロードを開始しました', 'success')">📄 PDFダウンロード</button>
+      <button class="btn btn-primary" onclick="closeModal('invoiceDetailModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 請求書新規作成 modal -->
+<div class="modal-overlay hidden" id="createInvoiceModal">
+  <div class="modal" style="max-width: 650px;">
+    <div class="modal-header">
+      <h3 class="modal-title">請求書の作成</h3>
+      <button class="modal-close" onclick="closeModal('createInvoiceModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">対象企業 <span style="color:var(--color-danger)">*</span></label>
+          <select class="form-control">
+            <option value="">選択してください</option>
+            <option value="1">株式会社テクノソリューションズ</option>
+            <option value="2">有限会社ロジスティクスパートナー</option>
+            <option value="3">株式会社グローバルサービス</option>
+            <option value="4">ネットワークソリューションズ株式会社</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">対象年月 <span style="color:var(--color-danger)">*</span></label>
+          <input type="month" class="form-control" value="2026-08">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">発行日 <span style="color:var(--color-danger)">*</span></label>
+          <input type="date" class="form-control" value="2026-08-31">
+        </div>
+        <div class="form-group">
+          <label class="form-label">支払期日 <span style="color:var(--color-danger)">*</span></label>
+          <input type="date" class="form-control" value="2026-09-30">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">件名</label>
+        <input type="text" class="form-control" value="2026年8月度 ご請求分">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">請求明細</label>
+        <div class="table-wrap mb-4">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>品名 / 案件名</th>
+                <th style="width: 100px;">数量/日数</th>
+                <th style="width: 130px;">単価(円)</th>
+                <th style="width: 40px;"></th>
+              </tr>
+            </thead>
+            <tbody id="createInvoiceItems">
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" value="システム開発委託費 (8月分)"></td>
+                <td><input type="number" class="form-control form-control-sm" value="1"></td>
+                <td><input type="number" class="form-control form-control-sm" value="1500000"></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove()" style="color:var(--color-danger)">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="addInvoiceItemRow()">＋ 明細行を追加</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">備考</label>
+        <textarea class="form-control" rows="2" placeholder="特記事項があれば入力してください"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('createInvoiceModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitCreateInvoice()">請求書を発行・保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'mainTable');
+  });
+
+  function applyFilters() {
+    const month = document.getElementById('monthFilter').value;
+    const company = document.getElementById('companyFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+
+    const rows = document.querySelectorAll('#mainTable tbody tr');
+    rows.forEach(tr => {
+      const companyText = tr.children[1].textContent;
+      const dateText = tr.children[3].textContent;
+      const statusText = tr.children[6].textContent;
+      const fullText = tr.textContent.toLowerCase();
+
+      let match = true;
+      if (company && !companyText.includes(company)) match = false;
+      if (status && !statusText.includes(status)) match = false;
+      if (search && !fullText.includes(search)) match = false;
+
+      tr.style.display = match ? '' : 'none';
+    });
+    showToast('条件で絞り込みました', 'info');
+  }
+
+  function resetFilters() {
+    document.getElementById('monthFilter').value = '2026-07';
+    document.getElementById('companyFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    document.querySelectorAll('#mainTable tbody tr').forEach(tr => tr.style.display = '');
+    showToast('フィルターをリセットしました', 'info');
+  }
+
+  function openClearingModal(invNo, company, total, paid) {
+    document.getElementById('clearingInvoiceNo').textContent = invNo;
+    document.getElementById('clearingCompanyName').textContent = company;
+    document.getElementById('clearingTotalAmount').textContent = formatYen(total);
+    const rem = total - paid;
+    document.getElementById('clearingRemainingAmount').textContent = formatYen(rem);
+    document.getElementById('clearingAmount').value = rem;
+    openModal('paymentClearingModal');
+  }
+
+  function submitClearing() {
+    const amt = document.getElementById('clearingAmount').value;
+    if (!amt || amt <= 0) {
+      showToast('正しい入金金額を入力してください', 'error');
+      return;
+    }
+    closeModal('paymentClearingModal');
+    showToast('入金消込を正常に登録しました', 'success');
+  }
+
+  function openInvoiceDetail(no, company, amount, issueDate, dueDate, status) {
+    document.getElementById('detailInvoiceNo').textContent = no;
+    document.getElementById('detailCompanyName').textContent = company + ' 御中';
+    document.getElementById('detailTotalAmount').textContent = amount;
+    document.getElementById('detailGrandTotal').textContent = amount;
+    document.getElementById('detailIssueDate').textContent = issueDate;
+    document.getElementById('detailDueDate').textContent = dueDate;
+
+    const badge = document.getElementById('detailStatusBadge');
+    badge.textContent = status;
+    badge.className = 'badge ';
+    if (status === '入金済') badge.classList.add('badge-green');
+    else if (status === '未入金' || status === '期日超過') badge.classList.add('badge-red');
+    else badge.classList.add('badge-amber');
+
+    openModal('invoiceDetailModal');
+  }
+
+  function addInvoiceItemRow() {
+    const tbody = document.getElementById('createInvoiceItems');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="form-control form-control-sm" placeholder="業務・品目名"></td>
+      <td><input type="number" class="form-control form-control-sm" value="1"></td>
+      <td><input type="number" class="form-control form-control-sm" placeholder="0"></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove()" style="color:var(--color-danger)">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  function submitCreateInvoice() {
+    closeModal('createInvoiceModal');
+    showToast('新しい請求書を作成し保存しました', 'success');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .search-bar-wrap {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .search-input-group { flex: 1; display: flex; gap: 8px; }
+  .filter-select { width: 160px; }
+  .detail-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary);
+    border-bottom: 2px solid #eff6ff;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item active" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">案件管理</h1>
+    <div class="flex gap-2 items-center">
+      <button class="btn btn-primary" onclick="openModal('addProjectModal')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新規案件作成
+      </button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- 検索・フィルター -->
+    <div class="search-bar-wrap">
+      <div class="search-input-group">
+        <input type="text" id="searchInput" class="form-control" placeholder="案件No、案件名、企業名、パートナー名で検索...">
+      </div>
+      <select id="statusFilter" class="form-control filter-select" onchange="filterProjects()">
+        <option value="">すべてのステータス</option>
+        <option value="稼働中">稼働中</option>
+        <option value="完了">完了</option>
+        <option value="停止">停止</option>
+      </select>
+    </div>
+
+    <!-- 案件一覧テーブル -->
+    <div class="table-wrap">
+      <table class="data-table" id="projectTable">
+        <thead>
+          <tr>
+            <th style="width: 130px;">案件No</th>
+            <th>案件名</th>
+            <th>発注元企業</th>
+            <th>担当パートナー</th>
+            <th style="width: 190px;">案件期間</th>
+            <th style="width: 100px; text-align: center;">ステータス</th>
+            <th style="width: 140px; text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-status="稼働中">
+            <td><strong class="text-sm">PRJ-202608-001</strong></td>
+            <td><strong>首都圏定期ルート配送便</strong></td>
+            <td>株式会社 A物流</td>
+            <td>東京トランスポート</td>
+            <td>2026/04/01 ~ 2027/03/31</td>
+            <td class="text-center"><span class="badge badge-green">稼働中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-001', '首都圏定期ルート配送便', '株式会社 A物流', '佐藤 健太 (営業部)', '東京トランスポート', '山田 太郎 (配車担当)', '2026/04/01', '2027/03/31', '稼働中', '毎朝7:00〜16:00 / 都内・千葉方面8店舗定期巡回 / 2t箱車', '日報承認：毎月5日締め / 請求発行：毎月末日')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="稼働中">
+            <td><strong class="text-sm">PRJ-202608-002</strong></td>
+            <td><strong>関東エクスプレススポット便</strong></td>
+            <td>株式会社 Bロジ</td>
+            <td>山田配送サービス</td>
+            <td>2026/08/01 ~ 2026/08/31</td>
+            <td class="text-center"><span class="badge badge-green">稼働中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-002', '関東エクスプレススポット便', '株式会社 Bロジ', '高橋 次郎 (物流課)', '山田配送サービス', '山田 浩 (代表)', '2026/08/01', '2026/08/31', '稼働中', '緊急手配便・埼玉〜神奈川拠点間チャーター搬送 / 4tウィング', '特記事項：高速道路代実費精算')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="稼働中">
+            <td><strong class="text-sm">PRJ-202608-003</strong></td>
+            <td><strong>城東エリア個別宅配業務</strong></td>
+            <td>C配送サービス</td>
+            <td>関東陸運</td>
+            <td>2026/01/15 ~ 2026/12/31</td>
+            <td class="text-center"><span class="badge badge-green">稼働中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-003', '城東エリア個別宅配業務', 'C配送サービス', '小林 誠 (配車センター)', '関東陸運', '中村 幸二 (運行管理者)', '2026/01/15', '2026/12/31', '稼働中', '江東区・墨田区・江戸川区 個人宅配送 / 軽バン2台体制', '夜間再配達分の個別記録が必要')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="完了">
+            <td><strong class="text-sm">PRJ-202608-004</strong></td>
+            <td><strong>横浜港臨海部深夜チャーター便</strong></td>
+            <td>株式会社 A物流</td>
+            <td>鈴木ドライバー</td>
+            <td>2026/05/01 ~ 2026/07/31</td>
+            <td class="text-center"><span class="badge badge-gray">完了</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-004', '横浜港臨海部深夜チャーター便', '株式会社 A物流', '佐藤 健太 (営業部)', '鈴木ドライバー', '鈴木 一郎 (ドライバー)', '2026/05/01', '2026/07/31', '完了', '深夜22:00〜翌5:00 コンテナ埠頭からの資材急送 / 10t平ボディ', '契約期間満了につき完了')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="停止">
+            <td><strong class="text-sm">PRJ-202608-005</strong></td>
+            <td><strong>埼玉北部冷凍食品定期搬送</strong></td>
+            <td>山田運送</td>
+            <td>佐藤ロジテック</td>
+            <td>2026/06/01 ~ 2026/08/15</td>
+            <td class="text-center"><span class="badge badge-red">停止</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-005', '埼玉北部冷凍食品定期搬送', '山田運送', '渡辺 直樹 (管理部)', '佐藤ロジテック', '佐藤 節子 (配車)', '2026/06/01', '2026/08/15', '停止', '冷凍センター〜スーパー各店冷凍食品納品 / 3t保冷車', '先方理由により一時サービス停止中')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="稼働中">
+            <td><strong class="text-sm">PRJ-202608-006</strong></td>
+            <td><strong>千葉湾岸エリア緊急チャーター</strong></td>
+            <td>株式会社 Bロジ</td>
+            <td>田中物流</td>
+            <td>2026/08/10 ~ 2026/08/20</td>
+            <td class="text-center"><span class="badge badge-green">稼働中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showProjectDetail('PRJ-202608-006', '千葉湾岸エリア緊急チャーター', '株式会社 Bロジ', '高橋 次郎 (物流課)', '田中物流', '田中 勝 (チーフ)', '2026/08/10', '2026/08/20', '稼働中', '幕張・市川・船橋エリア イベント資材緊急ピストン輸送 / 4t車2台', 'お盆期間中の特別増便案件')">詳細</button>
+                <button class="btn btn-ghost btn-sm" onclick="showToast('編集モードを起動しました', 'info')">編集</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新規案件作成モーダル -->
+<div class="modal-overlay hidden" id="addProjectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">新規案件作成</h3>
+      <button class="modal-close" onclick="closeModal('addProjectModal')">&times;</button>
+    </div>
+    <form id="addProjectForm" onsubmit="handleSaveProject(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">案件名 <span style="color:var(--color-danger)">*</span></label>
+          <input type="text" class="form-control" placeholder="例: 神奈川エリアルート配送便" required>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">発注元企業 <span style="color:var(--color-danger)">*</span></label>
+            <select class="form-control" required>
+              <option value="">選択してください</option>
+              <option value="株式会社 A物流">株式会社 A物流</option>
+              <option value="株式会社 Bロジ">株式会社 Bロジ</option>
+              <option value="C配送サービス">C配送サービス</option>
+              <option value="山田運送">山田運送</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">担当パートナー <span style="color:var(--color-danger)">*</span></label>
+            <select class="form-control" required>
+              <option value="">選択してください</option>
+              <option value="東京トランスポート">東京トランスポート</option>
+              <option value="山田配送サービス">山田配送サービス</option>
+              <option value="関東陸運">関東陸運</option>
+              <option value="鈴木ドライバー">鈴木ドライバー</option>
+              <option value="佐藤ロジテック">佐藤ロジテック</option>
+              <option value="田中物流">田中物流</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">開始日 <span style="color:var(--color-danger)">*</span></label>
+            <input type="date" class="form-control" value="2026-09-01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">終了日 <span style="color:var(--color-danger)">*</span></label>
+            <input type="date" class="form-control" value="2027-03-31" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ステータス</label>
+          <select class="form-control">
+            <option value="稼働中" selected>稼働中</option>
+            <option value="停止">停止</option>
+            <option value="完了">完了</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">業務内容・運行条件</label>
+          <textarea class="form-control" rows="3" placeholder="配車の条件、車両区分、積み下ろし指示などを記入"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備考</label>
+          <textarea class="form-control" rows="2" placeholder="注意事項、契約条件メモ"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addProjectModal')">キャンセル</button>
+        <button type="submit" class="btn btn-primary">登録する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 案件詳細モーダル -->
+<div class="modal-overlay hidden" id="projectDetailModal">
+  <div class="modal" style="max-width: 680px;">
+    <div class="modal-header">
+      <h3 class="modal-title">案件詳細情報</h3>
+      <button class="modal-close" onclick="closeModal('projectDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 基本情報 -->
+      <div class="detail-section-title">📌 基本情報</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">案件No</label>
+          <input type="text" id="detailPrjNo" class="form-control" readonly style="background:#f8fafc; font-weight:600">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ステータス</label>
+          <div id="detailPrjStatusBadge" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">案件名</label>
+        <input type="text" id="detailPrjName" class="form-control" readonly style="background:#f8fafc; font-weight:700">
+      </div>
+
+      <!-- 担当企業・パートナー情報 -->
+      <div class="detail-section-title">🤝 発注企業・パートナー情報</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">発注元企業</label>
+          <input type="text" id="detailCompany" class="form-control" readonly style="background:#f8fafc">
+        </div>
+        <div class="form-group">
+          <label class="form-label">企業担当者</label>
+          <input type="text" id="detailCompanyUser" class="form-control" readonly style="background:#f8fafc">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">担当パートナー</label>
+          <input type="text" id="detailPartner" class="form-control" readonly style="background:#f8fafc">
+        </div>
+        <div class="form-group">
+          <label class="form-label">パートナー連絡者</label>
+          <input type="text" id="detailPartnerUser" class="form-control" readonly style="background:#f8fafc">
+        </div>
+      </div>
+
+      <!-- 期間・運行条件 -->
+      <div class="detail-section-title">📅 契約期間・条件</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">開始日</label>
+          <input type="text" id="detailStartDate" class="form-control" readonly style="background:#f8fafc">
+        </div>
+        <div class="form-group">
+          <label class="form-label">終了日</label>
+          <input type="text" id="detailEndDate" class="form-control" readonly style="background:#f8fafc">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">業務内容・運行条件</label>
+        <textarea id="detailWork" class="form-control" rows="3" readonly style="background:#f8fafc"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">備考</label>
+        <textarea id="detailNote" class="form-control" rows="2" readonly style="background:#f8fafc"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('projectDetailModal')">閉じる</button>
+      <button type="button" class="btn btn-primary" onclick="goToPriceMaster()">金額データを確認・設定</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'projectTable');
+  });
+
+  function filterProjects() {
+    const statusVal = document.getElementById('statusFilter').value;
+    const searchVal = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#projectTable tbody tr');
+
+    rows.forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const text = row.textContent.toLowerCase();
+      const matchStatus = !statusVal || rowStatus === statusVal;
+      const matchSearch = !searchVal || text.includes(searchVal);
+
+      row.style.display = (matchStatus && matchSearch) ? '' : 'none';
+    });
+  }
+
+  function handleSaveProject(e) {
+    e.preventDefault();
+    closeModal('addProjectModal');
+    showToast('新しい案件を登録しました', 'success');
+    document.getElementById('addProjectForm').reset();
+  }
+
+  function showProjectDetail(no, name, company, cUser, partner, pUser, start, end, status, work, note) {
+    document.getElementById('detailPrjNo').value = no;
+    document.getElementById('detailPrjName').value = name;
+    document.getElementById('detailCompany').value = company;
+    document.getElementById('detailCompanyUser').value = cUser;
+    document.getElementById('detailPartner').value = partner;
+    document.getElementById('detailPartnerUser').value = pUser;
+    document.getElementById('detailStartDate').value = start;
+    document.getElementById('detailEndDate').value = end;
+    document.getElementById('detailWork').value = work;
+    document.getElementById('detailNote').value = note;
+
+    const badgeContainer = document.getElementById('detailPrjStatusBadge');
+    if (status === '稼働中') {
+      badgeContainer.innerHTML = '<span class="badge badge-green">稼働中</span>';
+    } else if (status === '完了') {
+      badgeContainer.innerHTML = '<span class="badge badge-gray">完了</span>';
+    } else {
+      badgeContainer.innerHTML = '<span class="badge badge-red">停止</span>';
+    }
+
+    openModal('projectDetailModal');
+  }
+
+  function goToPriceMaster() {
+    closeModal('projectDetailModal');
+    location.href = '07_price_master.html';
+  }
+</script>
+</body>
+</html>

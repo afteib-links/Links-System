@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本案件管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .search-bar-wrap {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .search-input-group {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+  }
+  .filter-select {
+    width: 180px;
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item active" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">基本案件管理 (案件テンプレート)</h1>
+    <div class="flex gap-2 items-center">
+      <button class="btn btn-primary" onclick="openModal('addTemplateModal')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新規テンプレート作成
+      </button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- 検索フィルター -->
+    <div class="search-bar-wrap">
+      <div class="search-input-group">
+        <input type="text" id="searchInput" class="form-control" placeholder="テンプレートNo、名称、企業名、パートナー名で検索...">
+      </div>
+      <select id="statusFilter" class="form-control filter-select" onchange="filterTemplates()">
+        <option value="">すべてのステータス</option>
+        <option value="有効">有効</option>
+        <option value="無効">無効</option>
+      </select>
+    </div>
+
+    <!-- テンプレート一覧テーブル -->
+    <div class="table-wrap">
+      <table class="data-table" id="templateTable">
+        <thead>
+          <tr>
+            <th style="width: 130px;">テンプレートNo</th>
+            <th>テンプレート名</th>
+            <th>企業名</th>
+            <th>パートナー名</th>
+            <th style="width: 140px;">標準期間</th>
+            <th style="width: 100px; text-align: center;">ステータス</th>
+            <th style="width: 220px; text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-status="有効">
+            <td><strong class="text-sm">TPL-2026-001</strong></td>
+            <td><strong>【定期便】首都圏ルート配送標準モジュール</strong></td>
+            <td>株式会社 A物流</td>
+            <td>東京トランスポート</td>
+            <td>12ヶ月 (通年)</td>
+            <td class="text-center"><span class="badge badge-green">有効</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-001', '【定期便】首都圏ルート配送標準モジュール', '株式会社 A物流', '東京トランスポート', '12ヶ月 (通年)', '毎朝7:00発、指定ルート配送（1日8店舗巡回）', '定番案件用テンプレート。年間契約の基本モデルです。')">詳細</button>
+                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-001', '【定期便】首都圏ルート配送標準モジュール')">案件として作成</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="有効">
+            <td><strong class="text-sm">TPL-2026-002</strong></td>
+            <td><strong>【スポット】緊急チャーター便・急送便</strong></td>
+            <td>株式会社 Bロジ</td>
+            <td>山田配送サービス</td>
+            <td>1ヶ月 (スポット)</td>
+            <td class="text-center"><span class="badge badge-green">有効</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-002', '【スポット】緊急チャーター便・急送便', '株式会社 Bロジ', '山田配送サービス', '1ヶ月 (スポット)', '受注後2時間以内の集荷および即日指定先納品作業', '急便・深夜対応可。単価設定は残業・休日手当適用。')">詳細</button>
+                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-002', '【スポット】緊急チャーター便・急送便')">案件として作成</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="有効">
+            <td><strong class="text-sm">TPL-2026-003</strong></td>
+            <td><strong>【宅配】城東エリアラストワンマイル配送</strong></td>
+            <td>C配送サービス</td>
+            <td>関東陸運</td>
+            <td>6ヶ月</td>
+            <td class="text-center"><span class="badge badge-green">有効</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-003', '【宅配】城東エリアラストワンマイル配送', 'C配送サービス', '関東陸運', '6ヶ月', '個人宅宛小型荷物配送（1日約100〜120個目安）', '夜間再配達への柔軟な対応が求められる案件パターンです。')">詳細</button>
+                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-003', '【宅配】城東エリアラストワンマイル配送')">案件として作成</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="無効">
+            <td><strong class="text-sm">TPL-2026-004</strong></td>
+            <td><strong>【旧版】倉庫間移動・夜間転送便</strong></td>
+            <td>山田運送</td>
+            <td>鈴木ドライバー</td>
+            <td>3ヶ月</td>
+            <td class="text-center"><span class="badge badge-gray">無効</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-004', '【旧版】倉庫間移動・夜間転送便', '山田運送', '鈴木ドライバー', '3ヶ月', '22:00〜翌6:00の拠点間定期荷物搬送作業', '旧規約に基づくテンプレート。現在は運用停止中。')">詳細</button>
+                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-004', '【旧版】倉庫間移動・夜間転送便')">案件として作成</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新規テンプレート作成モーダル -->
+<div class="modal-overlay hidden" id="addTemplateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">新規テンプレート作成</h3>
+      <button class="modal-close" onclick="closeModal('addTemplateModal')">&times;</button>
+    </div>
+    <form id="addTemplateForm" onsubmit="handleSaveTemplate(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">テンプレート名 <span style="color:var(--color-danger)">*</span></label>
+          <input type="text" class="form-control" placeholder="例: 【定期便】関東エリア短距離配送パターン" required>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">発注元企業 <span style="color:var(--color-danger)">*</span></label>
+            <select class="form-control" required>
+              <option value="">選択してください</option>
+              <option value="株式会社 A物流">株式会社 A物流</option>
+              <option value="株式会社 Bロジ">株式会社 Bロジ</option>
+              <option value="C配送サービス">C配送サービス</option>
+              <option value="山田運送">山田運送</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">担当パートナー <span style="color:var(--color-danger)">*</span></label>
+            <select class="form-control" required>
+              <option value="">選択してください</option>
+              <option value="東京トランスポート">東京トランスポート</option>
+              <option value="山田配送サービス">山田配送サービス</option>
+              <option value="関東陸運">関東陸運</option>
+              <option value="鈴木ドライバー">鈴木ドライバー</option>
+              <option value="佐藤ロジテック">佐藤ロジテック</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">標準期間 / 想定運用期間</label>
+          <select class="form-control">
+            <option value="1ヶ月 (スポット)">1ヶ月 (スポット)</option>
+            <option value="3ヶ月">3ヶ月</option>
+            <option value="6ヶ月">6ヶ月</option>
+            <option value="12ヶ月 (通年)">12ヶ月 (通年)</option>
+            <option value="指定なし/柔軟">指定なし/柔軟</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">作業内容・要件</label>
+          <textarea class="form-control" rows="3" placeholder="配送便の概要、集荷ルート、積み下ろし条件等の共通作業内容を入力"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備考・特記事項</label>
+          <textarea class="form-control" rows="2" placeholder="注意事項、請求・支払時の適用ルール等"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addTemplateModal')">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- テンプレート詳細モーダル -->
+<div class="modal-overlay hidden" id="viewTemplateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">テンプレート詳細</h3>
+      <button class="modal-close" onclick="closeModal('viewTemplateModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">テンプレートNo</label>
+        <input type="text" id="detailNo" class="form-control" readonly style="background:#f8fafc">
+      </div>
+      <div class="form-group">
+        <label class="form-label">テンプレート名</label>
+        <input type="text" id="detailName" class="form-control" readonly style="background:#f8fafc">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">企業名</label>
+          <input type="text" id="detailCompany" class="form-control" readonly style="background:#f8fafc">
+        </div>
+        <div class="form-group">
+          <label class="form-label">パートナー名</label>
+          <input type="text" id="detailPartner" class="form-control" readonly style="background:#f8fafc">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">標準期間</label>
+        <input type="text" id="detailPeriod" class="form-control" readonly style="background:#f8fafc">
+      </div>
+      <div class="form-group">
+        <label class="form-label">作業内容</label>
+        <textarea id="detailWork" class="form-control" rows="3" readonly style="background:#f8fafc"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">備考</label>
+        <textarea id="detailNote" class="form-control" rows="2" readonly style="background:#f8fafc"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('viewTemplateModal')">閉じる</button>
+      <button type="button" id="createBtnInDetail" class="btn btn-success">このテンプレートから案件作成</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'templateTable');
+  });
+
+  function filterTemplates() {
+    const statusVal = document.getElementById('statusFilter').value;
+    const searchVal = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#templateTable tbody tr');
+
+    rows.forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const text = row.textContent.toLowerCase();
+      const matchStatus = !statusVal || rowStatus === statusVal;
+      const matchSearch = !searchVal || text.includes(searchVal);
+
+      row.style.display = (matchStatus && matchSearch) ? '' : 'none';
+    });
+  }
+
+  function handleSaveTemplate(e) {
+    e.preventDefault();
+    closeModal('addTemplateModal');
+    showToast('基本案件テンプレートを作成しました', 'success');
+    document.getElementById('addTemplateForm').reset();
+  }
+
+  function createProjectFromTemplate(tplNo, tplName) {
+    confirmAction(`テンプレート「${tplName}」を元に新規案件を作成しますか？`, () => {
+      showToast(`案件が正常に作成されました。案件管理画面へ反映されます。`, 'success');
+      setTimeout(() => {
+        location.href = '06_project.html';
+      }, 1200);
+    });
+  }
+
+  function viewDetail(no, name, company, partner, period, work, note) {
+    document.getElementById('detailNo').value = no;
+    document.getElementById('detailName').value = name;
+    document.getElementById('detailCompany').value = company;
+    document.getElementById('detailPartner').value = partner;
+    document.getElementById('detailPeriod').value = period;
+    document.getElementById('detailWork').value = work;
+    document.getElementById('detailNote').value = note;
+
+    document.getElementById('createBtnInDetail').onclick = () => {
+      closeModal('viewTemplateModal');
+      createProjectFromTemplate(no, name);
+    };
+
+    openModal('viewTemplateModal');
+  }
+</script>
+</body>
+</html>
