@@ -280,6 +280,15 @@ function calcRow(start, end, rest) {
   return { koso, jido, zangy, fusok };
 }
 
+const YEN_FIELDS = new Set(['toll', 'park', 'trans']);
+function parseYen(val) {
+  return String(val ?? '').replace(/[¥,]/g, '').trim();
+}
+function formatYen(val) {
+  const num = parseYen(val);
+  return num ? '¥' + num : '';
+}
+
 // ========== グリッド描画 ==========
 function renderGrid() {
   const body = document.getElementById('gridBody');
@@ -323,9 +332,9 @@ function renderGrid() {
       <td><input type="text" class="gi calc ro" value="${calc.fusok||'-'}" readonly></td>
       <td><input type="text" class="gi" value="${row.dist}" placeholder="" ${row.isUnnec?'disabled':''}></td>
       <td><input type="text" class="gi ro" value="" readonly></td>
-      <td><input type="text" class="gi" value="${row.toll?'¥'+row.toll:''}" oninput="updateRow(${i},'toll',this.value)" ${row.isUnnec?'disabled':''}></td>
-      <td><input type="text" class="gi" value="${row.park?'¥'+row.park:''}" oninput="updateRow(${i},'park',this.value)" ${row.isUnnec?'disabled':''}></td>
-      <td><input type="text" class="gi" value="${row.trans?'¥'+row.trans:''}" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" value="${formatYen(row.toll)}" oninput="updateRow(${i},'toll',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" value="${formatYen(row.park)}" oninput="updateRow(${i},'park',this.value)" ${row.isUnnec?'disabled':''}></td>
+      <td><input type="text" class="gi" value="${formatYen(row.trans)}" oninput="updateRow(${i},'trans',this.value)" ${row.isUnnec?'disabled':''}></td>
       <td><input type="text" class="gi" style="text-align:left;padding:0 6px" value="${row.note}" ${row.isUnnec?'disabled':''}></td>
       <td>
         <div class="row-op">
@@ -379,6 +388,9 @@ function toggleUnnec(idx, cb) {
 }
 
 function updateRow(idx, field, val) {
+  if (YEN_FIELDS.has(field)) {
+    val = parseYen(val);
+  }
   sampleData[idx][field] = val;
   // 計算列を更新
   const calc = calcRow(sampleData[idx].start, sampleData[idx].end, sampleData[idx].rest);

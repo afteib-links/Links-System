@@ -8,13 +8,19 @@ const path = require('path');
 const port = Number(process.env.APP_PORT || 8080);
 const frontendDir = path.resolve(__dirname, '../../frontend');
 
+const noCache = (res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+};
+
 const app = express();
 
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) {
-    return next();
+    next();
+    return;
   }
-  return res.status(503).json({
+  res.status(503).json({
     ok: false,
     error: 'preview_mode',
     message:
@@ -26,20 +32,17 @@ app.use(
   express.static(frontendDir, {
     etag: false,
     lastModified: false,
-    setHeaders(res) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-    },
+    setHeaders: noCache,
   })
 );
 
 app.use((req, res, next) => {
-  if (req.method !== 'GET' || req.path.startsWith('/api/')) {
-    return next();
+  if (req.method !== 'GET') {
+    next();
+    return;
   }
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  return res.sendFile(path.join(frontendDir, 'index.html'));
+  noCache(res);
+  res.sendFile(path.join(frontendDir, 'index.html'));
 });
 
 app.listen(port, '0.0.0.0', () => {
