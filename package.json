@@ -1,0 +1,10 @@
+{
+  "name": "links-system",
+  "private": true,
+  "description": "Links-System ルートスクリプト（ブラウザ起動・Docker）",
+  "scripts": {
+    "setup": "npm install --prefix backend",
+    "start": "npm run start --prefix backend",
+    "browser": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-browser.ps1"
+  }
+}

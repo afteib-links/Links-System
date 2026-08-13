@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>先払・分割支払管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 20px;
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover {
+    color: var(--color-primary);
+  }
+  .tab-btn.tab-active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    background: rgba(37,99,235,0.04);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .progress-bar-bg {
+    width: 100px;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 4px;
+  }
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item active" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">先払・分割支払管理</h1>
+    <div class="flex gap-2 items-center">
+      <span class="text-sm text-muted">最終更新: 2026/08/13 14:00</span>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div id="advanceTabGroup">
+      <!-- タブボタン -->
+      <div class="tab-nav">
+        <button class="tab-btn tab-active" data-tab="tab-advance">
+          <span>⚡ 先払管理</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-split">
+          <span>📅 分割支払管理</span>
+        </button>
+      </div>
+
+      <!-- ================= タブ1: 先払管理 ================= -->
+      <div data-panel="tab-advance">
+        <div class="card mb-4">
+          <div class="card-body" style="padding: 16px 20px;">
+            <div class="filter-bar" style="margin-bottom:0;">
+              <div class="flex gap-3 items-center" style="flex-wrap:wrap;">
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">対象月</label>
+                  <select class="form-control form-control-sm" style="width: 140px;">
+                    <option value="2026-08" selected>2026年8月</option>
+                    <option value="2026-07">2026年7月</option>
+                    <option value="2026-06">2026年6月</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">ステータス</label>
+                  <select class="form-control form-control-sm" style="width: 130px;">
+                    <option value="all">すべて</option>
+                    <option value="pending">未処理</option>
+                    <option value="processed">処理済</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">絞り込み検索</label>
+                  <input type="text" id="searchAdvance" class="form-control form-control-sm" placeholder="パートナー名で検索..." style="width: 200px;">
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-primary" onclick="recalculateAdvance()">
+                  🔄 再計算・生成
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          💡 <strong>先払一括生成機能:</strong> 日報データ（承認済）から稼働日数を集計し、単価/日に応じた当月先払額を自動計算・一括生成します。
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="advanceTable">
+            <thead>
+              <tr>
+                <th style="width: 50px;" class="text-center">#</th>
+                <th>パートナー名</th>
+                <th>対象月</th>
+                <th class="text-right">稼働日数</th>
+                <th class="text-right">単価 / 日</th>
+                <th class="text-right">先払合計額</th>
+                <th class="text-center">ステータス</th>
+                <th class="text-center">振込予定日</th>
+                <th class="text-center" style="width: 140px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center">1</td>
+                <td><strong>鈴木 運送太郎</strong></td>
+                <td>2026年8月</td>
+                <td class="text-right">12日</td>
+                <td class="text-right">¥15,000</td>
+                <td class="text-right"><strong style="color:var(--color-primary);">¥180,000</strong></td>
+                <td class="text-center"><span class="badge badge-amber">未処理</span></td>
+                <td class="text-center text-muted">2026/08/15</td>
+                <td class="text-center">
+                  <button class="btn btn-success btn-sm" onclick="processAdvance('鈴木 運送太郎')">送金処理</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">2</td>
+                <td><strong>田中 物流</strong></td>
+                <td>2026年8月</td>
+                <td class="text-right">10日</td>
+                <td class="text-right">¥14,500</td>
+                <td class="text-right"><strong style="color:var(--color-primary);">¥145,000</strong></td>
+                <td class="text-center"><span class="badge badge-amber">未処理</span></td>
+                <td class="text-center text-muted">2026/08/15</td>
+                <td class="text-center">
+                  <button class="btn btn-success btn-sm" onclick="processAdvance('田中 物流')">送金処理</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">3</td>
+                <td><strong>高橋 ドライバー</strong></td>
+                <td>2026年7月</td>
+                <td class="text-right">22日</td>
+                <td class="text-right">¥16,000</td>
+                <td class="text-right">¥352,000</td>
+                <td class="text-center"><span class="badge badge-green">処理済</span></td>
+                <td class="text-center text-muted">2026/07/15</td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('詳細情報を表示します', 'info')">詳細</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">4</td>
+                <td><strong>佐々木 トランスポート</strong></td>
+                <td>2026年7月</td>
+                <td class="text-right">20日</td>
+                <td class="text-right">¥15,500</td>
+                <td class="text-right">¥310,000</td>
+                <td class="text-center"><span class="badge badge-green">処理済</span></td>
+                <td class="text-center text-muted">2026/07/15</td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('詳細情報を表示します', 'info')">詳細</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= タブ2: 分割支払管理 ================= -->
+      <div data-panel="tab-split" class="hidden">
+        <div class="card mb-4">
+          <div class="card-body" style="padding: 16px 20px;">
+            <div class="filter-bar" style="margin-bottom:0;">
+              <div class="flex gap-3 items-center" style="flex-wrap:wrap;">
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">ステータス</label>
+                  <select class="form-control form-control-sm" style="width: 140px;">
+                    <option value="all">すべて</option>
+                    <option value="active" selected>返済中</option>
+                    <option value="completed">返済完了</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">キーワード検索</label>
+                  <input type="text" id="searchSplit" class="form-control form-control-sm" placeholder="パートナー名・名目で検索..." style="width: 220px;">
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-primary" onclick="openModal('splitModal')">
+                  ➕ 新規分割設定
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="splitTable">
+            <thead>
+              <tr>
+                <th style="width: 50px;" class="text-center">#</th>
+                <th>パートナー名</th>
+                <th>分割名目 / 内容</th>
+                <th class="text-right">元金額 (総額)</th>
+                <th class="text-center">分割回数</th>
+                <th class="text-right">毎回控除額</th>
+                <th class="text-right">残高</th>
+                <th>進捗状況</th>
+                <th class="text-center">ステータス</th>
+                <th class="text-center" style="width: 130px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center">1</td>
+                <td><strong>鈴木 運送太郎</strong></td>
+                <td>車両修理費立替分</td>
+                <td class="text-right">¥120,000</td>
+                <td class="text-center">6回</td>
+                <td class="text-right">¥20,000</td>
+                <td class="text-right"><strong style="color:var(--color-danger);">¥40,000</strong></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 66.6%;"></div></div>
+                    <span class="text-sm text-muted">4/6回 (67%)</span>
+                  </div>
+                </td>
+                <td class="text-center"><span class="badge badge-blue">返済中</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('分割履歴を開きます', 'info')">履歴</button>
+                  <button class="btn btn-ghost btn-sm text-muted" onclick="confirmDelete('車両修理費立替分')">削除</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">2</td>
+                <td><strong>田中 物流</strong></td>
+                <td>任意保険料一括立替</td>
+                <td class="text-right">¥180,000</td>
+                <td class="text-center">12回</td>
+                <td class="text-right">¥15,000</td>
+                <td class="text-right"><strong style="color:var(--color-danger);">¥105,000</strong></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 41.6%;"></div></div>
+                    <span class="text-sm text-muted">5/12回 (42%)</span>
+                  </div>
+                </td>
+                <td class="text-center"><span class="badge badge-blue">返済中</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('分割履歴を開きます', 'info')">履歴</button>
+                  <button class="btn btn-ghost btn-sm text-muted" onclick="confirmDelete('任意保険料一括立替')">削除</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">3</td>
+                <td><strong>佐々木 トランスポート</strong></td>
+                <td>前払い保証金返済</td>
+                <td class="text-right">¥100,000</td>
+                <td class="text-center">4回</td>
+                <td class="text-right">¥25,000</td>
+                <td class="text-right"><strong style="color:var(--color-danger);">¥75,000</strong></td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 25%;"></div></div>
+                    <span class="text-sm text-muted">1/4回 (25%)</span>
+                  </div>
+                </td>
+                <td class="text-center"><span class="badge badge-blue">返済中</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('分割履歴を開きます', 'info')">履歴</button>
+                  <button class="btn btn-ghost btn-sm text-muted" onclick="confirmDelete('前払い保証金返済')">削除</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">4</td>
+                <td><strong>山本 配送サービス</strong></td>
+                <td>車載端末購入費</td>
+                <td class="text-right">¥60,000</td>
+                <td class="text-center">3回</td>
+                <td class="text-right">¥20,000</td>
+                <td class="text-right">¥0</td>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 100%; background:var(--color-success);"></div></div>
+                    <span class="text-sm text-muted">3/3回 (100%)</span>
+                  </div>
+                </td>
+                <td class="text-center"><span class="badge badge-green">完了</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('分割履歴を開きます', 'info')">履歴</button>
+                  <button class="btn btn-ghost btn-sm text-muted" onclick="confirmDelete('車載端末購入費')">削除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新規分割設定モーダル -->
+<div id="splitModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">➕ 新規分割支払設定</h3>
+      <button class="modal-close" onclick="closeModal('splitModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="splitForm" onsubmit="saveSplit(event)">
+        <div class="form-group">
+          <label class="form-label">対象パートナー <span style="color:red">*</span></label>
+          <select class="form-control" required>
+            <option value="">選択してください</option>
+            <option value="1">鈴木 運送太郎</option>
+            <option value="2">田中 物流</option>
+            <option value="3">高橋 ドライバー</option>
+            <option value="4">佐々木 トランスポート</option>
+            <option value="5">山本 配送サービス</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">分割名目 / 内容 <span style="color:red">*</span></label>
+          <input type="text" class="form-control" placeholder="例: 車両修繕費立替、各種端末費用など" required>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">総額 (円) <span style="color:red">*</span></label>
+            <input type="number" id="inputTotalAmount" class="form-control" placeholder="例: 120000" min="1000" step="1000" oninput="calcMonthlyDeduction()" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">分割回数 (回) <span style="color:red">*</span></label>
+            <input type="number" id="inputTimes" class="form-control" placeholder="例: 6" min="1" max="60" oninput="calcMonthlyDeduction()" required>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">毎月控除予定額 (自動試算)</label>
+            <input type="text" id="inputMonthlyDeduction" class="form-control" placeholder="¥0" readonly style="background:#f8fafc; font-weight:bold; color:var(--color-primary);">
+          </div>
+          <div class="form-group">
+            <label class="form-label">控除開始月 <span style="color:red">*</span></label>
+            <input type="month" class="form-control" value="2026-09" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備考・メモ</label>
+          <textarea class="form-control" rows="2" placeholder="注意事項や社内メモを入力"></textarea>
+        </div>
+        <div class="modal-footer" style="padding-right:0; padding-left:0; margin-bottom: -10px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('splitModal')">キャンセル</button>
+          <button type="submit" class="btn btn-primary">登録する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs('advanceTabGroup');
+  initTableSearch('searchAdvance', 'advanceTable');
+  initTableSearch('searchSplit', 'splitTable');
+});
+
+// 先払再計算・一括生成
+function recalculateAdvance() {
+  confirmAction('選択された対象月（2026年8月）の承認済日報データから先払一覧を再計算・生成しますか？', () => {
+    showToast('先払データを再計算・一括生成しました', 'success');
+  });
+}
+
+// 送金処理
+function processAdvance(partnerName) {
+  confirmAction(`${partnerName} への先払送金処理を実行しますか？`, () => {
+    showToast(`${partnerName} の送金処理を完了に更新しました`, 'success');
+  });
+}
+
+// 毎月控除額試算
+function calcMonthlyDeduction() {
+  const total = parseFloat(document.getElementById('inputTotalAmount').value) || 0;
+  const times = parseInt(document.getElementById('inputTimes').value) || 0;
+  const target = document.getElementById('inputMonthlyDeduction');
+  if (total > 0 && times > 0) {
+    const monthly = Math.ceil(total / times);
+    target.value = formatYen(monthly);
+  } else {
+    target.value = '¥0';
+  }
+}
+
+// 分割登録保存
+function saveSplit(e) {
+  e.preventDefault();
+  closeModal('splitModal');
+  showToast('分割支払設定を新しく登録しました', 'success');
+}
+
+// 削除確認
+function confirmDelete(title) {
+  confirmAction(`「${title}」の分割支払設定を削除しますか？`, () => {
+    showToast('分割支払設定を削除しました', 'warning');
+  });
+}
+</script>
+</body>
+</html>

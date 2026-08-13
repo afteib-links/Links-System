@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ダッシュボード - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .stat-card { background:#fff; border:1px solid var(--color-border); border-radius:var(--radius); padding:20px; display:flex; align-items:center; gap:16px; box-shadow:var(--shadow-sm); }
+  .stat-icon { width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0; }
+  .stat-icon-blue{background:#dbeafe;} .stat-icon-green{background:#dcfce7;} .stat-icon-amber{background:#fef3c7;} .stat-icon-red{background:#fee2e2;} .stat-icon-purple{background:#f3e8ff;}
+  .stat-value{font-size:28px;font-weight:700;color:var(--color-text);line-height:1;}
+  .stat-label{font-size:12px;color:var(--color-text-muted);margin-top:4px;}
+  .alert-row { display:flex; gap:4px; align-items:center; padding:8px 0; border-bottom:1px solid var(--color-border); }
+  .alert-row:last-child{border-bottom:none;}
+  .alert-row a{color:var(--color-primary);text-decoration:none;font-size:13px;}
+  .alert-row a:hover{text-decoration:underline;}
+  .flow-step{background:#fff;border:1px solid var(--color-border);border-radius:var(--radius);padding:14px 18px;font-size:13px;font-weight:500;text-align:center;position:relative;}
+  .flow-arrow{color:#94a3b8;font-size:18px;display:flex;align-items:center;}
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item active" data-page="02_dashboard.html" href="02_dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      ダッシュボード
+    </a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
+    <a class="sidebar-item" href="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">ダッシュボード</h1>
+    <div class="flex gap-2 items-center">
+      <span class="text-sm text-muted">2026年8月13日（水）</span>
+      <button class="btn btn-outline btn-sm" onclick="location.href='01_login.html'">ログアウト</button>
+    </div>
+  </header>
+  <div class="page-body">
+
+    <!-- サマリーカード -->
+    <div class="grid-4 mb-4">
+      <div class="stat-card"><div class="stat-icon stat-icon-blue">🏢</div><div><div class="stat-value">12</div><div class="stat-label">取引企業数</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon-green">👤</div><div><div class="stat-value">8</div><div class="stat-label">稼働パートナー数</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon-amber">📁</div><div><div class="stat-value">15</div><div class="stat-label">稼働中案件数</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon-red">⚠️</div><div><div class="stat-value">3</div><div class="stat-label">要対応（承認待ち等）</div></div></div>
+    </div>
+
+    <div class="grid-2">
+      <!-- 処理が必要な日報 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⚡ 処理が必要な日報</span>
+          <a href="08_daily_report.html" class="btn btn-outline btn-sm">一覧へ</a>
+        </div>
+        <div class="card-body">
+          <div class="alert-row"><span class="badge badge-amber">承認待ち</span><a href="08_daily_report.html" style="margin-left:8px">鈴木 運送太郎 / A社 / 2026年7月</a><span class="text-muted text-sm" style="margin-left:auto">8/12 提出</span></div>
+          <div class="alert-row"><span class="badge badge-amber">承認待ち</span><a href="08_daily_report.html" style="margin-left:8px">高橋 ドライバー / B社 / 2026年7月</a><span class="text-muted text-sm" style="margin-left:auto">8/10 提出</span></div>
+          <div class="alert-row"><span class="badge badge-red">差戻し</span><a href="08_daily_report.html" style="margin-left:8px">田中 物流 / A社 / 2026年6月</a><span class="text-muted text-sm" style="margin-left:auto">未修正</span></div>
+        </div>
+      </div>
+
+      <!-- 未入金請求 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💰 未入金・期日超過の請求</span>
+          <a href="09_invoice.html" class="btn btn-outline btn-sm">一覧へ</a>
+        </div>
+        <div class="card-body">
+          <div class="alert-row"><span class="badge badge-red">期日超過</span><a href="09_invoice.html" style="margin-left:8px">株式会社 A社 INV-20260730-001</a><span class="text-muted text-sm" style="margin-left:auto">¥450,000</span></div>
+          <div class="alert-row"><span class="badge badge-amber">未入金</span><a href="09_invoice.html" style="margin-left:8px">株式会社 B社 INV-20260731-002</a><span class="text-muted text-sm" style="margin-left:auto">¥210,000</span></div>
+          <div class="alert-row"><span class="badge badge-amber">未入金</span><a href="09_invoice.html" style="margin-left:8px">株式会社 C社 INV-20260731-003</a><span class="text-muted text-sm" style="margin-left:auto">¥385,000</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 業務フロー -->
+    <div class="card mt-4">
+      <div class="card-header"><span class="card-title">業務フロー（案件〜精算）</span></div>
+      <div class="card-body">
+        <div class="flex items-center gap-2" style="flex-wrap:wrap">
+          <div class="flow-step" onclick="location.href='03_company.html'" style="cursor:pointer;min-width:90px">🏢<br>企業登録</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" onclick="location.href='06_project.html'" style="cursor:pointer;min-width:90px">📁<br>案件作成</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" onclick="location.href='08_daily_report.html'" style="cursor:pointer;min-width:90px">📄<br>日報入力</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" style="min-width:90px">✅<br>承認</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" onclick="location.href='09_invoice.html'" style="cursor:pointer;min-width:90px">🧾<br>請求書発行</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" onclick="location.href='10_payment.html'" style="cursor:pointer;min-width:90px">💳<br>支払明細</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" onclick="location.href='12_finance.html'" style="cursor:pointer;min-width:90px">📊<br>収支分析</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="common.js"></script>
+</body>
+</html>

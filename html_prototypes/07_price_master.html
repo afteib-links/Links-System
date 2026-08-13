@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金額データ管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .search-bar-wrap {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .search-input-group { flex: 1; display: flex; gap: 8px; }
+  .filter-select { width: 180px; }
+
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .price-table th {
+    background: #f1f5f9;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border-dark);
+  }
+  .price-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+  }
+  .price-table input, .price-table select {
+    width: 100%;
+  }
+
+  .price-section-card {
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .price-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .price-section-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-text);
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item active" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">金額データ管理</h1>
+    <div class="flex gap-2 items-center">
+      <button class="btn btn-primary" onclick="openModal('addPriceModal')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新規金額データ作成
+      </button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- 検索・フィルター -->
+    <div class="search-bar-wrap">
+      <div class="search-input-group">
+        <input type="text" id="searchInput" class="form-control" placeholder="金額データNo、案件名で検索...">
+      </div>
+      <select id="statusFilter" class="form-control filter-select" onchange="filterPrices()">
+        <option value="">すべてのステータス</option>
+        <option value="適用中">適用中</option>
+        <option value="改定前">改定前</option>
+        <option value="終了">終了</option>
+      </select>
+    </div>
+
+    <!-- 金額データ一覧テーブル -->
+    <div class="table-wrap">
+      <table class="data-table" id="priceTable">
+        <thead>
+          <tr>
+            <th style="width: 130px;">金額データNo</th>
+            <th>対象案件名</th>
+            <th style="width: 190px;">有効期間</th>
+            <th style="width: 110px; text-align: right;">基本単価/日</th>
+            <th style="width: 110px; text-align: right;">残業単価/h</th>
+            <th style="width: 140px; text-align: right;">距離加算</th>
+            <th style="width: 100px; text-align: center;">ステータス</th>
+            <th style="width: 130px; text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-status="適用中">
+            <td><strong class="text-sm">PRC-2026-001</strong></td>
+            <td><strong>首都圏定期ルート配送便</strong></td>
+            <td>2026/04/01 ~ 2027/03/31</td>
+            <td class="text-right">¥25,000</td>
+            <td class="text-right">¥2,500</td>
+            <td class="text-right">¥150 / km (&gt;50km)</td>
+            <td class="text-center"><span class="badge badge-green">適用中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showPriceDetail('PRC-2026-001', '首都圏定期ルート配送便', '2026/04/01 ~ 2027/03/31', '適用中', itemSet1)">詳細・料金表</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="適用中">
+            <td><strong class="text-sm">PRC-2026-002</strong></td>
+            <td><strong>関東エクスプレススポット便</strong></td>
+            <td>2026/08/01 ~ 2026/08/31</td>
+            <td class="text-right">¥30,000</td>
+            <td class="text-right">¥3,000</td>
+            <td class="text-right">¥200 / km (&gt;30km)</td>
+            <td class="text-center"><span class="badge badge-green">適用中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showPriceDetail('PRC-2026-002', '関東エクスプレススポット便', '2026/08/01 ~ 2026/08/31', '適用中', itemSet2)">詳細・料金表</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="適用中">
+            <td><strong class="text-sm">PRC-2026-003</strong></td>
+            <td><strong>城東エリア個別宅配業務</strong></td>
+            <td>2026/01/15 ~ 2026/12/31</td>
+            <td class="text-right">¥22,000</td>
+            <td class="text-right">¥2,200</td>
+            <td class="text-right">なし</td>
+            <td class="text-center"><span class="badge badge-green">適用中</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showPriceDetail('PRC-2026-003', '城東エリア個別宅配業務', '2026/01/15 ~ 2026/12/31', '適用中', itemSet3)">詳細・料金表</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="終了">
+            <td><strong class="text-sm">PRC-2026-004</strong></td>
+            <td><strong>横浜港臨海部深夜チャーター便</strong></td>
+            <td>2026/05/01 ~ 2026/07/31</td>
+            <td class="text-right">¥35,000</td>
+            <td class="text-right">¥3,500</td>
+            <td class="text-right">¥250 / km (&gt;40km)</td>
+            <td class="text-center"><span class="badge badge-gray">終了</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showPriceDetail('PRC-2026-004', '横浜港臨海部深夜チャーター便', '2026/05/01 ~ 2026/07/31', '終了', itemSet4)">詳細・料金表</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-status="改定前">
+            <td><strong class="text-sm">PRC-2026-005</strong></td>
+            <td><strong>埼玉北部冷凍食品定期搬送</strong></td>
+            <td>2026/06/01 ~ 2026/08/15</td>
+            <td class="text-right">¥28,000</td>
+            <td class="text-right">¥2,800</td>
+            <td class="text-right">¥180 / km (&gt;60km)</td>
+            <td class="text-center"><span class="badge badge-amber">改定前</span></td>
+            <td class="text-center">
+              <div class="flex gap-2 justify-end">
+                <button class="btn btn-outline btn-sm" onclick="showPriceDetail('PRC-2026-005', '埼玉北部冷凍食品定期搬送', '2026/06/01 ~ 2026/08/15', '改定前', itemSet5)">詳細・料金表</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新規金額データ作成モーダル -->
+<div class="modal-overlay hidden" id="addPriceModal">
+  <div class="modal" style="max-width: 750px;">
+    <div class="modal-header">
+      <h3 class="modal-title">新規金額データ作成</h3>
+      <button class="modal-close" onclick="closeModal('addPriceModal')">&times;</button>
+    </div>
+    <form id="addPriceForm" onsubmit="handleSavePrice(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">対象案件 <span style="color:var(--color-danger)">*</span></label>
+          <select class="form-control" required>
+            <option value="">案件を選択してください</option>
+            <option value="PRJ-202608-001">PRJ-202608-001 | 首都圏定期ルート配送便</option>
+            <option value="PRJ-202608-002">PRJ-202608-002 | 関東エクスプレススポット便</option>
+            <option value="PRJ-202608-003">PRJ-202608-003 | 城東エリア個別宅配業務</option>
+            <option value="PRJ-202608-004">PRJ-202608-004 | 横浜港臨海部深夜チャーター便</option>
+            <option value="PRJ-202608-005">PRJ-202608-005 | 埼玉北部冷凍食品定期搬送</option>
+          </select>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">有効開始日 <span style="color:var(--color-danger)">*</span></label>
+            <input type="date" class="form-control" value="2026-09-01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">有効終了日 <span style="color:var(--color-danger)">*</span></label>
+            <input type="date" class="form-control" value="2027-03-31" required>
+          </div>
+        </div>
+
+        <!-- 料金区分セクション -->
+        <div class="price-section-card">
+          <div class="price-section-header">
+            <span class="price-section-title">💰 料金区分・単価設定 (複数設定可)</span>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addPriceRow('newPriceTableBody')">＋ 区分を追加</button>
+          </div>
+          <table class="price-table">
+            <thead>
+              <tr>
+                <th>料金区分</th>
+                <th style="width: 130px;">計算単位</th>
+                <th style="width: 140px;">単価(円)</th>
+                <th>適用条件・基準</th>
+                <th style="width: 50px;">削除</th>
+              </tr>
+            </thead>
+            <tbody id="newPriceTableBody">
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" value="基本単価 (日額)" required></td>
+                <td>
+                  <select class="form-control form-control-sm">
+                    <option value="日" selected>日</option>
+                    <option value="時間">時間</option>
+                    <option value="件">件</option>
+                    <option value="km">km</option>
+                    <option value="便">便</option>
+                  </select>
+                </td>
+                <td><input type="number" class="form-control form-control-sm text-right" value="25000" required></td>
+                <td><input type="text" class="form-control form-control-sm" value="8時間標準稼働"></td>
+                <td class="text-center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="removePriceRow(this)">&times;</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" value="時間外残業手当" required></td>
+                <td>
+                  <select class="form-control form-control-sm">
+                    <option value="時間" selected>時間</option>
+                    <option value="日">日</option>
+                    <option value="件">件</option>
+                  </select>
+                </td>
+                <td><input type="number" class="form-control form-control-sm text-right" value="2500" required></td>
+                <td><input type="text" class="form-control form-control-sm" value="8時間超過分、1時間単位"></td>
+                <td class="text-center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="removePriceRow(this)">&times;</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" value="深夜作業手当" required></td>
+                <td>
+                  <select class="form-control form-control-sm">
+                    <option value="時間" selected>時間</option>
+                    <option value="日">日</option>
+                  </select>
+                </td>
+                <td><input type="number" class="form-control form-control-sm text-right" value="3000" required></td>
+                <td><input type="text" class="form-control form-control-sm" value="22:00〜05:00の稼働"></td>
+                <td class="text-center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="removePriceRow(this)">&times;</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" value="距離超過加算" required></td>
+                <td>
+                  <select class="form-control form-control-sm">
+                    <option value="km" selected>km</option>
+                    <option value="日">日</option>
+                  </select>
+                </td>
+                <td><input type="number" class="form-control form-control-sm text-right" value="150" required></td>
+                <td><input type="text" class="form-control form-control-sm" value="走行距離 50km超過分 1kmあたり"></td>
+                <td class="text-center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="removePriceRow(this)">&times;</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">備考・特記事項</label>
+          <textarea class="form-control" rows="2" placeholder="高速道路代、フェリー代等の立替精算ルールなど"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addPriceModal')">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 金額データ詳細モーダル -->
+<div class="modal-overlay hidden" id="priceDetailModal">
+  <div class="modal" style="max-width: 750px;">
+    <div class="modal-header">
+      <h3 class="modal-title">金額データ詳細・料金設定</h3>
+      <button class="modal-close" onclick="closeModal('priceDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">金額データNo</label>
+          <input type="text" id="detailPrcNo" class="form-control" readonly style="background:#f8fafc; font-weight:600">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ステータス</label>
+          <div id="detailPrcStatusBadge" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">対象案件名</label>
+        <input type="text" id="detailPrjName" class="form-control" readonly style="background:#f8fafc; font-weight:700">
+      </div>
+      <div class="form-group">
+        <label class="form-label">有効期間</label>
+        <input type="text" id="detailPeriod" class="form-control" readonly style="background:#f8fafc">
+      </div>
+
+      <!-- 登録されている料金区分一覧 -->
+      <div class="price-section-card">
+        <div class="price-section-header">
+          <span class="price-section-title">📊 登録済み料金区分マスター</span>
+          <span class="text-sm text-muted">本案件に適用されるすべての料金条件</span>
+        </div>
+        <table class="price-table">
+          <thead>
+            <tr>
+              <th>料金区分</th>
+              <th style="width: 100px;">単位</th>
+              <th style="width: 130px; text-align: right;">単価 (税込/税別)</th>
+              <th>適用条件・内容</th>
+            </tr>
+          </thead>
+          <tbody id="detailPriceTableBody">
+            <!-- JavaScriptで動的生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('priceDetailModal')">閉じる</button>
+      <button type="button" class="btn btn-primary" onclick="showToast('金額データの改定画面へ遷移します', 'info')">改定版を作成</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  // サンプルアイテムセットデータ
+  const itemSet1 = [
+    { name: '基本料金 (日額)', unit: '日', price: 25000, desc: '8時間標準ルート配送' },
+    { name: '時間外残業料', unit: '時間', price: 2500, desc: '8時間超過分 1時間あたり' },
+    { name: '休日出勤料', unit: '日', price: 32000, desc: '土日祝日の稼働' },
+    { name: '深夜作業手当', unit: '時間', price: 3000, desc: '22:00〜05:00の稼働' },
+    { name: '距離超過加算', unit: 'km', price: 150, desc: '走行距離 50km超過分 1km当たり' }
+  ];
+
+  const itemSet2 = [
+    { name: '基本料金 (スポット)', unit: '便', price: 30000, desc: '1便あたりの基本運賃' },
+    { name: '待機手当', unit: '時間', price: 2000, desc: '現場待機 1時間経過後' },
+    { name: '時間外残業料', unit: '時間', price: 3000, desc: '予定時間超過分' },
+    { name: '距離超過加算', unit: 'km', price: 200, desc: '30km超過分 1km当たり' }
+  ];
+
+  const itemSet3 = [
+    { name: '基本料金 (個口宅配)', unit: '日', price: 22000, desc: '標準配車8時間' },
+    { name: '個数歩合手当', unit: '件', price: 180, desc: '120件超過分 1件当たり' },
+    { name: '時間外残業料', unit: '時間', price: 2200, desc: '8時間超過分' }
+  ];
+
+  const itemSet4 = [
+    { name: '深夜チャーター基本料金', unit: '便', price: 35000, desc: '深夜22時〜翌5時 1運行' },
+    { name: '深夜残業割増', unit: '時間', price: 3500, desc: '予定運行時間オーバー分' },
+    { name: '距離超過加算', unit: 'km', price: 250, desc: '40km超過 1km当たり' }
+  ];
+
+  const itemSet5 = [
+    { name: '冷凍定期搬送基本料', unit: '日', price: 28000, desc: '保冷車指定基本運賃' },
+    { name: '時間外残業料', unit: '時間', price: 2800, desc: '8時間超過分' },
+    { name: '距離超過加算', unit: 'km', price: 180, desc: '60km超過分 1km当たり' }
+  ];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'priceTable');
+  });
+
+  function filterPrices() {
+    const statusVal = document.getElementById('statusFilter').value;
+    const searchVal = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#priceTable tbody tr');
+
+    rows.forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const text = row.textContent.toLowerCase();
+      const matchStatus = !statusVal || rowStatus === statusVal;
+      const matchSearch = !searchVal || text.includes(searchVal);
+
+      row.style.display = (matchStatus && matchSearch) ? '' : 'none';
+    });
+  }
+
+  function addPriceRow(targetId) {
+    const tbody = document.getElementById(targetId);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="form-control form-control-sm" placeholder="例: 休日手当" required></td>
+      <td>
+        <select class="form-control form-control-sm">
+          <option value="日">日</option>
+          <option value="時間" selected>時間</option>
+          <option value="件">件</option>
+          <option value="km">km</option>
+          <option value="便">便</option>
+        </select>
+      </td>
+      <td><input type="number" class="form-control form-control-sm text-right" placeholder="0" required></td>
+      <td><input type="text" class="form-control form-control-sm" placeholder="条件を入力"></td>
+      <td class="text-center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="removePriceRow(this)">&times;</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  function removePriceRow(btn) {
+    const row = btn.closest('tr');
+    row.remove();
+  }
+
+  function handleSavePrice(e) {
+    e.preventDefault();
+    closeModal('addPriceModal');
+    showToast('新しい金額データを保存しました', 'success');
+    document.getElementById('addPriceForm').reset();
+  }
+
+  function showPriceDetail(no, prjName, period, status, items) {
+    document.getElementById('detailPrcNo').value = no;
+    document.getElementById('detailPrjName').value = prjName;
+    document.getElementById('detailPeriod').value = period;
+
+    const badgeContainer = document.getElementById('detailPrcStatusBadge');
+    if (status === '適用中') {
+      badgeContainer.innerHTML = '<span class="badge badge-green">適用中</span>';
+    } else if (status === '終了') {
+      badgeContainer.innerHTML = '<span class="badge badge-gray">終了</span>';
+    } else {
+      badgeContainer.innerHTML = '<span class="badge badge-amber">改定前</span>';
+    }
+
+    const tbody = document.getElementById('detailPriceTableBody');
+    tbody.innerHTML = '';
+
+    items.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${item.name}</strong></td>
+        <td><span class="badge badge-purple">${item.unit}単位</span></td>
+        <td class="text-right" style="font-weight:700; color:var(--color-primary);">${formatYen(item.price)}</td>
+        <td class="text-muted text-sm">${item.desc}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    openModal('priceDetailModal');
+  }
+</script>
+</body>
+</html>

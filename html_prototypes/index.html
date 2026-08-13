@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinksSys - プロトタイプ一覧</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { display: block; overflow: auto; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); min-height: 100vh; }
+  .portal-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  .portal-header { text-align: center; margin-bottom: 40px; }
+  .portal-logo { width: 72px; height: 72px; background: var(--color-primary); border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 32px; margin: 0 auto 16px; box-shadow: 0 8px 24px rgba(37,99,235,0.35); }
+  .portal-title { font-size: 28px; font-weight: 700; color: #1e293b; }
+  .portal-sub { font-size: 14px; color: #64748b; margin-top: 6px; }
+  .section-title { font-size: 14px; font-weight: 700; color: #475569; letter-spacing: 0.06em; text-transform: uppercase; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+  .screen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .screen-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; text-decoration: none; color: inherit; transition: all 0.2s; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .screen-card:hover { border-color: var(--color-primary); box-shadow: 0 4px 12px rgba(37,99,235,0.15); transform: translateY(-2px); }
+  .screen-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .screen-name { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .screen-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .badge-new { background: #dbeafe; color: #1d4ed8; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; margin-left: 6px; }
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 13px; color: #1d4ed8; line-height: 1.7; }
+  .info-box strong { font-weight: 700; }
+  .footer-note { text-align: center; margin-top: 40px; font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="portal-wrap">
+  <div class="portal-header">
+    <div class="portal-logo">L</div>
+    <div class="portal-title">LinksSys プロトタイプ</div>
+    <div class="portal-sub">運送・作業 業務代行サービス管理システム — 画面一覧（インタラクティブ）</div>
+  </div>
+
+  <div class="info-box">
+    <strong>📖 操作ガイド</strong><br>
+    各画面をクリックするとブラウザでHTMLプロトタイプが開きます。<br>
+    ボタン操作・入力・モーダル表示など、基本的なインタラクションが動作します。<br>
+    <strong>日報管理</strong>では、一覧から「日報入力」をクリックすると、グリッド入力画面（▶クリックでアコーディオン展開）が体験できます。
+  </div>
+
+  <div class="section-title">🔐 認証</div>
+  <div class="screen-grid">
+    <a href="01_login.html" class="screen-card">
+      <div class="screen-icon" style="background:#f0fdf4">🔑</div>
+      <div><div class="screen-name">ログイン画面 <span class="badge-new">NEW</span></div><div class="screen-desc">認証 / パスワード入力</div></div>
+    </a>
+  </div>
+
+  <div class="section-title">📊 メイン</div>
+  <div class="screen-grid">
+    <a href="02_dashboard.html" class="screen-card">
+      <div class="screen-icon" style="background:#dbeafe">📊</div>
+      <div><div class="screen-name">ダッシュボード</div><div class="screen-desc">KPI・処理待ち・未入金一覧</div></div>
+    </a>
+  </div>
+
+  <div class="section-title">🗂️ マスタ管理</div>
+  <div class="screen-grid">
+    <a href="03_company.html" class="screen-card">
+      <div class="screen-icon" style="background:#f3e8ff">🏢</div>
+      <div><div class="screen-name">企業管理</div><div class="screen-desc">取引先企業の登録・編集</div></div>
+    </a>
+    <a href="04_partner.html" class="screen-card">
+      <div class="screen-icon" style="background:#dcfce7">👤</div>
+      <div><div class="screen-name">パートナー管理</div><div class="screen-desc">ドライバー・外注先情報</div></div>
+    </a>
+    <a href="05_base_project.html" class="screen-card">
+      <div class="screen-icon" style="background:#fef3c7">📂</div>
+      <div><div class="screen-name">基本案件管理</div><div class="screen-desc">案件テンプレート管理</div></div>
+    </a>
+    <a href="06_project.html" class="screen-card">
+      <div class="screen-icon" style="background:#fee2e2">📁</div>
+      <div><div class="screen-name">案件管理</div><div class="screen-desc">稼働中・完了案件一覧</div></div>
+    </a>
+    <a href="07_price_master.html" class="screen-card">
+      <div class="screen-icon" style="background:#fef9c3">💲</div>
+      <div><div class="screen-name">金額データ管理</div><div class="screen-desc">料金マスタ・単価設定</div></div>
+    </a>
+  </div>
+
+  <div class="section-title">📋 業務管理</div>
+  <div class="screen-grid">
+    <a href="08_daily_report.html" class="screen-card" style="border-color:#3b82f6;box-shadow:0 2px 8px rgba(37,99,235,0.15)">
+      <div class="screen-icon" style="background:#eff6ff">📄</div>
+      <div><div class="screen-name">日報管理 <span class="badge-new" style="background:#dbeafe;color:#1d4ed8">メイン機能</span></div><div class="screen-desc">グリッド入力・アコーディオン展開・承認ワークフロー</div></div>
+    </a>
+    <a href="09_invoice.html" class="screen-card">
+      <div class="screen-icon" style="background:#f0fdf4">🧾</div>
+      <div><div class="screen-name">請求管理</div><div class="screen-desc">請求書発行・入金消込</div></div>
+    </a>
+    <a href="10_payment.html" class="screen-card">
+      <div class="screen-icon" style="background:#fff7ed">💳</div>
+      <div><div class="screen-name">支払管理</div><div class="screen-desc">支払明細・振込FB出力</div></div>
+    </a>
+    <a href="11_advance.html" class="screen-card">
+      <div class="screen-icon" style="background:#fdf2f8">⏰</div>
+      <div><div class="screen-name">先払・分割支払管理</div><div class="screen-desc">先払計算・分割返済管理</div></div>
+    </a>
+  </div>
+
+  <div class="section-title">📈 分析・決算</div>
+  <div class="screen-grid">
+    <a href="12_finance.html" class="screen-card">
+      <div class="screen-icon" style="background:#ecfdf5">📈</div>
+      <div><div class="screen-name">収支管理・分析</div><div class="screen-desc">月次損益・担当者別・決算締め</div></div>
+    </a>
+  </div>
+
+  <div class="footer-note">LinksSys UI Prototype — 2026 | 全 12 画面</div>
+</div>
+</body>
+</html>

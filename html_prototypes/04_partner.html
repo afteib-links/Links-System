@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>パートナー管理 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .search-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    background: var(--color-surface);
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+  }
+  .search-inputs {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex: 1;
+  }
+  .search-input-wrap {
+    position: relative;
+    width: 320px;
+  }
+  .search-input-wrap input {
+    padding-left: 36px;
+  }
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+  .partner-no {
+    font-family: monospace;
+    font-weight: 600;
+    color: #7c3aed;
+    background: #f3e8ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* タブスタイル */
+  .tab-nav {
+    display: flex;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 20px;
+    gap: 4px;
+  }
+  .tab-btn {
+    padding: 10px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-btn:hover {
+    color: var(--color-text);
+  }
+  .tab-btn.tab-active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: 600;
+    background: rgba(37,99,235,0.04);
+    border-radius: 6px 6px 0 0;
+  }
+
+  /* チェックボックスグリッド */
+  .checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    background: #f8fafc;
+    padding: 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+  }
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    row-gap: 12px;
+    column-gap: 16px;
+    font-size: 13px;
+  }
+  .detail-label {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .detail-value {
+    padding: 6px 0;
+    color: var(--color-text);
+  }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html" data-page="02_dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html" data-page="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
+    <a class="sidebar-item active" href="04_partner.html" data-page="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html" data-page="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html" data-page="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html" data-page="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html" data-page="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html" data-page="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html" data-page="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html" data-page="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html" data-page="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">パートナー管理</h1>
+    <button class="btn btn-primary" onclick="openAddPartnerModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新規パートナー登録
+    </button>
+  </header>
+
+  <div class="page-body">
+    <!-- 検索ボックス＆フィルター -->
+    <div class="search-bar">
+      <div class="search-inputs">
+        <div class="search-input-wrap">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" class="form-control" placeholder="パートナーNo、氏名、電話番号、メモで検索...">
+        </div>
+        <select class="form-control" id="insuranceFilter" style="width: 170px;" onchange="filterInsurance()">
+          <option value="ALL">すべての損保状況</option>
+          <option value="INSURED">◯ 損保加入済</option>
+          <option value="UNINSURED">✕ 損保未加入</option>
+        </select>
+      </div>
+      <div class="text-sm text-muted">
+        該当件数: <span id="recordCount" class="font-bold" style="color: var(--color-text)">5</span> 名
+      </div>
+    </div>
+
+    <!-- パートナー一覧テーブル -->
+    <div class="table-wrap">
+      <table class="data-table" id="partnerTable">
+        <thead>
+          <tr>
+            <th style="width: 110px;">パートナーNo</th>
+            <th style="width: 160px;">氏名 (フリガナ)</th>
+            <th style="width: 130px;">電話番号</th>
+            <th style="width: 100px;">事務手数料</th>
+            <th style="width: 110px;">損害保険</th>
+            <th style="width: 120px;">稼働開始日</th>
+            <th>メモ</th>
+            <th style="width: 150px; text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-id="P-001" data-insured="true">
+            <td><span class="partner-no">P-001</span></td>
+            <td>
+              <div class="font-bold">山田 太郎</div>
+              <div class="text-sm text-muted">ヤマダ タロウ</div>
+            </td>
+            <td>090-1234-5678</td>
+            <td><span class="font-bold">10 %</span></td>
+            <td><span class="badge badge-green">◯ 加入</span></td>
+            <td>2023/04/01</td>
+            <td class="text-muted text-sm">エリア: 新宿・渋谷（定期便）</td>
+            <td style="text-align: center;">
+              <div class="flex gap-2 justify-end" style="justify-content: center;">
+                <button class="btn btn-outline btn-sm" onclick="viewPartner('P-001')">詳細</button>
+                <button class="btn btn-outline btn-sm" onclick="editPartner('P-001')">編集</button>
+                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deletePartner('P-001', '山田 太郎')">削除</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-id="P-002" data-insured="true">
+            <td><span class="partner-no">P-002</span></td>
+            <td>
+              <div class="font-bold">佐々木 健二</div>
+              <div class="text-sm text-muted">ササキ ケンジ</div>
+            </td>
+            <td>080-8765-4321</td>
+            <td><span class="font-bold">8 %</span></td>
+            <td><span class="badge badge-green">◯ 加入</span></td>
+            <td>2022/10/15</td>
+            <td class="text-muted text-sm">軽バン所有、夜間配送可</td>
+            <td style="text-align: center;">
+              <div class="flex gap-2 justify-end" style="justify-content: center;">
+                <button class="btn btn-outline btn-sm" onclick="viewPartner('P-002')">詳細</button>
+                <button class="btn btn-outline btn-sm" onclick="editPartner('P-002')">編集</button>
+                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deletePartner('P-002', '佐々木 健二')">削除</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-id="P-003" data-insured="true">
+            <td><span class="partner-no">P-003</span></td>
+            <td>
+              <div class="font-bold">中村 拓也</div>
+              <div class="text-sm text-muted">ナカムラ タクヤ</div>
+            </td>
+            <td>090-5555-6666</td>
+            <td><span class="font-bold">10 %</span></td>
+            <td><span class="badge badge-green">◯ 加入</span></td>
+            <td>2024/01/10</td>
+            <td class="text-muted text-sm">冷凍冷蔵車対応可</td>
+            <td style="text-align: center;">
+              <div class="flex gap-2 justify-end" style="justify-content: center;">
+                <button class="btn btn-outline btn-sm" onclick="viewPartner('P-003')">詳細</button>
+                <button class="btn btn-outline btn-sm" onclick="editPartner('P-003')">編集</button>
+                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deletePartner('P-003', '中村 拓也')">削除</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-id="P-004" data-insured="false">
+            <td><span class="partner-no">P-004</span></td>
+            <td>
+              <div class="font-bold">小林 誠</div>
+              <div class="text-sm text-muted">コバヤシ マコト</div>
+            </td>
+            <td>070-3333-2222</td>
+            <td><span class="font-bold">12 %</span></td>
+            <td><span class="badge badge-red">✕ 未加入</span></td>
+            <td>2024/05/20</td>
+            <td class="text-muted text-sm">損保加入手続き中</td>
+            <td style="text-align: center;">
+              <div class="flex gap-2 justify-end" style="justify-content: center;">
+                <button class="btn btn-outline btn-sm" onclick="viewPartner('P-004')">詳細</button>
+                <button class="btn btn-outline btn-sm" onclick="editPartner('P-004')">編集</button>
+                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deletePartner('P-004', '小林 誠')">削除</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-id="P-005" data-insured="true">
+            <td><span class="partner-no">P-005</span></td>
+            <td>
+              <div class="font-bold">渡辺 隆</div>
+              <div class="text-sm text-muted">ワタナベ タカシ</div>
+            </td>
+            <td>090-9999-8888</td>
+            <td><span class="font-bold">10 %</span></td>
+            <td><span class="badge badge-green">◯ 加入</span></td>
+            <td>2021/08/01</td>
+            <td class="text-muted text-sm">ベテラン、スポット案件優先</td>
+            <td style="text-align: center;">
+              <div class="flex gap-2 justify-end" style="justify-content: center;">
+                <button class="btn btn-outline btn-sm" onclick="viewPartner('P-005')">詳細</button>
+                <button class="btn btn-outline btn-sm" onclick="editPartner('P-005')">編集</button>
+                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deletePartner('P-005', '渡辺 隆')">削除</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- パートナー登録・編集モーダル（タブ付き） -->
+<div class="modal-overlay hidden" id="partnerModal">
+  <div class="modal" style="max-width: 740px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="partnerModalTitle">新規パートナー登録</h3>
+      <button class="modal-close" onclick="closeModal('partnerModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="partnerModalTabGroup">
+      <!-- タブナビゲーション -->
+      <div class="tab-nav">
+        <button class="tab-btn tab-active" data-tab="basic">👤 基本情報</button>
+        <button class="tab-btn" data-tab="bank">🏦 銀行情報</button>
+        <button class="tab-btn" data-tab="deduction">🛡️ 控除 / 保険</button>
+        <button class="tab-btn" data-tab="vehicle">🚚 車両情報</button>
+      </div>
+
+      <form id="partnerForm" onsubmit="event.preventDefault(); savePartner();">
+        <!-- タブ1: 基本情報 -->
+        <div class="tab-panel" data-panel="basic">
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">パートナーNo <span style="color:red">*</span></label>
+              <input type="text" class="form-control" id="formPartnerNo" value="P-006" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">稼働開始日</label>
+              <input type="date" class="form-control" id="formStartDate" value="2026-08-01">
+            </div>
+          </div>
+
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">氏名 <span style="color:red">*</span></label>
+              <input type="text" class="form-control" id="formName" placeholder="例: 山田 太郎" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">フリガナ</label>
+              <input type="text" class="form-control" id="formFurigana" placeholder="例: ヤマダ タロウ">
+            </div>
+          </div>
+
+          <div class="grid-3 mb-4">
+            <div class="form-group">
+              <label class="form-label">生年月日</label>
+              <input type="date" class="form-control" id="formBirthDate" value="1988-04-12">
+            </div>
+            <div class="form-group">
+              <label class="form-label">電話番号 <span style="color:red">*</span></label>
+              <input type="text" class="form-control" id="formTel" placeholder="090-0000-0000" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">メールアドレス</label>
+              <input type="email" class="form-control" id="formEmail" placeholder="partner@example.com">
+            </div>
+          </div>
+
+          <div class="form-group mb-4">
+            <label class="form-label">住所</label>
+            <input type="text" class="form-control" id="formAddress" placeholder="東京都新宿区...">
+          </div>
+
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">緊急連絡先 氏名・続柄</label>
+              <input type="text" class="form-control" id="formEmergencyName" placeholder="例: 山田 花子（妻）">
+            </div>
+            <div class="form-group">
+              <label class="form-label">緊急連絡先 電話番号</label>
+              <input type="text" class="form-control" id="formEmergencyTel" placeholder="090-9999-0000">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">メモ・稼働条件等</label>
+            <textarea class="form-control" id="formMemo" rows="2" placeholder="稼働希望エリア、時間帯などの特記事項"></textarea>
+          </div>
+        </div>
+
+        <!-- タブ2: 銀行情報 -->
+        <div class="tab-panel hidden" data-panel="bank">
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">金融機関名</label>
+              <input type="text" class="form-control" id="formBankName" placeholder="例: 三菱UFJ銀行">
+            </div>
+            <div class="form-group">
+              <label class="form-label">金融機関コード</label>
+              <input type="text" class="form-control" id="formBankCode" placeholder="0005">
+            </div>
+          </div>
+
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">支店名</label>
+              <input type="text" class="form-control" id="formBranchName" placeholder="例: 新宿支店">
+            </div>
+            <div class="form-group">
+              <label class="form-label">支店コード</label>
+              <input type="text" class="form-control" id="formBranchCode" placeholder="123">
+            </div>
+          </div>
+
+          <div class="grid-3 mb-4">
+            <div class="form-group">
+              <label class="form-label">口座種別</label>
+              <select class="form-control" id="formAccountType">
+                <option value="普通">普通預金</option>
+                <option value="当座">当座預金</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">口座番号</label>
+              <input type="text" class="form-control" id="formAccountNumber" placeholder="1234567">
+            </div>
+            <div class="form-group">
+              <label class="form-label">口座名義 (カナ)</label>
+              <input type="text" class="form-control" id="formAccountHolder" placeholder="ヤマダ タロウ">
+            </div>
+          </div>
+        </div>
+
+        <!-- タブ3: 控除 / 保険 -->
+        <div class="tab-panel hidden" data-panel="deduction">
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">事務手数料率 (%) <span style="color:red">*</span></label>
+              <input type="number" step="0.5" class="form-control" id="formCommission" value="10" placeholder="10" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">安全協力会費 (月額/円)</label>
+              <input type="number" class="form-control" id="formSafetyFee" value="1000" placeholder="1000">
+            </div>
+          </div>
+
+          <div class="form-group mb-4">
+            <label class="form-label">加入保険一覧 (チェックボックス)</label>
+            <div class="checkbox-group">
+              <label class="checkbox-item">
+                <input type="checkbox" id="insWorker" checked>
+                <span>労災特別加入保険</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" id="insComp" checked>
+                <span>事業用損害保険 (対人・対物無制限)</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" id="insCargo" checked>
+                <span>貨物賠償責任保険</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" id="insLiability" checked>
+                <span>第三者賠償責任保険</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" id="insAccident">
+                <span>業務災害補償特約</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">損保有効期限</label>
+              <input type="date" class="form-control" id="formInsExpire" value="2027-03-31">
+            </div>
+            <div class="form-group">
+              <label class="form-label">保険証券番号・保険会社名</label>
+              <input type="text" class="form-control" id="formInsNumber" placeholder="例: 三井住友海上 POL-12345">
+            </div>
+          </div>
+        </div>
+
+        <!-- タブ4: 車両情報 -->
+        <div class="tab-panel hidden" data-panel="vehicle">
+          <div class="grid-2 mb-4">
+            <div class="form-group">
+              <label class="form-label">車両番号 (ナンバープレート)</label>
+              <input type="text" class="form-control" id="formVehiclePlate" placeholder="例: 足立 480 あ 12-34">
+            </div>
+            <div class="form-group">
+              <label class="form-label">車種・形状</label>
+              <input type="text" class="form-control" id="formVehicleModel" placeholder="例: 軽バン (スズキ エブリイ)">
+            </div>
+          </div>
+
+          <div class="grid-3 mb-4">
+            <div class="form-group">
+              <label class="form-label">最大積載量 (kg)</label>
+              <input type="number" class="form-control" id="formVehicleCapacity" value="350" placeholder="350">
+            </div>
+            <div class="form-group">
+              <label class="form-label">車検満了日</label>
+              <input type="date" class="form-control" id="formVehicleShaken" value="2027-05-20">
+            </div>
+            <div class="form-group">
+              <label class="form-label">車両所有区分</label>
+              <select class="form-control" id="formVehicleOwnership">
+                <option value="自己所有">自己所有</option>
+                <option value="リース">リース</option>
+                <option value="会社貸与">会社貸与</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">車両特記事項</label>
+            <textarea class="form-control" id="formVehicleNotes" rows="2" placeholder="ドラレコ設置済、冷凍冷蔵設備、ETCカード番号など"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('partnerModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePartner()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細閲覧モーダル -->
+<div class="modal-overlay hidden" id="partnerDetailModal">
+  <div class="modal" style="max-width: 660px;">
+    <div class="modal-header">
+      <h3 class="modal-title">パートナー詳細情報</h3>
+      <button class="modal-close" onclick="closeModal('partnerDetailModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid">
+        <div class="detail-label">パートナーNo</div>
+        <div class="detail-value"><span class="partner-no" id="viewPartnerNo">P-001</span></div>
+
+        <div class="detail-label">氏名</div>
+        <div class="detail-value">
+          <div class="font-bold" id="viewName">山田 太郎</div>
+          <div class="text-sm text-muted" id="viewFurigana">ヤマダ タロウ</div>
+        </div>
+
+        <div class="detail-label">電話 / メール</div>
+        <div class="detail-value" id="viewContact">090-1234-5678 (yamada@example.com)</div>
+
+        <div class="detail-label">稼働開始日</div>
+        <div class="detail-value" id="viewStartDate">2023年04月01日</div>
+
+        <div class="detail-label">事務手数料率</div>
+        <div class="detail-value" id="viewCommission"><span class="font-bold">10 %</span> (安全協力会費: 1,000円/月)</div>
+
+        <div class="detail-label">損害保険状況</div>
+        <div class="detail-value" id="viewInsuranceBadge"><span class="badge badge-green">◯ 加入済</span></div>
+
+        <div class="detail-label">加入保険詳細</div>
+        <div class="detail-value" id="viewInsuranceDetails">
+          <div style="display:flex; flex-wrap:wrap; gap:4px;" id="viewInsuranceTags"></div>
+          <div class="text-sm text-muted mt-2" id="viewInsMeta">三井住友海上 (有効期限: 2027/03/31)</div>
+        </div>
+
+        <div class="detail-label">振込口座情報</div>
+        <div class="detail-value" id="viewBankInfo">三菱UFJ銀行 新宿支店 (普通 1234567) ヤマダ タロウ</div>
+
+        <div class="detail-label">車両情報</div>
+        <div class="detail-value" id="viewVehicleInfo">足立 480 あ 12-34 (軽バン / 積載量: 350kg)</div>
+
+        <div class="detail-label">メモ</div>
+        <div class="detail-value" id="viewMemo">エリア: 新宿・渋谷（定期便）</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('partnerDetailModal')">閉じる</button>
+      <button class="btn btn-primary" onclick="editFromDetail()">編集する</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  let currentEditNo = null;
+
+  // モックデータ保持
+  const partners = {
+    'P-001': {
+      no: 'P-001', name: '山田 太郎', furigana: 'ヤマダ タロウ',
+      tel: '090-1234-5678', email: 'yamada@example.com', address: '東京都新宿区西新宿1-1-1',
+      birthDate: '1985-06-15', startDate: '2023-04-01', memo: 'エリア: 新宿・渋谷（定期便）',
+      emergencyName: '山田 花子 (妻)', emergencyTel: '090-9999-0000',
+      bankName: '三菱UFJ銀行', bankCode: '0005', branchName: '新宿支店', branchCode: '123', accountType: '普通', accountNumber: '1234567', accountHolder: 'ヤマダ タロウ',
+      commission: 10, safetyFee: 1000,
+      insWorker: true, insComp: true, insCargo: true, insLiability: true, insAccident: false,
+      insExpire: '2027-03-31', insNumber: '三井住友海上 POL-99887766',
+      vehiclePlate: '足立 480 あ 12-34', vehicleModel: '軽バン (スズキ エブリイ)', vehicleCapacity: 350, vehicleShaken: '2027-05-20', vehicleOwnership: '自己所有', vehicleNotes: 'ドラレコ・バックカメラ装備'
+    },
+    'P-002': {
+      no: 'P-002', name: '佐々木 健二', furigana: 'ササキ ケンジ',
+      tel: '080-8765-4321', email: 'sasaki@example.com', address: '東京都世田谷区三軒茶屋2-2-2',
+      birthDate: '1990-11-20', startDate: '2022-10-15', memo: '軽バン所有、夜間配送可',
+      emergencyName: '佐々木 明美 (母)', emergencyTel: '03-3333-4444',
+      bankName: '三井住友銀行', bankCode: '0009', branchName: '渋谷支店', branchCode: '234', accountType: '普通', accountNumber: '7654321', accountHolder: 'ササキ ケンジ',
+      commission: 8, safetyFee: 1000,
+      insWorker: true, insComp: true, insCargo: true, insLiability: false, insAccident: true,
+      insExpire: '2026-11-30', insNumber: '損保ジャパン POL-112233',
+      vehiclePlate: '品川 480 か 56-78', vehicleModel: 'ダイハツ ハイゼット', vehicleCapacity: 350, vehicleShaken: '2026-10-10', vehicleOwnership: '自己所有', vehicleNotes: '夜間視認性LEDライト増設'
+    },
+    'P-003': {
+      no: 'P-003', name: '中村 拓也', furigana: 'ナカムラ タクヤ',
+      tel: '090-5555-6666', email: 'nakamura@example.com', address: '神奈川県川崎市中原区1-2-3',
+      birthDate: '1982-03-05', startDate: '2024-01-10', memo: '冷凍冷蔵車対応可',
+      emergencyName: '中村 恵 (妻)', emergencyTel: '090-7777-8888',
+      bankName: 'みずほ銀行', bankCode: '0001', branchName: '川崎支店', branchCode: '345', accountType: '普通', accountNumber: '9876543', accountHolder: 'ナカムラ タクヤ',
+      commission: 10, safetyFee: 1000,
+      insWorker: true, insComp: true, insCargo: true, insLiability: true, insAccident: true,
+      insExpire: '2027-01-31', insNumber: '東京海上日動 POL-554433',
+      vehiclePlate: '川崎 480 き 90-12', vehicleModel: '冷凍軽バン (-15℃対応)', vehicleCapacity: 300, vehicleShaken: '2027-08-15', vehicleOwnership: '自己所有', vehicleNotes: '温度ログ出力対応'
+    },
+    'P-004': {
+      no: 'P-004', name: '小林 誠', furigana: 'コバヤシ マコト',
+      tel: '070-3333-2222', email: 'kobayashi@example.com', address: '埼玉県さいたま市大宮区3-4-5',
+      birthDate: '1995-08-18', startDate: '2024-05-20', memo: '損保加入手続き中',
+      emergencyName: '小林 和夫 (父)', emergencyTel: '048-111-2222',
+      bankName: 'ゆうちょ銀行', bankCode: '9900', branchName: '018店', branchCode: '018', accountType: '普通', accountNumber: '5544332', accountHolder: 'コバヤシ マコト',
+      commission: 12, safetyFee: 1000,
+      insWorker: true, insComp: false, insCargo: false, insLiability: false, insAccident: false,
+      insExpire: '', insNumber: '手続き中',
+      vehiclePlate: '大宮 480 く 34-56', vehicleModel: 'ホンダ N-VAN', vehicleCapacity: 350, vehicleShaken: '2028-04-01', vehicleOwnership: 'リース', vehicleNotes: '契約審査中'
+    },
+    'P-005': {
+      no: 'P-005', name: '渡辺 隆', furigana: 'ワタナベ タカシ',
+      tel: '090-9999-8888', email: 'watanabe@example.com', address: '千葉県船橋市本町4-5-6',
+      birthDate: '1978-12-01', startDate: '2021-08-01', memo: 'ベテラン、スポット案件優先',
+      emergencyName: '渡辺 由美 (妻)', emergencyTel: '090-1111-2222',
+      bankName: '千葉銀行', bankCode: '0129', branchName: '船橋支店', branchCode: '111', accountType: '普通', accountNumber: '3322110', accountHolder: 'ワタナベ タカシ',
+      commission: 10, safetyFee: 1000,
+      insWorker: true, insComp: true, insCargo: true, insLiability: true, insAccident: true,
+      insExpire: '2027-07-31', insNumber: 'あいおいニッセイ POL-889900',
+      vehiclePlate: '習志野 480 け 78-90', vehicleModel: '軽トラック (幌付き)', vehicleCapacity: 350, vehicleShaken: '2027-02-28', vehicleOwnership: '自己所有', vehicleNotes: '背高荷物対応可'
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initTableSearch('searchInput', 'partnerTable');
+    initTabs('partnerModalTabGroup');
+  });
+
+  // 保険フィルター
+  function filterInsurance() {
+    const filter = document.getElementById('insuranceFilter').value;
+    const rows = document.querySelectorAll('#partnerTable tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const isInsured = row.getAttribute('data-insured') === 'true';
+      let show = false;
+      if (filter === 'ALL') show = true;
+      else if (filter === 'INSURED' && isInsured) show = true;
+      else if (filter === 'UNINSURED' && !isInsured) show = true;
+
+      row.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
+    });
+
+    document.getElementById('recordCount').textContent = visibleCount;
+  }
+
+  // 新規登録モーダル表示
+  function openAddPartnerModal() {
+    currentEditNo = null;
+    document.getElementById('partnerModalTitle').textContent = '新規パートナー登録';
+    document.getElementById('partnerForm').reset();
+    document.getElementById('formPartnerNo').value = 'P-00' + (Object.keys(partners).length + 1);
+
+    // 最初のタブを選択
+    const tabBtns = document.querySelectorAll('#partnerModalTabGroup .tab-btn');
+    const tabPanels = document.querySelectorAll('#partnerModalTabGroup .tab-panel');
+    tabBtns.forEach(btn => btn.classList.remove('tab-active'));
+    tabPanels.forEach(panel => panel.classList.add('hidden'));
+
+    tabBtns[0].classList.add('tab-active');
+    tabPanels[0].classList.remove('hidden');
+
+    openModal('partnerModal');
+  }
+
+  // 編集モーダル表示
+  function editPartner(no) {
+    currentEditNo = no;
+    const p = partners[no];
+    if (!p) return;
+
+    document.getElementById('partnerModalTitle').textContent = 'パートナー情報編集 (' + no + ')';
+
+    // 基本情報
+    document.getElementById('formPartnerNo').value = p.no;
+    document.getElementById('formName').value = p.name;
+    document.getElementById('formFurigana').value = p.furigana;
+    document.getElementById('formBirthDate').value = p.birthDate || '';
+    document.getElementById('formTel').value = p.tel;
+    document.getElementById('formEmail').value = p.email || '';
+    document.getElementById('formAddress').value = p.address || '';
+    document.getElementById('formEmergencyName').value = p.emergencyName || '';
+    document.getElementById('formEmergencyTel').value = p.emergencyTel || '';
+    document.getElementById('formStartDate').value = p.startDate || '';
+    document.getElementById('formMemo').value = p.memo || '';
+
+    // 銀行情報
+    document.getElementById('formBankName').value = p.bankName || '';
+    document.getElementById('formBankCode').value = p.bankCode || '';
+    document.getElementById('formBranchName').value = p.branchName || '';
+    document.getElementById('formBranchCode').value = p.branchCode || '';
+    document.getElementById('formAccountType').value = p.accountType || '普通';
+    document.getElementById('formAccountNumber').value = p.accountNumber || '';
+    document.getElementById('formAccountHolder').value = p.accountHolder || '';
+
+    // 控除・保険
+    document.getElementById('formCommission').value = p.commission;
+    document.getElementById('formSafetyFee').value = p.safetyFee;
+    document.getElementById('insWorker').checked = !!p.insWorker;
+    document.getElementById('insComp').checked = !!p.insComp;
+    document.getElementById('insCargo').checked = !!p.insCargo;
+    document.getElementById('insLiability').checked = !!p.insLiability;
+    document.getElementById('insAccident').checked = !!p.insAccident;
+    document.getElementById('formInsExpire').value = p.insExpire || '';
+    document.getElementById('formInsNumber').value = p.insNumber || '';
+
+    // 車両情報
+    document.getElementById('formVehiclePlate').value = p.vehiclePlate || '';
+    document.getElementById('formVehicleModel').value = p.vehicleModel || '';
+    document.getElementById('formVehicleCapacity').value = p.vehicleCapacity || 350;
+    document.getElementById('formVehicleShaken').value = p.vehicleShaken || '';
+    document.getElementById('formVehicleOwnership').value = p.vehicleOwnership || '自己所有';
+    document.getElementById('formVehicleNotes').value = p.vehicleNotes || '';
+
+    // 最初のタブを選択
+    const tabBtns = document.querySelectorAll('#partnerModalTabGroup .tab-btn');
+    const tabPanels = document.querySelectorAll('#partnerModalTabGroup .tab-panel');
+    tabBtns.forEach(btn => btn.classList.remove('tab-active'));
+    tabPanels.forEach(panel => panel.classList.add('hidden'));
+
+    tabBtns[0].classList.add('tab-active');
+    tabPanels[0].classList.remove('hidden');
+
+    openModal('partnerModal');
+  }
+
+  // 詳細表示
+  function viewPartner(no) {
+    currentEditNo = no;
+    const p = partners[no];
+    if (!p) return;
+
+    document.getElementById('viewPartnerNo').textContent = p.no;
+    document.getElementById('viewName').textContent = p.name;
+    document.getElementById('viewFurigana').textContent = p.furigana || '-';
+    document.getElementById('viewContact').textContent = `${p.tel} (${p.email || 'メールなし'})`;
+    document.getElementById('viewStartDate').textContent = p.startDate ? p.startDate.replace(/-/g, '/') : '-';
+    document.getElementById('viewCommission').innerHTML = `<span class="font-bold">${p.commission}%</span> (安全協力会費: ${Number(p.safetyFee).toLocaleString()}円/月)`;
+
+    // 保険バッジ
+    document.getElementById('viewInsuranceBadge').innerHTML = p.insComp
+      ? '<span class="badge badge-green">◯ 損保加入済</span>'
+      : '<span class="badge badge-red">✕ 損保未加入</span>';
+
+    // タグ表示
+    const tags = [];
+    if (p.insWorker) tags.push('<span class="badge badge-blue">労災特別</span>');
+    if (p.insComp) tags.push('<span class="badge badge-green">対人対物無制限</span>');
+    if (p.insCargo) tags.push('<span class="badge badge-purple">貨物賠償</span>');
+    if (p.insLiability) tags.push('<span class="badge badge-amber">第三者賠償</span>');
+    if (p.insAccident) tags.push('<span class="badge badge-gray">業務災害</span>');
+
+    document.getElementById('viewInsuranceTags').innerHTML = tags.join(' ') || '<span class="text-muted">なし</span>';
+    document.getElementById('viewInsMeta').textContent = `${p.insNumber || '-'} (有効期限: ${p.insExpire ? p.insExpire.replace(/-/g, '/') : '未設定'})`;
+
+    // 銀行
+    document.getElementById('viewBankInfo').textContent = `${p.bankName || '-'} ${p.branchName || ''} (${p.accountType || ''} ${p.accountNumber || ''}) ${p.accountHolder || ''}`;
+
+    // 車両
+    document.getElementById('viewVehicleInfo').textContent = `${p.vehiclePlate || 'ナンバー未登録'} (${p.vehicleModel || '-'} / 積載量: ${p.vehicleCapacity || 0}kg)`;
+
+    document.getElementById('viewMemo').textContent = p.memo || 'なし';
+
+    openModal('partnerDetailModal');
+  }
+
+  function editFromDetail() {
+    closeModal('partnerDetailModal');
+    if (currentEditNo) {
+      editPartner(currentEditNo);
+    }
+  }
+
+  // 保存処理
+  function savePartner() {
+    const no = document.getElementById('formPartnerNo').value;
+    const name = document.getElementById('formName').value;
+    const tel = document.getElementById('formTel').value;
+
+    if (!name || !tel) {
+      alert('氏名と電話番号を入力してください。');
+      return;
+    }
+
+    const isEdit = !!currentEditNo;
+    const insCompChecked = document.getElementById('insComp').checked;
+
+    partners[no] = {
+      no: no,
+      name: name,
+      furigana: document.getElementById('formFurigana').value,
+      tel: tel,
+      email: document.getElementById('formEmail').value,
+      address: document.getElementById('formAddress').value,
+      birthDate: document.getElementById('formBirthDate').value,
+      startDate: document.getElementById('formStartDate').value,
+      memo: document.getElementById('formMemo').value,
+      emergencyName: document.getElementById('formEmergencyName').value,
+      emergencyTel: document.getElementById('formEmergencyTel').value,
+
+      bankName: document.getElementById('formBankName').value,
+      bankCode: document.getElementById('formBankCode').value,
+      branchName: document.getElementById('formBranchName').value,
+      branchCode: document.getElementById('formBranchCode').value,
+      accountType: document.getElementById('formAccountType').value,
+      accountNumber: document.getElementById('formAccountNumber').value,
+      accountHolder: document.getElementById('formAccountHolder').value,
+
+      commission: parseFloat(document.getElementById('formCommission').value) || 10,
+      safetyFee: parseInt(document.getElementById('formSafetyFee').value) || 0,
+      insWorker: document.getElementById('insWorker').checked,
+      insComp: insCompChecked,
+      insCargo: document.getElementById('insCargo').checked,
+      insLiability: document.getElementById('insLiability').checked,
+      insAccident: document.getElementById('insAccident').checked,
+      insExpire: document.getElementById('formInsExpire').value,
+      insNumber: document.getElementById('formInsNumber').value,
+
+      vehiclePlate: document.getElementById('formVehiclePlate').value,
+      vehicleModel: document.getElementById('formVehicleModel').value,
+      vehicleCapacity: parseInt(document.getElementById('formVehicleCapacity').value) || 350,
+      vehicleShaken: document.getElementById('formVehicleShaken').value,
+      vehicleOwnership: document.getElementById('formVehicleOwnership').value,
+      vehicleNotes: document.getElementById('formVehicleNotes').value
+    };
+
+    closeModal('partnerModal');
+    showToast(isEdit ? 'パートナー情報を更新しました' : '新規パートナーを登録しました', 'success');
+  }
+
+  // 削除処理
+  function deletePartner(no, name) {
+    confirmAction(`「${name} (${no})」を削除してもよろしいですか？`, () => {
+      delete partners[no];
+      const row = document.querySelector(`#partnerTable tbody tr[data-id="${no}"]`);
+      if (row) row.remove();
+      showToast('パートナー情報を削除しました', 'info');
+      filterInsurance();
+    });
+  }
+</script>
+</body>
+</html>

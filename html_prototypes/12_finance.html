@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>収支管理・分析 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 20px;
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover {
+    color: var(--color-primary);
+  }
+  .tab-btn.tab-active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    background: rgba(37,99,235,0.04);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .stat-icon-blue { background: #dbeafe; }
+  .stat-icon-amber { background: #fef3c7; }
+  .stat-icon-green { background: #dcfce7; }
+  .stat-icon-purple { background: #f3e8ff; }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .profit-positive { color: var(--color-success); font-weight: bold; }
+  .profit-negative { color: var(--color-danger); font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- サイドバー -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="03_company.html">企業管理</a>
+    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html">基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html">案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
+    <a class="sidebar-item" href="10_payment.html">支払管理</a>
+    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item active" href="12_finance.html">収支管理・分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<!-- メインコンテンツ -->
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">収支管理・分析</h1>
+    <div class="flex gap-2 items-center">
+      <button class="btn btn-outline btn-sm" onclick="showToast('収支レポートCSVを出力しました', 'success')">📊 CSV出力</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div id="financeTabGroup">
+      <!-- タブナビゲーション -->
+      <div class="tab-nav">
+        <button class="tab-btn tab-active" data-tab="tab-monthly">
+          <span>📈 月次収支</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-staff">
+          <span>👤 担当者別損益</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-closing">
+          <span>🔒 決算締め</span>
+        </button>
+      </div>
+
+      <!-- ================= タブ1: 月次収支 ================= -->
+      <div data-panel="tab-monthly">
+        <!-- フィルターバー -->
+        <div class="card mb-4">
+          <div class="card-body" style="padding: 16px 20px;">
+            <div class="filter-bar" style="margin-bottom:0;">
+              <div class="flex gap-3 items-center" style="flex-wrap:wrap;">
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">対象月</label>
+                  <select class="form-control form-control-sm" style="width: 150px;" onchange="changeMonthlyFilter(this.value)">
+                    <option value="2026-08" selected>2026年8月</option>
+                    <option value="2026-07">2026年7月</option>
+                    <option value="2026-06">2026年6月</option>
+                    <option value="2026-05">2026年5月</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">表示単位</label>
+                  <select class="form-control form-control-sm" style="width: 130px;">
+                    <option value="company">企業別</option>
+                    <option value="project">案件別</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">企業名検索</label>
+                  <input type="text" id="searchMonthly" class="form-control form-control-sm" placeholder="企業名で検索..." style="width: 200px;">
+                </div>
+              </div>
+              <div class="text-sm text-muted">
+                ※ 確定済みの日報および請求・支払データをもとにリアルタイム表示
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 収支サマリーカード -->
+        <div class="grid-4 mb-4">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-blue">💴</div>
+            <div>
+              <div class="stat-value" id="valRevenue">¥12,850,000</div>
+              <div class="stat-label">売上合計 (請求額)</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-amber">💸</div>
+            <div>
+              <div class="stat-value" id="valExpense">¥9,420,000</div>
+              <div class="stat-label">支払合計 (原価)</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-green">✨</div>
+            <div>
+              <div class="stat-value profit-positive" id="valGrossProfit">¥3,430,000</div>
+              <div class="stat-label">粗利 (売上総利益)</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-purple">📊</div>
+            <div>
+              <div class="stat-value" id="valGrossRate">26.7 %</div>
+              <div class="stat-label">粗利率</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 企業別収支テーブル -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🏢 企業別収支一覧 (2026年8月度)</span>
+            <span class="text-sm text-muted">全 5 社</span>
+          </div>
+          <div class="table-wrap" style="border:none; border-radius:0;">
+            <table class="data-table" id="monthlyTable">
+              <thead>
+                <tr>
+                  <th style="width: 50px;" class="text-center">#</th>
+                  <th>企業名</th>
+                  <th class="text-right">請求額 (売上)</th>
+                  <th class="text-right">支払額 (原価)</th>
+                  <th class="text-right">粗利</th>
+                  <th class="text-right">粗利率</th>
+                  <th class="text-center" style="width: 140px;">評価バッジ</th>
+                  <th class="text-center" style="width: 100px;">詳細</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="text-center">1</td>
+                  <td><strong>株式会社 ABCロジスティクス</strong></td>
+                  <td class="text-right">¥4,200,000</td>
+                  <td class="text-right">¥3,050,000</td>
+                  <td class="text-right profit-positive">¥1,150,000</td>
+                  <td class="text-right"><strong>27.4%</strong></td>
+                  <td class="text-center"><span class="badge badge-green">高収益</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('ABCロジスティクスの収支明細を表示します', 'info')">明細</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">2</td>
+                  <td><strong>有限会社 ヤマダ物流</strong></td>
+                  <td class="text-right">¥3,150,000</td>
+                  <td class="text-right">¥2,300,000</td>
+                  <td class="text-right profit-positive">¥850,000</td>
+                  <td class="text-right"><strong>27.0%</strong></td>
+                  <td class="text-center"><span class="badge badge-green">良好</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('ヤマダ物流の収支明細を表示します', 'info')">明細</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">3</td>
+                  <td><strong>グローバルライン株式会社</strong></td>
+                  <td class="text-right">¥2,800,000</td>
+                  <td class="text-right">¥2,080,000</td>
+                  <td class="text-right profit-positive">¥720,000</td>
+                  <td class="text-right"><strong>25.7%</strong></td>
+                  <td class="text-center"><span class="badge badge-blue">標準</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('グローバルラインの収支明細を表示します', 'info')">明細</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">4</td>
+                  <td><strong>東西エクスプレス株式会社</strong></td>
+                  <td class="text-right">¥1,700,000</td>
+                  <td class="text-right">¥1,240,000</td>
+                  <td class="text-right profit-positive">¥460,000</td>
+                  <td class="text-right"><strong>27.1%</strong></td>
+                  <td class="text-center"><span class="badge badge-green">良好</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('東西エクスプレスの収支明細を表示します', 'info')">明細</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">5</td>
+                  <td><strong>スピード配送サービス</strong></td>
+                  <td class="text-right">¥1,000,000</td>
+                  <td class="text-right">¥750,000</td>
+                  <td class="text-right profit-positive">¥250,000</td>
+                  <td class="text-right"><strong>25.0%</strong></td>
+                  <td class="text-center"><span class="badge badge-amber">要改善注意</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('スピード配送サービスの収支明細を表示します', 'info')">明細</button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style="background:#f8fafc; font-weight:bold;">
+                  <td colspan="2" class="text-center">合計 / 平均</td>
+                  <td class="text-right">¥12,850,000</td>
+                  <td class="text-right">¥9,420,000</td>
+                  <td class="text-right profit-positive">¥3,430,000</td>
+                  <td class="text-right">26.7%</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= タブ2: 担当者別損益 ================= -->
+      <div data-panel="tab-staff" class="hidden">
+        <div class="card mb-4">
+          <div class="card-body" style="padding: 16px 20px;">
+            <div class="filter-bar" style="margin-bottom:0;">
+              <div class="flex gap-3 items-center" style="flex-wrap:wrap;">
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">対象期間</label>
+                  <select class="form-control form-control-sm" style="width: 150px;">
+                    <option value="2026-08" selected>2026年8月</option>
+                    <option value="2026-07">2026年7月</option>
+                    <option value="2026-Q2">2026年 第2四半期</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">担当部署</label>
+                  <select class="form-control form-control-sm" style="width: 140px;">
+                    <option value="all">全部署</option>
+                    <option value="sales1">営業第1課</option>
+                    <option value="sales2">営業第2課</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="margin-bottom:2px;">担当者名検索</label>
+                  <input type="text" id="searchStaff" class="form-control form-control-sm" placeholder="担当者名で検索..." style="width: 200px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="staffTable">
+            <thead>
+              <tr>
+                <th style="width: 50px;" class="text-center">#</th>
+                <th>担当者名</th>
+                <th>所属部署</th>
+                <th class="text-right">売上実績 (請求)</th>
+                <th class="text-right">費用 / 原価 (支払)</th>
+                <th class="text-right">営業利益 (粗利)</th>
+                <th class="text-right">粗利率</th>
+                <th class="text-center">目標達成率</th>
+                <th class="text-center" style="width: 100px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center">1</td>
+                <td><strong>山田 太郎</strong></td>
+                <td>営業第1課</td>
+                <td class="text-right">¥4,850,000</td>
+                <td class="text-right">¥3,520,000</td>
+                <td class="text-right profit-positive">¥1,330,000</td>
+                <td class="text-right"><strong>27.4%</strong></td>
+                <td class="text-center"><span class="badge badge-green">108 %</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('山田 太郎の内訳案件を表示します', 'info')">案件一覧</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">2</td>
+                <td><strong>佐々木 花子</strong></td>
+                <td>営業第1課</td>
+                <td class="text-right">¥3,900,000</td>
+                <td class="text-right">¥2,880,000</td>
+                <td class="text-right profit-positive">¥1,020,000</td>
+                <td class="text-right"><strong>26.2%</strong></td>
+                <td class="text-center"><span class="badge badge-green">102 %</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('佐々木 花子の内訳案件を表示します', 'info')">案件一覧</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">3</td>
+                <td><strong>中村 健二</strong></td>
+                <td>営業第2課</td>
+                <td class="text-right">¥2,600,000</td>
+                <td class="text-right">¥1,920,000</td>
+                <td class="text-right profit-positive">¥680,000</td>
+                <td class="text-right"><strong>26.2%</strong></td>
+                <td class="text-center"><span class="badge badge-blue">95 %</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('中村 健二の内訳案件を表示します', 'info')">案件一覧</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-center">4</td>
+                <td><strong>小林 誠</strong></td>
+                <td>営業第2課</td>
+                <td class="text-right">¥1,500,000</td>
+                <td class="text-right">¥1,100,000</td>
+                <td class="text-right profit-positive">¥400,000</td>
+                <td class="text-right"><strong>26.7%</strong></td>
+                <td class="text-center"><span class="badge badge-amber">88 %</span></td>
+                <td class="text-center">
+                  <button class="btn btn-outline btn-sm" onclick="showToast('小林 誠の内訳案件を表示します', 'info')">案件一覧</button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:#f8fafc; font-weight:bold;">
+                <td colspan="3" class="text-center">合計</td>
+                <td class="text-right">¥12,850,000</td>
+                <td class="text-right">¥9,420,000</td>
+                <td class="text-right profit-positive">¥3,430,000</td>
+                <td class="text-right">26.7%</td>
+                <td class="text-center">98.5%</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= タブ3: 決算締め ================= -->
+      <div data-panel="tab-closing" class="hidden">
+        <!-- 締め処理実行エリア -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <span class="card-title">🔒 会計決算・月次締め実行</span>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-warning mb-4">
+              <div>
+                <strong>⚠️ 決算締め処理に関する注意事項:</strong>
+                <ul style="margin-left: 20px; margin-top: 4px; line-height: 1.6;">
+                  <li>対象会計期間内の全ての請求データ・支払データ・承認済日報が確定・ロックされます。</li>
+                  <li>締め処理完了後は、対象期間内のデータ修正や日報の追加・差戻しができなくなります。</li>
+                  <li>誤って締めを行った場合の解除処理は、最高管理者の権限承認が必要です。</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="flex gap-4 items-center" style="background:#f8fafc; padding:16px 20px; border-radius:var(--radius); border:1px solid var(--color-border); flex-wrap:wrap;">
+              <div>
+                <label class="form-label">対象会計年度 / 締め対象月度 <span style="color:red">*</span></label>
+                <select id="closingPeriodSelect" class="form-control" style="width: 280px;">
+                  <option value="2026-08">2026年8月度 月次締め (未実施)</option>
+                  <option value="2026-FY">2026年度（第6期） 年次決算締め</option>
+                  <option value="2026-07" disabled>2026年7月度 月次締め (締め済)</option>
+                </select>
+              </div>
+              <div style="margin-top: 20px;">
+                <button class="btn btn-danger btn-lg" onclick="executeClosing()">
+                  🔒 決算締め実行
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 締め履歴テーブル -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📜 過去の締め処理履歴</span>
+          </div>
+          <div class="table-wrap" style="border:none; border-radius:0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;" class="text-center">#</th>
+                  <th>対象会計期間</th>
+                  <th>区分</th>
+                  <th class="text-center">締め実行日時</th>
+                  <th>実行担当者</th>
+                  <th class="text-center">状態</th>
+                  <th class="text-center" style="width: 140px;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="text-center">1</td>
+                  <td><strong>2026年7月度</strong></td>
+                  <td>月次締め</td>
+                  <td class="text-center">2026/08/05 17:45</td>
+                  <td>管理者 Admin</td>
+                  <td class="text-center"><span class="badge badge-purple">ロック済</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('7月度締めログを表示します', 'info')">ログ照会</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">2</td>
+                  <td><strong>2026年6月度</strong></td>
+                  <td>月次締め</td>
+                  <td class="text-center">2026/07/05 18:00</td>
+                  <td>管理者 Admin</td>
+                  <td class="text-center"><span class="badge badge-purple">ロック済</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('6月度締めログを表示します', 'info')">ログ照会</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">3</td>
+                  <td><strong>2025年度（第5期）</strong></td>
+                  <td>年次決算締め</td>
+                  <td class="text-center">2026/04/10 15:30</td>
+                  <td>管理者 Admin</td>
+                  <td class="text-center"><span class="badge badge-gray">確定済アーカイブ</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('2025年度決算書データを開きます', 'info')">決算書</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-center">4</td>
+                  <td><strong>2024年度（第4期）</strong></td>
+                  <td>年次決算締め</td>
+                  <td class="text-center">2025/04/12 14:15</td>
+                  <td>管理者 Admin</td>
+                  <td class="text-center"><span class="badge badge-gray">確定済アーカイブ</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-outline btn-sm" onclick="showToast('2024年度決算書データを開きます', 'info')">決算書</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs('financeTabGroup');
+  initTableSearch('searchMonthly', 'monthlyTable');
+  initTableSearch('searchStaff', 'staffTable');
+});
+
+// 決算締め実行
+function executeClosing() {
+  const periodSelect = document.getElementById('closingPeriodSelect');
+  const periodText = periodSelect.options[periodSelect.selectedIndex].text;
+  
+  confirmAction(`【確認】\n${periodText} の締め処理を実行しますか？\n実行後は該当期間のデータ変更が完全に不可となります。`, () => {
+    showToast('決算締めを実行しました', 'success');
+  });
+}
+
+// 月次フィルター変更によるダミー数値アップデート切り替え
+function changeMonthlyFilter(val) {
+  const data = {
+    '2026-08': { rev: '¥12,850,000', exp: '¥9,420,000', profit: '¥3,430,000', rate: '26.7 %' },
+    '2026-07': { rev: '¥14,200,000', exp: '¥10,400,000', profit: '¥3,800,000', rate: '26.8 %' },
+    '2026-06': { rev: '¥11,500,000', exp: '¥8,450,000', profit: '¥3,050,000', rate: '26.5 %' },
+    '2026-05': { rev: '¥13,100,000', exp: '¥9,600,000', profit: '¥3,500,000', rate: '26.7 %' }
+  };
+  const d = data[val] || data['2026-08'];
+  document.getElementById('valRevenue').textContent = d.rev;
+  document.getElementById('valExpense').textContent = d.exp;
+  document.getElementById('valGrossProfit').textContent = d.profit;
+  document.getElementById('valGrossRate').textContent = d.rate;
+  showToast(`対象月を ${val} に変更しました`, 'info');
+}
+</script>
+</body>
+</html>
