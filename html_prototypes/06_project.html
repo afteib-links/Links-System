@@ -345,7 +345,40 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     initTableSearch('searchInput', 'projectTable');
+    applyCompanyQueryFilter();
   });
+
+  /** 企業管理からの遷移: ?company_id=&company_name= で一覧を絞込 */
+  function applyCompanyQueryFilter() {
+    const params = new URLSearchParams(location.search);
+    const companyName = params.get('company_name');
+    if (!companyName) return;
+    const input = document.getElementById('searchInput');
+    if (input) {
+      input.value = companyName;
+      input.dispatchEvent(new Event('input'));
+    }
+    filterProjects();
+    const bar = document.querySelector('.search-bar-wrap') || document.querySelector('.page-body');
+    if (bar && !document.getElementById('companyFilterBanner')) {
+      const banner = document.createElement('div');
+      banner.id = 'companyFilterBanner';
+      banner.className = 'alert alert-info';
+      banner.style.marginBottom = '12px';
+      banner.innerHTML = `企業「<strong>${escapeHtmlLite(companyName)}</strong>」で絞り込み中（企業管理からの遷移）
+        <a href="03_company.html" style="margin-left:12px;">企業管理へ戻る</a>
+        <a href="06_project.html" style="margin-left:8px;">絞り込み解除</a>`;
+      if (bar.classList.contains('search-bar-wrap')) {
+        bar.parentNode.insertBefore(banner, bar);
+      } else {
+        bar.insertBefore(banner, bar.firstChild);
+      }
+    }
+  }
+
+  function escapeHtmlLite(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   function filterProjects() {
     const statusVal = document.getElementById('statusFilter').value;

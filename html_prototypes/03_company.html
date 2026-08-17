@@ -165,9 +165,15 @@
         </div>
       </form>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('companyModal')">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveCompany()">保存する</button>
+    <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-outline" id="editGoBaseBtn" onclick="goRelatedFromEdit('base')">基本案件管理へ</button>
+        <button type="button" class="btn btn-outline" id="editGoProjectBtn" onclick="goRelatedFromEdit('project')">案件管理へ</button>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="closeModal('companyModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveCompany()">保存する</button>
+      </div>
     </div>
   </div>
 </div>
@@ -206,9 +212,15 @@
         <div class="detail-value" id="viewNotes">請求書は毎月3日までにPDF添付メール送付要指定。担当: 総務部山田様</div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('detailModal')">閉じる</button>
-      <button class="btn btn-primary" onclick="editFromDetail()">編集する</button>
+    <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-outline" onclick="goRelatedFromDetail('base')">基本案件管理へ</button>
+        <button type="button" class="btn btn-outline" onclick="goRelatedFromDetail('project')">案件管理へ</button>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="closeModal('detailModal')">閉じる</button>
+        <button class="btn btn-primary" onclick="editFromDetail()">編集する</button>
+      </div>
     </div>
   </div>
 </div>
@@ -342,6 +354,8 @@
       renderActions: (c) => `
         <button type="button" class="btn btn-outline btn-sm" onclick="viewCompany('${c.company_id}')">詳細</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="editCompany('${c.company_id}')">編集</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="goRelated('${c.company_id}', 'base')">基本案件</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="goRelated('${c.company_id}', 'project')">案件</button>
         <button type="button" class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('${c.company_id}', '${DT.escapeHtml(c.company_name)}')">削除</button>`,
     });
 
@@ -415,6 +429,31 @@
   function editFromDetail() {
     closeModal('detailModal');
     if (currentEditCode) editCompany(currentEditCode);
+  }
+
+  function goRelated(companyId, kind) {
+    const c = companies[companyId];
+    if (!c) return;
+    const page = kind === 'base' ? '05_base_project.html' : '06_project.html';
+    const params = new URLSearchParams({
+      company_id: c.company_id,
+      company_name: c.company_name,
+    });
+    location.href = `${page}?${params.toString()}`;
+  }
+
+  function goRelatedFromDetail(kind) {
+    if (!currentEditCode) return;
+    goRelated(currentEditCode, kind);
+  }
+
+  function goRelatedFromEdit(kind) {
+    const code = currentEditCode || document.getElementById('formCompCode').value;
+    if (!code || !companies[code]) {
+      showToast('先に企業を保存するか、既存企業の編集から開いてください', 'warning');
+      return;
+    }
+    goRelated(code, kind);
   }
 
   function saveCompany() {
