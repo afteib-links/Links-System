@@ -5,19 +5,44 @@
 <title>ログイン - LinksSys</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  body { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #f8fafc 0%, #eef2f7 55%, #e8eef5 100%);
+  }
   .login-wrap { width: 380px; }
   .login-logo { text-align: center; margin-bottom: 32px; }
-  .login-logo-icon { width: 64px; height: 64px; background: var(--color-primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 28px; margin: 0 auto 12px; box-shadow: 0 8px 24px rgba(37,99,235,0.4); }
-  .login-logo-text { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
-  .login-logo-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
-  .login-card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .login-logo-icon {
+    width: 64px; height: 64px; background: var(--color-primary); border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-weight: 700; font-size: 28px; margin: 0 auto 12px;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+  }
+  .login-logo-text { font-size: 26px; font-weight: 700; color: var(--color-text); letter-spacing: 0.04em; }
+  .login-logo-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+  .login-card {
+    background: #fff; border-radius: 12px; padding: 32px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+  }
   .login-title { font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 24px; text-align: center; }
-  .login-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 8px; border-radius: var(--radius); cursor: pointer; border: none; background: var(--color-primary); color: #fff; transition: background 0.15s; }
+  .login-btn {
+    width: 100%; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 8px;
+    border-radius: var(--radius); cursor: pointer; border: none;
+    background: var(--color-primary); color: #fff; transition: background 0.15s;
+  }
   .login-btn:hover { background: var(--color-primary-hover); }
-  .login-footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-  .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: var(--radius); padding: 10px 14px; font-size: 12px; margin-bottom: 16px; display: none; }
-  .role-hint { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 10px 14px; font-size: 11px; color: #1d4ed8; margin-top: 16px; line-height: 1.6; }
+  .login-footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--color-text-muted); }
+  .error-msg {
+    background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+    border-radius: var(--radius); padding: 10px 14px; font-size: 12px; margin-bottom: 16px; display: none;
+  }
+  .role-hint {
+    background: #f8fafc; border: 1px solid var(--color-border); border-radius: var(--radius);
+    padding: 10px 14px; font-size: 11px; color: var(--color-text-muted); margin-top: 16px; line-height: 1.6;
+  }
+  .role-hint strong { color: var(--color-text); }
 </style>
 </head>
 <body>
