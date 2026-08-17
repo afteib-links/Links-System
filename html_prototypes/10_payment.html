@@ -6,70 +6,95 @@
 <title>支払管理 - LinksSys</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .stat-card {
-    background: #fff;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    box-shadow: var(--shadow-sm);
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 24px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border-dark);
   }
-  .stat-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-  .stat-icon-blue { background: #dbeafe; }
-  .stat-icon-green { background: #dcfce7; }
-  .stat-icon-amber { background: #fef3c7; }
-  .stat-icon-red { background: #fee2e2; }
-  .stat-value { font-size: 22px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
-  .stat-label { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
-
-  .filter-bar {
-    background: #fff;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 20px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    box-shadow: var(--shadow-sm);
-  }
-  .filter-group {
+  .section-title:first-child { margin-top: 0; }
+  .page-header-left {
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
   }
-
-  .detail-grid {
+  .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    background: #f8fafc;
+    gap: 12px 16px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+  }
+  .deduct-note { font-size: 12px; margin-bottom: 16px; }
+  .status-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .sum-card {
+    background: #fff;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 16px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow-sm);
   }
-  .detail-grid-item { font-size: 13px; }
-  .detail-grid-label { color: var(--color-text-muted); font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+  .sum-card .label { font-size: 11px; color: var(--color-text-muted); font-weight: 600; }
+  .sum-card .value { font-size: 18px; font-weight: 700; margin-top: 4px; color: var(--color-text); }
+  .sum-card .value.neg { color: #b91c1c; }
+  .sum-card .value.net { color: var(--color-primary); font-size: 20px; }
+  .deduct-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .deduct-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .deduct-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: var(--color-text);
+  }
+  .line-source { font-size: 10px; color: var(--color-text-muted); }
+  .line-source.manual { color: #1d4ed8; }
+  .detail-locked input,
+  .detail-locked select,
+  .detail-locked button.line-add,
+  .detail-locked button.line-del { pointer-events: none; opacity: 0.65; }
+  .toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  @media (max-width: 1100px) {
+    .summary-cards { grid-template-columns: repeat(3, 1fr); }
+    .deduct-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 720px) {
+    .summary-cards, .deduct-grid, .form-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 
-<!-- サイドバー -->
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">L</div>
@@ -98,442 +123,664 @@
   </div>
 </aside>
 
-<!-- メインコンテンツ -->
 <div class="main-content">
-  <header class="page-header">
-    <h1 class="page-title">支払管理</h1>
-    <div class="flex gap-2">
-      <button class="btn btn-outline" id="fbExportBtn" onclick="exportFbData()">💾 総振込FBデータ出力</button>
-      <button class="btn btn-primary" onclick="generatePaymentData()">⚡ 支払データ生成</button>
-    </div>
-  </header>
+  <!-- ===== 一覧 ===== -->
+  <div id="panel-list">
+    <header class="page-header">
+      <h1 class="page-title">支払管理</h1>
+      <div class="month-nav">
+        <button type="button" class="btn btn-outline btn-sm" id="btnPrevMonth">← 前月</button>
+        <input type="month" class="form-control form-control-sm" id="ymInput" value="2026-07" style="width:150px">
+        <button type="button" class="btn btn-outline btn-sm" id="btnNextMonth">次月 →</button>
+        <select class="form-control form-control-sm" id="closingSelect" style="width:110px" title="締日">
+          <option value="">締日（すべて）</option>
+          <option value="end">末日</option>
+          <option value="d20">20日</option>
+          <option value="d15">15日</option>
+        </select>
+        <button type="button" class="btn btn-primary btn-sm" id="btnReload">表示</button>
+      </div>
+    </header>
 
-  <div class="page-body">
-    <!-- サマリーカード -->
-    <div class="grid-4 mb-4">
-      <div class="stat-card">
-        <div class="stat-icon stat-icon-blue">💳</div>
-        <div>
-          <div class="stat-value">¥3,140,000</div>
-          <div class="stat-label">当月総振込対象 (5件)</div>
+    <div class="page-body">
+      <h3 class="section-title">月次TODO（締め対象）</h3>
+      <div class="list-meta">
+        <span>対象月: <strong id="todoMonthLabel">2026年7月</strong> ／ 締め対象 <strong id="todoCount">0</strong> 件</span>
+        <span class="text-sm text-muted">日報の支払金額を取り込み、支払明細を作成します</span>
+      </div>
+      <div class="card mb-4">
+        <div class="table-wrap">
+          <table class="data-table data-table-compact" id="todoTable">
+            <thead>
+              <tr>
+                <th>パートナー</th>
+                <th>区分</th>
+                <th>帳票</th>
+                <th class="text-right">総額</th>
+                <th class="text-right">先払控除</th>
+                <th class="text-right">実振込（仮）</th>
+                <th class="text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="todoBody"></tbody>
+          </table>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon-green">✅</div>
-        <div>
-          <div class="stat-value">¥1,300,000</div>
-          <div class="stat-label">振込完了 (2件)</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon-amber">⏳</div>
-        <div>
-          <div class="stat-value">¥1,280,000</div>
-          <div class="stat-label">未処理 (2件)</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon-red">⛔</div>
-        <div>
-          <div class="stat-value">¥560,000</div>
-          <div class="stat-label">振込保留 (1件)</div>
-        </div>
-      </div>
-    </div>
 
-    <!-- フィルターバー -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <div>
-          <label class="form-label" style="margin-bottom:2px;">対象月</label>
-          <input type="month" class="form-control form-control-sm" id="monthFilter" value="2026-07">
-        </div>
-        <div>
-          <label class="form-label" style="margin-bottom:2px;">パートナー選択</label>
-          <select class="form-control form-control-sm" id="partnerFilter" style="min-width: 170px;">
-            <option value="">すべてのパートナー</option>
-            <option value="山田 太郎">山田 太郎</option>
-            <option value="佐藤 次郎">佐藤 次郎</option>
-            <option value="鈴木 一郎">鈴木 一郎</option>
-            <option value="高橋 健太">高橋 健太</option>
-            <option value="渡辺 美咲">渡辺 美咲</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label" style="margin-bottom:2px;">ステータス</label>
-          <select class="form-control form-control-sm" id="statusFilter">
-            <option value="">すべて</option>
-            <option value="未処理">未処理</option>
-            <option value="振込完了">振込完了</option>
-            <option value="振込保留">振込保留</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label" style="margin-bottom:2px;">キーワード検索</label>
-          <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="支払No、パートナー名..." style="width: 180px;">
-        </div>
+      <h3 class="section-title">発行済み支払</h3>
+      <div class="list-meta">
+        <span>該当件数: <strong id="issuedCount">0</strong> 件</span>
+        <span>列ソート・絞込は ProtoDataTable（表示列は UIビルダー想定）</span>
       </div>
-      <div class="flex gap-2" style="margin-top: 18px;">
-        <button class="btn btn-outline btn-sm" onclick="resetFilters()">リセット</button>
-        <button class="btn btn-primary btn-sm" onclick="applyFilters()">絞り込み</button>
-      </div>
-    </div>
-
-    <!-- 支払明細一覧テーブル -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">支払明細一覧</span>
-        <span class="text-sm text-muted">該当件数: 5件</span>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table" id="mainTable">
-          <thead>
-            <tr>
-              <th>支払No</th>
-              <th>パートナー名</th>
-              <th>対象月</th>
-              <th class="text-center">稼働日数</th>
-              <th class="text-right">総支払額</th>
-              <th class="text-right">控除合計</th>
-              <th class="text-right">振込金額 (ネット支給額)</th>
-              <th>ステータス</th>
-              <th style="text-align: center;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="font-bold">PAY-202607-001</td>
-              <td>山田 太郎</td>
-              <td>2026年07月</td>
-              <td class="text-center">21 日</td>
-              <td class="text-right">¥680,000</td>
-              <td class="text-right text-muted">¥30,000</td>
-              <td class="text-right font-bold" style="color:var(--color-primary);">¥650,000</td>
-              <td><span class="badge badge-green">振込完了</span></td>
-              <td class="text-center">
-                <div class="flex justify-end gap-2" style="justify-content: center;">
-                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-001', '山田 太郎', '2026年07月', '21日 (168時間)', '¥680,000', '¥30,000', '¥650,000', '振込完了', '三菱UFJ銀行 新宿支店 (普通 1234567)', 650000, 30000, 0)">明細詳細</button>
-                  <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="font-bold">PAY-202607-002</td>
-              <td>佐藤 次郎</td>
-              <td>2026年07月</td>
-              <td class="text-center">20 日</td>
-              <td class="text-right">¥580,000</td>
-              <td class="text-right text-muted">¥20,000</td>
-              <td class="text-right font-bold" style="color:var(--color-primary);">¥560,000</td>
-              <td><span class="badge badge-amber">未処理</span></td>
-              <td class="text-center">
-                <div class="flex justify-end gap-2" style="justify-content: center;">
-                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-002', '佐藤 次郎', '2026年07月', '20日 (160時間)', '¥580,000', '¥20,000', '¥560,000', '未処理', '三井住友銀行 渋谷支店 (普通 9876543)', 550000, 20000, 30000)">明細詳細</button>
-                  <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, 'PAY-202607-002')">振込実行</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="font-bold">PAY-202607-003</td>
-              <td>鈴木 一郎</td>
-              <td>2026年07月</td>
-              <td class="text-center">22 日</td>
-              <td class="text-right">¥750,000</td>
-              <td class="text-right text-muted">¥100,000</td>
-              <td class="text-right font-bold" style="color:var(--color-primary);">¥650,000</td>
-              <td><span class="badge badge-green">振込完了</span></td>
-              <td class="text-center">
-                <div class="flex justify-end gap-2" style="justify-content: center;">
-                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-003', '鈴木 一郎', '2026年07月', '22日 (176時間)', '¥750,000', '¥100,000', '¥650,000', '振込完了', 'みずほ銀行 池袋支店 (普通 4567890)', 700000, 50000, 50000)">明細詳細</button>
-                  <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="font-bold">PAY-202607-004</td>
-              <td>高橋 健太</td>
-              <td>2026年07月</td>
-              <td class="text-center">18 日</td>
-              <td class="text-right">¥520,000</td>
-              <td class="text-right text-muted">¥15,000</td>
-              <td class="text-right font-bold" style="color:var(--color-primary);">¥505,000</td>
-              <td><span class="badge badge-amber">未処理</span></td>
-              <td class="text-center">
-                <div class="flex justify-end gap-2" style="justify-content: center;">
-                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-004', '高橋 健太', '2026年07月', '18日 (144時間)', '¥520,000', '¥15,000', '¥505,000', '未処理', 'りそな銀行 品川支店 (普通 1122334)', 500000, 15000, 20000)">明細詳細</button>
-                  <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, 'PAY-202607-004')">振込実行</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="font-bold">PAY-202607-005</td>
-              <td>渡辺 美咲</td>
-              <td>2026年07月</td>
-              <td class="text-center">19 日</td>
-              <td class="text-right">¥610,000</td>
-              <td class="text-right text-muted">¥50,000</td>
-              <td class="text-right font-bold" style="color:var(--color-primary);">¥560,000</td>
-              <td><span class="badge badge-red">振込保留</span></td>
-              <td class="text-center">
-                <div class="flex justify-end gap-2" style="justify-content: center;">
-                  <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('PAY-202607-005', '渡辺 美咲', '2026年07月', '19日 (152時間)', '¥610,000', '¥50,000', '¥560,000', '振込保留', '楽天銀行 ジャズ支店 (普通 5566778)', 580000, 50000, 30000)">明細詳細</button>
-                  <button class="btn btn-warning btn-sm" onclick="confirmAction('保留を解除して未処理に変更しますか？', () => unholdPayment(this))">保留解除</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <div id="issued-list-root"></div>
     </div>
   </div>
-</div>
 
-<!-- モーダル: 支払詳細 modal -->
-<div class="modal-overlay hidden" id="paymentDetailModal">
-  <div class="modal" style="max-width: 750px;">
-    <div class="modal-header">
-      <h3 class="modal-title">支払明細詳細 <span id="detailPayNo" class="text-muted" style="font-size:14px; margin-left:8px;">PAY-202607-001</span></h3>
-      <button class="modal-close" onclick="closeModal('paymentDetailModal')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <!-- 概要グリッド -->
-      <div class="detail-grid">
-        <div class="detail-grid-item">
-          <div class="detail-grid-label">パートナー名</div>
-          <div class="font-bold" id="detailPartnerName" style="font-size: 15px;">山田 太郎</div>
-        </div>
-        <div class="detail-grid-item">
-          <div class="detail-grid-label">対象月 / 稼働実績</div>
-          <div><span id="detailTargetMonth">2026年07月</span> (<span id="detailWorkDays">21日 / 168h</span>)</div>
-        </div>
-        <div class="detail-grid-item">
-          <div class="detail-grid-label">振込先口座</div>
-          <div id="detailBankInfo">三菱UFJ銀行 新宿支店 (普通 1234567)</div>
-        </div>
-        <div class="detail-grid-item">
-          <div class="detail-grid-label">ステータス</div>
-          <div><span class="badge badge-green" id="detailStatusBadge">振込完了</span></div>
-        </div>
+  <!-- ===== 詳細（フルページ） ===== -->
+  <div id="panel-detail" class="hidden">
+    <header class="page-header">
+      <div class="page-header-left">
+        <button type="button" class="btn btn-outline" id="btnBackList">← 一覧へ戻る</button>
+        <h1 class="page-title" id="detailTitle">支払詳細</h1>
+      </div>
+      <div class="toolbar-actions" id="detailActions"></div>
+    </header>
+
+    <div class="page-body">
+      <div class="alert alert-warning deduct-note">
+        再取り込み時の扱い（上書き／手修正保護）は要検討
       </div>
 
-      <!-- 支払支給・控除明細テーブル -->
-      <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">支給・控除・精算明細</h4>
-      <div class="table-wrap mb-4">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>項目名</th>
-              <th class="text-center">稼働日 / 数量</th>
-              <th class="text-right">基本単価</th>
-              <th class="text-right">残業/調整額</th>
-              <th class="text-right">各種控除</th>
-              <th class="text-right">先払精算</th>
-              <th class="text-right">差引支給額 (円)</th>
-            </tr>
-          </thead>
-          <tbody id="detailItemsTable">
-            <tr>
-              <td>基本業務報酬 (案件: A社開発PJ)</td>
-              <td class="text-center">20日</td>
-              <td class="text-right">¥550,000</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right font-bold">¥550,000</td>
-            </tr>
-            <tr>
-              <td>超過時間精算 (残業15h分)</td>
-              <td class="text-center">15時間</td>
-              <td class="text-right">¥2,000 /h</td>
-              <td class="text-right text-success">+¥30,000</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right font-bold">¥30,000</td>
-            </tr>
-            <tr>
-              <td>安全協力会費・システム使用料</td>
-              <td class="text-center">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right text-danger">▲¥10,000</td>
-              <td class="text-right">-</td>
-              <td class="text-right font-bold text-danger">▲¥10,000</td>
-            </tr>
-            <tr>
-              <td>源泉徴収税相当分 (控除)</td>
-              <td class="text-center">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right text-danger">▲¥20,000</td>
-              <td class="text-right">-</td>
-              <td class="text-right font-bold text-danger">▲¥20,000</td>
-            </tr>
-            <tr>
-              <td>先払い精算金 (当月相殺)</td>
-              <td class="text-center">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right text-danger">▲¥0</td>
-              <td class="text-right font-bold">¥0</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 合計集計エリア -->
-      <div style="background: #f1f5f9; border-radius: var(--radius); padding: 14px 20px;">
-        <div class="grid-3" style="text-align: center;">
-          <div>
-            <div class="text-sm text-muted">① 総支払額 (基本+残業)</div>
-            <div class="font-bold" style="font-size: 16px; margin-top: 4px;" id="detailGrossAmount">¥680,000</div>
-          </div>
-          <div>
-            <div class="text-sm text-muted">② 控除・精算額 合計</div>
-            <div class="font-bold text-danger" style="font-size: 16px; margin-top: 4px;" id="detailDeductionTotal">▲¥30,000</div>
-          </div>
-          <div>
-            <div class="text-sm text-muted">③ 差引振込金額 (① - ②)</div>
-            <div class="font-bold" style="font-size: 20px; color: var(--color-primary); margin-top: 2px;" id="detailNetAmount">¥650,000</div>
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title" id="detailPartner">—</span>
+          <div class="status-badges" id="detailBadges"></div>
+        </div>
+        <div style="padding:16px">
+          <div class="form-grid">
+            <div>
+              <label>支払No</label>
+              <div class="font-bold" id="detailNo">—</div>
+            </div>
+            <div>
+              <label>対象月</label>
+              <div id="detailYm">—</div>
+            </div>
+            <div>
+              <label>振込先口座</label>
+              <div id="detailBank">—</div>
+            </div>
+            <div>
+              <label>支払済</label>
+              <div id="detailPaidFlag">未支払</div>
+            </div>
           </div>
         </div>
       </div>
 
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="showToast('支払明細書のPDFを出力しました', 'success')">📄 支払明細PDF</button>
-      <button class="btn btn-primary" onclick="closeModal('paymentDetailModal')">閉じる</button>
+      <!-- 第9章サマリーカード -->
+      <h3 class="section-title">支給・控除サマリー</h3>
+      <div class="summary-cards" id="summaryCards">
+        <div class="sum-card"><div class="label">総支給</div><div class="value" id="sumGross">¥0</div></div>
+        <div class="sum-card"><div class="label">通常控除</div><div class="value neg" id="sumNormalDed">¥0</div></div>
+        <div class="sum-card"><div class="label">先払控除</div><div class="value neg" id="sumAdvanceDed">¥0</div></div>
+        <div class="sum-card"><div class="label">振込手数料</div><div class="value neg" id="sumFee">¥0</div></div>
+        <div class="sum-card"><div class="label">ペナルティ／調整</div><div class="value neg" id="sumPenalty">¥0</div></div>
+        <div class="sum-card"><div class="label">差引支給</div><div class="value net" id="sumNet">¥0</div></div>
+      </div>
+
+      <h3 class="section-title">控除カード（確定前編集可）</h3>
+      <div class="deduct-grid" id="deductCards">
+        <div class="deduct-card">
+          <h4>通常控除</h4>
+          <label class="text-sm text-muted">金額（円）</label>
+          <input type="number" class="form-control form-control-sm" id="dedNormal" value="0">
+          <label class="text-sm text-muted" style="margin-top:8px;display:block">内訳メモ</label>
+          <input type="text" class="form-control form-control-sm" id="dedNormalMemo" placeholder="例: 源泉・会費">
+        </div>
+        <div class="deduct-card">
+          <h4>先払控除</h4>
+          <label class="text-sm text-muted">金額（円）</label>
+          <input type="number" class="form-control form-control-sm" id="dedAdvance" value="0">
+          <label class="text-sm text-muted" style="margin-top:8px;display:block">内訳メモ</label>
+          <input type="text" class="form-control form-control-sm" id="dedAdvanceMemo" placeholder="例: 当月相殺">
+        </div>
+        <div class="deduct-card">
+          <h4>振込手数料</h4>
+          <label class="text-sm text-muted">金額（円）</label>
+          <input type="number" class="form-control form-control-sm" id="dedFee" value="0">
+          <label class="text-sm text-muted" style="margin-top:8px;display:block">負担区分</label>
+          <select class="form-control form-control-sm" id="dedFeeWho">
+            <option value="partner">パートナー負担</option>
+            <option value="company">当社負担</option>
+          </select>
+        </div>
+        <div class="deduct-card">
+          <h4>ペナルティ調整</h4>
+          <label class="text-sm text-muted">金額（円・マイナス可）</label>
+          <input type="number" class="form-control form-control-sm" id="dedPenalty" value="0">
+          <label class="text-sm text-muted" style="margin-top:8px;display:block">理由</label>
+          <input type="text" class="form-control form-control-sm" id="dedPenaltyMemo" placeholder="例: 遅刻ペナルティ">
+        </div>
+      </div>
+
+      <h3 class="section-title">明細（日報支払金額から取り込み）</h3>
+      <p class="text-sm text-muted mb-4">日報の計算済支払金額を取り込んだ行です。編集・手動追加が可能です（確定前）。</p>
+      <div class="card mb-4" id="detailLinesCard">
+        <div class="table-wrap">
+          <table class="data-table data-table-compact" id="detailLinesTable">
+            <thead>
+              <tr>
+                <th style="width:70px">出典</th>
+                <th>名称</th>
+                <th style="width:100px" class="text-center">稼働日／数量</th>
+                <th style="width:110px" class="text-right">単価</th>
+                <th style="width:120px" class="text-right">金額</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody id="detailLinesBody"></tbody>
+          </table>
+        </div>
+        <div style="padding:12px 16px; border-top:1px solid var(--color-border)">
+          <button type="button" class="btn btn-outline btn-sm line-add" id="btnAddLine">＋ 明細行を追加</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnReimport" style="margin-left:8px">日報から再取り込み（stub）</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script src="common.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    initTableSearch('searchInput', 'mainTable');
+(() => {
+  const DT = window.ProtoDataTable;
+  const SCREEN_KEY = 'payments_issued';
+  const listState = { sortKey: 'payment_no', sortOrder: 'asc', filters: {} };
+
+  let ym = '2026-07';
+  let currentId = null;
+
+  /** @type {Record<string, object>} */
+  const payments = {
+    'PAY-202607-001': {
+      id: 'PAY-202607-001',
+      partner: '山田 太郎',
+      category: '専属',
+      output: '明細書',
+      bank: '三菱UFJ銀行 新宿支店 (普通 1234567)',
+      ym: '2026-07',
+      status: 'draft',
+      approval: 'approved',
+      is_confirmed: true,
+      is_printed: true,
+      is_paid: true,
+      deductions: { normal: 20000, advance: 10000, fee: 0, penalty: 0, normalMemo: '源泉・会費', advanceMemo: '先払相殺', feeWho: 'partner', penaltyMemo: '' },
+      lines: [
+        { source: 'daily', name: '基本業務報酬（A社開発PJ）', qty_label: '20日', unit: 550000, amount: 550000 },
+        { source: 'daily', name: '超過時間精算（15h）', qty_label: '15h', unit: 2000, amount: 30000 },
+        { source: 'daily', name: '経費精算', qty_label: '—', unit: 0, amount: 100000 },
+      ],
+    },
+    'PAY-202607-002': {
+      id: 'PAY-202607-002',
+      partner: '佐藤 次郎',
+      category: 'スポット',
+      output: '明細書',
+      bank: '三井住友銀行 渋谷支店 (普通 9876543)',
+      ym: '2026-07',
+      status: 'draft',
+      approval: 'pending',
+      is_confirmed: false,
+      is_printed: false,
+      is_paid: false,
+      deductions: { normal: 15000, advance: 30000, fee: 550, penalty: 5000, normalMemo: '事務控除', advanceMemo: '先払残', feeWho: 'partner', penaltyMemo: '遅刻調整' },
+      lines: [
+        { source: 'daily', name: '基本業務報酬（当月稼働分）', qty_label: '20日', unit: 550000, amount: 550000 },
+        { source: 'daily', name: '残業精算', qty_label: '10h', unit: 3000, amount: 30000 },
+      ],
+    },
+    'PAY-202607-003': {
+      id: 'PAY-202607-003',
+      partner: '鈴木 一郎',
+      category: '専属',
+      output: '明細書',
+      bank: 'みずほ銀行 池袋支店 (普通 4567890)',
+      ym: '2026-07',
+      status: 'draft',
+      approval: 'approved',
+      is_confirmed: false,
+      is_printed: false,
+      is_paid: false,
+      deductions: { normal: 50000, advance: 50000, fee: 0, penalty: 0, normalMemo: '源泉', advanceMemo: '先払', feeWho: 'company', penaltyMemo: '' },
+      lines: [
+        { source: 'daily', name: '基本業務報酬', qty_label: '22日', unit: 700000, amount: 700000 },
+        { source: 'daily', name: '加算・手当', qty_label: '—', unit: 0, amount: 50000 },
+      ],
+    },
+  };
+
+  const todosByMonth = {
+    '2026-07': [
+      { partner: '高橋 健太', category: '専属', output: '明細書', gross: 520000, advance: 20000, net: 500000 },
+      { partner: '渡辺 美咲', category: 'スポット', output: '明細書', gross: 610000, advance: 30000, net: 580000 },
+    ],
+    '2026-06': [
+      { partner: '山田 太郎', category: '専属', output: '明細書', gross: 640000, advance: 0, net: 640000 },
+    ],
+    '2026-08': [],
+  };
+
+  function shiftMonth(delta) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    document.getElementById('ymInput').value = ym;
+    renderList();
+  }
+
+  function monthLabel(v) {
+    const [y, m] = v.split('-');
+    return `${y}年${Number(m)}月`;
+  }
+
+  function lineGross(p) {
+    return (p.lines || []).reduce((s, l) => s + Number(l.amount || 0), 0);
+  }
+
+  function calcSummary(p) {
+    const gross = lineGross(p);
+    const d = p.deductions || {};
+    const normal = Number(d.normal || 0);
+    const advance = Number(d.advance || 0);
+    const fee = Number(d.fee || 0);
+    const penalty = Number(d.penalty || 0);
+    const net = gross - normal - advance - fee - penalty;
+    return { gross, normal, advance, fee, penalty, net };
+  }
+
+  function statusBadgesHtml(p) {
+    const parts = [];
+    if (p.is_confirmed) parts.push('<span class="badge badge-green">確定</span>');
+    else parts.push('<span class="badge badge-gray">下書き</span>');
+    if (p.approval === 'pending') parts.push('<span class="badge badge-amber">承認待ち</span>');
+    if (p.approval === 'approved') parts.push('<span class="badge badge-blue">承認済</span>');
+    if (p.is_printed) parts.push('<span class="badge badge-purple">印刷済</span>');
+    if (p.is_paid) parts.push('<span class="badge badge-green">支払済</span>');
+    return parts.join('');
+  }
+
+  function statusText(p) {
+    const parts = [];
+    if (p.is_confirmed) parts.push('確定');
+    else parts.push('下書き');
+    if (p.approval === 'pending') parts.push('承認待ち');
+    if (p.approval === 'approved') parts.push('承認済');
+    if (p.is_printed) parts.push('印刷済');
+    if (p.is_paid) parts.push('支払済');
+    return parts.join(' / ');
+  }
+
+  function issuedRows() {
+    return Object.values(payments)
+      .filter((p) => p.ym === ym)
+      .map((p) => {
+        const s = calcSummary(p);
+        return {
+          ...p,
+          payment_no: p.id,
+          net_label: formatYen(s.net),
+          status_label: statusText(p),
+        };
+      });
+  }
+
+  const COLUMN_CATALOG = [
+    { key: 'payment_no', label: '支払No' },
+    { key: 'partner', label: 'パートナー' },
+    { key: 'net_label', label: '差引支給' },
+    { key: 'status_label', label: '状態' },
+  ];
+
+  const DEFAULT_LAYOUT = {
+    columns: ['payment_no', 'partner', 'net_label', 'status_label'],
+    hidden: [],
+  };
+
+  function renderIssued() {
+    const rows = issuedRows();
+    document.getElementById('issuedCount').textContent = String(rows.length);
+    const layout = DT.loadLayout(SCREEN_KEY) || DEFAULT_LAYOUT;
+    const root = document.getElementById('issued-list-root');
+    const table = DT.renderTable({
+      screenKey: SCREEN_KEY,
+      columns: COLUMN_CATALOG,
+      rows,
+      layout,
+      sortKey: listState.sortKey,
+      sortOrder: listState.sortOrder,
+      filters: listState.filters,
+      tableId: 'issuedPaymentTable',
+      renderActions: (row) => `
+        <button type="button" class="btn btn-outline btn-sm" data-open="${row.id}">詳細</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-list-approve="${row.id}">承認</button>
+      `,
+      renderHtml: (row, col) => {
+        if (col.key === 'status_label') return statusBadgesHtml(row);
+        return null;
+      },
+    });
+    root.innerHTML = table.html;
+    DT.bindTable(root, {
+      onSort: (key) => {
+        if (listState.sortKey === key) listState.sortOrder = listState.sortOrder === 'asc' ? 'desc' : 'asc';
+        else {
+          listState.sortKey = key;
+          listState.sortOrder = 'asc';
+        }
+        renderIssued();
+      },
+      onFilter: (filters) => {
+        listState.filters = filters;
+        renderIssued();
+      },
+    });
+    root.querySelectorAll('[data-open]').forEach((btn) => {
+      btn.addEventListener('click', () => openDetail(btn.getAttribute('data-open')));
+    });
+    root.querySelectorAll('[data-list-approve]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = payments[btn.getAttribute('data-list-approve')];
+        if (!p) return;
+        p.approval = 'approved';
+        showToast('承認しました', 'success');
+        renderList();
+      });
+    });
+  }
+
+  function renderTodos() {
+    const todos = todosByMonth[ym] || [];
+    document.getElementById('todoMonthLabel').textContent = monthLabel(ym);
+    document.getElementById('todoCount').textContent = String(todos.length);
+    const tbody = document.getElementById('todoBody');
+    if (!todos.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center">対象なし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = todos
+      .map(
+        (t, idx) => `
+      <tr>
+        <td>${t.partner}</td>
+        <td>${t.category}</td>
+        <td>${t.output}</td>
+        <td class="text-right">${formatYen(t.gross)}</td>
+        <td class="text-right text-muted">${formatYen(t.advance)}</td>
+        <td class="text-right font-bold">${formatYen(t.net)}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-primary btn-sm" data-create-idx="${idx}">作成</button>
+        </td>
+      </tr>`
+      )
+      .join('');
+    tbody.querySelectorAll('[data-create-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => createFromTodo(Number(btn.getAttribute('data-create-idx'))));
+    });
+  }
+
+  function createFromTodo(idx) {
+    const t = (todosByMonth[ym] || [])[idx];
+    if (!t) return;
+    const id = `PAY-${ym.replace('-', '')}-${String(Object.keys(payments).length + 1).padStart(3, '0')}`;
+    payments[id] = {
+      id,
+      partner: t.partner,
+      category: t.category,
+      output: t.output,
+      bank: '（取込時に口座マスタ参照）',
+      ym,
+      status: 'draft',
+      approval: 'none',
+      is_confirmed: false,
+      is_printed: false,
+      is_paid: false,
+      deductions: {
+        normal: 0,
+        advance: t.advance,
+        fee: 0,
+        penalty: 0,
+        normalMemo: '',
+        advanceMemo: '日報取込の先払控除',
+        feeWho: 'partner',
+        penaltyMemo: '',
+      },
+      lines: [
+        { source: 'daily', name: `${monthLabel(ym)} 稼働分（日報支払取込）`, qty_label: '—', unit: t.gross, amount: t.gross },
+      ],
+    };
+    (todosByMonth[ym] || []).splice(idx, 1);
+    showToast('支払明細を作成しました（日報支払金額を取り込み）', 'success');
+    openDetail(id);
+  }
+
+  function renderList() {
+    ym = document.getElementById('ymInput').value || ym;
+    renderTodos();
+    renderIssued();
+  }
+
+  function showListPanel() {
+    document.getElementById('panel-detail').classList.add('hidden');
+    document.getElementById('panel-list').classList.remove('hidden');
+    currentId = null;
+    renderList();
+  }
+
+  function showDetailPanel() {
+    document.getElementById('panel-list').classList.add('hidden');
+    document.getElementById('panel-detail').classList.remove('hidden');
+  }
+
+  function openDetail(id) {
+    currentId = id;
+    if (!payments[id]) return;
+    showDetailPanel();
+    renderDetail();
+  }
+
+  function renderDetail() {
+    const p = payments[currentId];
+    if (!p) return;
+    const locked = !!p.is_confirmed;
+
+    document.getElementById('detailTitle').textContent = `支払詳細（${p.id}）`;
+    document.getElementById('detailPartner').textContent = `${p.partner} 様`;
+    document.getElementById('detailNo').textContent = p.id;
+    document.getElementById('detailYm').textContent = monthLabel(p.ym);
+    document.getElementById('detailBank').textContent = p.bank || '—';
+    document.getElementById('detailPaidFlag').textContent = p.is_paid ? '支払済' : '未支払';
+    document.getElementById('detailBadges').innerHTML = statusBadgesHtml(p);
+
+    const d = p.deductions || {};
+    document.getElementById('dedNormal').value = d.normal || 0;
+    document.getElementById('dedNormalMemo').value = d.normalMemo || '';
+    document.getElementById('dedAdvance').value = d.advance || 0;
+    document.getElementById('dedAdvanceMemo').value = d.advanceMemo || '';
+    document.getElementById('dedFee').value = d.fee || 0;
+    document.getElementById('dedFeeWho').value = d.feeWho || 'partner';
+    document.getElementById('dedPenalty').value = d.penalty || 0;
+    document.getElementById('dedPenaltyMemo').value = d.penaltyMemo || '';
+
+    ['dedNormal', 'dedNormalMemo', 'dedAdvance', 'dedAdvanceMemo', 'dedFee', 'dedFeeWho', 'dedPenalty', 'dedPenaltyMemo'].forEach((id) => {
+      document.getElementById(id).disabled = locked;
+    });
+    document.getElementById('deductCards').classList.toggle('detail-locked', locked);
+    document.getElementById('detailLinesCard').classList.toggle('detail-locked', locked);
+
+    const tbody = document.getElementById('detailLinesBody');
+    tbody.innerHTML = (p.lines || [])
+      .map(
+        (l, i) => `
+      <tr data-line-idx="${i}">
+        <td><span class="line-source ${l.source === 'manual' ? 'manual' : ''}">${l.source === 'manual' ? '手動' : '日報'}</span></td>
+        <td><input type="text" class="form-control form-control-sm" data-f="name" value="${escapeAttr(l.name)}" ${locked ? 'disabled' : ''}></td>
+        <td><input type="text" class="form-control form-control-sm text-center" data-f="qty_label" value="${escapeAttr(l.qty_label || '')}" ${locked ? 'disabled' : ''}></td>
+        <td><input type="number" class="form-control form-control-sm text-right" data-f="unit" value="${l.unit}" ${locked ? 'disabled' : ''}></td>
+        <td><input type="number" class="form-control form-control-sm text-right" data-f="amount" value="${l.amount}" ${locked ? 'disabled' : ''}></td>
+        <td>${locked ? '' : `<button type="button" class="btn btn-ghost btn-sm line-del" data-del="${i}" style="color:var(--color-danger)">✕</button>`}</td>
+      </tr>`
+      )
+      .join('');
+
+    tbody.querySelectorAll('input').forEach((inp) => {
+      inp.addEventListener('change', () => {
+        syncFromDom();
+        updateSummary();
+      });
+      inp.addEventListener('input', updateSummary);
+    });
+    tbody.querySelectorAll('[data-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        syncFromDom();
+        p.lines.splice(Number(btn.getAttribute('data-del')), 1);
+        renderDetail();
+      });
+    });
+
+    ['dedNormal', 'dedAdvance', 'dedFee', 'dedPenalty'].forEach((id) => {
+      document.getElementById(id).oninput = () => {
+        syncFromDom();
+        updateSummary();
+      };
+    });
+
+    document.getElementById('detailActions').innerHTML = `
+      ${locked ? '' : '<button type="button" class="btn btn-primary btn-sm" id="btnSave">保存</button>'}
+      <button type="button" class="btn btn-outline btn-sm" id="btnApprove">承認</button>
+      ${locked
+        ? '<button type="button" class="btn btn-warning btn-sm" id="btnUnconfirm">確定解除</button>'
+        : '<button type="button" class="btn btn-success btn-sm" id="btnConfirm">確定</button>'}
+      <button type="button" class="btn ${p.is_paid ? 'btn-ghost' : 'btn-success'} btn-sm" id="btnPaid">${p.is_paid ? '支払済（解除）' : '支払済にする'}</button>
+      <button type="button" class="btn btn-outline btn-sm" id="btnPrint">${p.is_printed ? '印刷済（再）' : '印刷フラグON'}</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnPdf">📄 PDF明細書（stub）</button>
+    `;
+
+    document.getElementById('btnSave')?.addEventListener('click', () => {
+      syncFromDom();
+      showToast('保存しました', 'success');
+      renderDetail();
+    });
+    document.getElementById('btnApprove')?.addEventListener('click', () => {
+      p.approval = 'approved';
+      showToast('承認しました', 'success');
+      renderDetail();
+    });
+    document.getElementById('btnConfirm')?.addEventListener('click', () => {
+      syncFromDom();
+      p.is_confirmed = true;
+      p.status = 'confirmed';
+      showToast('確定しました（編集ロック）', 'success');
+      renderDetail();
+    });
+    document.getElementById('btnUnconfirm')?.addEventListener('click', () => {
+      p.is_confirmed = false;
+      p.status = 'draft';
+      showToast('確定を解除しました（再編集可）', 'info');
+      renderDetail();
+    });
+    document.getElementById('btnPaid')?.addEventListener('click', () => {
+      p.is_paid = !p.is_paid;
+      showToast(p.is_paid ? '支払済にしました' : '支払済を解除しました', 'success');
+      renderDetail();
+    });
+    document.getElementById('btnPrint')?.addEventListener('click', () => {
+      p.is_printed = true;
+      showToast('印刷済みにしました', 'success');
+      renderDetail();
+    });
+    document.getElementById('btnPdf')?.addEventListener('click', () => {
+      showToast('PDF明細書出力は stub です', 'info');
+    });
+
+    updateSummary();
+  }
+
+  function escapeAttr(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
+  function syncFromDom() {
+    const p = payments[currentId];
+    if (!p) return;
+    const lines = [];
+    document.querySelectorAll('#detailLinesBody tr[data-line-idx]').forEach((tr) => {
+      const idx = Number(tr.getAttribute('data-line-idx'));
+      const prev = p.lines[idx] || { source: 'manual' };
+      lines.push({
+        source: prev.source || 'manual',
+        name: tr.querySelector('[data-f="name"]').value,
+        qty_label: tr.querySelector('[data-f="qty_label"]').value,
+        unit: Number(tr.querySelector('[data-f="unit"]').value || 0),
+        amount: Number(tr.querySelector('[data-f="amount"]').value || 0),
+      });
+    });
+    p.lines = lines;
+    p.deductions = {
+      normal: Number(document.getElementById('dedNormal').value || 0),
+      advance: Number(document.getElementById('dedAdvance').value || 0),
+      fee: Number(document.getElementById('dedFee').value || 0),
+      penalty: Number(document.getElementById('dedPenalty').value || 0),
+      normalMemo: document.getElementById('dedNormalMemo').value,
+      advanceMemo: document.getElementById('dedAdvanceMemo').value,
+      feeWho: document.getElementById('dedFeeWho').value,
+      penaltyMemo: document.getElementById('dedPenaltyMemo').value,
+    };
+  }
+
+  function updateSummary() {
+    const p = payments[currentId];
+    if (!p) return;
+    // live from DOM if present
+    const lines = [];
+    document.querySelectorAll('#detailLinesBody tr[data-line-idx]').forEach((tr) => {
+      lines.push({ amount: Number(tr.querySelector('[data-f="amount"]').value || 0) });
+    });
+    const gross = lines.length ? lines.reduce((s, l) => s + l.amount, 0) : lineGross(p);
+    const normal = Number(document.getElementById('dedNormal')?.value || p.deductions?.normal || 0);
+    const advance = Number(document.getElementById('dedAdvance')?.value || p.deductions?.advance || 0);
+    const fee = Number(document.getElementById('dedFee')?.value || p.deductions?.fee || 0);
+    const penalty = Number(document.getElementById('dedPenalty')?.value || p.deductions?.penalty || 0);
+    const net = gross - normal - advance - fee - penalty;
+    document.getElementById('sumGross').textContent = formatYen(gross);
+    document.getElementById('sumNormalDed').textContent = '▲' + formatYen(normal);
+    document.getElementById('sumAdvanceDed').textContent = '▲' + formatYen(advance);
+    document.getElementById('sumFee').textContent = '▲' + formatYen(fee);
+    document.getElementById('sumPenalty').textContent = '▲' + formatYen(penalty);
+    document.getElementById('sumNet').textContent = formatYen(net);
+  }
+
+  document.getElementById('btnPrevMonth').addEventListener('click', () => shiftMonth(-1));
+  document.getElementById('btnNextMonth').addEventListener('click', () => shiftMonth(1));
+  document.getElementById('btnReload').addEventListener('click', renderList);
+  document.getElementById('ymInput').addEventListener('change', renderList);
+  document.getElementById('btnBackList').addEventListener('click', showListPanel);
+  document.getElementById('btnAddLine').addEventListener('click', () => {
+    const p = payments[currentId];
+    if (!p || p.is_confirmed) return;
+    syncFromDom();
+    p.lines.push({ source: 'manual', name: '', qty_label: '', unit: 0, amount: 0 });
+    renderDetail();
+  });
+  document.getElementById('btnReimport').addEventListener('click', () => {
+    showToast('再取り込み時の扱い（上書き／手修正保護）は要検討 — stub', 'warning');
   });
 
-  function exportFbData() {
-    showToast('CSVを出力しました', 'success');
-  }
-
-  function generatePaymentData() {
-    showToast('2026年7月期の支払データを自動生成・計算しました', 'info');
-  }
-
-  function applyFilters() {
-    const partner = document.getElementById('partnerFilter').value;
-    const status = document.getElementById('statusFilter').value;
-    const search = document.getElementById('searchInput').value.toLowerCase();
-
-    const rows = document.querySelectorAll('#mainTable tbody tr');
-    rows.forEach(tr => {
-      const partnerText = tr.children[1].textContent;
-      const statusText = tr.children[7].textContent;
-      const fullText = tr.textContent.toLowerCase();
-
-      let match = true;
-      if (partner && !partnerText.includes(partner)) match = false;
-      if (status && !statusText.includes(status)) match = false;
-      if (search && !fullText.includes(search)) match = false;
-
-      tr.style.display = match ? '' : 'none';
-    });
-    showToast('条件で絞り込みました', 'info');
-  }
-
-  function resetFilters() {
-    document.getElementById('monthFilter').value = '2026-07';
-    document.getElementById('partnerFilter').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('searchInput').value = '';
-    document.querySelectorAll('#mainTable tbody tr').forEach(tr => tr.style.display = '');
-    showToast('フィルターをリセットしました', 'info');
-  }
-
-  function markAsCompleted(btn, payNo) {
-    confirmAction(`${payNo} の振込完了処理を実行しますか？`, () => {
-      const tr = btn.closest('tr');
-      const statusTd = tr.children[7];
-      statusTd.innerHTML = '<span class="badge badge-green">振込完了</span>';
-      const actionTd = tr.children[8];
-      actionTd.innerHTML = `
-        <div class="flex justify-end gap-2" style="justify-content: center;">
-          <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('${payNo}', '${tr.children[1].textContent}', '2026年07月', '${tr.children[3].textContent}', '${tr.children[4].textContent}', '${tr.children[5].textContent}', '${tr.children[6].textContent}', '振込完了', '三菱UFJ銀行 新宿支店 (普通 1234567)', 600000, 20000, 0)">明細詳細</button>
-          <button class="btn btn-ghost btn-sm" disabled style="opacity:0.5;">完了済</button>
-        </div>
-      `;
-      showToast(`${payNo} を振込完了に更新しました`, 'success');
-    });
-  }
-
-  function unholdPayment(btn) {
-    const tr = btn.closest('tr');
-    const payNo = tr.children[0].textContent;
-    const statusTd = tr.children[7];
-    statusTd.innerHTML = '<span class="badge badge-amber">未処理</span>';
-    const actionTd = tr.children[8];
-    actionTd.innerHTML = `
-      <div class="flex justify-end gap-2" style="justify-content: center;">
-        <button class="btn btn-outline btn-sm" onclick="openPaymentDetail('${payNo}', '${tr.children[1].textContent}', '2026年07月', '${tr.children[3].textContent}', '${tr.children[4].textContent}', '${tr.children[5].textContent}', '${tr.children[6].textContent}', '未処理', '楽天銀行 ジャズ支店 (普通 5566778)', 610000, 50000, 0)">明細詳細</button>
-        <button class="btn btn-success btn-sm" onclick="markAsCompleted(this, '${payNo}')">振込実行</button>
-      </div>
-    `;
-    showToast(`${payNo} の保留を解除しました`, 'info');
-  }
-
-  function openPaymentDetail(payNo, partner, month, workDays, gross, ded, net, status, bank, baseAmt, dedAmt, advAmt) {
-    document.getElementById('detailPayNo').textContent = payNo;
-    document.getElementById('detailPartnerName').textContent = partner;
-    document.getElementById('detailTargetMonth').textContent = month;
-    document.getElementById('detailWorkDays').textContent = workDays;
-    document.getElementById('detailBankInfo').textContent = bank;
-
-    const badge = document.getElementById('detailStatusBadge');
-    badge.textContent = status;
-    badge.className = 'badge ';
-    if (status === '振込完了') badge.classList.add('badge-green');
-    else if (status === '未処理') badge.classList.add('badge-amber');
-    else badge.classList.add('badge-red');
-
-    document.getElementById('detailGrossAmount').textContent = gross;
-    document.getElementById('detailDeductionTotal').textContent = '▲' + ded;
-    document.getElementById('detailNetAmount').textContent = net;
-
-    // テーブル明細更新
-    const tbody = document.getElementById('detailItemsTable');
-    tbody.innerHTML = `
-      <tr>
-        <td>基本業務報酬 (当月稼働分)</td>
-        <td class="text-center">${workDays}</td>
-        <td class="text-right">${formatYen(baseAmt)}</td>
-        <td class="text-right">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right font-bold">${formatYen(baseAmt)}</td>
-      </tr>
-      <tr>
-        <td>源泉徴収・事務各種控除</td>
-        <td class="text-center">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right text-danger">▲${formatYen(dedAmt)}</td>
-        <td class="text-right">-</td>
-        <td class="text-right font-bold text-danger">▲${formatYen(dedAmt)}</td>
-      </tr>
-      <tr>
-        <td>先払い精算金 (当月控除分)</td>
-        <td class="text-center">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right">-</td>
-        <td class="text-right text-danger">▲${formatYen(advAmt)}</td>
-        <td class="text-right font-bold text-danger">▲${formatYen(advAmt)}</td>
-      </tr>
-    `;
-
-    openModal('paymentDetailModal');
-  }
+  renderList();
+})();
 </script>
 </body>
 </html>
