@@ -23,6 +23,7 @@
 | [07_AsustorテストNAS配備手順.md](07_AsustorテストNAS配備手順.md) | AS3202T（ADM）への画面クリック順配備 | 適用中 |
 | [08_Asustor更新・DB手順.md](08_Asustor更新・DB手順.md) | ソース更新・マイグレーション・バックアップ／リストア | 適用中 |
 | [09_Cursor_Antigravity_開発運用.md](09_Cursor_Antigravity_開発運用.md) | Cursor/Antigravity/Cloud 運用要約 | 適用中 |
+| [10_詳細仕様書との差分整理_日報請求支払.md](10_詳細仕様書との差分整理_日報請求支払.md) | 詳細仕様書×計画06×現行×プロト（日報・請求・支払）の整理・矛盾洗い出し | 整理中（合意待ち） |
 | [reviews/](reviews/) | PR レビュー記録（Antigravity ↔ Cursor） | 適用中 |
 
 ## 関連仕様
