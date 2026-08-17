@@ -421,8 +421,15 @@
       banner.id = 'companyFilterBanner';
       banner.className = 'alert alert-info';
       banner.style.marginBottom = '12px';
+      const backLinks = [];
+      if (companyName) {
+        backLinks.push('<a href="03_company.html" style="margin-left:12px;">企業管理へ戻る</a>');
+      }
+      if (partnerName) {
+        backLinks.push('<a href="04_partner.html" style="margin-left:12px;">パートナー管理へ戻る</a>');
+      }
       banner.innerHTML = `${parts.join(' / ')}で絞り込み中（他画面からの遷移）
-        <a href="03_company.html" style="margin-left:12px;">企業管理へ戻る</a>
+        ${backLinks.join('')}
         <a href="06_project.html" style="margin-left:8px;">絞り込み解除</a>`;
       bannerHost.appendChild(banner);
     }
