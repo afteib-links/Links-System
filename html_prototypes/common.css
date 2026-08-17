@@ -13,10 +13,10 @@
   --color-warning: #d97706;
   --color-danger: #dc2626;
   --color-info: #0891b2;
-  --color-sidebar-bg: #1e293b;
-  --color-sidebar-text: #94a3b8;
-  --color-sidebar-active: #ffffff;
-  --color-sidebar-active-bg: rgba(255,255,255,0.1);
+  --color-sidebar-bg: #ffffff;
+  --color-sidebar-text: #64748b;
+  --color-sidebar-active: #1e40af;
+  --color-sidebar-active-bg: #eff6ff;
   --color-bg: #f1f5f9;
   --color-surface: #ffffff;
   --color-border: #e2e8f0;
@@ -54,6 +54,7 @@ body {
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  border-right: 1px solid var(--color-border);
 }
 
 .sidebar-logo {
@@ -61,9 +62,9 @@ body {
   display: flex;
   align-items: center;
   padding: 0 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--color-border);
   gap: 10px;
-  background-color: #0f172a;
+  background-color: #fff;
 }
 
 .sidebar-logo-icon {
@@ -78,7 +79,7 @@ body {
 .sidebar-logo-text {
   font-size: 18px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text);
   letter-spacing: 0.03em;
 }
 
@@ -92,7 +93,7 @@ body {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #475569;
+  color: #94a3b8;
   padding: 12px 20px 4px;
   text-transform: uppercase;
 }
@@ -112,12 +113,12 @@ body {
 }
 
 .sidebar-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: #e2e8f0;
+  background: #f8fafc;
+  color: var(--color-text);
 }
 
 .sidebar-item.active {
-  background: rgba(37,99,235,0.2);
+  background: var(--color-sidebar-active-bg);
   color: var(--color-sidebar-active);
   border-left-color: var(--color-primary);
 }
@@ -125,11 +126,12 @@ body {
 .sidebar-item svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 .sidebar-footer {
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--color-border);
   padding: 12px 20px;
   display: flex;
   align-items: center;
   gap: 10px;
+  background: #f8fafc;
 }
 
 .sidebar-user-avatar {
@@ -141,8 +143,8 @@ body {
   flex-shrink: 0;
 }
 
-.sidebar-user-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
-.sidebar-user-role { font-size: 10px; color: #64748b; }
+.sidebar-user-name { font-size: 12px; font-weight: 600; color: var(--color-text); }
+.sidebar-user-role { font-size: 10px; color: var(--color-text-muted); }
 
 /* ======== メインコンテンツ ======== */
 .main-content {
