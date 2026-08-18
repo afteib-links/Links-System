@@ -1,0 +1,18 @@
+{
+  "name": "Links-System",
+  "user": "ubuntu",
+  "install": "bash scripts/cloud-agent-install.sh",
+  "start": "bash scripts/cloud-agent-start.sh",
+  "terminals": [
+    {
+      "name": "backend",
+      "command": "cd backend && node src/server.js"
+    }
+  ],
+  "ports": [
+    {
+      "name": "backend",
+      "port": 3000
+    }
+  ]
+}
