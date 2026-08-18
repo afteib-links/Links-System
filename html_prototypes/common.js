@@ -126,6 +126,179 @@ function formatDate(d) {
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`;
 }
 
+/**
+ * プロトタイプ用一覧テーブル（frontend/js/data-table.js 相当）
+ * - 列ヘッダークリックでソート
+ * - 列直下インラインフィルタ
+ * - 表示列／順序は layout（localStorage）で後から変更可能（UIビルダー想定）
+ * 一覧画面には表示列操作UIを置かない（A-08 と同じ）
+ */
+window.ProtoDataTable = (() => {
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function loadLayout(screenKey) {
+    try {
+      const raw = localStorage.getItem(`proto_layout_${screenKey}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLayout(screenKey, layout) {
+    localStorage.setItem(`proto_layout_${screenKey}`, JSON.stringify(layout));
+  }
+
+  function normalizeLayout(columns, saved) {
+    const byKey = new Map((columns || []).map((c) => [c.key, c]));
+    let order = [];
+    if (saved?.columns && Array.isArray(saved.columns)) {
+      for (const item of saved.columns) {
+        const key = typeof item === 'string' ? item : item.key;
+        if (byKey.has(key) && !order.includes(key)) order.push(key);
+      }
+    }
+    for (const c of columns) {
+      if (!order.includes(c.key) && c.defaultVisible !== false) order.push(c.key);
+    }
+    const hidden = new Set((saved?.hidden || []).filter((k) => byKey.has(k)));
+    return { order, hidden };
+  }
+
+  function cellText(row, col) {
+    if (typeof col.getValue === 'function') return col.getValue(row);
+    const v = row?.[col.key];
+    return v == null || v === '' ? '-' : String(v);
+  }
+
+  function renderTable(options) {
+    const {
+      screenKey,
+      columns,
+      rows,
+      layout,
+      sortKey,
+      sortOrder,
+      filters,
+      actionsHeader = '操作',
+      renderActions,
+      tableId = 'shared-data-table',
+      renderHtml,
+    } = options;
+
+    const { order, hidden } = normalizeLayout(columns, layout);
+    const visibleCols = order
+      .map((k) => columns.find((c) => c.key === k))
+      .filter((c) => c && !hidden.has(c.key));
+    const filterMap = filters || {};
+
+    let filtered = [...(rows || [])];
+    for (const col of visibleCols) {
+      const q = String(filterMap[col.key] || '').trim().toLowerCase();
+      if (!q) continue;
+      filtered = filtered.filter((row) => cellText(row, col).toLowerCase().includes(q));
+    }
+
+    if (sortKey) {
+      const col = columns.find((c) => c.key === sortKey);
+      filtered.sort((a, b) => {
+        const av = cellText(a, col || { key: sortKey });
+        const bv = cellText(b, col || { key: sortKey });
+        const an = Number(av);
+        const bn = Number(bv);
+        let cmp = 0;
+        if (!Number.isNaN(an) && !Number.isNaN(bn) && av !== '-' && bv !== '-') {
+          cmp = an - bn;
+        } else {
+          cmp = String(av).localeCompare(String(bv), 'ja');
+        }
+        return sortOrder === 'desc' ? -cmp : cmp;
+      });
+    }
+
+    const head = visibleCols
+      .map((c) => {
+        const arrow = sortKey === c.key ? (sortOrder === 'desc' ? ' ▼' : ' ▲') : '';
+        return `<th class="dt-sortable" data-sort-key="${escapeHtml(c.key)}" title="クリックでソート">${escapeHtml(c.label)}${arrow}</th>`;
+      })
+      .join('');
+
+    const filterRow = visibleCols
+      .map(
+        (c) =>
+          `<th class="dt-filter-cell"><input type="search" class="dt-filter" data-filter-key="${escapeHtml(
+            c.key
+          )}" value="${escapeHtml(filterMap[c.key] || '')}" placeholder="絞込" /></th>`
+      )
+      .join('');
+
+    const body = filtered
+      .map((row) => {
+        const cells = visibleCols
+          .map((c) => {
+            if (typeof renderHtml === 'function') {
+              const html = renderHtml(row, c);
+              if (html != null) return `<td>${html}</td>`;
+            }
+            return `<td>${escapeHtml(cellText(row, c))}</td>`;
+          })
+          .join('');
+        const actions = typeof renderActions === 'function' ? renderActions(row) : '';
+        return `<tr data-id="${escapeHtml(row.id || row.company_id || '')}">${cells}<td class="dt-actions">${actions}</td></tr>`;
+      })
+      .join('');
+
+    return {
+      html: `
+        <div class="table-wrap table-wrap-sticky">
+          <table class="data-table data-table-compact" id="${escapeHtml(tableId)}">
+            <thead>
+              <tr>${head}<th>${escapeHtml(actionsHeader)}</th></tr>
+              <tr class="dt-filter-row">${filterRow}<th></th></tr>
+            </thead>
+            <tbody>${
+              body ||
+              `<tr><td colspan="${visibleCols.length + 1}">データがありません</td></tr>`
+            }</tbody>
+          </table>
+        </div>`,
+      visibleCols,
+      filteredRows: filtered,
+      layoutState: { order, hidden: [...hidden] },
+      screenKey,
+    };
+  }
+
+  function bindTable(root, handlers = {}) {
+    const el = typeof root === 'string' ? document.querySelector(root) : root;
+    if (!el) return;
+    el.querySelectorAll('.dt-sortable').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-sort-key');
+        if (key && handlers.onSort) handlers.onSort(key);
+      });
+    });
+    el.querySelectorAll('.dt-filter').forEach((input) => {
+      input.addEventListener('input', () => {
+        if (!handlers.onFilter) return;
+        const next = {};
+        el.querySelectorAll('.dt-filter').forEach((inp) => {
+          next[inp.getAttribute('data-filter-key')] = inp.value;
+        });
+        handlers.onFilter(next);
+      });
+    });
+  }
+
+  return { escapeHtml, loadLayout, saveLayout, normalizeLayout, renderTable, bindTable };
+})();
+
 // ======== DOMContentLoaded で初期化 ========
 document.addEventListener('DOMContentLoaded', () => {
   initSidebar();

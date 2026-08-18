@@ -5,19 +5,61 @@
 <title>ログイン - LinksSys</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  body { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #f8fafc 0%, #eef2f7 55%, #e8eef5 100%);
+  }
   .login-wrap { width: 380px; }
   .login-logo { text-align: center; margin-bottom: 32px; }
-  .login-logo-icon { width: 64px; height: 64px; background: var(--color-primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 28px; margin: 0 auto 12px; box-shadow: 0 8px 24px rgba(37,99,235,0.4); }
-  .login-logo-text { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
-  .login-logo-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
-  .login-card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .login-logo-icon {
+    width: 64px; height: 64px; background: var(--color-primary); border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-weight: 700; font-size: 28px; margin: 0 auto 12px;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+  }
+  .login-logo-text { font-size: 26px; font-weight: 700; color: var(--color-text); letter-spacing: 0.04em; }
+  .login-logo-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+  .login-card {
+    background: #fff; border-radius: 12px; padding: 32px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+  }
   .login-title { font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 24px; text-align: center; }
-  .login-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 8px; border-radius: var(--radius); cursor: pointer; border: none; background: var(--color-primary); color: #fff; transition: background 0.15s; }
+  .login-btn {
+    width: 100%; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 8px;
+    border-radius: var(--radius); cursor: pointer; border: none;
+    background: var(--color-primary); color: #fff; transition: background 0.15s;
+  }
   .login-btn:hover { background: var(--color-primary-hover); }
-  .login-footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-  .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: var(--radius); padding: 10px 14px; font-size: 12px; margin-bottom: 16px; display: none; }
-  .role-hint { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 10px 14px; font-size: 11px; color: #1d4ed8; margin-top: 16px; line-height: 1.6; }
+  .login-links {
+    text-align: center;
+    margin-top: 14px;
+  }
+  .login-links a {
+    font-size: 12px;
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+  .login-links a:hover { text-decoration: underline; }
+  .login-footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--color-text-muted); }
+  .error-msg {
+    background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+    border-radius: var(--radius); padding: 10px 14px; font-size: 12px; margin-bottom: 16px; display: none;
+  }
+  .role-hint {
+    background: #f8fafc; border: 1px solid var(--color-border); border-radius: var(--radius);
+    padding: 10px 14px; font-size: 11px; color: var(--color-text-muted); margin-top: 16px; line-height: 1.6;
+  }
+  .role-hint strong { color: var(--color-text); }
+  #forgotModal .modal { max-width: 420px; }
+  .forgot-note {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
 </style>
 </head>
 <body>
@@ -38,7 +80,10 @@
       <label class="form-label">パスワード</label>
       <input type="password" id="password" class="form-control" placeholder="••••••••" value="password123">
     </div>
-    <button class="login-btn" onclick="doLogin()">ログイン</button>
+    <button type="button" class="login-btn" onclick="doLogin()">ログイン</button>
+    <div class="login-links">
+      <a href="#" id="forgotLink" onclick="openForgotModal(event)">パスワードを忘れた場合</a>
+    </div>
     <div class="role-hint">
       <strong>デモ用アカウント</strong><br>
       admin@links.co.jp / password123 → Admin権限<br>
@@ -48,6 +93,32 @@
   </div>
   <div class="login-footer">© 2026 LinksSys. All rights reserved.</div>
 </div>
+
+<!-- パスワードリセット依頼（プロトタイプ） -->
+<div class="modal-overlay hidden" id="forgotModal">
+  <div class="modal" role="dialog" aria-labelledby="forgotTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="forgotTitle">パスワード再設定の依頼</div>
+      <button type="button" class="modal-close" onclick="closeModal('forgotModal')" aria-label="閉じる">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="forgot-note">
+        社内システムのため、パスワードの自己再設定は行いません。<br>
+        ログインIDを入力して依頼すると、管理者（またはシステム担当者）がリセットします。
+      </p>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" for="forgotLoginId">ログインID</label>
+        <input type="text" id="forgotLoginId" class="form-control" placeholder="ログインIDを入力" autocomplete="username">
+      </div>
+      <div class="error-msg" id="forgotError" style="margin-top:12px;margin-bottom:0">ログインIDを入力してください。</div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('forgotModal')">キャンセル</button>
+      <button type="button" class="btn btn-primary" onclick="submitForgotRequest()">リセットを依頼</button>
+    </div>
+  </div>
+</div>
+
 <script src="common.js"></script>
 <script>
 function doLogin() {
@@ -65,7 +136,37 @@ function doLogin() {
     document.getElementById('errorMsg').style.display = 'block';
   }
 }
-document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function openForgotModal(event) {
+  event.preventDefault();
+  document.getElementById('forgotError').style.display = 'none';
+  const emailVal = document.getElementById('email').value.trim();
+  document.getElementById('forgotLoginId').value = emailVal;
+  openModal('forgotModal');
+  setTimeout(() => document.getElementById('forgotLoginId').focus(), 50);
+}
+
+function submitForgotRequest() {
+  const loginId = document.getElementById('forgotLoginId').value.trim();
+  const err = document.getElementById('forgotError');
+  if (!loginId) {
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  closeModal('forgotModal');
+  showToast('リセット依頼を受け付けました。管理者からの連絡をお待ちください。（プロトタイプ）', 'success');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const forgotOpen = !document.getElementById('forgotModal').classList.contains('hidden');
+  if (forgotOpen) {
+    submitForgotRequest();
+  } else {
+    doLogin();
+  }
+});
 </script>
 </body>
 </html>

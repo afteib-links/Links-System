@@ -97,40 +97,37 @@
   </div>
 </aside>
 
-<!-- Main -->
+<!-- Main: 月次一覧（案件×月） -->
 <div class="main-content" id="viewList">
   <header class="page-header">
     <h1 class="page-title">日報管理</h1>
     <div class="flex gap-2 items-center">
-      <input type="month" id="filterMonth" value="2026-07" class="form-control" style="width:140px">
-      <select id="filterPartner" class="form-control" style="width:180px">
-        <option value="">すべてのパートナー</option>
-        <option value="1">鈴木 運送太郎</option>
-        <option value="2">高橋 ドライバー</option>
-        <option value="3">田中 物流</option>
-      </select>
-      <button class="btn btn-outline btn-sm" onclick="initTableSearch('searchReport','reportTable')">検索</button>
+      <button type="button" class="btn btn-outline btn-sm" id="prevMonthBtn">← 前月</button>
+      <input type="month" id="filterMonth" value="2026-07" class="form-control" style="width:150px" title="月を直接指定">
+      <button type="button" class="btn btn-outline btn-sm" id="nextMonthBtn">次月 →</button>
+      <button type="button" class="btn btn-sm" id="reloadMonthBtn">表示</button>
     </div>
   </header>
-  <div class="page-body" style="padding:0;display:flex;flex-direction:column;height:100%">
-    <div style="padding:16px 20px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-      <input type="text" id="searchReport" class="form-control" placeholder="企業名・パートナー名で検索..." style="max-width:300px">
-      <button class="btn btn-primary btn-sm" onclick="openReport()">+ 新規日報作成</button>
+  <div class="page-body">
+    <div class="list-meta">
+      <span>対象月: <strong id="ymLabel">2026年7月</strong>　／　対象案件 <strong id="projectCount">0</strong>　／　入力あり <strong id="inputCount">0</strong></span>
+      <span>単位: <strong>案件×月</strong>　｜　ステータスは詳細仕様書どおりバッジ表示（入力中／承認待ち／承認済／差戻し／訂正中）</span>
     </div>
-    <div class="flex-1 overflow-auto">
-      <table class="data-table" id="reportTable">
+    <div class="table-wrap table-wrap-sticky">
+      <table class="data-table data-table-compact" id="reportTable">
         <thead>
           <tr>
-            <th>案件No</th><th>パートナー名</th><th>企業名</th><th>対象月</th><th>稼働日数</th><th>実働時間</th><th>経費合計</th><th>ステータス</th><th>提出日</th><th>操作</th>
+            <th>案件No</th>
+            <th>企業</th>
+            <th>パートナー</th>
+            <th>案件名</th>
+            <th>入力日数</th>
+            <th>完了率</th>
+            <th>ステータス</th>
+            <th>操作</th>
           </tr>
         </thead>
-        <tbody>
-          <tr><td>PJ_P00001_C0156_Z001</td><td>鈴木 運送太郎</td><td>株式会社 大物</td><td>2026年7月</td><td>21日</td><td>168.0h</td><td>¥12,500</td><td><span class="badge badge-amber">承認待ち</span></td><td>8/12</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button> <button class="btn btn-success btn-sm" onclick="showToast('承認しました','success')">承認</button></td></tr>
-          <tr><td>PJ_P00002_C0157_Z001</td><td>高橋 ドライバー</td><td>株式会社 B社</td><td>2026年7月</td><td>18日</td><td>144.0h</td><td>¥8,200</td><td><span class="badge badge-amber">承認待ち</span></td><td>8/10</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button> <button class="btn btn-success btn-sm" onclick="showToast('承認しました','success')">承認</button></td></tr>
-          <tr><td>PJ_P00003_C0158_Z001</td><td>田中 物流</td><td>株式会社 A社</td><td>2026年6月</td><td>20日</td><td>160.0h</td><td>¥15,000</td><td><span class="badge badge-red">差戻し</span></td><td>7/15</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">入力・編集</button></td></tr>
-          <tr><td>PJ_P00001_C0156_Z001</td><td>鈴木 運送太郎</td><td>株式会社 大物</td><td>2026年6月</td><td>21日</td><td>172.5h</td><td>¥9,800</td><td><span class="badge badge-green">承認済</span></td><td>7/5</td><td><button class="btn btn-outline btn-sm" onclick="openReport()">詳細</button></td></tr>
-          <tr><td>PJ_P00004_C0159_Z001</td><td>山田 配達</td><td>株式会社 C社</td><td>2026年7月</td><td>0日</td><td>0.0h</td><td>¥0</td><td><span class="badge badge-gray">入力中</span></td><td>—</td><td><button class="btn btn-primary btn-sm" onclick="openReport()">日報入力</button></td></tr>
-        </tbody>
+        <tbody id="reportTbody"></tbody>
       </table>
     </div>
   </div>
@@ -164,8 +161,11 @@
         <div>期間: <span style="font-weight:600">2026-06-21 〜 2026-07-20</span></div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="badge badge-gray" style="padding:6px 16px;font-size:12px">入力中</span>
-        <button class="btn btn-warning btn-sm" onclick="showToast('承認依頼を送信しました','success')">承認依頼</button>
+        <span class="badge badge-gray" id="inputStatusBadge" style="padding:6px 16px;font-size:12px">入力中</span>
+        <button type="button" class="btn btn-warning btn-sm" onclick="setReportStatus('pending')">承認申請</button>
+        <button type="button" class="btn btn-success btn-sm" onclick="setReportStatus('approved')">承認</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="setReportStatus('rejected')">差戻し</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="setReportStatus('revising')">承認取消（訂正中）</button>
       </div>
     </div>
   </div>
@@ -422,7 +422,13 @@ function addSubRow(idx) {
   showToast('行を追加しました（同日複数行対応）', 'info');
 }
 
-function openReport() {
+function openReport(projectId) {
+  const row = MONTH_ROWS.find((r) => r.project_id === projectId) || MONTH_ROWS[0];
+  currentProject = row;
+  document.getElementById('reportTitle').textContent =
+    `${row.partner_name} / ${row.company_name}　${ymLabelText(currentYm)} 日報入力`;
+  document.querySelector('.report-meta').textContent = `${row.company_name} / ${row.partner_name} / 案件 ${row.project_id}`;
+  setStatusBadge(row.status);
   document.getElementById('viewList').classList.add('hidden');
   document.getElementById('viewInput').classList.remove('hidden');
   renderGrid();
@@ -431,10 +437,119 @@ function openReport() {
 function backToList() {
   document.getElementById('viewInput').classList.add('hidden');
   document.getElementById('viewList').classList.remove('hidden');
+  renderMonthList();
 }
 
 function saveReport() {
-  showToast('日報データを保存しました', 'success');
+  if (currentProject && currentProject.status === 'empty') currentProject.status = 'draft';
+  showToast('日報データを保存しました（入力中）', 'success');
+  setStatusBadge(currentProject?.status || 'draft');
+}
+
+const STATUS_META = {
+  empty: { label: '未入力', cls: 'badge-gray' },
+  draft: { label: '入力中', cls: 'badge-gray' },
+  pending: { label: '承認待ち', cls: 'badge-amber' },
+  approved: { label: '承認済', cls: 'badge-green' },
+  rejected: { label: '差戻し', cls: 'badge-red' },
+  revising: { label: '訂正中', cls: 'badge-purple' },
+};
+
+let currentYm = '2026-07';
+let currentProject = null;
+
+/** 案件×月モック（対象月でフィルタ） */
+const ALL_MONTH_ROWS = [
+  { ym: '2026-07', project_id: 'PJ-001', company_name: '株式会社ヤマト運送', partner_name: '鈴木 運送太郎', project_name: '首都圏定期ルート', input_days: 12, days_in_month: 31, status: 'pending' },
+  { ym: '2026-07', project_id: 'PJ-002', company_name: '佐川ロジスティクス株式会社', partner_name: '高橋 ドライバー', project_name: '関東スポット便', input_days: 8, days_in_month: 31, status: 'draft' },
+  { ym: '2026-07', project_id: 'PJ-003', company_name: '日本通運ファシリティー株式会社', partner_name: '田中 物流', project_name: '精密機械輸送', input_days: 0, days_in_month: 31, status: 'empty' },
+  { ym: '2026-07', project_id: 'PJ-004', company_name: '株式会社ヤマト運送', partner_name: '山田 配達', project_name: '食品チャーター', input_days: 20, days_in_month: 31, status: 'revising' },
+  { ym: '2026-06', project_id: 'PJ-001', company_name: '株式会社ヤマト運送', partner_name: '鈴木 運送太郎', project_name: '首都圏定期ルート', input_days: 21, days_in_month: 30, status: 'approved' },
+  { ym: '2026-06', project_id: 'PJ-005', company_name: '西濃エキスプレス株式会社', partner_name: '佐藤 次郎', project_name: '名古屋幹線', input_days: 15, days_in_month: 30, status: 'rejected' },
+];
+
+let MONTH_ROWS = [];
+
+function ymLabelText(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  return `${y}年${m}月`;
+}
+
+function shiftMonth(delta) {
+  const [y, m] = currentYm.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  currentYm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  document.getElementById('filterMonth').value = currentYm;
+  renderMonthList();
+}
+
+function statusBadgeHtml(status) {
+  const meta = STATUS_META[status] || STATUS_META.draft;
+  return `<span class="badge ${meta.cls}">${meta.label}</span>`;
+}
+
+function setStatusBadge(status) {
+  const el = document.getElementById('inputStatusBadge');
+  if (!el) return;
+  const meta = STATUS_META[status] || STATUS_META.draft;
+  el.className = `badge ${meta.cls}`;
+  el.style.padding = '6px 16px';
+  el.style.fontSize = '12px';
+  el.textContent = meta.label;
+}
+
+function setReportStatus(status) {
+  if (!currentProject) return;
+  currentProject.status = status;
+  setStatusBadge(status);
+  const labels = { pending: '承認申請しました', approved: '承認しました', rejected: '差し戻しました', revising: '承認を取り消し、訂正中にしました' };
+  showToast(labels[status] || 'ステータスを更新しました', 'success');
+}
+
+function renderMonthList() {
+  MONTH_ROWS = ALL_MONTH_ROWS.filter((r) => r.ym === currentYm);
+  document.getElementById('ymLabel').textContent = ymLabelText(currentYm);
+  document.getElementById('projectCount').textContent = String(MONTH_ROWS.length);
+  document.getElementById('inputCount').textContent = String(MONTH_ROWS.filter((r) => r.input_days > 0).length);
+  const tbody = document.getElementById('reportTbody');
+  tbody.innerHTML = MONTH_ROWS.map((r) => {
+    const rate = r.days_in_month ? Math.round((r.input_days / r.days_in_month) * 100) : 0;
+    const action =
+      r.status === 'approved'
+        ? `<button type="button" class="btn btn-outline btn-sm" onclick="openReport('${r.project_id}')">詳細</button>
+           <button type="button" class="btn btn-ghost btn-sm" onclick="openReport('${r.project_id}');setReportStatus('revising')">承認取消</button>`
+        : `<button type="button" class="btn btn-primary btn-sm" onclick="openReport('${r.project_id}')">入力</button>`;
+    return `<tr>
+      <td><strong>${r.project_id}</strong></td>
+      <td>${r.company_name}</td>
+      <td>${r.partner_name}</td>
+      <td>${r.project_name}</td>
+      <td>${r.input_days}/${r.days_in_month}</td>
+      <td>${rate}%</td>
+      <td>${statusBadgeHtml(r.status)}</td>
+      <td class="dt-actions">${action}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8">この月の対象案件がありません</td></tr>';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('prevMonthBtn')?.addEventListener('click', () => shiftMonth(-1));
+  document.getElementById('nextMonthBtn')?.addEventListener('click', () => shiftMonth(1));
+  document.getElementById('reloadMonthBtn')?.addEventListener('click', () => {
+    currentYm = document.getElementById('filterMonth').value || currentYm;
+    renderMonthList();
+  });
+  document.getElementById('filterMonth')?.addEventListener('change', () => {
+    currentYm = document.getElementById('filterMonth').value || currentYm;
+    renderMonthList();
+  });
+  renderMonthList();
+});
+
+function saveReport() {
+  if (currentProject && (currentProject.status === 'empty' || !currentProject.status)) currentProject.status = 'draft';
+  showToast('日報データを保存しました（入力中）', 'success');
+  setStatusBadge(currentProject?.status || 'draft');
 }
 </script>
 </body>

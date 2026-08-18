@@ -6,24 +6,14 @@
 <title>基本案件管理 - LinksSys</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .search-bar-wrap {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 20px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    box-shadow: var(--shadow-sm);
-  }
-  .search-input-group {
-    flex: 1;
-    display: flex;
-    gap: 8px;
-  }
-  .filter-select {
-    width: 180px;
+  .template-no {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: #eff6ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
   }
 </style>
 </head>
@@ -37,20 +27,20 @@
   </div>
   <nav class="sidebar-nav">
     <div class="sidebar-section-label">メイン</div>
-    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <a class="sidebar-item" href="02_dashboard.html" data-page="02_dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>ダッシュボード</a>
     <div class="sidebar-section-label">マスタ管理</div>
-    <a class="sidebar-item" href="03_company.html">企業管理</a>
-    <a class="sidebar-item" href="04_partner.html">パートナー管理</a>
-    <a class="sidebar-item active" href="05_base_project.html">基本案件管理</a>
-    <a class="sidebar-item" href="06_project.html">案件管理</a>
-    <a class="sidebar-item" href="07_price_master.html">金額データ管理</a>
+    <a class="sidebar-item" href="03_company.html" data-page="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
+    <a class="sidebar-item" href="04_partner.html" data-page="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>パートナー管理</a>
+    <a class="sidebar-item active" href="05_base_project.html" data-page="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html" data-page="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html" data-page="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
     <div class="sidebar-section-label">業務管理</div>
-    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
-    <a class="sidebar-item" href="09_invoice.html">請求管理</a>
-    <a class="sidebar-item" href="10_payment.html">支払管理</a>
-    <a class="sidebar-item" href="11_advance.html">先払・分割支払</a>
+    <a class="sidebar-item" href="08_daily_report.html" data-page="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html" data-page="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html" data-page="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html" data-page="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>先払・分割支払</a>
     <div class="sidebar-section-label">分析・決算</div>
-    <a class="sidebar-item" href="12_finance.html">収支管理・分析</a>
+    <a class="sidebar-item" href="12_finance.html" data-page="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-user-avatar">管</div>
@@ -63,7 +53,7 @@
   <header class="page-header">
     <h1 class="page-title">基本案件管理 (案件テンプレート)</h1>
     <div class="flex gap-2 items-center">
-      <button class="btn btn-primary" onclick="openModal('addTemplateModal')">
+      <button class="btn btn-primary" onclick="openAddTemplateModal()">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         新規テンプレート作成
       </button>
@@ -71,92 +61,12 @@
   </header>
 
   <div class="page-body">
-    <!-- 検索フィルター -->
-    <div class="search-bar-wrap">
-      <div class="search-input-group">
-        <input type="text" id="searchInput" class="form-control" placeholder="テンプレートNo、名称、企業名、パートナー名で検索...">
-      </div>
-      <select id="statusFilter" class="form-control filter-select" onchange="filterTemplates()">
-        <option value="">すべてのステータス</option>
-        <option value="有効">有効</option>
-        <option value="無効">無効</option>
-      </select>
+    <div id="queryFilterBanner"></div>
+    <div class="list-meta">
+      <span>該当件数: <strong id="recordCount">0</strong> 件</span>
+      <span>表示列・順序は UIビルダーで変更（本システムの <code>user_screen_layouts</code> 相当。この画面に列操作UIは置かない）</span>
     </div>
-
-    <!-- テンプレート一覧テーブル -->
-    <div class="table-wrap">
-      <table class="data-table" id="templateTable">
-        <thead>
-          <tr>
-            <th style="width: 130px;">テンプレートNo</th>
-            <th>テンプレート名</th>
-            <th>企業名</th>
-            <th>パートナー名</th>
-            <th style="width: 140px;">標準期間</th>
-            <th style="width: 100px; text-align: center;">ステータス</th>
-            <th style="width: 220px; text-align: center;">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr data-status="有効">
-            <td><strong class="text-sm">TPL-2026-001</strong></td>
-            <td><strong>【定期便】首都圏ルート配送標準モジュール</strong></td>
-            <td>株式会社 A物流</td>
-            <td>東京トランスポート</td>
-            <td>12ヶ月 (通年)</td>
-            <td class="text-center"><span class="badge badge-green">有効</span></td>
-            <td class="text-center">
-              <div class="flex gap-2 justify-end">
-                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-001', '【定期便】首都圏ルート配送標準モジュール', '株式会社 A物流', '東京トランスポート', '12ヶ月 (通年)', '毎朝7:00発、指定ルート配送（1日8店舗巡回）', '定番案件用テンプレート。年間契約の基本モデルです。')">詳細</button>
-                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-001', '【定期便】首都圏ルート配送標準モジュール')">案件として作成</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-status="有効">
-            <td><strong class="text-sm">TPL-2026-002</strong></td>
-            <td><strong>【スポット】緊急チャーター便・急送便</strong></td>
-            <td>株式会社 Bロジ</td>
-            <td>山田配送サービス</td>
-            <td>1ヶ月 (スポット)</td>
-            <td class="text-center"><span class="badge badge-green">有効</span></td>
-            <td class="text-center">
-              <div class="flex gap-2 justify-end">
-                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-002', '【スポット】緊急チャーター便・急送便', '株式会社 Bロジ', '山田配送サービス', '1ヶ月 (スポット)', '受注後2時間以内の集荷および即日指定先納品作業', '急便・深夜対応可。単価設定は残業・休日手当適用。')">詳細</button>
-                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-002', '【スポット】緊急チャーター便・急送便')">案件として作成</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-status="有効">
-            <td><strong class="text-sm">TPL-2026-003</strong></td>
-            <td><strong>【宅配】城東エリアラストワンマイル配送</strong></td>
-            <td>C配送サービス</td>
-            <td>関東陸運</td>
-            <td>6ヶ月</td>
-            <td class="text-center"><span class="badge badge-green">有効</span></td>
-            <td class="text-center">
-              <div class="flex gap-2 justify-end">
-                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-003', '【宅配】城東エリアラストワンマイル配送', 'C配送サービス', '関東陸運', '6ヶ月', '個人宅宛小型荷物配送（1日約100〜120個目安）', '夜間再配達への柔軟な対応が求められる案件パターンです。')">詳細</button>
-                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-003', '【宅配】城東エリアラストワンマイル配送')">案件として作成</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-status="無効">
-            <td><strong class="text-sm">TPL-2026-004</strong></td>
-            <td><strong>【旧版】倉庫間移動・夜間転送便</strong></td>
-            <td>山田運送</td>
-            <td>鈴木ドライバー</td>
-            <td>3ヶ月</td>
-            <td class="text-center"><span class="badge badge-gray">無効</span></td>
-            <td class="text-center">
-              <div class="flex gap-2 justify-end">
-                <button class="btn btn-outline btn-sm" onclick="viewDetail('TPL-2026-004', '【旧版】倉庫間移動・夜間転送便', '山田運送', '鈴木ドライバー', '3ヶ月', '22:00〜翌6:00の拠点間定期荷物搬送作業', '旧規約に基づくテンプレート。現在は運用停止中。')">詳細</button>
-                <button class="btn btn-success btn-sm" onclick="createProjectFromTemplate('TPL-2026-004', '【旧版】倉庫間移動・夜間転送便')">案件として作成</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <div id="base-projects-list-root"></div>
   </div>
 </div>
 
@@ -171,22 +81,22 @@
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">テンプレート名 <span style="color:var(--color-danger)">*</span></label>
-          <input type="text" class="form-control" placeholder="例: 【定期便】関東エリア短距離配送パターン" required>
+          <input type="text" class="form-control" id="formTplName" placeholder="例: 【定期便】関東エリア短距離配送パターン" required>
         </div>
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">発注元企業 <span style="color:var(--color-danger)">*</span></label>
-            <select class="form-control" required>
+            <select class="form-control" id="formTplCompany" required>
               <option value="">選択してください</option>
-              <option value="株式会社 A物流">株式会社 A物流</option>
-              <option value="株式会社 Bロジ">株式会社 Bロジ</option>
+              <option value="株式会社ヤマト運送">株式会社ヤマト運送</option>
+              <option value="佐川ロジスティクス株式会社">佐川ロジスティクス株式会社</option>
               <option value="C配送サービス">C配送サービス</option>
               <option value="山田運送">山田運送</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">担当パートナー <span style="color:var(--color-danger)">*</span></label>
-            <select class="form-control" required>
+            <select class="form-control" id="formTplPartner" required>
               <option value="">選択してください</option>
               <option value="東京トランスポート">東京トランスポート</option>
               <option value="山田配送サービス">山田配送サービス</option>
@@ -198,7 +108,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">標準期間 / 想定運用期間</label>
-          <select class="form-control">
+          <select class="form-control" id="formTplPeriod">
             <option value="1ヶ月 (スポット)">1ヶ月 (スポット)</option>
             <option value="3ヶ月">3ヶ月</option>
             <option value="6ヶ月">6ヶ月</option>
@@ -208,11 +118,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">作業内容・要件</label>
-          <textarea class="form-control" rows="3" placeholder="配送便の概要、集荷ルート、積み下ろし条件等の共通作業内容を入力"></textarea>
+          <textarea class="form-control" id="formTplWork" rows="3" placeholder="配送便の概要、集荷ルート、積み下ろし条件等の共通作業内容を入力"></textarea>
         </div>
         <div class="form-group">
           <label class="form-label">備考・特記事項</label>
-          <textarea class="form-control" rows="2" placeholder="注意事項、請求・支払時の適用ルール等"></textarea>
+          <textarea class="form-control" id="formTplNote" rows="2" placeholder="注意事項、請求・支払時の適用ルール等"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -271,57 +181,231 @@
 
 <script src="common.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    initTableSearch('searchInput', 'templateTable');
-  });
+  const DT = window.ProtoDataTable;
+  const SCREEN_KEY = 'base_projects';
+  const listState = { sortKey: 'template_no', sortOrder: 'asc', filters: {} };
 
-  function filterTemplates() {
-    const statusVal = document.getElementById('statusFilter').value;
-    const searchVal = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.querySelectorAll('#templateTable tbody tr');
+  const COLUMN_CATALOG = [
+    { key: 'template_no', label: 'テンプレートNo' },
+    { key: 'template_name', label: 'テンプレート名' },
+    { key: 'company_name', label: '企業名' },
+    { key: 'partner_name', label: 'パートナー名' },
+    { key: 'standard_period', label: '標準期間' },
+    { key: 'status', label: 'ステータス' },
+  ];
 
-    rows.forEach(row => {
-      const rowStatus = row.getAttribute('data-status');
-      const text = row.textContent.toLowerCase();
-      const matchStatus = !statusVal || rowStatus === statusVal;
-      const matchSearch = !searchVal || text.includes(searchVal);
+  const DEFAULT_LAYOUT = {
+    columns: [
+      'template_no',
+      'template_name',
+      'company_name',
+      'partner_name',
+      'standard_period',
+      'status',
+    ],
+    hidden: [],
+  };
 
-      row.style.display = (matchStatus && matchSearch) ? '' : 'none';
+  const templates = {
+    'TPL-2026-001': {
+      id: 'TPL-2026-001',
+      template_no: 'TPL-2026-001',
+      template_name: '【定期便】首都圏ルート配送標準モジュール',
+      company_name: '株式会社ヤマト運送',
+      partner_name: '東京トランスポート',
+      standard_period: '12ヶ月 (通年)',
+      status: '有効',
+      work: '毎朝7:00発、指定ルート配送（1日8店舗巡回）',
+      note: '定番案件用テンプレート。年間契約の基本モデルです。',
+    },
+    'TPL-2026-002': {
+      id: 'TPL-2026-002',
+      template_no: 'TPL-2026-002',
+      template_name: '【スポット】緊急チャーター便・急送便',
+      company_name: '佐川ロジスティクス株式会社',
+      partner_name: '山田配送サービス',
+      standard_period: '1ヶ月 (スポット)',
+      status: '有効',
+      work: '受注後2時間以内の集荷および即日指定先納品作業',
+      note: '急便・深夜対応可。単価設定は残業・休日手当適用。',
+    },
+    'TPL-2026-003': {
+      id: 'TPL-2026-003',
+      template_no: 'TPL-2026-003',
+      template_name: '【宅配】城東エリアラストワンマイル配送',
+      company_name: 'C配送サービス',
+      partner_name: '関東陸運',
+      standard_period: '6ヶ月',
+      status: '有効',
+      work: '個人宅宛小型荷物配送（1日約100〜120個目安）',
+      note: '夜間再配達への柔軟な対応が求められる案件パターンです。',
+    },
+    'TPL-2026-004': {
+      id: 'TPL-2026-004',
+      template_no: 'TPL-2026-004',
+      template_name: '【旧版】倉庫間移動・夜間転送便',
+      company_name: '山田運送',
+      partner_name: '鈴木ドライバー',
+      standard_period: '3ヶ月',
+      status: '無効',
+      work: '22:00〜翌6:00の拠点間定期荷物搬送作業',
+      note: '旧規約に基づくテンプレート。現在は運用停止中。',
+    },
+  };
+
+  function getLayout() {
+    return DT.loadLayout(SCREEN_KEY) || DEFAULT_LAYOUT;
+  }
+
+  function renderTemplateList() {
+    const rows = Object.values(templates);
+    const table = DT.renderTable({
+      screenKey: SCREEN_KEY,
+      columns: COLUMN_CATALOG,
+      rows,
+      layout: getLayout(),
+      sortKey: listState.sortKey,
+      sortOrder: listState.sortOrder,
+      filters: listState.filters,
+      tableId: 'templateTable',
+      renderHtml: (row, col) => {
+        if (col.key === 'template_no') {
+          return `<span class="template-no">${DT.escapeHtml(row.template_no)}</span>`;
+        }
+        if (col.key === 'template_name') {
+          return `<strong>${DT.escapeHtml(row.template_name)}</strong>`;
+        }
+        if (col.key === 'status') {
+          return row.status === '有効'
+            ? '<span class="badge badge-green">有効</span>'
+            : '<span class="badge badge-gray">無効</span>';
+        }
+        return null;
+      },
+      renderActions: (row) => `
+        <button type="button" class="btn btn-outline btn-sm" onclick="viewDetail('${DT.escapeHtml(row.template_no)}')">詳細</button>
+        <button type="button" class="btn btn-success btn-sm" onclick="createProjectFromTemplate('${DT.escapeHtml(row.template_no)}')">案件として作成</button>`,
     });
+
+    document.getElementById('base-projects-list-root').innerHTML = table.html;
+    document.getElementById('recordCount').textContent = String(table.filteredRows.length);
+    DT.bindTable('#base-projects-list-root', {
+      onSort: (key) => {
+        if (listState.sortKey === key) {
+          listState.sortOrder = listState.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+          listState.sortKey = key;
+          listState.sortOrder = 'asc';
+        }
+        renderTemplateList();
+      },
+      onFilter: (filters) => {
+        listState.filters = filters;
+        renderTemplateList();
+      },
+    });
+  }
+
+  /** 企業／パートナー管理からの遷移: query で列フィルタをセット */
+  function applyCompanyQueryFilter() {
+    const params = new URLSearchParams(location.search);
+    const companyName = params.get('company_name');
+    const partnerName = params.get('partner_name');
+    if (!companyName && !partnerName) return;
+
+    if (companyName) listState.filters.company_name = companyName;
+    if (partnerName) listState.filters.partner_name = partnerName;
+
+    const bannerHost = document.getElementById('queryFilterBanner');
+    if (bannerHost && !document.getElementById('companyFilterBanner')) {
+      const parts = [];
+      if (companyName) {
+        parts.push(`企業「<strong>${DT.escapeHtml(companyName)}</strong>」`);
+      }
+      if (partnerName) {
+        parts.push(`パートナー「<strong>${DT.escapeHtml(partnerName)}</strong>」`);
+      }
+      const banner = document.createElement('div');
+      banner.id = 'companyFilterBanner';
+      banner.className = 'alert alert-info';
+      banner.style.marginBottom = '12px';
+      banner.innerHTML = `${parts.join(' / ')}で絞り込み中（他画面からの遷移）
+        <a href="03_company.html" style="margin-left:12px;">企業管理へ戻る</a>
+        <a href="05_base_project.html" style="margin-left:8px;">絞り込み解除</a>`;
+      bannerHost.appendChild(banner);
+    }
+  }
+
+  function openAddTemplateModal() {
+    document.getElementById('addTemplateForm').reset();
+    openModal('addTemplateModal');
   }
 
   function handleSaveTemplate(e) {
     e.preventDefault();
+    const name = document.getElementById('formTplName').value.trim();
+    const company = document.getElementById('formTplCompany').value;
+    const partner = document.getElementById('formTplPartner').value;
+    if (!name || !company || !partner) {
+      alert('必須項目を入力してください。');
+      return;
+    }
+    const seq = Object.keys(templates).length + 1;
+    const no = `TPL-2026-${String(seq).padStart(3, '0')}`;
+    templates[no] = {
+      id: no,
+      template_no: no,
+      template_name: name,
+      company_name: company,
+      partner_name: partner,
+      standard_period: document.getElementById('formTplPeriod').value,
+      status: '有効',
+      work: document.getElementById('formTplWork').value,
+      note: document.getElementById('formTplNote').value,
+    };
     closeModal('addTemplateModal');
-    showToast('基本案件テンプレートを作成しました', 'success');
     document.getElementById('addTemplateForm').reset();
+    renderTemplateList();
+    showToast('基本案件テンプレートを作成しました', 'success');
   }
 
-  function createProjectFromTemplate(tplNo, tplName) {
-    confirmAction(`テンプレート「${tplName}」を元に新規案件を作成しますか？`, () => {
-      showToast(`案件が正常に作成されました。案件管理画面へ反映されます。`, 'success');
+  function createProjectFromTemplate(tplNo) {
+    const t = templates[tplNo];
+    if (!t) return;
+    confirmAction(`テンプレート「${t.template_name}」を元に新規案件を作成しますか？`, () => {
+      showToast('案件が正常に作成されました。案件管理画面へ反映されます。', 'success');
       setTimeout(() => {
         location.href = '06_project.html';
       }, 1200);
     });
   }
 
-  function viewDetail(no, name, company, partner, period, work, note) {
-    document.getElementById('detailNo').value = no;
-    document.getElementById('detailName').value = name;
-    document.getElementById('detailCompany').value = company;
-    document.getElementById('detailPartner').value = partner;
-    document.getElementById('detailPeriod').value = period;
-    document.getElementById('detailWork').value = work;
-    document.getElementById('detailNote').value = note;
+  function viewDetail(no) {
+    const t = templates[no];
+    if (!t) return;
+    document.getElementById('detailNo').value = t.template_no;
+    document.getElementById('detailName').value = t.template_name;
+    document.getElementById('detailCompany').value = t.company_name;
+    document.getElementById('detailPartner').value = t.partner_name;
+    document.getElementById('detailPeriod').value = t.standard_period;
+    document.getElementById('detailWork').value = t.work || '';
+    document.getElementById('detailNote').value = t.note || '';
 
     document.getElementById('createBtnInDetail').onclick = () => {
       closeModal('viewTemplateModal');
-      createProjectFromTemplate(no, name);
+      createProjectFromTemplate(t.template_no);
     };
 
     openModal('viewTemplateModal');
   }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!DT.loadLayout(SCREEN_KEY)) {
+      DT.saveLayout(SCREEN_KEY, DEFAULT_LAYOUT);
+    }
+    applyCompanyQueryFilter();
+    renderTemplateList();
+  });
 </script>
 </body>
 </html>

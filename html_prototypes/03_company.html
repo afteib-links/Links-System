@@ -6,42 +6,6 @@
 <title>企業管理 - LinksSys</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .search-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    background: var(--color-surface);
-    padding: 16px 20px;
-    border-radius: var(--radius);
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
-  }
-  .search-inputs {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex: 1;
-  }
-  .search-input-wrap {
-    position: relative;
-    width: 320px;
-  }
-  .search-input-wrap input {
-    padding-left: 36px;
-  }
-  .search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--color-text-muted);
-    pointer-events: none;
-  }
-  .status-filter {
-    width: 160px;
-  }
   .company-code {
     font-family: monospace;
     font-weight: 600;
@@ -51,29 +15,54 @@
     border-radius: 4px;
     font-size: 12px;
   }
-  .detail-grid {
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    row-gap: 12px;
-    column-gap: 16px;
-    font-size: 13px;
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 20px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
   }
-  .detail-label {
+  .section-title:first-child { margin-top: 0; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 20px 0 12px;
+  }
+  .section-head .section-title { margin: 0; border: none; padding: 0; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label {
+    display: block;
+    font-size: 12px;
     font-weight: 600;
     color: var(--color-text-muted);
-    background: #f8fafc;
-    padding: 6px 10px;
-    border-radius: 4px;
+    margin-bottom: 4px;
   }
-  .detail-value {
-    padding: 6px 0;
-    color: var(--color-text);
+  .page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
   }
 </style>
 </head>
 <body>
 
-<!-- サイドバー -->
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">L</div>
@@ -81,20 +70,20 @@
   </div>
   <nav class="sidebar-nav">
     <div class="sidebar-section-label">メイン</div>
-    <a class="sidebar-item" href="02_dashboard.html" data-page="02_dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>ダッシュボード</a>
+    <a class="sidebar-item" href="02_dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>ダッシュボード</a>
     <div class="sidebar-section-label">マスタ管理</div>
-    <a class="sidebar-item active" href="03_company.html" data-page="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
-    <a class="sidebar-item" href="04_partner.html" data-page="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>パートナー管理</a>
-    <a class="sidebar-item" href="05_base_project.html" data-page="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
-    <a class="sidebar-item" href="06_project.html" data-page="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>案件管理</a>
-    <a class="sidebar-item" href="07_price_master.html" data-page="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
+    <a class="sidebar-item active" href="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
+    <a class="sidebar-item" href="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
     <div class="sidebar-section-label">業務管理</div>
-    <a class="sidebar-item" href="08_daily_report.html" data-page="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
-    <a class="sidebar-item" href="09_invoice.html" data-page="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>請求管理</a>
-    <a class="sidebar-item" href="10_payment.html" data-page="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
-    <a class="sidebar-item" href="11_advance.html" data-page="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>先払・分割支払</a>
+    <a class="sidebar-item" href="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>先払・分割支払</a>
     <div class="sidebar-section-label">分析・決算</div>
-    <a class="sidebar-item" href="12_finance.html" data-page="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
+    <a class="sidebar-item" href="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-user-avatar">管</div>
@@ -102,462 +91,710 @@
   </div>
 </aside>
 
-<!-- メインコンテンツ -->
 <div class="main-content">
-  <header class="page-header">
-    <h1 class="page-title">企業管理</h1>
-    <button class="btn btn-primary" onclick="openAddCompanyModal()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      新規企業登録
-    </button>
-  </header>
-
-  <div class="page-body">
-    <!-- 検索ボックス＆フィルター -->
-    <div class="search-bar">
-      <div class="search-inputs">
-        <div class="search-input-wrap">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" class="form-control" placeholder="企業名、企業番号、担当営業で検索...">
-        </div>
-        <select class="form-control status-filter" id="statusFilter" onchange="filterStatus()">
-          <option value="ALL">すべてのステータス</option>
-          <option value="ACTIVE">取引中</option>
-          <option value="INACTIVE">休止中</option>
-        </select>
+  <!-- 一覧 -->
+  <div id="panel-list">
+    <header class="page-header">
+      <h1 class="page-title">企業管理</h1>
+      <button type="button" class="btn btn-primary" onclick="openNewCompany()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新規企業登録
+      </button>
+    </header>
+    <div class="page-body">
+      <div class="list-meta">
+        <span>該当件数: <strong id="recordCount">0</strong> 件</span>
+        <span>表示列・順序は UIビルダーで変更（本システムの <code>user_screen_layouts</code> 相当）</span>
       </div>
-      <div class="text-sm text-muted">
-        該当件数: <span id="recordCount" class="font-bold" style="color: var(--color-text)">5</span> 件
-      </div>
-    </div>
-
-    <!-- 企業一覧テーブル -->
-    <div class="table-wrap">
-      <table class="data-table" id="companyTable">
-        <thead>
-          <tr>
-            <th style="width: 110px;">企業番号</th>
-            <th>企業名</th>
-            <th style="width: 130px;">担当営業</th>
-            <th style="width: 140px;">電話番号</th>
-            <th style="width: 150px;">締日 / 支払日</th>
-            <th style="width: 110px;">ステータス</th>
-            <th style="width: 150px; text-align: center;">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr data-id="COMP-001" data-status="ACTIVE">
-            <td><span class="company-code">COMP-001</span></td>
-            <td>
-              <div class="font-bold">株式会社ヤマト運送</div>
-              <div class="text-sm text-muted">カブシキガイシャヤマトウンソウ</div>
-            </td>
-            <td>佐藤 健太</td>
-            <td>03-1234-5678</td>
-            <td>末日締め 翌月末払い</td>
-            <td><span class="badge badge-green">取引中</span></td>
-            <td style="text-align: center;">
-              <div class="flex gap-2 justify-end" style="justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="viewCompany('COMP-001')">詳細</button>
-                <button class="btn btn-outline btn-sm" onclick="editCompany('COMP-001')">編集</button>
-                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('COMP-001', '株式会社ヤマト運送')">削除</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-id="COMP-002" data-status="ACTIVE">
-            <td><span class="company-code">COMP-002</span></td>
-            <td>
-              <div class="font-bold">佐川ロジスティクス株式会社</div>
-              <div class="text-sm text-muted">サガワロジスティクス</div>
-            </td>
-            <td>鈴木 一郎</td>
-            <td>06-9876-5432</td>
-            <td>20日締め 翌月20日払い</td>
-            <td><span class="badge badge-green">取引中</span></td>
-            <td style="text-align: center;">
-              <div class="flex gap-2 justify-end" style="justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="viewCompany('COMP-002')">詳細</button>
-                <button class="btn btn-outline btn-sm" onclick="editCompany('COMP-002')">編集</button>
-                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('COMP-002', '佐川ロジスティクス株式会社')">削除</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-id="COMP-003" data-status="ACTIVE">
-            <td><span class="company-code">COMP-003</span></td>
-            <td>
-              <div class="font-bold">日本通運ファシリティー株式会社</div>
-              <div class="text-sm text-muted">ニッポンツウウンファシリティー</div>
-            </td>
-            <td>田中 太郎</td>
-            <td>03-5555-4321</td>
-            <td>15日締め 翌々月5日払い</td>
-            <td><span class="badge badge-green">取引中</span></td>
-            <td style="text-align: center;">
-              <div class="flex gap-2 justify-end" style="justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="viewCompany('COMP-003')">詳細</button>
-                <button class="btn btn-outline btn-sm" onclick="editCompany('COMP-003')">編集</button>
-                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('COMP-003', '日本通運ファシリティー株式会社')">削除</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-id="COMP-004" data-status="INACTIVE">
-            <td><span class="company-code">COMP-004</span></td>
-            <td>
-              <div class="font-bold">西濃エキスプレス株式会社</div>
-              <div class="text-sm text-muted">セイノウエキスプレス</div>
-            </td>
-            <td>佐藤 健太</td>
-            <td>052-111-2222</td>
-            <td>末日締め 翌月15日払い</td>
-            <td><span class="badge badge-gray">休止中</span></td>
-            <td style="text-align: center;">
-              <div class="flex gap-2 justify-end" style="justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="viewCompany('COMP-004')">詳細</button>
-                <button class="btn btn-outline btn-sm" onclick="editCompany('COMP-004')">編集</button>
-                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('COMP-004', '西濃エキスプレス株式会社')">削除</button>
-              </div>
-            </td>
-          </tr>
-          <tr data-id="COMP-005" data-status="ACTIVE">
-            <td><span class="company-code">COMP-005</span></td>
-            <td>
-              <div class="font-bold">エクスプレス・ライナー有限会社</div>
-              <div class="text-sm text-muted">エクスプレスライナー</div>
-            </td>
-            <td>高橋 花子</td>
-            <td>03-3333-7777</td>
-            <td>末日締め 翌月末払い</td>
-            <td><span class="badge badge-green">取引中</span></td>
-            <td style="text-align: center;">
-              <div class="flex gap-2 justify-end" style="justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="viewCompany('COMP-005')">詳細</button>
-                <button class="btn btn-outline btn-sm" onclick="editCompany('COMP-005')">編集</button>
-                <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="deleteCompany('COMP-005', 'エクスプレス・ライナー有限会社')">削除</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div id="companies-list-root"></div>
     </div>
   </div>
-</div>
 
-<!-- 登録・編集モーダル -->
-<div class="modal-overlay hidden" id="companyModal">
-  <div class="modal" style="max-width: 680px;">
-    <div class="modal-header">
-      <h3 class="modal-title" id="modalTitle">新規企業登録</h3>
-      <button class="modal-close" onclick="closeModal('companyModal')">&times;</button>
-    </div>
-    <div class="modal-body">
+  <!-- 詳細・編集（フルページ） -->
+  <div id="panel-detail" class="hidden">
+    <header class="page-header">
+      <div class="page-header-left">
+        <button type="button" class="btn btn-outline" onclick="showListPanel()">← 一覧へ戻る</button>
+        <h1 class="page-title" id="detailTitle">企業編集</h1>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-outline" onclick="goRelatedFromDetail('base')">基本案件管理へ</button>
+        <button type="button" class="btn btn-outline" onclick="goRelatedFromDetail('project')">案件管理へ</button>
+      </div>
+    </header>
+    <div class="page-body">
       <form id="companyForm" onsubmit="event.preventDefault(); saveCompany();">
-        <div class="grid-2 mb-4">
-          <div class="form-group">
-            <label class="form-label">企業番号 <span style="color:red">*</span></label>
-            <input type="text" class="form-control" id="formCompCode" value="COMP-006" required>
+        <h3 class="section-title">基本情報・銀行情報</h3>
+        <div class="form-grid mb-4">
+          <div>
+            <label>企業No</label>
+            <input type="text" class="form-control" id="f_company_id" readonly>
           </div>
-          <div class="form-group">
-            <label class="form-label">ステータス</label>
-            <select class="form-control" id="formStatus">
+          <div>
+            <label>ステータス</label>
+            <select class="form-control" id="f_status">
               <option value="ACTIVE">取引中</option>
               <option value="INACTIVE">休止中</option>
             </select>
           </div>
-        </div>
-
-        <div class="grid-2 mb-4">
-          <div class="form-group">
-            <label class="form-label">企業名 <span style="color:red">*</span></label>
-            <input type="text" class="form-control" id="formCompName" placeholder="例: 株式会社サンプル運送" required>
+          <div>
+            <label>事業所No</label>
+            <input type="text" class="form-control" id="f_office_no" disabled placeholder="保存時に自動採番">
           </div>
-          <div class="form-group">
-            <label class="form-label">フリガナ</label>
-            <input type="text" class="form-control" id="formCompFurigana" placeholder="例: カブシキガイシャサンプルウンソウ">
+          <div>
+            <label>事業所名</label>
+            <input type="text" class="form-control" id="f_office_name" placeholder="任意（入力なし可）">
           </div>
-        </div>
-
-        <div class="grid-3 mb-4">
-          <div class="form-group">
-            <label class="form-label">担当営業</label>
-            <input type="text" class="form-control" id="formSales" placeholder="担当者名">
+          <div>
+            <label>企業名（必須）</label>
+            <input type="text" class="form-control" id="f_company_name" required>
           </div>
-          <div class="form-group">
-            <label class="form-label">電話番号</label>
-            <input type="text" class="form-control" id="formTel" placeholder="03-0000-0000">
+          <div>
+            <label>企業名カナ</label>
+            <input type="text" class="form-control" id="f_company_name_kana">
           </div>
-          <div class="form-group">
-            <label class="form-label">FAX番号</label>
-            <input type="text" class="form-control" id="formFax" placeholder="03-0000-0001">
+          <div>
+            <label>郵便番号</label>
+            <input type="text" class="form-control" id="f_zip_code" placeholder="100-0001">
           </div>
-        </div>
-
-        <div class="grid-3 mb-4">
-          <div class="form-group">
-            <label class="form-label">締日</label>
-            <select class="form-control" id="formCutoffDay">
-              <option value="末日締め">末日締め</option>
-              <option value="20日締め">20日締め</option>
-              <option value="15日締め">15日締め</option>
-              <option value="10日締め">10日締め</option>
+          <div class="full">
+            <label>住所</label>
+            <input type="text" class="form-control" id="f_address">
+          </div>
+          <div>
+            <label>連絡先</label>
+            <input type="text" class="form-control" id="f_contact" placeholder="03-0000-0000">
+          </div>
+          <div>
+            <label>FAX</label>
+            <input type="text" class="form-control" id="f_fax">
+          </div>
+          <div>
+            <label>契約担当者</label>
+            <input type="text" class="form-control" id="f_contract_manager">
+          </div>
+          <div>
+            <label>弊社担当者</label>
+            <input type="text" class="form-control" id="f_our_manager" list="staffList" placeholder="マスター参照＋手入力可">
+          </div>
+          <div>
+            <label>弊社契約担当者</label>
+            <input type="text" class="form-control" id="f_our_contract_manager" list="staffList" placeholder="マスター参照＋手入力可">
+          </div>
+          <div>
+            <label>稼働形態</label>
+            <select class="form-control" id="f_work_mode_code">
+              <option value="">（未選択）</option>
+              <option value="exclusive">専属</option>
+              <option value="spot">スポット</option>
+              <option value="mixed">混載</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">支払日</label>
-            <select class="form-control" id="formPaymentDay">
-              <option value="翌月末払い">翌月末払い</option>
-              <option value="翌月20日払い">翌月20日払い</option>
-              <option value="翌々月5日払い">翌々月5日払い</option>
-              <option value="翌月15日払い">翌月15日払い</option>
+          <div>
+            <label>基本締日</label>
+            <select class="form-control" id="f_closing_date_code">
+              <option value="">（未選択）</option>
+              <option value="end">末日</option>
+              <option value="d20">20日</option>
+              <option value="d15">15日</option>
+              <option value="d10">10日</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">契約年月日</label>
-            <input type="date" class="form-control" id="formContractDate" value="2026-08-01">
+          <div>
+            <label>基本支払日</label>
+            <select class="form-control" id="f_payment_date_code">
+              <option value="">（未選択）</option>
+              <option value="next_end">翌月末</option>
+              <option value="next_20">翌月20日</option>
+              <option value="next_15">翌月15日</option>
+              <option value="next2_5">翌々月5日</option>
+            </select>
+          </div>
+          <div>
+            <label>請求書送付方法</label>
+            <select class="form-control" id="f_invoice_send_method">
+              <option value="">（未選択）</option>
+              <option value="email_pdf">メールPDF</option>
+              <option value="post">郵送</option>
+              <option value="fax">FAX</option>
+            </select>
+          </div>
+          <div class="full">
+            <label>請求書送付先住所</label>
+            <input type="text" class="form-control" id="f_invoice_send_address">
+          </div>
+          <div>
+            <label>基本契約日</label>
+            <input type="date" class="form-control" id="f_contract_date">
+          </div>
+          <div class="full">
+            <label>業務内容および付帯作業</label>
+            <textarea class="form-control" id="f_business_content" rows="3"></textarea>
+          </div>
+          <div>
+            <label>銀行名</label>
+            <input type="text" class="form-control" id="f_bank_name">
+          </div>
+          <div>
+            <label>支店名</label>
+            <input type="text" class="form-control" id="f_branch_name">
+          </div>
+          <div>
+            <label>口座種別</label>
+            <select class="form-control" id="f_deposit_type">
+              <option value="">（未選択）</option>
+              <option value="ordinary">普通</option>
+              <option value="checking">当座</option>
+              <option value="savings">貯蓄</option>
+            </select>
+          </div>
+          <div>
+            <label>口座番号</label>
+            <input type="text" class="form-control" id="f_account_number">
+          </div>
+          <div>
+            <label>口座名義</label>
+            <input type="text" class="form-control" id="f_account_name">
           </div>
         </div>
+        <datalist id="staffList">
+          <option value="佐藤 健太"></option>
+          <option value="鈴木 一郎"></option>
+          <option value="田中 太郎"></option>
+          <option value="高橋 花子"></option>
+        </datalist>
 
-        <div class="form-group mb-4">
-          <label class="form-label">業務内容</label>
-          <textarea class="form-control" id="formBusiness" rows="2" placeholder="主要な配送路線や案件種別など"></textarea>
+        <div class="section-head">
+          <h3 class="section-title">請求先情報</h3>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openBillingModal(null)">＋ 請求先を追加</button>
         </div>
+        <div class="table-wrap mb-4" id="billings-mini"></div>
 
-        <div class="form-group">
-          <label class="form-label">備考</label>
-          <textarea class="form-control" id="formNotes" rows="2" placeholder="特記事項や請求時の指定事項など"></textarea>
+        <div class="section-head">
+          <h3 class="section-title">車両情報</h3>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openVehicleModal(null)">＋ 車両を追加</button>
+        </div>
+        <div class="table-wrap mb-4" id="vehicles-mini"></div>
+
+        <div class="section-head">
+          <h3 class="section-title">担当履歴</h3>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openPeriodModal(null)">＋ 期間追加</button>
+        </div>
+        <div class="table-wrap mb-4" id="periods-mini"></div>
+
+        <div class="detail-actions">
+          <button type="submit" class="btn btn-primary">保存</button>
+          <button type="button" class="btn btn-outline" onclick="showListPanel()">一覧へ戻る</button>
         </div>
       </form>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('companyModal')">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveCompany()">保存する</button>
     </div>
   </div>
 </div>
 
-<!-- 詳細モーダル -->
-<div class="modal-overlay hidden" id="detailModal">
-  <div class="modal" style="max-width: 600px;">
+<!-- 請求先モーダル -->
+<div class="modal-overlay hidden" id="billingModal">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header">
-      <h3 class="modal-title">企業詳細情報</h3>
-      <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+      <h3 class="modal-title">請求先</h3>
+      <button type="button" class="modal-close" onclick="closeModal('billingModal')">&times;</button>
     </div>
-    <div class="modal-body">
-      <div class="detail-grid">
-        <div class="detail-label">企業番号</div>
-        <div class="detail-value"><span class="company-code" id="viewCompCode">COMP-001</span></div>
-
-        <div class="detail-label">企業名</div>
-        <div class="detail-value">
-          <div class="font-bold" id="viewCompName">株式会社ヤマト運送</div>
-          <div class="text-sm text-muted" id="viewCompFurigana">カブシキガイシャヤマトウンソウ</div>
-        </div>
-
-        <div class="detail-label">ステータス</div>
-        <div class="detail-value" id="viewStatus"><span class="badge badge-green">取引中</span></div>
-
-        <div class="detail-label">担当営業</div>
-        <div class="detail-value" id="viewSales">佐藤 健太</div>
-
-        <div class="detail-label">電話 / FAX</div>
-        <div class="detail-value" id="viewContact">03-1234-5678 (FAX: 03-1234-5679)</div>
-
-        <div class="detail-label">支払条件</div>
-        <div class="detail-value" id="viewTerms">末日締め 翌月末払い</div>
-
-        <div class="detail-label">契約年月日</div>
-        <div class="detail-value" id="viewContractDate">2023年04月01日</div>
-
-        <div class="detail-label">業務内容</div>
-        <div class="detail-value" id="viewBusiness">関東圏ルート配送、宅配スポット定期便、夜間幹線輸送など</div>
-
-        <div class="detail-label">備考</div>
-        <div class="detail-value" id="viewNotes">請求書は毎月3日までにPDF添付メール送付要指定。担当: 総務部山田様</div>
-      </div>
+    <div class="modal-body form-grid">
+      <div class="full"><label>印字名称</label><input class="form-control" id="m_billing_name"></div>
+      <div class="full"><label>住所</label><input class="form-control" id="m_billing_address"></div>
+      <div><label>電話</label><input class="form-control" id="m_billing_phone"></div>
+      <div><label>取り纏めNo</label><input class="form-control" id="m_billing_summary"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('detailModal')">閉じる</button>
-      <button class="btn btn-primary" onclick="editFromDetail()">編集する</button>
+      <button type="button" class="btn btn-outline" onclick="closeModal('billingModal')">キャンセル</button>
+      <button type="button" class="btn btn-primary" onclick="saveBillingModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 車両モーダル -->
+<div class="modal-overlay hidden" id="vehicleModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 class="modal-title">車両</h3>
+      <button type="button" class="modal-close" onclick="closeModal('vehicleModal')">&times;</button>
+    </div>
+    <div class="modal-body form-grid">
+      <div><label>名称</label><input class="form-control" id="m_vehicle_name"></div>
+      <div><label>番号</label><input class="form-control" id="m_vehicle_number"></div>
+      <div><label>車検期限</label><input type="date" class="form-control" id="m_inspection"></div>
+      <div><label>保険期限</label><input type="date" class="form-control" id="m_insurance"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('vehicleModal')">キャンセル</button>
+      <button type="button" class="btn btn-primary" onclick="saveVehicleModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 担当履歴モーダル -->
+<div class="modal-overlay hidden" id="periodModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 class="modal-title">担当期間</h3>
+      <button type="button" class="modal-close" onclick="closeModal('periodModal')">&times;</button>
+    </div>
+    <div class="modal-body form-grid">
+      <div>
+        <label>種別</label>
+        <select class="form-control" id="m_role_type">
+          <option value="our_manager">営業担当</option>
+          <option value="our_contract_manager">契約担当</option>
+        </select>
+      </div>
+      <div><label>氏名</label><input class="form-control" id="m_period_name" list="staffList"></div>
+      <div><label>開始</label><input type="date" class="form-control" id="m_period_start"></div>
+      <div><label>終了</label><input type="date" class="form-control" id="m_period_end"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('periodModal')">キャンセル</button>
+      <button type="button" class="btn btn-primary" onclick="savePeriodModal()">保存</button>
     </div>
   </div>
 </div>
 
 <script src="common.js"></script>
 <script>
+  const DT = window.ProtoDataTable;
+  const SCREEN_KEY = 'companies';
+  const listState = { sortKey: 'company_id', sortOrder: 'asc', filters: {} };
   let currentEditCode = null;
+  let detailBillings = [];
+  let detailVehicles = [];
+  let detailPeriods = [];
+  let billingEditIdx = null;
+  let vehicleEditIdx = null;
+  let periodEditIdx = null;
 
-  // モックデータ保持用
-  const companies = {
-    'COMP-001': {
-      code: 'COMP-001', name: '株式会社ヤマト運送', furigana: 'カブシキガイシャヤマトウンソウ',
-      sales: '佐藤 健太', tel: '03-1234-5678', fax: '03-1234-5679',
-      cutoff: '末日締め', payment: '翌月末払い', contractDate: '2023-04-01',
-      status: 'ACTIVE', statusText: '取引中',
-      business: '関東圏ルート配送、宅配スポット定期便、夜間幹線輸送など',
-      notes: '請求書は毎月3日までにPDF添付メール送付要指定。担当: 総務部山田様'
-    },
-    'COMP-002': {
-      code: 'COMP-002', name: '佐川ロジスティクス株式会社', furigana: 'サガワロジスティクス',
-      sales: '鈴木 一郎', tel: '06-9876-5432', fax: '06-9876-5433',
-      cutoff: '20日締め', payment: '翌月20日払い', contractDate: '2022-11-15',
-      status: 'ACTIVE', statusText: '取引中',
-      business: '関西・中部特急便、軽バン専用案件',
-      notes: '支払明細書郵送要'
-    },
-    'COMP-003': {
-      code: 'COMP-003', name: '日本通運ファシリティー株式会社', furigana: 'ニッポンツウウンファシリティー',
-      sales: '田中 太郎', tel: '03-5555-4321', fax: '03-5555-4322',
-      cutoff: '15日締め', payment: '翌々月5日払い', contractDate: '2024-01-10',
-      status: 'ACTIVE', statusText: '取引中',
-      business: '精密機械輸送、イベント搬入作業',
-      notes: '安全靴・ヘルメット着用必須現場多数'
-    },
-    'COMP-004': {
-      code: 'COMP-004', name: '西濃エキスプレス株式会社', furigana: 'セイノウエキスプレス',
-      sales: '佐藤 健太', tel: '052-111-2222', fax: '052-111-2223',
-      cutoff: '末日締め', payment: '翌月15日払い', contractDate: '2021-06-01',
-      status: 'INACTIVE', statusText: '休止中',
-      business: '定期大型案件（現在休止中）',
-      notes: '2025年12月より一旦契約休止'
-    },
-    'COMP-005': {
-      code: 'COMP-005', name: 'エクスプレス・ライナー有限会社', furigana: 'エクスプレスライナー',
-      sales: '高橋 花子', tel: '03-3333-7777', fax: '03-3333-7778',
-      cutoff: '末日締め', payment: '翌月末払い', contractDate: '2023-09-20',
-      status: 'ACTIVE', statusText: '取引中',
-      business: '食品チャーター便、冷凍冷蔵車案件',
-      notes: '温度管理記録の提出が義務付けられています'
-    }
+  const WORK_MODE = { exclusive: '専属', spot: 'スポット', mixed: '混載' };
+  const CLOSING = { end: '末日', d20: '20日', d15: '15日', d10: '10日' };
+  const PAYMENT = { next_end: '翌月末', next_20: '翌月20日', next_15: '翌月15日', next2_5: '翌々月5日' };
+  const INVOICE_SEND = { email_pdf: 'メールPDF', post: '郵送', fax: 'FAX' };
+
+  const COLUMN_CATALOG = [
+    { key: 'company_id', label: '企業No' },
+    { key: 'office_no', label: '事業所No' },
+    { key: 'office_name', label: '事業所名' },
+    { key: 'company_name', label: '企業名' },
+    { key: 'work_mode_label', label: '稼働形態', getValue: (r) => WORK_MODE[r.work_mode_code] || r.work_mode_code || '-' },
+    { key: 'our_manager', label: '営業担当' },
+    { key: 'base_project_count', label: '基本案件数' },
+    { key: 'active_project_count', label: '稼働中案件数' },
+    { key: 'closing_label', label: '締日', getValue: (r) => CLOSING[r.closing_date_code] || '-' },
+    { key: 'invoice_send_label', label: '請求書送付', getValue: (r) => INVOICE_SEND[r.invoice_send_method] || '-' },
+    { key: 'status_label', label: 'ステータス' },
+  ];
+
+  const DEFAULT_LAYOUT = {
+    columns: ['company_id', 'office_no', 'office_name', 'company_name', 'work_mode_label', 'our_manager', 'active_project_count', 'closing_label', 'status_label'],
+    hidden: ['base_project_count', 'invoice_send_label'],
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    initTableSearch('searchInput', 'companyTable');
-  });
-
-  // ステータスフィルター
-  function filterStatus() {
-    const filter = document.getElementById('statusFilter').value;
-    const rows = document.querySelectorAll('#companyTable tbody tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-      const status = row.getAttribute('data-status');
-      if (filter === 'ALL' || status === filter) {
-        row.style.display = '';
-        visibleCount++;
-      } else {
-        row.style.display = 'none';
-      }
-    });
-    document.getElementById('recordCount').textContent = visibleCount;
-  }
-
-  // 新規モーダル表示
-  function openAddCompanyModal() {
-    currentEditCode = null;
-    document.getElementById('modalTitle').textContent = '新規企業登録';
-    document.getElementById('companyForm').reset();
-    document.getElementById('formCompCode').value = 'COMP-00' + (Object.keys(companies).length + 1);
-    openModal('companyModal');
-  }
-
-  // 編集モーダル表示
-  function editCompany(code) {
-    currentEditCode = code;
-    const c = companies[code];
-    if (!c) return;
-
-    document.getElementById('modalTitle').textContent = '企業情報編集 (' + code + ')';
-    document.getElementById('formCompCode').value = c.code;
-    document.getElementById('formStatus').value = c.status;
-    document.getElementById('formCompName').value = c.name;
-    document.getElementById('formCompFurigana').value = c.furigana;
-    document.getElementById('formSales').value = c.sales;
-    document.getElementById('formTel').value = c.tel;
-    document.getElementById('formFax').value = c.fax;
-    document.getElementById('formCutoffDay').value = c.cutoff;
-    document.getElementById('formPaymentDay').value = c.payment;
-    document.getElementById('formContractDate').value = c.contractDate;
-    document.getElementById('formBusiness').value = c.business;
-    document.getElementById('formNotes').value = c.notes;
-
-    openModal('companyModal');
-  }
-
-  // 詳細表示モーダル
-  function viewCompany(code) {
-    currentEditCode = code;
-    const c = companies[code];
-    if (!c) return;
-
-    document.getElementById('viewCompCode').textContent = c.code;
-    document.getElementById('viewCompName').textContent = c.name;
-    document.getElementById('viewCompFurigana').textContent = c.furigana || '-';
-    document.getElementById('viewStatus').innerHTML = c.status === 'ACTIVE'
-      ? '<span class="badge badge-green">取引中</span>'
-      : '<span class="badge badge-gray">休止中</span>';
-    document.getElementById('viewSales').textContent = c.sales || '-';
-    document.getElementById('viewContact').textContent = `${c.tel} (FAX: ${c.fax || '-'})`;
-    document.getElementById('viewTerms').textContent = `${c.cutoff} ${c.payment}`;
-    document.getElementById('viewContractDate').textContent = c.contractDate || '-';
-    document.getElementById('viewBusiness').textContent = c.business || 'なし';
-    document.getElementById('viewNotes').textContent = c.notes || 'なし';
-
-    openModal('detailModal');
-  }
-
-  function editFromDetail() {
-    closeModal('detailModal');
-    if (currentEditCode) {
-      editCompany(currentEditCode);
-    }
-  }
-
-  // 保存処理
-  function saveCompany() {
-    const code = document.getElementById('formCompCode').value;
-    const name = document.getElementById('formCompName').value;
-    if (!name) {
-      alert('企業名を入力してください。');
-      return;
-    }
-
-    const isEdit = !!currentEditCode;
-    const status = document.getElementById('formStatus').value;
-    const sales = document.getElementById('formSales').value;
-    const tel = document.getElementById('formTel').value;
-    const cutoff = document.getElementById('formCutoffDay').value;
-    const payment = document.getElementById('formPaymentDay').value;
-
-    companies[code] = {
-      code: code,
-      name: name,
-      furigana: document.getElementById('formCompFurigana').value,
-      sales: sales,
-      tel: tel,
-      fax: document.getElementById('formFax').value,
-      cutoff: cutoff,
-      payment: payment,
-      contractDate: document.getElementById('formContractDate').value,
-      status: status,
-      statusText: status === 'ACTIVE' ? '取引中' : '休止中',
-      business: document.getElementById('formBusiness').value,
-      notes: document.getElementById('formNotes').value
+  function emptyCompany(id) {
+    return {
+      company_id: id,
+      office_no: '',
+      office_name: '',
+      company_name: '',
+      company_name_kana: '',
+      zip_code: '',
+      address: '',
+      contact: '',
+      fax: '',
+      contract_manager: '',
+      our_manager: '',
+      our_contract_manager: '',
+      work_mode_code: '',
+      closing_date_code: '',
+      payment_date_code: '',
+      invoice_send_method: '',
+      invoice_send_address: '',
+      contract_date: '',
+      business_content: '',
+      bank_name: '',
+      branch_name: '',
+      deposit_type: '',
+      account_number: '',
+      account_name: '',
+      status: 'ACTIVE',
+      status_label: '取引中',
+      base_project_count: 0,
+      active_project_count: 0,
+      billings: [],
+      vehicles: [],
+      manager_periods: [],
     };
-
-    closeModal('companyModal');
-    showToast(isEdit ? '企業情報を更新しました' : '新規企業を登録しました', 'success');
   }
 
-  // 削除処理
+  const companies = {
+    'COMP-001': {
+      ...emptyCompany('COMP-001'),
+      office_no: '001', office_name: '東京本社',
+      company_name: '株式会社ヤマト運送', company_name_kana: 'カブシキガイシャヤマトウンソウ',
+      zip_code: '104-0061', address: '東京都中央区銀座1-1-1',
+      contact: '03-1234-5678', fax: '03-1234-5679',
+      contract_manager: '山田 一郎', our_manager: '佐藤 健太', our_contract_manager: '鈴木 一郎',
+      work_mode_code: 'exclusive', closing_date_code: 'end', payment_date_code: 'next_end',
+      invoice_send_method: 'email_pdf', invoice_send_address: 'billing@yamato.example',
+      contract_date: '2023-04-01', business_content: '関東圏ルート配送、宅配スポット定期便、夜間幹線輸送など',
+      bank_name: 'みずほ銀行', branch_name: '銀座支店', deposit_type: 'ordinary',
+      account_number: '1234567', account_name: 'カ）ヤマトウンソウ',
+      base_project_count: 4, active_project_count: 3,
+      billings: [{ billing_print_name: 'ヤマト運送 経理部', billing_address: '東京都中央区…', billing_phone: '03-1234-5678', billing_summary_no: 'B-01' }],
+      vehicles: [{ vehicle_name: '2t箱車', vehicle_number: '品川 100 あ 12-34', inspection_expiry_date: '2027-03-31', insurance_expiry_date: '2026-12-31' }],
+      manager_periods: [{ role_type: 'our_manager', name_or_user: '佐藤 健太', start_date: '2023-04-01', end_date: '' }],
+    },
+    'COMP-002': {
+      ...emptyCompany('COMP-002'),
+      office_no: '002', office_name: '大阪営業所',
+      company_name: '佐川ロジスティクス株式会社', company_name_kana: 'サガワロジスティクス',
+      zip_code: '530-0001', address: '大阪府大阪市北区梅田2-2-2',
+      contact: '06-9876-5432', fax: '06-9876-5433',
+      our_manager: '鈴木 一郎', work_mode_code: 'spot', closing_date_code: 'd20', payment_date_code: 'next_20',
+      invoice_send_method: 'post', contract_date: '2022-11-15',
+      business_content: '関西・中部特急便、軽バン専用案件',
+      bank_name: '三井住友銀行', branch_name: '梅田支店', deposit_type: 'ordinary',
+      account_number: '7654321', account_name: 'サガワロジスティクス（カ',
+      base_project_count: 2, active_project_count: 2,
+      billings: [], vehicles: [], manager_periods: [],
+    },
+    'COMP-003': {
+      ...emptyCompany('COMP-003'),
+      office_no: '003', office_name: '',
+      company_name: '日本通運ファシリティー株式会社', company_name_kana: 'ニッポンツウウンファシリティー',
+      contact: '03-5555-4321', fax: '03-5555-4322',
+      our_manager: '田中 太郎', work_mode_code: 'exclusive', closing_date_code: 'd15', payment_date_code: 'next2_5',
+      invoice_send_method: 'email_pdf', contract_date: '2024-01-10',
+      business_content: '精密機械輸送、イベント搬入作業',
+      base_project_count: 5, active_project_count: 4,
+      billings: [], vehicles: [], manager_periods: [],
+    },
+    'COMP-004': {
+      ...emptyCompany('COMP-004'),
+      office_no: '004', office_name: '名古屋',
+      company_name: '西濃エキスプレス株式会社', company_name_kana: 'セイノウエキスプレス',
+      contact: '052-111-2222', our_manager: '佐藤 健太',
+      work_mode_code: 'exclusive', closing_date_code: 'end', payment_date_code: 'next_15',
+      invoice_send_method: 'fax', contract_date: '2021-06-01',
+      status: 'INACTIVE', status_label: '休止中',
+      business_content: '定期大型案件（現在休止中）',
+      base_project_count: 1, active_project_count: 0,
+      billings: [], vehicles: [], manager_periods: [],
+    },
+    'COMP-005': {
+      ...emptyCompany('COMP-005'),
+      office_no: '005', office_name: '川崎物流センター',
+      company_name: 'エクスプレス・ライナー有限会社', company_name_kana: 'エクスプレスライナー',
+      contact: '03-3333-7777', our_manager: '高橋 花子',
+      work_mode_code: 'mixed', closing_date_code: 'end', payment_date_code: 'next_end',
+      invoice_send_method: 'email_pdf', contract_date: '2023-09-20',
+      business_content: '食品チャーター便、冷凍冷蔵車案件',
+      base_project_count: 3, active_project_count: 3,
+      billings: [], vehicles: [], manager_periods: [],
+    },
+  };
+
+  function getLayout() {
+    return DT.loadLayout(SCREEN_KEY) || DEFAULT_LAYOUT;
+  }
+
+  function showListPanel() {
+    document.getElementById('panel-detail').classList.add('hidden');
+    document.getElementById('panel-list').classList.remove('hidden');
+    currentEditCode = null;
+    renderCompanyList();
+  }
+
+  function showDetailPanel() {
+    document.getElementById('panel-list').classList.add('hidden');
+    document.getElementById('panel-detail').classList.remove('hidden');
+  }
+
+  function renderCompanyList() {
+    const rows = Object.values(companies);
+    const table = DT.renderTable({
+      screenKey: SCREEN_KEY,
+      columns: COLUMN_CATALOG,
+      rows,
+      layout: getLayout(),
+      sortKey: listState.sortKey,
+      sortOrder: listState.sortOrder,
+      filters: listState.filters,
+      tableId: 'companyTable',
+      renderHtml: (row, col) => {
+        if (col.key === 'company_id') return `<span class="company-code">${DT.escapeHtml(row.company_id)}</span>`;
+        if (col.key === 'company_name') {
+          return `<div class="font-bold">${DT.escapeHtml(row.company_name)}</div>
+            <div class="text-sm text-muted">${DT.escapeHtml(row.company_name_kana || '')}</div>`;
+        }
+        if (col.key === 'status_label') {
+          return row.status === 'ACTIVE'
+            ? '<span class="badge badge-green">取引中</span>'
+            : '<span class="badge badge-gray">休止中</span>';
+        }
+        if (col.key === 'active_project_count') return `<strong>${Number(row.active_project_count) || 0}</strong>`;
+        return null;
+      },
+      renderActions: (c) => `
+        <button type="button" class="btn btn-outline btn-sm" onclick="openEditCompany('${c.company_id}')">詳細／編集</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="goRelated('${c.company_id}', 'base')">基本案件</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="goRelated('${c.company_id}', 'project')">案件</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="deleteCompany('${c.company_id}', '${DT.escapeHtml(c.company_name)}')">削除</button>`,
+    });
+    document.getElementById('companies-list-root').innerHTML = table.html;
+    document.getElementById('recordCount').textContent = String(table.filteredRows.length);
+    DT.bindTable('#companies-list-root', {
+      onSort: (key) => {
+        if (listState.sortKey === key) listState.sortOrder = listState.sortOrder === 'asc' ? 'desc' : 'asc';
+        else { listState.sortKey = key; listState.sortOrder = 'asc'; }
+        renderCompanyList();
+      },
+      onFilter: (filters) => { listState.filters = filters; renderCompanyList(); },
+    });
+  }
+
+  function fillForm(c) {
+    const set = (id, v) => { document.getElementById(id).value = v ?? ''; };
+    set('f_company_id', c.company_id);
+    set('f_status', c.status || 'ACTIVE');
+    set('f_office_no', c.office_no);
+    set('f_office_name', c.office_name);
+    set('f_company_name', c.company_name);
+    set('f_company_name_kana', c.company_name_kana);
+    set('f_zip_code', c.zip_code);
+    set('f_address', c.address);
+    set('f_contact', c.contact);
+    set('f_fax', c.fax);
+    set('f_contract_manager', c.contract_manager);
+    set('f_our_manager', c.our_manager);
+    set('f_our_contract_manager', c.our_contract_manager);
+    set('f_work_mode_code', c.work_mode_code);
+    set('f_closing_date_code', c.closing_date_code);
+    set('f_payment_date_code', c.payment_date_code);
+    set('f_invoice_send_method', c.invoice_send_method);
+    set('f_invoice_send_address', c.invoice_send_address);
+    set('f_contract_date', c.contract_date);
+    set('f_business_content', c.business_content);
+    set('f_bank_name', c.bank_name);
+    set('f_branch_name', c.branch_name);
+    set('f_deposit_type', c.deposit_type);
+    set('f_account_number', c.account_number);
+    set('f_account_name', c.account_name);
+    detailBillings = (c.billings || []).map((x) => ({ ...x }));
+    detailVehicles = (c.vehicles || []).map((x) => ({ ...x }));
+    detailPeriods = (c.manager_periods || []).map((x) => ({ ...x }));
+    refreshChildTables();
+  }
+
+  function openNewCompany() {
+    currentEditCode = null;
+    const id = 'COMP-' + String(Object.keys(companies).length + 1).padStart(3, '0');
+    document.getElementById('detailTitle').textContent = '新規企業登録';
+    fillForm(emptyCompany(id));
+    document.getElementById('f_company_id').value = id;
+    document.getElementById('f_office_no').placeholder = '保存時に自動採番';
+    showDetailPanel();
+  }
+
+  function openEditCompany(code) {
+    const c = companies[code];
+    if (!c) return;
+    currentEditCode = code;
+    document.getElementById('detailTitle').textContent = `企業編集（${c.company_id}）`;
+    fillForm(c);
+    showDetailPanel();
+  }
+
+  function refreshChildTables() {
+    const bRows = detailBillings.map((b, idx) => `
+      <tr>
+        <td>${DT.escapeHtml(b.billing_print_name || '-')}</td>
+        <td>${DT.escapeHtml(b.billing_address || '-')}</td>
+        <td>${DT.escapeHtml(b.billing_phone || '-')}</td>
+        <td>${DT.escapeHtml(b.billing_summary_no || '-')}</td>
+        <td>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openBillingModal(${idx})">編集</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="detailBillings.splice(${idx},1);refreshChildTables()">削除</button>
+        </td>
+      </tr>`).join('');
+    document.getElementById('billings-mini').innerHTML = `<table class="data-table data-table-compact"><thead><tr><th>印字名称</th><th>住所</th><th>電話</th><th>取り纏めNo</th><th>操作</th></tr></thead>
+      <tbody>${bRows || '<tr><td colspan="5">請求先はまだありません</td></tr>'}</tbody></table>`;
+
+    const vRows = detailVehicles.map((v, idx) => `
+      <tr>
+        <td>${DT.escapeHtml(v.vehicle_name || '-')}</td>
+        <td>${DT.escapeHtml(v.vehicle_number || '-')}</td>
+        <td>${DT.escapeHtml(v.inspection_expiry_date || '-')}</td>
+        <td>${DT.escapeHtml(v.insurance_expiry_date || '-')}</td>
+        <td>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openVehicleModal(${idx})">編集</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="detailVehicles.splice(${idx},1);refreshChildTables()">削除</button>
+        </td>
+      </tr>`).join('');
+    document.getElementById('vehicles-mini').innerHTML = `<table class="data-table data-table-compact"><thead><tr><th>名称</th><th>番号</th><th>車検期限</th><th>保険期限</th><th>操作</th></tr></thead>
+      <tbody>${vRows || '<tr><td colspan="5">車両はまだありません</td></tr>'}</tbody></table>`;
+
+    const roleLabel = (t) => (t === 'our_contract_manager' ? '契約担当' : '営業担当');
+    const pRows = detailPeriods.map((p, idx) => `
+      <tr>
+        <td>${DT.escapeHtml(roleLabel(p.role_type))}</td>
+        <td>${DT.escapeHtml(p.name_or_user || '-')}</td>
+        <td>${DT.escapeHtml(p.start_date || '-')}</td>
+        <td>${DT.escapeHtml(p.end_date || '〜')}</td>
+        <td>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openPeriodModal(${idx})">編集</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger)" onclick="detailPeriods.splice(${idx},1);refreshChildTables()">削除</button>
+        </td>
+      </tr>`).join('');
+    document.getElementById('periods-mini').innerHTML = `<table class="data-table data-table-compact"><thead><tr><th>種別</th><th>氏名</th><th>開始</th><th>終了</th><th>操作</th></tr></thead>
+      <tbody>${pRows || '<tr><td colspan="5">担当履歴はまだありません</td></tr>'}</tbody></table>`;
+  }
+
+  function openBillingModal(idx) {
+    billingEditIdx = idx;
+    const b = idx == null ? {} : detailBillings[idx] || {};
+    document.getElementById('m_billing_name').value = b.billing_print_name || '';
+    document.getElementById('m_billing_address').value = b.billing_address || '';
+    document.getElementById('m_billing_phone').value = b.billing_phone || '';
+    document.getElementById('m_billing_summary').value = b.billing_summary_no || '';
+    openModal('billingModal');
+  }
+  function saveBillingModal() {
+    const row = {
+      billing_print_name: document.getElementById('m_billing_name').value,
+      billing_address: document.getElementById('m_billing_address').value,
+      billing_phone: document.getElementById('m_billing_phone').value,
+      billing_summary_no: document.getElementById('m_billing_summary').value,
+    };
+    if (billingEditIdx == null) detailBillings.push(row);
+    else detailBillings[billingEditIdx] = row;
+    closeModal('billingModal');
+    refreshChildTables();
+  }
+
+  function openVehicleModal(idx) {
+    vehicleEditIdx = idx;
+    const v = idx == null ? {} : detailVehicles[idx] || {};
+    document.getElementById('m_vehicle_name').value = v.vehicle_name || '';
+    document.getElementById('m_vehicle_number').value = v.vehicle_number || '';
+    document.getElementById('m_inspection').value = v.inspection_expiry_date || '';
+    document.getElementById('m_insurance').value = v.insurance_expiry_date || '';
+    openModal('vehicleModal');
+  }
+  function saveVehicleModal() {
+    const row = {
+      vehicle_name: document.getElementById('m_vehicle_name').value,
+      vehicle_number: document.getElementById('m_vehicle_number').value,
+      inspection_expiry_date: document.getElementById('m_inspection').value,
+      insurance_expiry_date: document.getElementById('m_insurance').value,
+    };
+    if (vehicleEditIdx == null) detailVehicles.push(row);
+    else detailVehicles[vehicleEditIdx] = row;
+    closeModal('vehicleModal');
+    refreshChildTables();
+  }
+
+  function openPeriodModal(idx) {
+    periodEditIdx = idx;
+    const p = idx == null ? {} : detailPeriods[idx] || {};
+    document.getElementById('m_role_type').value = p.role_type || 'our_manager';
+    document.getElementById('m_period_name').value = p.name_or_user || '';
+    document.getElementById('m_period_start').value = p.start_date || '';
+    document.getElementById('m_period_end').value = p.end_date || '';
+    openModal('periodModal');
+  }
+  function savePeriodModal() {
+    const row = {
+      role_type: document.getElementById('m_role_type').value,
+      name_or_user: document.getElementById('m_period_name').value,
+      start_date: document.getElementById('m_period_start').value,
+      end_date: document.getElementById('m_period_end').value,
+    };
+    if (periodEditIdx == null) detailPeriods.push(row);
+    else detailPeriods[periodEditIdx] = row;
+    closeModal('periodModal');
+    refreshChildTables();
+  }
+
+  function saveCompany() {
+    const name = document.getElementById('f_company_name').value.trim();
+    if (!name) { alert('企業名を入力してください。'); return; }
+    const code = document.getElementById('f_company_id').value;
+    const prev = companies[code] || emptyCompany(code);
+    const status = document.getElementById('f_status').value;
+    const isNew = !currentEditCode && !companies[code];
+    companies[code] = {
+      ...prev,
+      company_id: code,
+      office_no: prev.office_no || String(Object.keys(companies).length).padStart(3, '0'),
+      office_name: document.getElementById('f_office_name').value,
+      company_name: name,
+      company_name_kana: document.getElementById('f_company_name_kana').value,
+      zip_code: document.getElementById('f_zip_code').value,
+      address: document.getElementById('f_address').value,
+      contact: document.getElementById('f_contact').value,
+      fax: document.getElementById('f_fax').value,
+      contract_manager: document.getElementById('f_contract_manager').value,
+      our_manager: document.getElementById('f_our_manager').value,
+      our_contract_manager: document.getElementById('f_our_contract_manager').value,
+      work_mode_code: document.getElementById('f_work_mode_code').value,
+      closing_date_code: document.getElementById('f_closing_date_code').value,
+      payment_date_code: document.getElementById('f_payment_date_code').value,
+      invoice_send_method: document.getElementById('f_invoice_send_method').value,
+      invoice_send_address: document.getElementById('f_invoice_send_address').value,
+      contract_date: document.getElementById('f_contract_date').value,
+      business_content: document.getElementById('f_business_content').value,
+      bank_name: document.getElementById('f_bank_name').value,
+      branch_name: document.getElementById('f_branch_name').value,
+      deposit_type: document.getElementById('f_deposit_type').value,
+      account_number: document.getElementById('f_account_number').value,
+      account_name: document.getElementById('f_account_name').value,
+      status,
+      status_label: status === 'ACTIVE' ? '取引中' : '休止中',
+      billings: detailBillings.map((x) => ({ ...x })),
+      vehicles: detailVehicles.map((x) => ({ ...x })),
+      manager_periods: detailPeriods.map((x) => ({ ...x })),
+    };
+    if (isNew && !companies[code].office_no) {
+      companies[code].office_no = String(Object.keys(companies).length).padStart(3, '0');
+    }
+    currentEditCode = code;
+    showToast(isNew ? '新規企業を登録しました' : '企業情報を更新しました', 'success');
+    showListPanel();
+  }
+
   function deleteCompany(code, name) {
     confirmAction(`「${name} (${code})」を削除してもよろしいですか？`, () => {
       delete companies[code];
-      const row = document.querySelector(`#companyTable tbody tr[data-id="${code}"]`);
-      if (row) row.remove();
+      renderCompanyList();
       showToast('企業情報を削除しました', 'info');
-      filterStatus();
     });
   }
+
+  function goRelated(companyId, kind) {
+    const c = companies[companyId];
+    if (!c) return;
+    const page = kind === 'base' ? '05_base_project.html' : '06_project.html';
+    const params = new URLSearchParams({ company_id: c.company_id, company_name: c.company_name });
+    location.href = `${page}?${params.toString()}`;
+  }
+  function goRelatedFromDetail(kind) {
+    const code = currentEditCode || document.getElementById('f_company_id').value;
+    if (!code || !companies[code]) {
+      showToast('先に企業を保存してください', 'warning');
+      return;
+    }
+    goRelated(code, kind);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!DT.loadLayout(SCREEN_KEY)) DT.saveLayout(SCREEN_KEY, DEFAULT_LAYOUT);
+    renderCompanyList();
+  });
 </script>
 </body>
 </html>
