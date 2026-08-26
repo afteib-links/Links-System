@@ -1,16 +1,22 @@
 ---
-description: Read shared AI entry and project snapshot before work
+description: Read the shared AI entry, current snapshot, and scoped business specifications before work
 alwaysApply: true
 ---
 
-# Shared entry (Cursor + Antigravity)
+# Shared entry (all AI environments)
 
 Before planning or editing code:
 
 1. Read repo root `AGENTS.md`
 2. Read `仕様MD/00_現状スナップショット.md` (check 最終更新 date)
 3. For implementation rules: `仕様MD/00_AI共通_開発ガイド.md`
+4. Read the specification for the affected feature.
+
+For daily reports, billing, payments, advances, installments, reports, cash cycles, or FB, also read:
+
+- `仕様MD/09_日報・精算・帳票_業務要件.md`
+- `仕様MD/10_入出金管理・FB_業務要件.md`
 
 Optional CLI: `./scripts/print-project-status.sh`
 
-Antigravity may also implement code; use same branch policy (`cursor/<name>-148a` or `Antigravity-making` per guide).
+Use one Issue / branch / Draft PR per work item. Do not edit an active work item owned by another AI. The canonical rules are `AGENTS.md` and `仕様MD/`; this file is only a Cursor adapter.

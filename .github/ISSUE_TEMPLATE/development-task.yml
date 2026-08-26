@@ -1,0 +1,74 @@
+name: 開発作業
+description: 複数AIで引き継げる単位の開発・調査・仕様整理
+title: "[作業] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        1作業につき1Issue・1ブランチ・1Draft PRを原則にします。作業前に `AGENTS.md` と対象仕様を確認してください。
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的・完了条件
+      description: 業務上または技術上の目的と、完了と判断できる条件を書いてください。
+      placeholder: "例: 日報の手動調整を明細として記録し、理由・入力者・入力日時を確認できる。"
+    validations:
+      required: true
+  - type: textarea
+    id: specifications
+    attributes:
+      label: 対象仕様・根拠
+      description: 参照する `仕様MD/`、決定ログ、会話の決定事項を書いてください。
+      placeholder: "仕様MD/09_日報・精算・帳票_業務要件.md §3"
+    validations:
+      required: true
+  - type: dropdown
+    id: work_type
+    attributes:
+      label: 作業種別
+      options:
+        - 仕様整理
+        - 調査
+        - プロトタイプ
+        - フロントエンド
+        - API
+        - DB migration
+        - テスト・レビュー
+        - バグ修正
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: 担当AI・担当者
+      placeholder: "例: Codex（このIssueのみ）"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 変更してよい範囲
+      description: 予定するディレクトリ、ファイル、責務を記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: 変更禁止・他作業との境界
+      description: 他AIが作業中の範囲、既存migration、data/、.env等を記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 検証方法
+      placeholder: "例: node --check、API確認、対象画面の手動確認、docker composeによる起動確認"
+    validations:
+      required: true
+  - type: textarea
+    id: open_questions
+    attributes:
+      label: 未確定事項・ユーザー確認
+      description: 推測で実装してはいけない論点を記載してください。なければ「なし」。
+    validations:
+      required: true
