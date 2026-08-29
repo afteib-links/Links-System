@@ -299,9 +299,11 @@ const PRICE_FEE_LINES = [
   { id: 'sat', name: '土曜料金', weekday: 'sat', weekdayLabel: '土曜' },
   { id: 'sun', name: '日曜料金', weekday: 'sun', weekdayLabel: '日曜' },
   { id: 'holiday', name: '祝日料金', weekday: 'holiday', weekdayLabel: '祝日' },
+  { id: 'training', name: '研修料金', weekday: 'training', weekdayLabel: '研修' },
 ];
 
 function autoFeeId(row) {
+  if (row.isTrain) return 'training';
   if (row.isHoliday) return 'holiday';
   if (row.type === 'sat' || row.dow === '土') return 'sat';
   if (row.type === 'sun' || row.dow === '日') return 'sun';
@@ -326,7 +328,7 @@ function feeSelectHtml(row, idx, lockRow) {
   ).join('');
   const hint = manual
     ? `手動変更中（自動なら「${autoName}」）`
-    : `自動: ${row.isHoliday ? '祝日' : row.dow + '曜日'} → ${autoName}`;
+    : `自動: ${row.isTrain ? '研修チェック' : row.isHoliday ? '祝日' : row.dow + '曜日'} → ${autoName}`;
   return `
     <div class="acc-section-title">料金区分</div>
     <div class="acc-field">
@@ -404,7 +406,7 @@ function renderGrid() {
     tr.innerHTML = `
       <td style="text-align:center"><span class="acc-btn" onclick="toggleAccordion(this)">▶</span></td>
       <td style="text-align:center"><input type="checkbox" ${row.isUnnec?'checked':''} onchange="toggleUnnec(${i},this)" style="width:14px;height:14px" ${lockRow?'disabled':''}></td>
-      <td style="text-align:center"><input type="checkbox" ${row.isTrain?'checked':''} style="width:14px;height:14px" ${lockRow?'disabled':''}></td>
+      <td style="text-align:center"><input type="checkbox" ${row.isTrain?'checked':''} onchange="toggleTraining(${i},this)" style="width:14px;height:14px" ${row.isUnnec||lockRow?'disabled':''}></td>
       <td style="text-align:center;font-weight:700;font-size:12px" ${disabled}>${row.date}${row.isHoliday?'<div style="font-size:9px;color:#dc2626;font-weight:600">祝</div>':''}<div style="font-size:9px;font-weight:500;color:#64748b">${feeLineById(resolvedFeeId(row)).name}</div></td>
       <td style="text-align:center;font-size:12px;${dowColor}">${row.dow}</td>
       <td>
@@ -486,6 +488,14 @@ function renderGrid() {
 function toggleUnnec(idx, cb) {
   if (lockMode() !== 'none') return;
   sampleData[idx].isUnnec = cb.checked;
+  renderGrid();
+}
+
+function toggleTraining(idx, cb) {
+  if (lockMode() !== 'none') return;
+  const row = sampleData[idx];
+  row.isTrain = cb.checked;
+  row.feeIdManual = null;
   renderGrid();
 }
 
