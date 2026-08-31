@@ -618,6 +618,18 @@ select {
 
 .status-draft { background: #eceff1; }
 .status-confirmed { background: #fff3cd; }
+
+.dr-time-input { min-width: 4.8rem; width: 5.4rem; }
+.dr-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; padding: 0.5rem; }
+.dr-detail-section { border: 1px solid var(--border, #d7dee8); border-radius: 0.45rem; padding: 0.65rem; background: #fff; }
+.dr-detail-section h4 { margin: 0 0 0.5rem; }
+.dr-rate-table input { min-width: 6rem; width: 100%; }
+.dr-rate-table small { display: block; color: var(--muted, #667085); }
+.dr-calc-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.dr-calc-card { display: flex; flex-direction: column; gap: 0.2rem; border-left: 3px solid var(--primary, #2563eb); padding-left: 0.55rem; }
+@media (max-width: 1000px) {
+  .dr-detail-grid, .dr-calc-summary { grid-template-columns: 1fr; }
+}
 .status-approved { background: #d1e7dd; }
 .status-rejected { background: #f8d7da; }
 

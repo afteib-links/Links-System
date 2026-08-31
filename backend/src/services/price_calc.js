@@ -1,81 +1,85 @@
 const { query } = require('../db');
 const { listPriceSetsForProject } = require('./price_set_lifecycle');
+const {
+  calculateNightSide,
+  calculateSideAmounts,
+  parseDurationMinutes,
+  validationError,
+} = require('./night_calc');
 
-/** 仕様: 平日 → 半日 → 土曜 → 日曜 → 祝日 → その他 */
 const DAY_TYPE_FALLBACK_ORDER = [
-  'weekday',
-  'half',
-  'sat',
-  'sun',
-  'holiday',
-  'other',
-  'all',
-  'mon',
-  'tue',
-  'wed',
-  'thu',
-  'fri',
+  'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
+  'mon', 'tue', 'wed', 'thu', 'fri',
 ];
+
+const DEFAULT_SIDE_RULE = {
+  periods: [{ start: '22:00', end: '29:00' }],
+  night_mode: 'separate',
+  night_overtime_mode: 'separate',
+};
+
+const DEFAULT_ROUNDING = {
+  time_unit_minutes: 15,
+  time_mode: 'floor',
+  amount_mode: 'floor',
+  amount_stage: 'detail',
+};
+
+function parseJson(value, fallback = null) {
+  if (value == null || value === '') return fallback;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch { return fallback; }
+}
 
 function jsWeekdayCode(workDate) {
   const d = new Date(`${String(workDate).slice(0, 10)}T12:00:00Z`);
   const day = d.getUTCDay();
   if (day === 6) return 'sat';
   if (day === 0) return 'sun';
-  const map = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  return map[day];
+  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day];
 }
 
 function dayTypesForWorkDate(workDate) {
   const code = jsWeekdayCode(workDate);
-  const types = [];
-  if (code === 'sat') types.push('sat');
-  else if (code === 'sun') types.push('sun');
-  else types.push('weekday', code);
-  return types;
+  if (code === 'sat') return ['sat'];
+  if (code === 'sun') return ['sun'];
+  return ['weekday', code];
 }
 
 function normYmd(d) {
   if (!d) return null;
-  const s = String(d).slice(0, 10);
-  return s || null;
+  return String(d).slice(0, 10) || null;
 }
 
-/** 勤務日 D に適用する PriceSet: start<=D, end があれば D<=end, 最大 apply_start_date */
 function isPriceSetCandidate(workDate, priceSet) {
-  const w = normYmd(workDate);
-  if (!w) return false;
+  const work = normYmd(workDate);
   const start = normYmd(priceSet.apply_start_date);
-  if (!start || w < start) return false;
   const end = normYmd(priceSet.apply_end_date);
-  if (end && w > end) return false;
-  return true;
+  return Boolean(work && start && start <= work && (!end || work <= end));
 }
 
 async function pickPriceSetForDate(projectId, workDate) {
   const sets = await listPriceSetsForProject(projectId);
-  const hits = sets.filter((ps) => isPriceSetCandidate(workDate, ps));
-  if (!hits.length) return null;
+  const hits = sets.filter((set) => isPriceSetCandidate(workDate, set));
   hits.sort((a, b) => {
-    const as = String(a.apply_start_date || '').localeCompare(String(b.apply_start_date || ''));
-    if (as !== 0) return -as;
-    return Number(b.price_set_id) - Number(a.price_set_id);
+    const dateOrder = String(b.apply_start_date || '').localeCompare(String(a.apply_start_date || ''));
+    return dateOrder || Number(b.price_set_id) - Number(a.price_set_id);
   });
-  return hits[0];
+  return hits[0] || null;
 }
 
 function resolvePriceRow(lines, workDate, calcType = 'daily') {
-  const tryDayTypes = [...dayTypesForWorkDate(workDate), ...DAY_TYPE_FALLBACK_ORDER];
+  const dayTypes = [...dayTypesForWorkDate(workDate), ...DAY_TYPE_FALLBACK_ORDER];
   const seen = new Set();
-  for (const dayType of tryDayTypes) {
+  for (const dayType of dayTypes) {
     if (seen.has(dayType)) continue;
     seen.add(dayType);
-    let row = lines.find(
-      (l) => String(l.weekday_code || '') === dayType && String(l.calc_type_code || '') === calcType
+    const exact = lines.find(
+      (line) => String(line.weekday_code || '') === dayType && String(line.calc_type_code || '') === calcType
     );
-    if (row) return row;
-    row = lines.find((l) => String(l.weekday_code || '') === dayType);
-    if (row) return row;
+    if (exact) return exact;
+    const fallback = lines.find((line) => String(line.weekday_code || '') === dayType);
+    if (fallback) return fallback;
   }
   return lines[0] || null;
 }
@@ -85,78 +89,219 @@ function getHourlyRate(dailyPrice, stdRestraintHours, stdBreakMinutes) {
   return net > 0 ? Number(dailyPrice || 0) / net : 0;
 }
 
-async function pickLineForDay(priceSetId, workDate) {
+function emptyCell() {
+  return { billing: '', payment: '', lineIds: {} };
+}
+
+function legacyFeeItem(lines, workDate) {
+  const item = {
+    id: 'legacy_auto',
+    name: '料金項目',
+    mode: 'weekdays',
+    weekdays: { [jsWeekdayCode(workDate)]: true },
+    matrix: { daily: {}, hourly: {} },
+  };
+  for (const priceType of ['basic', 'overtime', 'night', 'night_overtime']) {
+    for (const calcType of ['daily', 'hourly']) {
+      const candidates = lines.filter((line) => String(line.price_type_code || 'basic') === priceType);
+      const hit = resolvePriceRow(candidates, workDate, calcType);
+      const value = emptyCell();
+      if (hit && String(hit.calc_type_code || '') === calcType) {
+        value.billing = hit.billing_unit_price;
+        value.payment = hit.payment_unit_price;
+        value.lineIds.legacy = hit.price_set_line_id;
+      }
+      item.matrix[calcType][priceType] = value;
+    }
+  }
+  return item;
+}
+
+function feeItemMatchesDate(item, workDate) {
+  if (!item || item.mode === 'distance') return false;
+  const weekday = jsWeekdayCode(workDate);
+  return Boolean(
+    item.weekdays?.[weekday] ||
+    item.weekdays?.all ||
+    (item.weekdays?.weekday && !['sat', 'sun'].includes(weekday))
+  );
+}
+
+function resolveFeeItem(items, workDate, selectedId, isTraining = false) {
+  if (selectedId) {
+    const selected = items.find((item) => String(item.id) === String(selectedId));
+    if (selected) return { item: selected, source: 'manual' };
+  }
+  if (isTraining) {
+    const training = items.find((item) => String(item.name || '').includes('研修'));
+    if (training) return { item: training, source: 'auto' };
+  }
+  const matched = items.find((item) => feeItemMatchesDate(item, workDate));
+  return { item: matched || items.find((item) => item.mode !== 'distance') || null, source: 'auto' };
+}
+
+function normalizeConfig(extraData) {
+  const extra = parseJson(extraData, {}) || {};
+  return {
+    night_rules: {
+      billing: { ...DEFAULT_SIDE_RULE, ...(extra.night_rules?.billing || {}) },
+      payment: { ...DEFAULT_SIDE_RULE, ...(extra.night_rules?.payment || {}) },
+    },
+    rounding: {
+      billing: { ...DEFAULT_ROUNDING, ...(extra.rounding?.billing || {}) },
+      payment: { ...DEFAULT_ROUNDING, ...(extra.rounding?.payment || {}) },
+    },
+    work_rules: {
+      standard_minutes: Math.max(0, Number(extra.work_rules?.standard_minutes ?? 480)),
+    },
+  };
+}
+
+async function loadPriceSetContext(projectId, workDate) {
+  const priceSet = await pickPriceSetForDate(projectId, workDate);
+  if (!priceSet) return null;
   const lines = await query(
     `SELECT * FROM price_set_lines
      WHERE price_set_id = ? AND is_deleted = 0
      ORDER BY sort_order ASC, price_set_line_id ASC`,
-    [Number(priceSetId)]
+    [Number(priceSet.price_set_id)]
   );
-  if (!lines.length) return null;
-  return resolvePriceRow(lines, workDate, 'daily');
+  const extra = parseJson(priceSet.extra_data, {}) || {};
+  const items = Array.isArray(extra.fee_items) && extra.fee_items.length
+    ? extra.fee_items
+    : [legacyFeeItem(lines, workDate)];
+  return { priceSet, lines, extra, items, config: normalizeConfig(extra) };
 }
 
-/**
- * 日報1行の計算（最小仮組）
- * - spot_amount があればマスタ無視（useSpotPrice 相当）
- * - それ以外は validFrom/validTo で PriceSet を選択し PriceRow を解決
- */
+async function buildDailyCalculationContext(projectId, workDate, selectedFeeItemId = null, isTraining = false) {
+  if (!projectId || !workDate) return null;
+  const context = await loadPriceSetContext(projectId, workDate);
+  if (!context) return null;
+  const resolved = resolveFeeItem(context.items, workDate, selectedFeeItemId, isTraining);
+  return {
+    price_set_id: context.priceSet.price_set_id,
+    price_set_name: context.priceSet.price_set_name,
+    selected_fee_item_id: resolved.item?.id || null,
+    selected_fee_item_name: resolved.item?.name || null,
+    fee_item_selection_source: resolved.source,
+    fee_item: resolved.item,
+    fee_items: context.items
+      .filter((item) => item.mode !== 'distance')
+      .map((item) => ({ id: item.id, name: item.name || '料金項目' })),
+    ...context.config,
+  };
+}
+
+function hasOverrides(overrides) {
+  return ['billing', 'payment'].some((side) =>
+    Object.values(overrides?.[side] || {}).some((value) => value !== '' && value != null)
+  );
+}
+
+function validateAdjustmentReason(data, side) {
+  const adjustment = Number(data[`night_adjustment_minutes_${side}`] || 0);
+  const reason = String(data[`night_adjustment_reason_${side}`] || '').trim();
+  if (!Number.isInteger(adjustment)) throw validationError('深夜時間調整は1分単位で入力してください');
+  if (adjustment !== 0 && !reason) throw validationError('深夜時間を調整する場合は理由を入力してください');
+}
+
 async function applyDailyPriceCalc(data) {
-  const spot = data.spot_amount != null && data.spot_amount !== '' ? Number(data.spot_amount) : null;
-  if (spot != null && !Number.isNaN(spot) && spot !== 0) {
+  if (!data.project_id || !data.work_date) return data;
+  const manuallySelected = data.fee_item_selection_source === 'manual';
+  const selectedIdForResolution = manuallySelected ? data.selected_fee_item_id : null;
+  const context = await buildDailyCalculationContext(
+    data.project_id,
+    data.work_date,
+    selectedIdForResolution,
+    Boolean(Number(data.is_training || 0))
+  );
+  if (!context || !context.fee_item) {
     data.applied_price_set_id = null;
-    if (data.calculated_billing_amount == null) data.calculated_billing_amount = spot;
-    if (data.calculated_payment_amount == null) data.calculated_payment_amount = spot;
+    data.calculated_billing_amount = 0;
+    data.calculated_payment_amount = 0;
+    data.calculation_detail = JSON.stringify({
+      version: 1,
+      warnings: [{ code: 'price_set_missing', message: '適用可能な料金設定がありません' }],
+    });
     return data;
   }
 
-  if (!data.project_id || !data.work_date) {
-    return data;
+  validateAdjustmentReason(data, 'billing');
+  validateAdjustmentReason(data, 'payment');
+  const overrides = parseJson(data.rate_overrides, {}) || {};
+  if (hasOverrides(overrides) && !String(data.rate_override_reason || '').trim()) {
+    throw validationError('料金単価等を一時変更する場合は変更理由を入力してください');
   }
 
-  const priceSet = await pickPriceSetForDate(data.project_id, data.work_date);
-  if (!priceSet) {
-    data.applied_price_set_id = null;
-    if (data.calculated_billing_amount == null) data.calculated_billing_amount = 0;
-    if (data.calculated_payment_amount == null) data.calculated_payment_amount = 0;
-    return data;
+  const breakMinutes = parseDurationMinutes(data.break_minutes, data.break_time, '合計休憩時間');
+  const sideResults = {};
+  const amountResults = {};
+  for (const side of ['billing', 'payment']) {
+    const classified = calculateNightSide({
+      start_time: data.start_time,
+      end_time: data.end_time,
+      total_break_minutes: breakMinutes,
+      night_break_minutes: data[`night_break_minutes_${side}`] || 0,
+      night_adjustment_minutes: data[`night_adjustment_minutes_${side}`] || 0,
+      standard_minutes: context.work_rules.standard_minutes,
+      rule: context.night_rules[side],
+      rounding: context.rounding[side],
+    });
+    sideResults[side] = classified;
+    amountResults[side] = calculateSideAmounts({
+      side,
+      item: context.fee_item,
+      classified,
+      overrides: overrides[side] || {},
+      rounding: context.rounding[side],
+    });
   }
 
-  data.applied_price_set_id = priceSet.price_set_id;
-  const line = await pickLineForDay(priceSet.price_set_id, data.work_date);
-  if (line) {
-    const billingBase = Number(line.billing_unit_price || 0);
-    const paymentBase = Number(line.payment_unit_price || 0);
-    if (data.calculated_billing_amount == null) {
-      data.calculated_billing_amount = billingBase;
-    }
-    if (data.calculated_payment_amount == null) {
-      data.calculated_payment_amount = paymentBase;
-    }
-    // 不足時間控除（次段で拘束時間を案件から取得して拡張）
-    const workHours = data.work_hours != null ? Number(data.work_hours) : null;
-    const binding = data.binding_hours != null ? Number(data.binding_hours) : null;
-    const breakH = data.break_time != null ? Number(data.break_time) : 0;
-    if (workHours != null && binding != null && workHours < binding - breakH) {
-      const hourlyBill = getHourlyRate(billingBase, binding, breakH * 60);
-      const hourlyPay = getHourlyRate(paymentBase, binding, breakH * 60);
-      if (data.calculated_billing_amount == null || data.calculated_billing_amount === billingBase) {
-        data.calculated_billing_amount = Math.round(workHours * hourlyBill * 100) / 100;
-      }
-      if (data.calculated_payment_amount == null || data.calculated_payment_amount === paymentBase) {
-        data.calculated_payment_amount = Math.round(workHours * hourlyPay * 100) / 100;
-      }
-    }
-  } else {
-    if (data.calculated_billing_amount == null) data.calculated_billing_amount = 0;
-    if (data.calculated_payment_amount == null) data.calculated_payment_amount = 0;
-  }
+  data.applied_price_set_id = context.price_set_id;
+  data.selected_fee_item_id = context.selected_fee_item_id;
+  data.selected_fee_item_name = context.selected_fee_item_name;
+  data.fee_item_selection_source = manuallySelected ? 'manual' : 'auto';
+  data.break_minutes = breakMinutes;
+  data.break_time = breakMinutes / 60;
+  data.binding_hours = sideResults.billing.duration_minutes == null ? null : sideResults.billing.duration_minutes / 60;
+  data.work_hours = sideResults.billing.work_minutes / 60;
+  data.overtime_hours = sideResults.billing.overtime_minutes / 60;
+  data.night_hours = sideResults.billing.night_minutes == null ? null : sideResults.billing.night_minutes / 60;
+  data.night_minutes_billing = sideResults.billing.night_minutes;
+  data.night_minutes_payment = sideResults.payment.night_minutes;
+  data.night_overtime_minutes_billing = sideResults.billing.night_overtime_minutes;
+  data.night_overtime_minutes_payment = sideResults.payment.night_overtime_minutes;
+  data.regular_overtime_minutes_billing = sideResults.billing.regular_overtime_minutes;
+  data.regular_overtime_minutes_payment = sideResults.payment.regular_overtime_minutes;
+  data.calculated_billing_amount = amountResults.billing.total;
+  data.calculated_payment_amount = amountResults.payment.total;
+  data.calculation_detail = JSON.stringify({
+    version: 1,
+    price_set: { id: context.price_set_id, name: context.price_set_name },
+    fee_item: {
+      id: context.selected_fee_item_id,
+      name: context.selected_fee_item_name,
+      selection_source: data.fee_item_selection_source,
+    },
+    standard_minutes: context.work_rules.standard_minutes,
+    available_fee_items: context.fee_items,
+    billing: { ...sideResults.billing, amounts: amountResults.billing },
+    payment: { ...sideResults.payment, amounts: amountResults.payment },
+    rate_override_reason: data.rate_override_reason || null,
+  });
   return data;
 }
 
 module.exports = {
   applyDailyPriceCalc,
+  buildDailyCalculationContext,
   pickPriceSetForDate,
   resolvePriceRow,
+  resolveFeeItem,
+  normalizeConfig,
+  getHourlyRate,
   DAY_TYPE_FALLBACK_ORDER,
+  DEFAULT_SIDE_RULE,
+  DEFAULT_ROUNDING,
+  parseJson,
 };
