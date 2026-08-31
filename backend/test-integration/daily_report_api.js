@@ -11,6 +11,7 @@ async function listen(app) {
 
 async function close(server) {
   if (!server) return;
+  if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
   await new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
@@ -47,7 +48,7 @@ async function main() {
     let cookie = '';
 
     async function request(path, options = {}) {
-      const headers = { ...(options.headers || {}) };
+      const headers = { connection: 'close', ...(options.headers || {}) };
       if (options.body != null) headers['content-type'] = 'application/json';
       if (cookie) headers.cookie = cookie;
       const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
@@ -185,7 +186,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('[integration] daily report API verification failed', error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('[integration] daily report API verification failed', error);
+    process.exit(1);
+  });
