@@ -94,6 +94,9 @@ jobs:
       - name: Verify migration re-run
         run: npm run migrate --prefix backend
 
+      - name: Run daily report API integration
+        run: node backend/test-integration/daily_report_api.js
+
       - name: Start API and verify health
         shell: bash
         run: |
