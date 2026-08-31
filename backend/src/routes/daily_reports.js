@@ -1,7 +1,8 @@
 const express = require('express');
-const { query } = require('../db');
+const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const { applyDailyPriceCalc } = require('../services/price_calc');
+const { applyDailyPriceCalc, buildDailyCalculationContext, parseJson } = require('../services/price_calc');
+const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'));
@@ -16,6 +17,7 @@ const FIELDS = [
   'start_time',
   'end_time',
   'break_time',
+  'break_minutes',
   'is_absent',
   'is_training',
   'binding_hours',
@@ -29,6 +31,17 @@ const FIELDS = [
   'parking_fee',
   'transport_fee',
   'night_hours',
+  'night_break_minutes_billing',
+  'night_break_minutes_payment',
+  'night_adjustment_minutes_billing',
+  'night_adjustment_minutes_payment',
+  'night_adjustment_reason_billing',
+  'night_adjustment_reason_payment',
+  'selected_fee_item_id',
+  'selected_fee_item_name',
+  'fee_item_selection_source',
+  'rate_overrides',
+  'rate_override_reason',
   'spot_amount',
   'row_comment',
   'expenses_json',
@@ -42,12 +55,48 @@ const FIELDS = [
   'scanned_image_url',
 ];
 
+const SYSTEM_FIELDS = [
+  'applied_price_set_id',
+  'selected_fee_item_id',
+  'selected_fee_item_name',
+  'fee_item_selection_source',
+  'break_time',
+  'break_minutes',
+  'binding_hours',
+  'work_hours',
+  'overtime_hours',
+  'night_hours',
+  'night_minutes_billing',
+  'night_minutes_payment',
+  'night_overtime_minutes_billing',
+  'night_overtime_minutes_payment',
+  'regular_overtime_minutes_billing',
+  'regular_overtime_minutes_payment',
+  'calculated_billing_amount',
+  'calculated_payment_amount',
+  'calculation_detail',
+];
+
+const JSON_FIELDS = new Set(['expenses_json', 'rate_overrides', 'calculation_detail']);
+const AUDIT_FIELDS = [
+  'selected_fee_item_id',
+  'fee_item_selection_source',
+  'night_break_minutes_billing',
+  'night_break_minutes_payment',
+  'night_adjustment_minutes_billing',
+  'night_adjustment_minutes_payment',
+  'night_adjustment_reason_billing',
+  'night_adjustment_reason_payment',
+  'rate_overrides',
+  'rate_override_reason',
+];
+
 function pick(body) {
   const out = {};
   for (const key of FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
     let val = body[key];
-    if (key === 'expenses_json') {
+    if (JSON_FIELDS.has(key)) {
       if (val == null || val === '') out[key] = null;
       else if (typeof val === 'string') {
         try {
@@ -65,6 +114,58 @@ function pick(body) {
     out[key] = val === '' || val === undefined ? null : val;
   }
   return out;
+}
+
+function pickSystem(data) {
+  const out = {};
+  for (const key of SYSTEM_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) out[key] = data[key];
+  }
+  return out;
+}
+
+function jsonValue(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') return parseJson(value, value);
+  return value;
+}
+
+function auditSubset(row) {
+  const out = {};
+  for (const key of AUDIT_FIELDS) out[key] = JSON_FIELDS.has(key) ? jsonValue(row[key]) : row[key] ?? null;
+  const calculation = jsonValue(row.calculation_detail) || {};
+  out.night_input_mode = calculation.night_input_mode || null;
+  return out;
+}
+
+function changedAuditFields(before, after) {
+  const left = auditSubset(before);
+  const right = auditSubset(after);
+  return JSON.stringify(left) === JSON.stringify(right) ? null : { before: left, after: right };
+}
+
+async function insertAudit(conn, reportId, action, before, after, reason, actorUserId) {
+  await conn.query(
+    `INSERT INTO daily_report_audit_logs
+      (daily_report_id, action_code, before_data, after_data, reason, actor_user_id)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      reportId,
+      action,
+      before == null ? null : JSON.stringify(before),
+      after == null ? null : JSON.stringify(after),
+      reason || null,
+      actorUserId || null,
+    ]
+  );
+}
+
+function routeError(res, err, fallback) {
+  if (err?.status) {
+    return res.status(err.status).json({ ok: false, code: err.code || 'validation_error', message: err.message });
+  }
+  console.error(fallback, err);
+  return res.status(500).json({ ok: false, message: fallback });
 }
 
 function effectiveAmount(row, kind) {
@@ -225,6 +326,301 @@ router.get('/month-projects', async (req, res) => {
   }
 });
 
+router.get('/calculation-context', async (req, res) => {
+  try {
+    const projectId = Number(req.query.project_id || 0);
+    const workDate = String(req.query.work_date || '').slice(0, 10);
+    const selectedFeeItemId = String(req.query.selected_fee_item_id || '').trim() || null;
+    const isTraining = ['1', 'true'].includes(String(req.query.is_training || '').toLowerCase());
+    if (!projectId || !workDate) {
+      return res.status(400).json({ ok: false, message: '案件と勤務日は必須です' });
+    }
+    const context = await buildDailyCalculationContext(projectId, workDate, selectedFeeItemId, isTraining);
+    return res.json({ ok: true, context });
+  } catch (err) {
+    return routeError(res, err, '日報計算条件の取得に失敗しました');
+  }
+});
+
+router.get('/monthly-approval', async (req, res) => {
+  try {
+    const projectId = Number(req.query.project_id || 0);
+    const ym = String(req.query.target_year_month || '').trim();
+    if (!projectId || !ym) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
+    const rows = await query(
+      `SELECT * FROM daily_report_monthly_approvals
+       WHERE project_id = ? AND target_year_month = ?
+       ORDER BY approval_version DESC LIMIT 1`,
+      [projectId, ym]
+    );
+    return res.json({ ok: true, approval: rows[0] || null });
+  } catch (err) {
+    return routeError(res, err, '月次承認状態の取得に失敗しました');
+  }
+});
+
+router.post('/monthly-approval', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const projectId = Number(req.body.project_id || 0);
+    const ym = String(req.body.target_year_month || '').trim();
+    const action = String(req.body.action || 'submit');
+    const actorUserId = req.session.user.user_id || null;
+    if (!projectId || !ym) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
+
+    await conn.beginTransaction();
+    const [reports] = await conn.query(
+      `SELECT * FROM daily_reports
+       WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0
+       ORDER BY work_date ASC, daily_report_id ASC`,
+      [projectId, ym]
+    );
+    if (!reports.length) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, message: '承認対象の日報がありません' });
+    }
+
+    const [latestRows] = await conn.query(
+      `SELECT * FROM daily_report_monthly_approvals
+       WHERE project_id = ? AND target_year_month = ?
+       ORDER BY approval_version DESC LIMIT 1 FOR UPDATE`,
+      [projectId, ym]
+    );
+    const latest = latestRows[0] || null;
+    if (action === 'submit') {
+      const unchecked = uncheckedDatesForMonth(reports, ym);
+      if (unchecked.length && !req.body.acknowledge_warnings) {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          code: 'unchecked_days_warning',
+          message: '日次確認が未完了の日があります',
+          unchecked_dates: unchecked,
+        });
+      }
+      if (latest && latest.status === 'submitted') {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, message: 'すでに承認依頼中です' });
+      }
+      const nextVersion = Number(latest?.approval_version || 0) + 1;
+      const snapshot = {
+        project_id: projectId,
+        target_year_month: ym,
+        submitted_at: new Date().toISOString(),
+        unchecked_dates: unchecked,
+        reports,
+      };
+      await conn.query(
+        `INSERT INTO daily_report_monthly_approvals
+          (project_id, target_year_month, approval_version, status, snapshot_data,
+           note, submitted_by_user_id)
+         VALUES (?, ?, ?, 'submitted', ?, ?, ?)`,
+        [projectId, ym, nextVersion, JSON.stringify(snapshot), req.body.note || null, actorUserId]
+      );
+    } else {
+      if (!latest || latest.status !== 'submitted') {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, message: '承認依頼中の月次日報がありません' });
+      }
+      if (action === 'approve') {
+        const approvalSnapshot = {
+          project_id: projectId,
+          target_year_month: ym,
+          approved_at: new Date().toISOString(),
+          reports,
+        };
+        await conn.query(
+          `UPDATE daily_report_monthly_approvals
+           SET status = 'approved', decided_by_user_id = ?, decided_at = CURRENT_TIMESTAMP,
+               note = COALESCE(?, note), snapshot_data = ?
+           WHERE monthly_approval_id = ?`,
+          [actorUserId, req.body.note || null, JSON.stringify(approvalSnapshot), latest.monthly_approval_id]
+        );
+        await conn.query(
+          `UPDATE daily_reports SET status = 'approved', version = version + 1, updated_at = CURRENT_TIMESTAMP
+           WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0 AND status = 'confirmed'`,
+          [projectId, ym]
+        );
+      } else if (action === 'reject') {
+        if (!String(req.body.note || '').trim()) {
+          await conn.rollback();
+          return res.status(400).json({ ok: false, message: '差戻し理由は必須です' });
+        }
+        await conn.query(
+          `UPDATE daily_report_monthly_approvals
+           SET status = 'rejected', decided_by_user_id = ?, decided_at = CURRENT_TIMESTAMP, note = ?
+           WHERE monthly_approval_id = ?`,
+          [actorUserId, req.body.note, latest.monthly_approval_id]
+        );
+      } else if (action === 'cancel') {
+        await conn.query(
+          `UPDATE daily_report_monthly_approvals
+           SET status = 'cancelled', decided_by_user_id = ?, decided_at = CURRENT_TIMESTAMP,
+               note = COALESCE(?, note)
+           WHERE monthly_approval_id = ?`,
+          [actorUserId, req.body.note || null, latest.monthly_approval_id]
+        );
+      } else {
+        await conn.rollback();
+        return res.status(400).json({ ok: false, message: '月次承認操作が不正です' });
+      }
+    }
+    await conn.commit();
+    const rows = await query(
+      `SELECT * FROM daily_report_monthly_approvals
+       WHERE project_id = ? AND target_year_month = ?
+       ORDER BY approval_version DESC LIMIT 1`,
+      [projectId, ym]
+    );
+    return res.json({ ok: true, approval: rows[0] || null });
+  } catch (err) {
+    await conn.rollback();
+    return routeError(res, err, '月次承認処理に失敗しました');
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/day-status', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const projectId = Number(req.body.project_id || 0);
+    const workDate = String(req.body.work_date || '').slice(0, 10);
+    const next = String(req.body.status || '');
+    const actorUserId = req.session.user.user_id || null;
+    if (!projectId || !/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+      return res.status(400).json({ ok: false, message: '案件と勤務日は必須です' });
+    }
+    if (!['confirmed', 'draft'].includes(next)) {
+      return res.status(400).json({ ok: false, message: '日次確認操作が不正です' });
+    }
+
+    await conn.beginTransaction();
+    const [reports] = await conn.query(
+      `SELECT * FROM daily_reports
+       WHERE project_id = ? AND work_date = ? AND is_deleted = 0
+       ORDER BY daily_report_id ASC FOR UPDATE`,
+      [projectId, workDate]
+    );
+    if (!reports.length) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, message: '日次確認対象の作業明細がありません' });
+    }
+    if (reports.some((row) => row.status === 'approved')) {
+      await conn.rollback();
+      return res.status(409).json({ ok: false, message: '月次承認済みの日報は変更できません' });
+    }
+
+    if (next === 'confirmed') {
+      const warnings = reports
+        .flatMap((row) => {
+          const calculation = parseJson(row.calculation_detail, {}) || {};
+          return [...(calculation.billing?.warnings || []), ...(calculation.payment?.warnings || [])];
+        })
+        .filter((warning, index, all) => all.findIndex((item) => item.code === warning.code) === index);
+      if (warnings.length && !req.body.acknowledge_warnings) {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          code: 'confirmation_warning',
+          message: warnings.map((warning) => warning.message).join('\n'),
+          warnings,
+        });
+      }
+
+      const ids = reports.map((row) => Number(row.daily_report_id));
+      const [versions] = await conn.query(
+        `SELECT COALESCE(MAX(confirmation_version), 0) AS max_version
+         FROM daily_report_confirmation_snapshots
+         WHERE daily_report_id IN (${ids.map(() => '?').join(', ')})`,
+        ids
+      );
+      const confirmationVersion = Number(versions[0]?.max_version || 0) + 1;
+      const confirmedReports = reports.map((row) => ({
+        ...row,
+        status: 'confirmed',
+        confirmation_version: confirmationVersion,
+      }));
+      const snapshot = {
+        scope: 'project_work_date',
+        project_id: projectId,
+        work_date: workDate,
+        confirmation_version: confirmationVersion,
+        reports: confirmedReports,
+      };
+      await conn.query(
+        `UPDATE daily_reports
+         SET status = 'confirmed', rejection_reason = NULL,
+             version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE project_id = ? AND work_date = ? AND is_deleted = 0`,
+        [projectId, workDate]
+      );
+      for (const row of reports) {
+        await conn.query(
+          `INSERT INTO daily_report_confirmation_snapshots
+            (daily_report_id, confirmation_version, snapshot_data, confirmed_by_user_id)
+           VALUES (?, ?, ?, ?)`,
+          [row.daily_report_id, confirmationVersion, JSON.stringify(snapshot), actorUserId]
+        );
+        await insertAudit(
+          conn,
+          row.daily_report_id,
+          'daily_confirm',
+          { status: row.status },
+          { status: 'confirmed', confirmation_version: confirmationVersion, scope: 'project_work_date' },
+          null,
+          actorUserId
+        );
+      }
+    } else {
+      const monthly = await conn.query(
+        `SELECT status FROM daily_report_monthly_approvals
+         WHERE project_id = ? AND target_year_month = ?
+         ORDER BY approval_version DESC LIMIT 1`,
+        [projectId, String(reports[0].target_year_month || '')]
+      );
+      const monthlyRows = Array.isArray(monthly[0]) ? monthly[0] : [];
+      if (monthlyRows[0]?.status === 'submitted') {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, message: '月次承認依頼を取り消してから日次確認を解除してください' });
+      }
+      await conn.query(
+        `UPDATE daily_reports
+         SET status = 'draft', version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE project_id = ? AND work_date = ? AND is_deleted = 0 AND status = 'confirmed'`,
+        [projectId, workDate]
+      );
+      for (const row of reports.filter((item) => item.status === 'confirmed')) {
+        await insertAudit(
+          conn,
+          row.daily_report_id,
+          'daily_unconfirm',
+          { status: 'confirmed' },
+          { status: 'draft', scope: 'project_work_date' },
+          null,
+          actorUserId
+        );
+      }
+    }
+
+    await conn.commit();
+    const updated = await query(
+      `SELECT * FROM daily_reports
+       WHERE project_id = ? AND work_date = ? AND is_deleted = 0
+       ORDER BY daily_report_id ASC`,
+      [projectId, workDate]
+    );
+    return res.json({ ok: true, reports: updated });
+  } catch (err) {
+    await conn.rollback();
+    return routeError(res, err, '日次確認処理に失敗しました');
+  } finally {
+    conn.release();
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const detail = await fetchDetail(Number(req.params.id));
@@ -240,28 +636,45 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    let data = pick(req.body || {});
-    if (!data.project_id || !data.company_id || !data.work_date || !data.target_year_month) {
+    const input = pick(req.body || {});
+    if (!input.project_id || !input.company_id || !input.work_date || !input.target_year_month) {
       return res.status(400).json({
         ok: false,
         message: '案件・企業・勤務日・対象年月は必須です',
       });
     }
-    if (!data.input_source_type) data.input_source_type = 'manual';
-    data = await applySimpleCalc(data);
+    if (!input.input_source_type) input.input_source_type = 'manual';
+    const calculated = await applySimpleCalc({ ...input });
+    const data = { ...input, ...pickSystem(calculated) };
     const cols = Object.keys(data);
     const result = await query(
       `INSERT INTO daily_reports (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
       cols.map((c) => data[c])
     );
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await insertAudit(
+        conn,
+        result.insertId,
+        'create',
+        null,
+        auditSubset(data),
+        data.rate_override_reason || null,
+        req.session.user.user_id
+      );
+    } finally {
+      conn.release();
+    }
     return res.status(201).json({ ok: true, report: await fetchDetail(result.insertId) });
   } catch (err) {
-    console.error('[daily_reports/create]', err);
-    return res.status(500).json({ ok: false, message: '日報の作成に失敗しました' });
+    return routeError(res, err, '日報の作成に失敗しました');
   }
 });
 
 router.put('/:id', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const id = Number(req.params.id);
     const current = await fetchDetail(id);
@@ -271,25 +684,18 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ ok: false, message: '承認済みの日報は編集できません' });
     }
 
-    let data = pick(req.body || {});
-    // confirmed: memo / override のみ許可（仮組は緩めに基本項目も許可しつつ警告はUI側）
+    let data;
     if (current.status === 'confirmed') {
       data = {
-        memo: data.memo != null ? data.memo : current.memo,
-        override_billing_amount:
-          data.override_billing_amount !== undefined
-            ? data.override_billing_amount
-            : current.override_billing_amount,
-        override_payment_amount:
-          data.override_payment_amount !== undefined
-            ? data.override_payment_amount
-            : current.override_payment_amount,
+        memo: Object.prototype.hasOwnProperty.call(req.body, 'memo') ? req.body.memo || null : current.memo,
+        row_comment: Object.prototype.hasOwnProperty.call(req.body, 'row_comment')
+          ? req.body.row_comment || null
+          : current.row_comment,
       };
     } else {
-      data = await applySimpleCalc({ ...current, ...data });
-      // pick したフィールドのみ更新対象にする
-      data = pick({ ...current, ...req.body });
-      data = await applySimpleCalc(data);
+      const input = pick(req.body || {});
+      const calculated = await applySimpleCalc({ ...current, ...input });
+      data = { ...input, ...pickSystem(calculated) };
     }
 
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
@@ -306,18 +712,37 @@ router.put('/:id', async (req, res) => {
       sql += ' AND version = ?';
       params.push(expectedVersion);
     }
-    const result = await query(sql, params);
+    await conn.beginTransaction();
+    const [result] = await conn.query(sql, params);
     if (!result || result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(409).json({ ok: false, message: '更新に失敗しました（競合）' });
     }
+    const changes = changedAuditFields(current, { ...current, ...data });
+    if (changes) {
+      await insertAudit(
+        conn,
+        id,
+        'manual_change',
+        changes.before,
+        changes.after,
+        data.rate_override_reason || data.night_adjustment_reason_billing || data.night_adjustment_reason_payment,
+        req.session.user.user_id
+      );
+    }
+    await conn.commit();
     return res.json({ ok: true, report: await fetchDetail(id) });
   } catch (err) {
-    console.error('[daily_reports/update]', err);
-    return res.status(500).json({ ok: false, message: '日報の更新に失敗しました' });
+    await conn.rollback();
+    return routeError(res, err, '日報の更新に失敗しました');
+  } finally {
+    conn.release();
   }
 });
 
 router.post('/:id/status', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
   try {
     const id = Number(req.params.id);
     const current = await fetchDetail(id);
@@ -325,13 +750,7 @@ router.post('/:id/status', async (req, res) => {
 
     const next = String(req.body.status || '');
     const reason = req.body.rejection_reason || null;
-    const allowed = {
-      draft: ['confirmed'],
-      rejected: ['draft', 'confirmed'],
-      confirmed: ['approved', 'rejected', 'draft'],
-      approved: [],
-    };
-    if (!(allowed[current.status] || []).includes(next)) {
+    if (!canChangeDailyStatus(current.status, next)) {
       return res.status(400).json({
         ok: false,
         message: `ステータスを ${current.status} から ${next} へは変更できません`,
@@ -340,17 +759,80 @@ router.post('/:id/status', async (req, res) => {
     if (next === 'rejected' && !reason) {
       return res.status(400).json({ ok: false, message: '却下理由を入力してください' });
     }
+    if (current.status === 'confirmed' && next === 'draft') {
+      const monthly = await query(
+        `SELECT status FROM daily_report_monthly_approvals
+         WHERE project_id = ? AND target_year_month = ?
+         ORDER BY approval_version DESC LIMIT 1`,
+        [current.project_id, current.target_year_month]
+      );
+      if (monthly[0]?.status === 'submitted') {
+        return res.status(409).json({ ok: false, message: '月次承認依頼を取り消してから日次確認を解除してください' });
+      }
+    }
 
-    await query(
+    const calculation = parseJson(current.calculation_detail, {}) || {};
+    const warnings = [
+      ...(calculation.billing?.warnings || []),
+      ...(calculation.payment?.warnings || []),
+    ].filter((warning, index, all) => all.findIndex((item) => item.code === warning.code) === index);
+    if (next === 'confirmed' && warnings.length && !req.body.acknowledge_warnings) {
+      return res.status(409).json({
+        ok: false,
+        code: 'confirmation_warning',
+        message: warnings.map((warning) => warning.message).join('\n'),
+        warnings,
+      });
+    }
+
+    await conn.beginTransaction();
+    await conn.query(
       `UPDATE daily_reports
        SET status = ?, rejection_reason = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE daily_report_id = ? AND is_deleted = 0`,
       [next, next === 'rejected' ? reason : null, id]
     );
+    if (next === 'confirmed') {
+      const [versions] = await conn.query(
+        `SELECT COALESCE(MAX(confirmation_version), 0) AS max_version
+         FROM daily_report_confirmation_snapshots WHERE daily_report_id = ? FOR UPDATE`,
+        [id]
+      );
+      const confirmationVersion = Number(versions[0]?.max_version || 0) + 1;
+      const confirmed = { ...current, status: 'confirmed', confirmation_version: confirmationVersion };
+      await conn.query(
+        `INSERT INTO daily_report_confirmation_snapshots
+          (daily_report_id, confirmation_version, snapshot_data, confirmed_by_user_id)
+         VALUES (?, ?, ?, ?)`,
+        [id, confirmationVersion, JSON.stringify(confirmed), req.session.user.user_id || null]
+      );
+      await insertAudit(
+        conn,
+        id,
+        'daily_confirm',
+        { status: current.status },
+        { status: 'confirmed', confirmation_version: confirmationVersion },
+        null,
+        req.session.user.user_id
+      );
+    } else {
+      await insertAudit(
+        conn,
+        id,
+        next === 'draft' ? 'daily_unconfirm' : `status_${next}`,
+        { status: current.status },
+        { status: next },
+        reason,
+        req.session.user.user_id
+      );
+    }
+    await conn.commit();
     return res.json({ ok: true, report: await fetchDetail(id) });
   } catch (err) {
-    console.error('[daily_reports/status]', err);
-    return res.status(500).json({ ok: false, message: 'ステータス更新に失敗しました' });
+    await conn.rollback();
+    return routeError(res, err, 'ステータス更新に失敗しました');
+  } finally {
+    conn.release();
   }
 });
 

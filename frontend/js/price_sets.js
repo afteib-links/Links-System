@@ -95,6 +95,127 @@
       return `${Math.round(((b - p) / b) * 1000) / 10}%`;
     },
 
+    parseExtraData(raw) {
+      if (!raw) return {};
+      if (typeof raw === 'object') return raw;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    },
+
+    normalizeNightSettings(raw) {
+      const extra = this.parseExtraData(raw);
+      const defaultSide = {
+        periods: [{ start: '22:00', end: '29:00' }],
+        night_mode: 'separate',
+        night_overtime_mode: 'separate',
+      };
+      const defaultRounding = {
+        time_unit_minutes: 15,
+        time_mode: 'floor',
+        amount_mode: 'floor',
+        amount_stage: 'detail',
+      };
+      return {
+        standard_minutes: Number(extra.work_rules?.standard_minutes ?? 480),
+        night_rules: {
+          billing: { ...defaultSide, ...(extra.night_rules?.billing || {}) },
+          payment: { ...defaultSide, ...(extra.night_rules?.payment || {}) },
+        },
+        rounding: {
+          billing: { ...defaultRounding, ...(extra.rounding?.billing || {}) },
+          payment: { ...defaultRounding, ...(extra.rounding?.payment || {}) },
+        },
+      };
+    },
+
+    periodsText(periods) {
+      const list = Array.isArray(periods) && periods.length ? periods : [{ start: '22:00', end: '29:00' }];
+      return list.map((period) => `${period.start}-${period.end}`).join(', ');
+    },
+
+    parsePeriodsText(text) {
+      const parts = String(text || '')
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (!parts.length) return [{ start: '22:00', end: '29:00' }];
+      return parts.map((part) => {
+        const match = part.match(/^(\d{1,2}:\d{2})\s*[-～]\s*(\d{1,2}:\d{2})$/);
+        if (!match) throw new Error(`深夜帯「${part}」は22:00-29:00の形式で入力してください`);
+        return { start: match[1], end: match[2] };
+      });
+    },
+
+    nightSettingsHtml() {
+      const settings = this.detailState.nightSettings;
+      const modeOptions = (selected) => [
+        ['separate', '別途計算'],
+        ['included', '基本料金に含む'],
+        ['excluded', '対象外'],
+      ]
+        .map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`)
+        .join('');
+      const roundingOptions = (selected) => [
+        ['floor', '切り捨て'],
+        ['round', '四捨五入'],
+        ['ceil', '切り上げ'],
+      ]
+        .map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`)
+        .join('');
+      const amountStageOptions = (selected) => [
+        ['detail', '明細ごと'],
+        ['day', '日ごと'],
+        ['month', '月合計後'],
+      ]
+        .map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`)
+        .join('');
+      const sideCard = (side, label) => {
+        const rule = settings.night_rules[side];
+        const round = settings.rounding[side];
+        return `<fieldset class="night-setting-card">
+          <legend>${label}</legend>
+          <label>深夜帯（複数はカンマ区切り）
+            <input id="night-${side}-periods" value="${this.ctx.escapeHtml(this.periodsText(rule.periods))}" placeholder="22:00-29:00" />
+          </label>
+          <label>深夜 <select id="night-${side}-mode">${modeOptions(rule.night_mode)}</select></label>
+          <label>深夜超過 <select id="night-${side}-overtime-mode">${modeOptions(rule.night_overtime_mode)}</select></label>
+          <label>時間丸め単位（分） <input id="round-${side}-unit" type="number" min="1" step="1" value="${this.ctx.escapeHtml(round.time_unit_minutes)}" /></label>
+          <label>時間丸め <select id="round-${side}-time-mode">${roundingOptions(round.time_mode)}</select></label>
+          <label>金額丸め <select id="round-${side}-amount-mode">${roundingOptions(round.amount_mode)}</select></label>
+          <label>金額丸め段階 <select id="round-${side}-amount-stage">${amountStageOptions(round.amount_stage)}</select></label>
+        </fieldset>`;
+      };
+      return `<div class="night-settings-grid">
+        <label>日次基準時間（分）
+          <input id="standard-minutes" type="number" min="0" step="1" value="${this.ctx.escapeHtml(settings.standard_minutes)}" />
+        </label>
+        ${sideCard('billing', '請求側')}
+        ${sideCard('payment', '支払側')}
+      </div>`;
+    },
+
+    collectNightSettings() {
+      const settings = this.detailState.nightSettings;
+      settings.standard_minutes = Math.max(0, Number(document.getElementById('standard-minutes')?.value || 0));
+      for (const side of ['billing', 'payment']) {
+        settings.night_rules[side] = {
+          periods: this.parsePeriodsText(document.getElementById(`night-${side}-periods`)?.value),
+          night_mode: document.getElementById(`night-${side}-mode`)?.value || 'separate',
+          night_overtime_mode: document.getElementById(`night-${side}-overtime-mode`)?.value || 'separate',
+        };
+        settings.rounding[side] = {
+          time_unit_minutes: Math.max(1, Number(document.getElementById(`round-${side}-unit`)?.value || 1)),
+          time_mode: document.getElementById(`round-${side}-time-mode`)?.value || 'floor',
+          amount_mode: document.getElementById(`round-${side}-amount-mode`)?.value || 'floor',
+          amount_stage: document.getElementById(`round-${side}-amount-stage`)?.value || 'detail',
+        };
+      }
+      return settings;
+    },
+
     async showList(message = '') {
       this.ctx.renderLoading();
       const params = new URLSearchParams({ q: this.q || '' });
@@ -437,6 +558,7 @@
         id: row.price_set_id,
         version: row.version || 1,
         items,
+        nightSettings: this.normalizeNightSettings(row.extra_data),
         rowMeta: row,
       };
 
@@ -452,6 +574,8 @@
               <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
               <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
             </div>
+            <div class="section-head"><h3 class="section-title">勤務・深夜・丸め条件</h3></div>
+            ${this.nightSettingsHtml()}
             ${id ? this.importBarHtml(id) : ''}
             <div class="section-head">
               <h3 class="section-title">料金項目（曜日 × 計算 × 種別）</h3>
@@ -477,7 +601,12 @@
           .fee-matrix-pair input { width: 100%; max-width: 7rem; }
           .fee-matrix-wide th, .fee-matrix-wide td { vertical-align: top; }
           .fee-import-bar { margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+          .night-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+          .night-setting-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; border: 1px solid var(--border, #ccc); }
+          .night-setting-card > label:first-of-type { grid-column: 1 / -1; }
+          .night-setting-card label { display: flex; flex-direction: column; gap: 0.2rem; }
           .hint { color: var(--muted, #666); font-size: 0.9rem; }
+          @media (max-width: 900px) { .night-settings-grid { grid-template-columns: 1fr; } }
         </style>`,
         { onBack: () => this.showList() }
       );
@@ -537,9 +666,21 @@
       document.getElementById('ps-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
-        this.collectFeeItemsFromDom();
+        let nightSettings;
+        try {
+          this.collectFeeItemsFromDom();
+          nightSettings = this.collectNightSettings();
+        } catch (error) {
+          document.getElementById('form-error').textContent = error.message || '深夜条件を確認してください';
+          return;
+        }
         const lines = Fee().itemsToLines(this.detailState.items);
-        const extra_data = { fee_items: Fee().feeItemsForExtraData(this.detailState.items) };
+        const extra_data = {
+          fee_items: Fee().feeItemsForExtraData(this.detailState.items),
+          night_rules: nightSettings.night_rules,
+          rounding: nightSettings.rounding,
+          work_rules: { standard_minutes: nightSettings.standard_minutes },
+        };
         const payload = {
           price_set_name: form.price_set_name.value.trim(),
           company_id: form.company_id.value ? Number(form.company_id.value) : null,

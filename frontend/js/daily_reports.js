@@ -17,11 +17,87 @@
       return (
         {
           draft: '下書き',
-          confirmed: '確定',
-          approved: '承認',
-          rejected: '却下',
+          confirmed: '確認済み',
+          approved: '月次承認済み',
+          rejected: '差戻し',
         }[s] || s || '-'
       );
+    },
+
+    parseJson(raw, fallback = {}) {
+      if (!raw) return fallback;
+      if (typeof raw === 'object') return raw;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return fallback;
+      }
+    },
+
+    formatMinutes(value) {
+      if (value == null || value === '') return '';
+      const minutes = Math.round(Number(value));
+      if (!Number.isFinite(minutes)) return '';
+      const sign = minutes < 0 ? '-' : '';
+      const abs = Math.abs(minutes);
+      return `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`;
+    },
+
+    parseMinutesInput(value, signed = false) {
+      const text = String(value || '').trim();
+      if (!text) return 0;
+      const match = text.match(signed ? /^(-?)(\d{1,3}):(\d{2})$/ : /^(\d{1,3}):(\d{2})$/);
+      if (!match) throw new Error('時間はH:MM形式で入力してください');
+      const sign = signed && match[1] === '-' ? -1 : 1;
+      const hour = Number(match[signed ? 2 : 1]);
+      const minute = Number(match[signed ? 3 : 2]);
+      if (minute > 59) throw new Error('分は00～59で入力してください');
+      return sign * (hour * 60 + minute);
+    },
+
+    durationInput(row, minuteField, decimalField = null) {
+      if (row[minuteField] != null && row[minuteField] !== '') return this.formatMinutes(row[minuteField]);
+      if (decimalField && row[decimalField] != null && row[decimalField] !== '') {
+        return this.formatMinutes(Number(row[decimalField]) * 60);
+      }
+      return '0:00';
+    },
+
+    rowCalculation(row) {
+      return this.parseJson(row.calculation_detail, {});
+    },
+
+    rateForItem(item, priceType, side) {
+      const preferred = priceType === 'basic' ? ['daily', 'hourly'] : ['hourly', 'daily'];
+      for (const calcType of preferred) {
+        const value = item?.matrix?.[calcType]?.[priceType]?.[side];
+        if (value !== '' && value != null && Number.isFinite(Number(value))) {
+          return { rate: Number(value), calc_type: calcType };
+        }
+      }
+      return { rate: 0, calc_type: preferred[0] };
+    },
+
+    rateInfo(row, side, priceType) {
+      const detail = this.rowCalculation(row);
+      const calculated = detail?.[side]?.amounts?.details?.[priceType];
+      if (calculated) return calculated;
+      return this.rateForItem(row._calcContext?.fee_item, priceType, side);
+    },
+
+    async ensureContext(idx, force = false) {
+      const row = this.gridRows[idx];
+      if (!row || (row._calcContext && !force)) return;
+      const params = new URLSearchParams({
+        project_id: row.project_id || this.gridMeta.project_id,
+        work_date: this.kit.dateValue(row.work_date),
+        is_training: row.is_training ? '1' : '0',
+      });
+      if (row.fee_item_selection_source === 'manual' && row.selected_fee_item_id) {
+        params.set('selected_fee_item_id', row.selected_fee_item_id);
+      }
+      const result = await this.ctx.api(`/api/daily-reports/calculation-context?${params}`);
+      row._calcContext = result.res.ok && result.data?.ok ? result.data.context : null;
     },
 
     weekdayLabel(dateStr) {
@@ -136,6 +212,7 @@
         start_time: '',
         end_time: '',
         break_time: '',
+        break_minutes: 0,
         is_absent: 0,
         is_training: 0,
         binding_hours: '',
@@ -149,6 +226,24 @@
         parking_fee: '',
         transport_fee: '',
         night_hours: '',
+        night_break_minutes_billing: 0,
+        night_break_minutes_payment: 0,
+        night_adjustment_minutes_billing: 0,
+        night_adjustment_minutes_payment: 0,
+        night_adjustment_reason_billing: '',
+        night_adjustment_reason_payment: '',
+        night_minutes_billing: null,
+        night_minutes_payment: null,
+        night_overtime_minutes_billing: null,
+        night_overtime_minutes_payment: null,
+        regular_overtime_minutes_billing: null,
+        regular_overtime_minutes_payment: null,
+        selected_fee_item_id: '',
+        selected_fee_item_name: '',
+        fee_item_selection_source: 'auto',
+        rate_overrides: {},
+        rate_override_reason: '',
+        calculation_detail: null,
         spot_amount: '',
         row_comment: '',
         override_billing_amount: '',
@@ -179,14 +274,22 @@
       }
       const byDate = new Map();
       for (const r of data.reports || []) {
-        byDate.set(this.kit.dateValue(r.work_date), { ...r, _dirty: false, _expanded: false });
+        const date = this.kit.dateValue(r.work_date);
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push({ ...r, _dirty: false, _expanded: false });
       }
       const days = this.daysInMonth(this.ym);
       this.gridRows = [];
       for (let d = 1; d <= days; d += 1) {
         const dateStr = `${this.ym}-${String(d).padStart(2, '0')}`;
-        this.gridRows.push(byDate.get(dateStr) || this.emptyDay(dateStr, meta));
+        const rows = byDate.get(dateStr) || [];
+        if (rows.length) this.gridRows.push(...rows);
+        else this.gridRows.push(this.emptyDay(dateStr, meta));
       }
+      const monthly = await this.ctx.api(
+        `/api/daily-reports/monthly-approval?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
+      );
+      this.monthlyApproval = monthly.res.ok && monthly.data?.ok ? monthly.data.approval : null;
       this.renderGrid();
     },
 
@@ -204,50 +307,167 @@
       return { workDays, overtime, shortage, distance };
     },
 
+    availableFeeItems(row) {
+      const detail = this.rowCalculation(row);
+      return row._calcContext?.fee_items || detail.available_fee_items || [];
+    },
+
+    feeItemOptions(row) {
+      const items = this.availableFeeItems(row);
+      if (!items.length && row.selected_fee_item_id) {
+        return `<option value="">自動選択</option><option value="${this.ctx.escapeHtml(row.selected_fee_item_id)}" selected>${this.ctx.escapeHtml(row.selected_fee_item_name || '料金区分')}</option>`;
+      }
+      return `<option value="" ${row.fee_item_selection_source !== 'manual' ? 'selected' : ''}>自動選択</option>${items
+        .map(
+          (item) => `<option value="${this.ctx.escapeHtml(item.id)}" ${row.fee_item_selection_source === 'manual' && String(item.id) === String(row.selected_fee_item_id) ? 'selected' : ''}>${this.ctx.escapeHtml(item.name)}</option>`
+        )
+        .join('')}`;
+    },
+
+    sameNightInput(row) {
+      const detail = this.rowCalculation(row);
+      const rules = row._calcContext?.night_rules;
+      const billingRule = rules?.billing || detail.billing?.modes;
+      const paymentRule = rules?.payment || detail.payment?.modes;
+      return JSON.stringify(billingRule || {}) === JSON.stringify(paymentRule || {});
+    },
+
+    rateTableHtml(row, idx, locked) {
+      const labels = { basic: '基本加算', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
+      const overrides = this.parseJson(row.rate_overrides, {});
+      const cells = (side, priceType) => {
+        const info = this.rateInfo(row, side, priceType);
+        const original = Number(info.original_rate ?? info.rate ?? 0);
+        const override = overrides?.[side]?.[priceType];
+        const value = override !== '' && override != null ? Number(override) : original;
+        return `<td><input type="number" step="0.01" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" ${locked ? 'disabled' : ''} /><small>${this.ctx.escapeHtml(info.calc_type || '')}</small></td>`;
+      };
+      const rows = ['basic', 'overtime', 'night', 'night_overtime']
+        .map((type) => `<tr><th>${labels[type]}</th>${cells('billing', type)}${cells('payment', type)}</tr>`)
+        .join('');
+      return `<table class="data-table data-table-compact dr-rate-table">
+        <thead><tr><th>契約料金</th><th>請求</th><th>支払</th></tr></thead><tbody>${rows}</tbody>
+      </table>
+      <label>一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(row.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>`;
+    },
+
+    nightInputHtml(row, idx, locked) {
+      const common = this.sameNightInput(row);
+      const billingBreak = Number(row.night_break_minutes_billing || 0);
+      const paymentBreak = Number(row.night_break_minutes_payment || 0);
+      const breakSame = billingBreak === paymentBreak;
+      const billingAdjustment = Number(row.night_adjustment_minutes_billing || 0);
+      const paymentAdjustment = Number(row.night_adjustment_minutes_payment || 0);
+      const adjustmentSame = billingAdjustment === paymentAdjustment;
+      const billingReason = String(row.night_adjustment_reason_billing || '');
+      const paymentReason = String(row.night_adjustment_reason_payment || '');
+      const reasonSame = billingReason === paymentReason;
+      const breakPlaceholder = breakSame
+        ? ''
+        : `placeholder="${this.ctx.escapeHtml(`請求 ${this.formatMinutes(billingBreak)} / 支払 ${this.formatMinutes(paymentBreak)}`)}"`;
+      const adjustmentPlaceholder = adjustmentSame
+        ? ''
+        : `placeholder="${this.ctx.escapeHtml(`請求 ${this.formatMinutes(billingAdjustment)} / 支払 ${this.formatMinutes(paymentAdjustment)}`)}"`;
+      const reasonPlaceholder = reasonSame ? '' : 'placeholder="請求・支払の既存理由を保持中"';
+      const breakHtml = common
+        ? `<label>深夜帯内休憩（共通）<input data-common-minutes="night_break" data-idx="${idx}" value="${breakSame ? this.formatMinutes(billingBreak) : ''}" ${breakPlaceholder} ${locked ? 'disabled' : ''} /></label>`
+        : `<label>深夜帯内休憩（請求）<input data-minutes-f="night_break_minutes_billing" data-idx="${idx}" value="${this.durationInput(row, 'night_break_minutes_billing')}" ${locked ? 'disabled' : ''} /></label>
+           <label>深夜帯内休憩（支払）<input data-minutes-f="night_break_minutes_payment" data-idx="${idx}" value="${this.durationInput(row, 'night_break_minutes_payment')}" ${locked ? 'disabled' : ''} /></label>`;
+      const adjustmentHtml = common
+        ? `<label>深夜時間調整（共通）<input data-common-minutes="night_adjustment" data-idx="${idx}" value="${adjustmentSame ? this.formatMinutes(billingAdjustment) : ''}" ${adjustmentPlaceholder} ${locked ? 'disabled' : ''} /></label>
+           <label>調整理由（共通）<input data-common-reason="night_adjustment" data-idx="${idx}" value="${reasonSame ? this.ctx.escapeHtml(billingReason) : ''}" ${reasonPlaceholder} ${locked ? 'disabled' : ''} /></label>`
+        : `<label>深夜時間調整（請求）<input data-signed-minutes-f="night_adjustment_minutes_billing" data-idx="${idx}" value="${this.formatMinutes(row.night_adjustment_minutes_billing || 0)}" ${locked ? 'disabled' : ''} /></label>
+           <label>調整理由（請求）<input data-f="night_adjustment_reason_billing" data-idx="${idx}" value="${this.ctx.escapeHtml(row.night_adjustment_reason_billing || '')}" ${locked ? 'disabled' : ''} /></label>
+           <label>深夜時間調整（支払）<input data-signed-minutes-f="night_adjustment_minutes_payment" data-idx="${idx}" value="${this.formatMinutes(row.night_adjustment_minutes_payment || 0)}" ${locked ? 'disabled' : ''} /></label>
+           <label>調整理由（支払）<input data-f="night_adjustment_reason_payment" data-idx="${idx}" value="${this.ctx.escapeHtml(row.night_adjustment_reason_payment || '')}" ${locked ? 'disabled' : ''} /></label>`;
+      return `${breakHtml}${adjustmentHtml}`;
+    },
+
+    calculationSummaryHtml(row) {
+      const detail = this.rowCalculation(row);
+      const side = (key, label) => {
+        const value = detail[key] || {};
+        const amount = value.amounts?.total ?? (key === 'billing' ? row.calculated_billing_amount : row.calculated_payment_amount);
+        return `<div class="dr-calc-card"><strong>${label}</strong>
+          <span>超過 ${this.formatMinutes(value.regular_overtime_minutes ?? row[`regular_overtime_minutes_${key}`]) || '-'}</span>
+          <span>深夜 ${this.formatMinutes(value.night_minutes ?? row[`night_minutes_${key}`]) || '対象外'}</span>
+          <span>深夜超過 ${this.formatMinutes(value.night_overtime_minutes ?? row[`night_overtime_minutes_${key}`]) || '対象外'}</span>
+          <span>金額 ¥${Number(amount || 0).toLocaleString()}</span></div>`;
+      };
+      return `<div class="dr-calc-summary">${side('billing', '請求計算')}${side('payment', '支払計算')}</div>`;
+    },
+
+    monthlyButtonsHtml() {
+      const status = this.monthlyApproval?.status || 'draft';
+      if (status === 'approved') return '<span class="status-badge status-approved">月次承認済み</span>';
+      if (status === 'submitted') {
+        return `<span class="status-badge status-confirmed">承認依頼中</span>
+          <button type="button" class="btn" data-month-action="approve">月次承認</button>
+          <button type="button" class="btn btn-ghost" data-month-action="reject">差戻し</button>
+          <button type="button" class="btn btn-ghost" data-month-action="cancel">依頼取消</button>`;
+      }
+      return `<button type="button" class="btn" data-month-action="submit">月次承認依頼</button>`;
+    },
+
     renderGrid(message = '') {
       const sum = this.summaryFromGrid();
       const body = this.gridRows
         .map((r, idx) => {
-          const locked = r.status === 'approved';
+          const locked = r.status === 'confirmed' || r.status === 'approved';
+          const fullyLocked = r.status === 'approved';
+          const date = this.kit.dateValue(r.work_date);
+          const sameDateRows = this.gridRows.filter((row) => this.kit.dateValue(row.work_date) === date);
+          const firstOfDate = idx === 0 || this.kit.dateValue(this.gridRows[idx - 1].work_date) !== date;
+          const dayConfirmed = sameDateRows.some((row) => row.daily_report_id) &&
+            sameDateRows.filter((row) => row.daily_report_id).every((row) => ['confirmed', 'approved'].includes(row.status));
           const main = `
             <tr class="dr-main" data-idx="${idx}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
               <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
-              <td><input type="time" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="time" data-f="end_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.end_time))}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" data-f="binding_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.binding_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" data-f="work_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.work_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" data-f="overtime_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.overtime_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="0.25" data-f="shortage_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.shortage_hours ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-time-input" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" placeholder="08:00" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-time-input" data-f="end_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.end_time))}" placeholder="28:00" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-time-input" data-minutes-f="break_minutes" data-idx="${idx}" value="${this.durationInput(r, 'break_minutes', 'break_time')}" ${locked ? 'disabled' : ''} /></td>
+              <td><span>${this.formatMinutes(Number(r.work_hours || 0) * 60) || '-'}</span></td>
+              <td><span>${this.formatMinutes(Number(r.overtime_hours || 0) * 60) || '-'}</span></td>
+              <td><span>${this.formatMinutes(Number(r.shortage_hours || 0) * 60) || '-'}</span></td>
               <td><input type="number" step="0.1" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><span class="status-badge status-${this.ctx.escapeHtml(r.status || 'draft')}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</span></td>
+              <td class="btn-row">
+                ${firstOfDate && sameDateRows.some((row) => row.daily_report_id)
+                  ? `<button type="button" class="btn btn-ghost btn-small" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'この日の確認解除' : 'この日を確認'}">${dayConfirmed ? '↶' : '✓'}</button>`
+                  : ''}
+                <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
+                ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
+              </td>
             </tr>`;
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
-                <td colspan="15">
-                  <div class="form-grid">
-                    <div><label>深夜時間</label><input type="number" step="0.25" data-f="night_hours" data-idx="${idx}" value="${this.ctx.escapeHtml(r.night_hours ?? '')}" ${locked ? 'disabled' : ''} /></div>
-                    <div><label>スポット加算</label><input type="number" step="0.01" data-f="spot_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.spot_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
-                    <div><label>上書・請求</label><input type="number" step="0.01" data-f="override_billing_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.override_billing_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
-                    <div><label>上書・支払</label><input type="number" step="0.01" data-f="override_payment_amount" data-idx="${idx}" value="${this.ctx.escapeHtml(r.override_payment_amount ?? '')}" ${locked ? 'disabled' : ''} /></div>
-                    <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${locked ? 'disabled' : ''} /></div>
+                <td colspan="16">
+                  <div class="dr-detail-grid">
+                    <section class="dr-detail-section">
+                      <h4>料金区分</h4>
+                      <label>料金名
+                        <select data-fee-item="${idx}" ${locked ? 'disabled' : ''}>${this.feeItemOptions(r) || '<option value="">料金設定なし</option>'}</select>
+                      </label>
+                      <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}</small>
+                    </section>
+                    <section class="dr-detail-section"><h4>深夜時間</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
+                    <section class="dr-detail-section"><h4>契約料金</h4>${this.rateTableHtml(r, idx, locked)}</section>
+                    <section class="dr-detail-section"><h4>計算結果</h4>${this.calculationSummaryHtml(r)}</section>
+                    <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
                     <div class="full btn-row">
-                      <button type="button" class="btn btn-small" data-save-row="${idx}" ${locked ? 'disabled' : ''}>行保存</button>
-                      ${
-                        r.daily_report_id && (r.status === 'draft' || r.status === 'rejected')
-                          ? `<button type="button" class="btn btn-small" data-status-row="${idx}" data-status="confirmed">承認依頼</button>`
-                          : ''
-                      }
-                      ${
-                        r.daily_report_id && r.status === 'confirmed'
-                          ? `<button type="button" class="btn btn-small" data-status-row="${idx}" data-status="approved">承認</button>`
-                          : ''
-                      }
+                      <button type="button" class="btn btn-small" data-save-row="${idx}" ${fullyLocked ? 'disabled' : ''}>行保存</button>
+                      ${firstOfDate && !dayConfirmed && sameDateRows.some((row) => row.daily_report_id)
+                        ? `<button type="button" class="btn btn-small" data-day-status="confirmed" data-idx="${idx}">この日を確認</button>`
+                        : ''}
+                      ${firstOfDate && dayConfirmed && !fullyLocked
+                        ? `<button type="button" class="btn btn-ghost btn-small" data-day-status="draft" data-idx="${idx}">この日の確認解除</button>`
+                        : ''}
                     </div>
                   </div>
                 </td>
@@ -269,6 +489,7 @@
               <span>総距離: <strong>${sum.distance}</strong></span>
             </div>
             <div class="btn-row">
+              ${this.monthlyButtonsHtml()}
               <button type="button" class="btn" id="save-all">一括保存</button>
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
               <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
@@ -280,8 +501,8 @@
               <thead>
                 <tr>
                   <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
-                  <th>拘束</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
-                  <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th>
+                  <th>休憩</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
+                  <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>${body}</tbody>
@@ -309,20 +530,104 @@
         el.addEventListener('change', () => this.collectField(el));
         el.addEventListener('input', () => this.collectField(el));
       });
+      document.querySelectorAll('[data-minutes-f][data-idx]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          const field = el.getAttribute('data-minutes-f');
+          try {
+            this.gridRows[idx][field] = this.parseMinutesInput(el.value);
+            this.gridRows[idx]._dirty = true;
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
+      document.querySelectorAll('[data-signed-minutes-f][data-idx]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          const field = el.getAttribute('data-signed-minutes-f');
+          try {
+            this.gridRows[idx][field] = this.parseMinutesInput(el.value, true);
+            this.gridRows[idx]._dirty = true;
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
+      document.querySelectorAll('[data-common-minutes][data-idx]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          const kind = el.getAttribute('data-common-minutes');
+          try {
+            const value = this.parseMinutesInput(el.value, kind === 'night_adjustment');
+            const fields = kind === 'night_break'
+              ? ['night_break_minutes_billing', 'night_break_minutes_payment']
+              : ['night_adjustment_minutes_billing', 'night_adjustment_minutes_payment'];
+            fields.forEach((field) => { this.gridRows[idx][field] = value; });
+            this.gridRows[idx]._dirty = true;
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
+      document.querySelectorAll('[data-common-reason][data-idx]').forEach((el) => {
+        el.addEventListener('input', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          this.gridRows[idx].night_adjustment_reason_billing = el.value;
+          this.gridRows[idx].night_adjustment_reason_payment = el.value;
+          this.gridRows[idx]._dirty = true;
+        });
+      });
+      document.querySelectorAll('[data-rate-side][data-rate-type][data-idx]').forEach((el) => {
+        el.addEventListener('input', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          const side = el.getAttribute('data-rate-side');
+          const type = el.getAttribute('data-rate-type');
+          const original = Number(el.getAttribute('data-original') || 0);
+          const value = el.value === '' ? null : Number(el.value);
+          const overrides = this.parseJson(this.gridRows[idx].rate_overrides, {});
+          if (!overrides[side]) overrides[side] = {};
+          if (value == null || value === original) delete overrides[side][type];
+          else overrides[side][type] = value;
+          this.gridRows[idx].rate_overrides = overrides;
+          this.gridRows[idx]._dirty = true;
+        });
+      });
+      document.querySelectorAll('[data-fee-item]').forEach((select) => {
+        select.addEventListener('change', async () => {
+          const idx = Number(select.getAttribute('data-fee-item'));
+          const row = this.gridRows[idx];
+          row.selected_fee_item_id = select.value || null;
+          row.fee_item_selection_source = select.value ? 'manual' : 'auto';
+          row._dirty = true;
+          await this.ensureContext(idx, true);
+          row._expanded = true;
+          this.renderGrid();
+        });
+      });
       document.querySelectorAll('[data-expand]').forEach((btn) =>
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
           const idx = Number(btn.getAttribute('data-expand'));
-          this.gridRows[idx]._expanded = !this.gridRows[idx]._expanded;
+          const opening = !this.gridRows[idx]._expanded;
+          this.gridRows[idx]._expanded = opening;
+          if (opening) await this.ensureContext(idx);
           this.renderGrid();
         })
       );
-      document.getElementById('expand-all')?.addEventListener('click', () => {
+      document.getElementById('expand-all')?.addEventListener('click', async () => {
         document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
         const anyClosed = this.gridRows.some((r) => !r._expanded);
         this.gridRows.forEach((r) => {
           r._expanded = anyClosed;
         });
+        if (anyClosed) {
+          await Promise.all(
+            this.gridRows.map((row, idx) =>
+              row.daily_report_id || row.start_time || row.is_absent || row.is_training ? this.ensureContext(idx) : null
+            )
+          );
+        }
         this.renderGrid();
       });
       document.getElementById('amount-check')?.addEventListener('click', () => {
@@ -337,6 +642,9 @@
       });
       document.getElementById('back-month')?.addEventListener('click', () => this.showMonthList());
       document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
+      document.querySelectorAll('[data-month-action]').forEach((btn) =>
+        btn.addEventListener('click', () => this.handleMonthlyAction(btn.getAttribute('data-month-action')))
+      );
       document.querySelectorAll('[data-save-row]').forEach((btn) =>
         btn.addEventListener('click', async () => {
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
@@ -349,10 +657,21 @@
           const status = btn.getAttribute('data-status');
           const row = this.gridRows[idx];
           if (!row.daily_report_id) return;
-          const result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}/status`, {
+          if (status === 'confirmed' && row._dirty) {
+            const saved = await this.saveRow(idx);
+            if (!saved) return;
+          }
+          let result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}/status`, {
             method: 'POST',
             body: JSON.stringify({ status }),
           });
+          if (result.res.status === 409 && result.data?.code === 'confirmation_warning') {
+            if (!window.confirm(`${result.data.message}\n\n問題がなければ日次確認を続行しますか？`)) return;
+            result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}/status`, {
+              method: 'POST',
+              body: JSON.stringify({ status, acknowledge_warnings: true }),
+            });
+          }
           if (!result.res.ok) {
             window.alert(result.data?.message || 'ステータス更新失敗');
             return;
@@ -360,6 +679,117 @@
           await this.showInputGrid(this.gridMeta);
         })
       );
+      document.querySelectorAll('[data-add-work]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          const idx = Number(btn.getAttribute('data-add-work'));
+          const date = this.kit.dateValue(this.gridRows[idx].work_date);
+          let insertAt = idx + 1;
+          while (insertAt < this.gridRows.length && this.kit.dateValue(this.gridRows[insertAt].work_date) === date) {
+            insertAt += 1;
+          }
+          const row = this.emptyDay(date, this.gridMeta);
+          row._expanded = true;
+          this.gridRows.splice(insertAt, 0, row);
+          this.renderGrid();
+        })
+      );
+      document.querySelectorAll('[data-remove-work]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const idx = Number(btn.getAttribute('data-remove-work'));
+          const row = this.gridRows[idx];
+          if (row.daily_report_id) {
+            if (!window.confirm(`${this.kit.dateValue(row.work_date)} の作業行を削除しますか？`)) return;
+            const result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}`, { method: 'DELETE' });
+            if (!result.res.ok || !result.data?.ok) {
+              window.alert(result.data?.message || '作業行の削除に失敗しました');
+              return;
+            }
+          }
+          this.gridRows.splice(idx, 1);
+          const date = this.kit.dateValue(row.work_date);
+          if (!this.gridRows.some((item) => this.kit.dateValue(item.work_date) === date)) {
+            const replacement = this.emptyDay(date, this.gridMeta);
+            const nextIndex = this.gridRows.findIndex((item) => this.kit.dateValue(item.work_date) > date);
+            this.gridRows.splice(nextIndex < 0 ? this.gridRows.length : nextIndex, 0, replacement);
+          }
+          this.renderGrid();
+        })
+      );
+      document.querySelectorAll('[data-day-status][data-idx]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          const idx = Number(btn.getAttribute('data-idx'));
+          const status = btn.getAttribute('data-day-status');
+          const workDate = this.kit.dateValue(this.gridRows[idx].work_date);
+          if (status === 'confirmed') {
+            for (let rowIndex = 0; rowIndex < this.gridRows.length; rowIndex += 1) {
+              const row = this.gridRows[rowIndex];
+              if (this.kit.dateValue(row.work_date) !== workDate || !row._dirty) continue;
+              const saved = await this.saveRow(rowIndex);
+              if (!saved) return;
+            }
+          }
+          const payload = {
+            project_id: this.gridMeta.project_id,
+            work_date: workDate,
+            status,
+          };
+          let result = await this.ctx.api('/api/daily-reports/day-status', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          if (result.res.status === 409 && result.data?.code === 'confirmation_warning') {
+            if (!window.confirm(`${result.data.message}\n\n問題がなければこの日の確認を続行しますか？`)) return;
+            result = await this.ctx.api('/api/daily-reports/day-status', {
+              method: 'POST',
+              body: JSON.stringify({ ...payload, acknowledge_warnings: true }),
+            });
+          }
+          if (!result.res.ok || !result.data?.ok) {
+            window.alert(result.data?.message || '日次確認処理に失敗しました');
+            return;
+          }
+          await this.showInputGrid(this.gridMeta);
+        })
+      );
+    },
+
+    async handleMonthlyAction(action) {
+      if (action === 'submit') await this.saveAll();
+      let note = null;
+      if (action === 'reject') {
+        note = window.prompt('差戻し理由を入力してください');
+        if (!note?.trim()) return;
+      }
+      let result = await this.ctx.api('/api/daily-reports/monthly-approval', {
+        method: 'POST',
+        body: JSON.stringify({
+          project_id: this.gridMeta.project_id,
+          target_year_month: this.ym,
+          action,
+          note,
+        }),
+      });
+      if (result.res.status === 409 && result.data?.code === 'unchecked_days_warning') {
+        const dates = (result.data.unchecked_dates || []).join(', ');
+        if (!window.confirm(`日次確認が未完了の日があります。\n${dates}\n\n問題がなければ承認依頼を続行しますか？`)) return;
+        result = await this.ctx.api('/api/daily-reports/monthly-approval', {
+          method: 'POST',
+          body: JSON.stringify({
+            project_id: this.gridMeta.project_id,
+            target_year_month: this.ym,
+            action,
+            note,
+            acknowledge_warnings: true,
+          }),
+        });
+      }
+      if (!result.res.ok || !result.data?.ok) {
+        window.alert(result.data?.message || '月次承認処理に失敗しました');
+        return;
+      }
+      await this.showInputGrid(this.gridMeta);
     },
 
     rowPayload(row) {
@@ -371,22 +801,26 @@
         work_date: this.kit.dateValue(row.work_date),
         start_time: row.start_time || null,
         end_time: row.end_time || null,
-        break_time: row.break_time || null,
+        break_minutes: Number(row.break_minutes || 0),
         is_absent: row.is_absent ? 1 : 0,
         is_training: row.is_training ? 1 : 0,
-        binding_hours: row.binding_hours || null,
-        work_hours: row.work_hours || null,
-        overtime_hours: row.overtime_hours || null,
         shortage_hours: row.shortage_hours || null,
         total_distance: row.total_distance || null,
         toll_fee: row.toll_fee || null,
         parking_fee: row.parking_fee || null,
         transport_fee: row.transport_fee || null,
-        night_hours: row.night_hours || null,
-        spot_amount: row.spot_amount || null,
+        selected_fee_item_id: row.selected_fee_item_id || row._calcContext?.selected_fee_item_id || null,
+        selected_fee_item_name: row.selected_fee_item_name || row._calcContext?.selected_fee_item_name || null,
+        fee_item_selection_source: row.fee_item_selection_source || 'auto',
+        night_break_minutes_billing: Number(row.night_break_minutes_billing || 0),
+        night_break_minutes_payment: Number(row.night_break_minutes_payment || 0),
+        night_adjustment_minutes_billing: Number(row.night_adjustment_minutes_billing || 0),
+        night_adjustment_minutes_payment: Number(row.night_adjustment_minutes_payment || 0),
+        night_adjustment_reason_billing: row.night_adjustment_reason_billing || null,
+        night_adjustment_reason_payment: row.night_adjustment_reason_payment || null,
+        rate_overrides: row.rate_overrides || {},
+        rate_override_reason: row.rate_override_reason || null,
         row_comment: row.row_comment || null,
-        override_billing_amount: row.override_billing_amount || null,
-        override_payment_amount: row.override_payment_amount || null,
         version: row.version || 1,
       };
     },
