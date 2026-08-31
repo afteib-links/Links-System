@@ -150,3 +150,46 @@ test('基本料金に含む深夜時間は時間給の基本数量へ含める',
   assert.equal(result.details.basic.amount, 4000);
   assert.equal(result.details.night.amount, 0);
 });
+
+test('深夜休憩が合計休憩を超える入力を拒否する', () => {
+  assert.throws(
+    () => calculateNightSide({
+      start_time: '20:00', end_time: '28:00', total_break_minutes: 30, night_break_minutes: 31,
+      standard_minutes: 480,
+      rule: { periods: [{ start: '22:00', end: '29:00' }], night_mode: 'separate', night_overtime_mode: 'separate' },
+      rounding,
+    }),
+    /深夜帯内休憩時間は合計休憩時間以下/
+  );
+});
+
+test('深夜休憩0分の確認警告を返す', () => {
+  const result = calculateNightSide({
+    start_time: '20:00', end_time: '28:00', total_break_minutes: 60, night_break_minutes: 0,
+    standard_minutes: 480,
+    rule: { periods: [{ start: '22:00', end: '29:00' }], night_mode: 'separate', night_overtime_mode: 'separate' },
+    rounding,
+  });
+  assert.equal(result.warnings[0].code, 'night_break_zero');
+});
+
+test('一時単価変更は計算方式を変えず対象行だけ再計算する', () => {
+  const classified = calculateNightSide({
+    start_time: '20:00', end_time: '30:00', total_break_minutes: 0,
+    standard_minutes: 480,
+    rule: { periods: [{ start: '22:00', end: '29:00' }], night_mode: 'separate', night_overtime_mode: 'separate' },
+    rounding,
+  });
+  const result = calculateSideAmounts({
+    side: 'billing',
+    item: holidayItem,
+    classified,
+    overrides: { basic: 21000, overtime: 2500 },
+    rounding,
+  });
+  assert.equal(result.details.basic.calc_type, 'daily');
+  assert.equal(result.details.overtime.calc_type, 'hourly');
+  assert.equal(result.details.basic.amount, 21000);
+  assert.equal(result.details.overtime.amount, 2500);
+  assert.equal(result.total, 41500);
+});

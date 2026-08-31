@@ -6,45 +6,21 @@ const {
   parseDurationMinutes,
   validationError,
 } = require('./night_calc');
+const {
+  DEFAULT_SIDE_RULE,
+  DEFAULT_ROUNDING,
+  parseJson,
+  jsWeekdayCode,
+  dayTypesForWorkDate,
+  resolveFeeItem,
+  normalizeConfig,
+  nightInputMode,
+} = require('./price_calc_config');
 
 const DAY_TYPE_FALLBACK_ORDER = [
   'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
   'mon', 'tue', 'wed', 'thu', 'fri',
 ];
-
-const DEFAULT_SIDE_RULE = {
-  periods: [{ start: '22:00', end: '29:00' }],
-  night_mode: 'separate',
-  night_overtime_mode: 'separate',
-};
-
-const DEFAULT_ROUNDING = {
-  time_unit_minutes: 15,
-  time_mode: 'floor',
-  amount_mode: 'floor',
-  amount_stage: 'detail',
-};
-
-function parseJson(value, fallback = null) {
-  if (value == null || value === '') return fallback;
-  if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch { return fallback; }
-}
-
-function jsWeekdayCode(workDate) {
-  const d = new Date(`${String(workDate).slice(0, 10)}T12:00:00Z`);
-  const day = d.getUTCDay();
-  if (day === 6) return 'sat';
-  if (day === 0) return 'sun';
-  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][day];
-}
-
-function dayTypesForWorkDate(workDate) {
-  const code = jsWeekdayCode(workDate);
-  if (code === 'sat') return ['sat'];
-  if (code === 'sun') return ['sun'];
-  return ['weekday', code];
-}
 
 function normYmd(d) {
   if (!d) return null;
@@ -115,46 +91,6 @@ function legacyFeeItem(lines, workDate) {
     }
   }
   return item;
-}
-
-function feeItemMatchesDate(item, workDate) {
-  if (!item || item.mode === 'distance') return false;
-  const weekday = jsWeekdayCode(workDate);
-  return Boolean(
-    item.weekdays?.[weekday] ||
-    item.weekdays?.all ||
-    (item.weekdays?.weekday && !['sat', 'sun'].includes(weekday))
-  );
-}
-
-function resolveFeeItem(items, workDate, selectedId, isTraining = false) {
-  if (selectedId) {
-    const selected = items.find((item) => String(item.id) === String(selectedId));
-    if (selected) return { item: selected, source: 'manual' };
-  }
-  if (isTraining) {
-    const training = items.find((item) => String(item.name || '').includes('研修'));
-    if (training) return { item: training, source: 'auto' };
-  }
-  const matched = items.find((item) => feeItemMatchesDate(item, workDate));
-  return { item: matched || items.find((item) => item.mode !== 'distance') || null, source: 'auto' };
-}
-
-function normalizeConfig(extraData) {
-  const extra = parseJson(extraData, {}) || {};
-  return {
-    night_rules: {
-      billing: { ...DEFAULT_SIDE_RULE, ...(extra.night_rules?.billing || {}) },
-      payment: { ...DEFAULT_SIDE_RULE, ...(extra.night_rules?.payment || {}) },
-    },
-    rounding: {
-      billing: { ...DEFAULT_ROUNDING, ...(extra.rounding?.billing || {}) },
-      payment: { ...DEFAULT_ROUNDING, ...(extra.rounding?.payment || {}) },
-    },
-    work_rules: {
-      standard_minutes: Math.max(0, Number(extra.work_rules?.standard_minutes ?? 480)),
-    },
-  };
 }
 
 async function loadPriceSetContext(projectId, workDate) {
@@ -284,6 +220,7 @@ async function applyDailyPriceCalc(data) {
       selection_source: data.fee_item_selection_source,
     },
     standard_minutes: context.work_rules.standard_minutes,
+    night_input_mode: nightInputMode(context),
     available_fee_items: context.fee_items,
     billing: { ...sideResults.billing, amounts: amountResults.billing },
     payment: { ...sideResults.payment, amounts: amountResults.payment },

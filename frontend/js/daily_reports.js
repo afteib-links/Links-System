@@ -320,20 +320,12 @@
         .join('')}`;
     },
 
-    sameNightInput(row, kind) {
+    sameNightInput(row) {
       const detail = this.rowCalculation(row);
       const rules = row._calcContext?.night_rules;
       const billingRule = rules?.billing || detail.billing?.modes;
       const paymentRule = rules?.payment || detail.payment?.modes;
-      const conditionSame = JSON.stringify(billingRule || {}) === JSON.stringify(paymentRule || {});
-      if (kind === 'break') {
-        return conditionSame && Number(row.night_break_minutes_billing || 0) === Number(row.night_break_minutes_payment || 0);
-      }
-      return (
-        conditionSame &&
-        Number(row.night_adjustment_minutes_billing || 0) === Number(row.night_adjustment_minutes_payment || 0) &&
-        String(row.night_adjustment_reason_billing || '') === String(row.night_adjustment_reason_payment || '')
-      );
+      return JSON.stringify(billingRule || {}) === JSON.stringify(paymentRule || {});
     },
 
     rateTableHtml(row, idx, locked) {
@@ -356,15 +348,30 @@
     },
 
     nightInputHtml(row, idx, locked) {
-      const commonBreak = this.sameNightInput(row, 'break');
-      const commonAdjustment = this.sameNightInput(row, 'adjustment');
-      const breakHtml = commonBreak
-        ? `<label>深夜帯内休憩（共通）<input data-common-minutes="night_break" data-idx="${idx}" value="${this.durationInput(row, 'night_break_minutes_billing')}" ${locked ? 'disabled' : ''} /></label>`
+      const common = this.sameNightInput(row);
+      const billingBreak = Number(row.night_break_minutes_billing || 0);
+      const paymentBreak = Number(row.night_break_minutes_payment || 0);
+      const breakSame = billingBreak === paymentBreak;
+      const billingAdjustment = Number(row.night_adjustment_minutes_billing || 0);
+      const paymentAdjustment = Number(row.night_adjustment_minutes_payment || 0);
+      const adjustmentSame = billingAdjustment === paymentAdjustment;
+      const billingReason = String(row.night_adjustment_reason_billing || '');
+      const paymentReason = String(row.night_adjustment_reason_payment || '');
+      const reasonSame = billingReason === paymentReason;
+      const breakPlaceholder = breakSame
+        ? ''
+        : `placeholder="${this.ctx.escapeHtml(`請求 ${this.formatMinutes(billingBreak)} / 支払 ${this.formatMinutes(paymentBreak)}`)}"`;
+      const adjustmentPlaceholder = adjustmentSame
+        ? ''
+        : `placeholder="${this.ctx.escapeHtml(`請求 ${this.formatMinutes(billingAdjustment)} / 支払 ${this.formatMinutes(paymentAdjustment)}`)}"`;
+      const reasonPlaceholder = reasonSame ? '' : 'placeholder="請求・支払の既存理由を保持中"';
+      const breakHtml = common
+        ? `<label>深夜帯内休憩（共通）<input data-common-minutes="night_break" data-idx="${idx}" value="${breakSame ? this.formatMinutes(billingBreak) : ''}" ${breakPlaceholder} ${locked ? 'disabled' : ''} /></label>`
         : `<label>深夜帯内休憩（請求）<input data-minutes-f="night_break_minutes_billing" data-idx="${idx}" value="${this.durationInput(row, 'night_break_minutes_billing')}" ${locked ? 'disabled' : ''} /></label>
            <label>深夜帯内休憩（支払）<input data-minutes-f="night_break_minutes_payment" data-idx="${idx}" value="${this.durationInput(row, 'night_break_minutes_payment')}" ${locked ? 'disabled' : ''} /></label>`;
-      const adjustmentHtml = commonAdjustment
-        ? `<label>深夜時間調整（共通）<input data-common-minutes="night_adjustment" data-idx="${idx}" value="${this.formatMinutes(row.night_adjustment_minutes_billing || 0)}" ${locked ? 'disabled' : ''} /></label>
-           <label>調整理由（共通）<input data-common-reason="night_adjustment" data-idx="${idx}" value="${this.ctx.escapeHtml(row.night_adjustment_reason_billing || '')}" ${locked ? 'disabled' : ''} /></label>`
+      const adjustmentHtml = common
+        ? `<label>深夜時間調整（共通）<input data-common-minutes="night_adjustment" data-idx="${idx}" value="${adjustmentSame ? this.formatMinutes(billingAdjustment) : ''}" ${adjustmentPlaceholder} ${locked ? 'disabled' : ''} /></label>
+           <label>調整理由（共通）<input data-common-reason="night_adjustment" data-idx="${idx}" value="${reasonSame ? this.ctx.escapeHtml(billingReason) : ''}" ${reasonPlaceholder} ${locked ? 'disabled' : ''} /></label>`
         : `<label>深夜時間調整（請求）<input data-signed-minutes-f="night_adjustment_minutes_billing" data-idx="${idx}" value="${this.formatMinutes(row.night_adjustment_minutes_billing || 0)}" ${locked ? 'disabled' : ''} /></label>
            <label>調整理由（請求）<input data-f="night_adjustment_reason_billing" data-idx="${idx}" value="${this.ctx.escapeHtml(row.night_adjustment_reason_billing || '')}" ${locked ? 'disabled' : ''} /></label>
            <label>深夜時間調整（支払）<input data-signed-minutes-f="night_adjustment_minutes_payment" data-idx="${idx}" value="${this.formatMinutes(row.night_adjustment_minutes_payment || 0)}" ${locked ? 'disabled' : ''} /></label>

@@ -2,6 +2,7 @@ const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { applyDailyPriceCalc, buildDailyCalculationContext, parseJson } = require('../services/price_calc');
+const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'));
@@ -132,6 +133,8 @@ function jsonValue(value) {
 function auditSubset(row) {
   const out = {};
   for (const key of AUDIT_FIELDS) out[key] = JSON_FIELDS.has(key) ? jsonValue(row[key]) : row[key] ?? null;
+  const calculation = jsonValue(row.calculation_detail) || {};
+  out.night_input_mode = calculation.night_input_mode || null;
   return out;
 }
 
@@ -386,24 +389,7 @@ router.post('/monthly-approval', async (req, res) => {
     );
     const latest = latestRows[0] || null;
     if (action === 'submit') {
-      const [year, month] = ym.split('-').map(Number);
-      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      const statusesByDate = new Map();
-      for (const row of reports) {
-        const date = String(row.work_date).slice(0, 10);
-        if (!statusesByDate.has(date)) statusesByDate.set(date, []);
-        statusesByDate.get(date).push(row.status);
-      }
-      const confirmedDates = new Set(
-        [...statusesByDate.entries()]
-          .filter(([, statuses]) => statuses.length > 0 && statuses.every((status) => ['confirmed', 'approved'].includes(status)))
-          .map(([date]) => date)
-      );
-      const unchecked = [];
-      for (let day = 1; day <= daysInMonth; day += 1) {
-        const date = `${ym}-${String(day).padStart(2, '0')}`;
-        if (!confirmedDates.has(date)) unchecked.push(date);
-      }
+      const unchecked = uncheckedDatesForMonth(reports, ym);
       if (unchecked.length && !req.body.acknowledge_warnings) {
         await conn.rollback();
         return res.status(409).json({
@@ -625,13 +611,7 @@ router.post('/:id/status', async (req, res) => {
 
     const next = String(req.body.status || '');
     const reason = req.body.rejection_reason || null;
-    const allowed = {
-      draft: ['confirmed'],
-      rejected: ['draft', 'confirmed'],
-      confirmed: ['approved', 'rejected', 'draft'],
-      approved: [],
-    };
-    if (!(allowed[current.status] || []).includes(next)) {
+    if (!canChangeDailyStatus(current.status, next)) {
       return res.status(400).json({
         ok: false,
         message: `ステータスを ${current.status} から ${next} へは変更できません`,
