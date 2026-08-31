@@ -44,3 +44,69 @@ jobs:
             test "$number" = "$expected_padded"
             expected=$((expected + 1))
           done < <(find db/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+
+  mariadb-migration-and-health:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: links_ci_root
+          MARIADB_DATABASE: links_system
+          MARIADB_USER: links
+          MARIADB_PASSWORD: links_ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: links_system
+      DB_USER: links
+      DB_PASSWORD: links_ci_password
+      SESSION_SECRET: links_ci_session_secret
+      ADMIN_LOGIN_ID: ci-admin
+      ADMIN_PASSWORD: ci-admin-password
+      ADMIN_DISPLAY_NAME: CI管理者
+      APP_PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Apply all migrations and seed
+        run: npm run migrate --prefix backend
+
+      - name: Verify Issue 33 schema
+        run: node backend/test-integration/verify_migration_013.js
+
+      - name: Verify migration re-run
+        run: npm run migrate --prefix backend
+
+      - name: Start API and verify health
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm start --prefix backend > /tmp/links-system-api.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true; cat /tmp/links-system-api.log' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health \
+              | grep -q '"db":"up"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'API health check timed out' >&2
+          exit 1
