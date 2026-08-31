@@ -274,13 +274,17 @@
       }
       const byDate = new Map();
       for (const r of data.reports || []) {
-        byDate.set(this.kit.dateValue(r.work_date), { ...r, _dirty: false, _expanded: false });
+        const date = this.kit.dateValue(r.work_date);
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push({ ...r, _dirty: false, _expanded: false });
       }
       const days = this.daysInMonth(this.ym);
       this.gridRows = [];
       for (let d = 1; d <= days; d += 1) {
         const dateStr = `${this.ym}-${String(d).padStart(2, '0')}`;
-        this.gridRows.push(byDate.get(dateStr) || this.emptyDay(dateStr, meta));
+        const rows = byDate.get(dateStr) || [];
+        if (rows.length) this.gridRows.push(...rows);
+        else this.gridRows.push(this.emptyDay(dateStr, meta));
       }
       const monthly = await this.ctx.api(
         `/api/daily-reports/monthly-approval?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
@@ -411,6 +415,11 @@
         .map((r, idx) => {
           const locked = r.status === 'confirmed' || r.status === 'approved';
           const fullyLocked = r.status === 'approved';
+          const date = this.kit.dateValue(r.work_date);
+          const sameDateRows = this.gridRows.filter((row) => this.kit.dateValue(row.work_date) === date);
+          const firstOfDate = idx === 0 || this.kit.dateValue(this.gridRows[idx - 1].work_date) !== date;
+          const dayConfirmed = sameDateRows.some((row) => row.daily_report_id) &&
+            sameDateRows.filter((row) => row.daily_report_id).every((row) => ['confirmed', 'approved'].includes(row.status));
           const main = `
             <tr class="dr-main" data-idx="${idx}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
@@ -428,10 +437,17 @@
               <td><input type="number" step="1" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><span class="status-badge status-${this.ctx.escapeHtml(r.status || 'draft')}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</span></td>
+              <td class="btn-row">
+                ${firstOfDate && sameDateRows.some((row) => row.daily_report_id)
+                  ? `<button type="button" class="btn btn-ghost btn-small" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'この日の確認解除' : 'この日を確認'}">${dayConfirmed ? '↶' : '✓'}</button>`
+                  : ''}
+                <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
+                ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
+              </td>
             </tr>`;
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
-                <td colspan="15">
+                <td colspan="16">
                   <div class="dr-detail-grid">
                     <section class="dr-detail-section">
                       <h4>料金区分</h4>
@@ -446,16 +462,12 @@
                     <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
                     <div class="full btn-row">
                       <button type="button" class="btn btn-small" data-save-row="${idx}" ${fullyLocked ? 'disabled' : ''}>行保存</button>
-                      ${
-                        r.daily_report_id && (r.status === 'draft' || r.status === 'rejected')
-                          ? `<button type="button" class="btn btn-small" data-status-row="${idx}" data-status="confirmed">日次確認</button>`
-                          : ''
-                      }
-                      ${
-                        r.daily_report_id && r.status === 'confirmed'
-                          ? `<button type="button" class="btn btn-ghost btn-small" data-status-row="${idx}" data-status="draft">確認解除</button>`
-                          : ''
-                      }
+                      ${firstOfDate && !dayConfirmed && sameDateRows.some((row) => row.daily_report_id)
+                        ? `<button type="button" class="btn btn-small" data-day-status="confirmed" data-idx="${idx}">この日を確認</button>`
+                        : ''}
+                      ${firstOfDate && dayConfirmed && !fullyLocked
+                        ? `<button type="button" class="btn btn-ghost btn-small" data-day-status="draft" data-idx="${idx}">この日の確認解除</button>`
+                        : ''}
                     </div>
                   </div>
                 </td>
@@ -490,7 +502,7 @@
                 <tr>
                   <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
                   <th>休憩</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
-                  <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th>
+                  <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>${body}</tbody>
@@ -662,6 +674,80 @@
           }
           if (!result.res.ok) {
             window.alert(result.data?.message || 'ステータス更新失敗');
+            return;
+          }
+          await this.showInputGrid(this.gridMeta);
+        })
+      );
+      document.querySelectorAll('[data-add-work]').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          const idx = Number(btn.getAttribute('data-add-work'));
+          const date = this.kit.dateValue(this.gridRows[idx].work_date);
+          let insertAt = idx + 1;
+          while (insertAt < this.gridRows.length && this.kit.dateValue(this.gridRows[insertAt].work_date) === date) {
+            insertAt += 1;
+          }
+          const row = this.emptyDay(date, this.gridMeta);
+          row._expanded = true;
+          this.gridRows.splice(insertAt, 0, row);
+          this.renderGrid();
+        })
+      );
+      document.querySelectorAll('[data-remove-work]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const idx = Number(btn.getAttribute('data-remove-work'));
+          const row = this.gridRows[idx];
+          if (row.daily_report_id) {
+            if (!window.confirm(`${this.kit.dateValue(row.work_date)} の作業行を削除しますか？`)) return;
+            const result = await this.ctx.api(`/api/daily-reports/${row.daily_report_id}`, { method: 'DELETE' });
+            if (!result.res.ok || !result.data?.ok) {
+              window.alert(result.data?.message || '作業行の削除に失敗しました');
+              return;
+            }
+          }
+          this.gridRows.splice(idx, 1);
+          const date = this.kit.dateValue(row.work_date);
+          if (!this.gridRows.some((item) => this.kit.dateValue(item.work_date) === date)) {
+            const replacement = this.emptyDay(date, this.gridMeta);
+            const nextIndex = this.gridRows.findIndex((item) => this.kit.dateValue(item.work_date) > date);
+            this.gridRows.splice(nextIndex < 0 ? this.gridRows.length : nextIndex, 0, replacement);
+          }
+          this.renderGrid();
+        })
+      );
+      document.querySelectorAll('[data-day-status][data-idx]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
+          const idx = Number(btn.getAttribute('data-idx'));
+          const status = btn.getAttribute('data-day-status');
+          const workDate = this.kit.dateValue(this.gridRows[idx].work_date);
+          if (status === 'confirmed') {
+            for (let rowIndex = 0; rowIndex < this.gridRows.length; rowIndex += 1) {
+              const row = this.gridRows[rowIndex];
+              if (this.kit.dateValue(row.work_date) !== workDate || !row._dirty) continue;
+              const saved = await this.saveRow(rowIndex);
+              if (!saved) return;
+            }
+          }
+          const payload = {
+            project_id: this.gridMeta.project_id,
+            work_date: workDate,
+            status,
+          };
+          let result = await this.ctx.api('/api/daily-reports/day-status', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          if (result.res.status === 409 && result.data?.code === 'confirmation_warning') {
+            if (!window.confirm(`${result.data.message}\n\n問題がなければこの日の確認を続行しますか？`)) return;
+            result = await this.ctx.api('/api/daily-reports/day-status', {
+              method: 'POST',
+              body: JSON.stringify({ ...payload, acknowledge_warnings: true }),
+            });
+          }
+          if (!result.res.ok || !result.data?.ok) {
+            window.alert(result.data?.message || '日次確認処理に失敗しました');
             return;
           }
           await this.showInputGrid(this.gridMeta);

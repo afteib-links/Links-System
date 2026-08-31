@@ -482,6 +482,145 @@ router.post('/monthly-approval', async (req, res) => {
   }
 });
 
+router.post('/day-status', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const projectId = Number(req.body.project_id || 0);
+    const workDate = String(req.body.work_date || '').slice(0, 10);
+    const next = String(req.body.status || '');
+    const actorUserId = req.session.user.user_id || null;
+    if (!projectId || !/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+      return res.status(400).json({ ok: false, message: '案件と勤務日は必須です' });
+    }
+    if (!['confirmed', 'draft'].includes(next)) {
+      return res.status(400).json({ ok: false, message: '日次確認操作が不正です' });
+    }
+
+    await conn.beginTransaction();
+    const [reports] = await conn.query(
+      `SELECT * FROM daily_reports
+       WHERE project_id = ? AND work_date = ? AND is_deleted = 0
+       ORDER BY daily_report_id ASC FOR UPDATE`,
+      [projectId, workDate]
+    );
+    if (!reports.length) {
+      await conn.rollback();
+      return res.status(400).json({ ok: false, message: '日次確認対象の作業明細がありません' });
+    }
+    if (reports.some((row) => row.status === 'approved')) {
+      await conn.rollback();
+      return res.status(409).json({ ok: false, message: '月次承認済みの日報は変更できません' });
+    }
+
+    if (next === 'confirmed') {
+      const warnings = reports
+        .flatMap((row) => {
+          const calculation = parseJson(row.calculation_detail, {}) || {};
+          return [...(calculation.billing?.warnings || []), ...(calculation.payment?.warnings || [])];
+        })
+        .filter((warning, index, all) => all.findIndex((item) => item.code === warning.code) === index);
+      if (warnings.length && !req.body.acknowledge_warnings) {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          code: 'confirmation_warning',
+          message: warnings.map((warning) => warning.message).join('\n'),
+          warnings,
+        });
+      }
+
+      const ids = reports.map((row) => Number(row.daily_report_id));
+      const [versions] = await conn.query(
+        `SELECT COALESCE(MAX(confirmation_version), 0) AS max_version
+         FROM daily_report_confirmation_snapshots
+         WHERE daily_report_id IN (${ids.map(() => '?').join(', ')})`,
+        ids
+      );
+      const confirmationVersion = Number(versions[0]?.max_version || 0) + 1;
+      const confirmedReports = reports.map((row) => ({
+        ...row,
+        status: 'confirmed',
+        confirmation_version: confirmationVersion,
+      }));
+      const snapshot = {
+        scope: 'project_work_date',
+        project_id: projectId,
+        work_date: workDate,
+        confirmation_version: confirmationVersion,
+        reports: confirmedReports,
+      };
+      await conn.query(
+        `UPDATE daily_reports
+         SET status = 'confirmed', rejection_reason = NULL,
+             version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE project_id = ? AND work_date = ? AND is_deleted = 0`,
+        [projectId, workDate]
+      );
+      for (const row of reports) {
+        await conn.query(
+          `INSERT INTO daily_report_confirmation_snapshots
+            (daily_report_id, confirmation_version, snapshot_data, confirmed_by_user_id)
+           VALUES (?, ?, ?, ?)`,
+          [row.daily_report_id, confirmationVersion, JSON.stringify(snapshot), actorUserId]
+        );
+        await insertAudit(
+          conn,
+          row.daily_report_id,
+          'daily_confirm',
+          { status: row.status },
+          { status: 'confirmed', confirmation_version: confirmationVersion, scope: 'project_work_date' },
+          null,
+          actorUserId
+        );
+      }
+    } else {
+      const monthly = await conn.query(
+        `SELECT status FROM daily_report_monthly_approvals
+         WHERE project_id = ? AND target_year_month = ?
+         ORDER BY approval_version DESC LIMIT 1`,
+        [projectId, String(reports[0].target_year_month || '')]
+      );
+      const monthlyRows = Array.isArray(monthly[0]) ? monthly[0] : [];
+      if (monthlyRows[0]?.status === 'submitted') {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, message: '月次承認依頼を取り消してから日次確認を解除してください' });
+      }
+      await conn.query(
+        `UPDATE daily_reports
+         SET status = 'draft', version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE project_id = ? AND work_date = ? AND is_deleted = 0 AND status = 'confirmed'`,
+        [projectId, workDate]
+      );
+      for (const row of reports.filter((item) => item.status === 'confirmed')) {
+        await insertAudit(
+          conn,
+          row.daily_report_id,
+          'daily_unconfirm',
+          { status: 'confirmed' },
+          { status: 'draft', scope: 'project_work_date' },
+          null,
+          actorUserId
+        );
+      }
+    }
+
+    await conn.commit();
+    const updated = await query(
+      `SELECT * FROM daily_reports
+       WHERE project_id = ? AND work_date = ? AND is_deleted = 0
+       ORDER BY daily_report_id ASC`,
+      [projectId, workDate]
+    );
+    return res.json({ ok: true, reports: updated });
+  } catch (err) {
+    await conn.rollback();
+    return routeError(res, err, '日次確認処理に失敗しました');
+  } finally {
+    conn.release();
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const detail = await fetchDetail(Number(req.params.id));
