@@ -115,6 +115,7 @@ async function main() {
   const workDate = `${yearMonth}-01`;
   const screenshotDir = path.resolve(__dirname, '../test-results');
   const screenshotPath = path.join(screenshotDir, 'daily-report-ui.png');
+  const holidayScreenshotPath = path.join(screenshotDir, 'daily-report-holiday-detail.png');
 
   try {
     const ids = await seed(pool, yearMonth);
@@ -179,6 +180,8 @@ async function main() {
     let detail = page.locator('tr.dr-expand').first();
     await detail.locator('[data-common-minutes="night_break"]').waitFor();
     await detail.getByText(/休日判定: E2E案件独自休日（案件独自）/).waitFor();
+    fs.mkdirSync(screenshotDir, { recursive: true });
+    await page.screenshot({ path: holidayScreenshotPath, fullPage: true });
     assert.equal(
       await detail.locator('[data-common-minutes="night_break"]').count(),
       1,
