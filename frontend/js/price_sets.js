@@ -107,6 +107,7 @@
 
     normalizeNightSettings(raw) {
       const extra = this.parseExtraData(raw);
+      const legacyStandardMinutes = Number(extra.work_rules?.standard_minutes ?? 480);
       const defaultSide = {
         periods: [{ start: '22:00', end: '29:00' }],
         night_mode: 'separate',
@@ -119,7 +120,14 @@
         amount_stage: 'detail',
       };
       return {
-        standard_minutes: Number(extra.work_rules?.standard_minutes ?? 480),
+        work_rules: {
+          billing: {
+            standard_minutes: Number(extra.work_rules?.billing?.standard_minutes ?? legacyStandardMinutes),
+          },
+          payment: {
+            standard_minutes: Number(extra.work_rules?.payment?.standard_minutes ?? legacyStandardMinutes),
+          },
+        },
         night_rules: {
           billing: { ...defaultSide, ...(extra.night_rules?.billing || {}) },
           payment: { ...defaultSide, ...(extra.night_rules?.payment || {}) },
@@ -175,8 +183,12 @@
       const sideCard = (side, label) => {
         const rule = settings.night_rules[side];
         const round = settings.rounding[side];
+        const workRule = settings.work_rules[side];
         return `<fieldset class="night-setting-card">
           <legend>${label}</legend>
+          <label>日次基準時間（分）
+            <input id="standard-${side}-minutes" type="number" min="0" step="1" value="${this.ctx.escapeHtml(workRule.standard_minutes)}" />
+          </label>
           <label>深夜帯（複数はカンマ区切り）
             <input id="night-${side}-periods" value="${this.ctx.escapeHtml(this.periodsText(rule.periods))}" placeholder="22:00-29:00" />
           </label>
@@ -189,9 +201,6 @@
         </fieldset>`;
       };
       return `<div class="night-settings-grid">
-        <label>日次基準時間（分）
-          <input id="standard-minutes" type="number" min="0" step="1" value="${this.ctx.escapeHtml(settings.standard_minutes)}" />
-        </label>
         ${sideCard('billing', '請求側')}
         ${sideCard('payment', '支払側')}
       </div>`;
@@ -199,8 +208,10 @@
 
     collectNightSettings() {
       const settings = this.detailState.nightSettings;
-      settings.standard_minutes = Math.max(0, Number(document.getElementById('standard-minutes')?.value || 0));
       for (const side of ['billing', 'payment']) {
+        settings.work_rules[side] = {
+          standard_minutes: Math.max(0, Number(document.getElementById(`standard-${side}-minutes`)?.value || 0)),
+        };
         settings.night_rules[side] = {
           periods: this.parsePeriodsText(document.getElementById(`night-${side}-periods`)?.value),
           night_mode: document.getElementById(`night-${side}-mode`)?.value || 'separate',
@@ -337,6 +348,9 @@
           const cells = pts
             .map((p) => {
               const pt = p.code_value || p.value;
+              if (pt === 'shortage' && calc.code === 'daily') {
+                return '<td class="muted">時間単価で設定</td>';
+              }
               const cell = item.matrix?.[calc.code]?.[pt] || Fee().emptyCell();
               return `
                 <td class="fee-matrix-cell" data-item="${itemIdx}" data-calc="${calc.code}" data-pt="${pt}">
@@ -679,7 +693,7 @@
           fee_items: Fee().feeItemsForExtraData(this.detailState.items),
           night_rules: nightSettings.night_rules,
           rounding: nightSettings.rounding,
-          work_rules: { standard_minutes: nightSettings.standard_minutes },
+          work_rules: nightSettings.work_rules,
         };
         const payload = {
           price_set_name: form.price_set_name.value.trim(),

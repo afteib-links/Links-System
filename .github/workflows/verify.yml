@@ -96,6 +96,9 @@ jobs:
       - name: Verify Issue 33 schema
         run: node backend/test-integration/verify_migration_013.js
 
+      - name: Verify shortage schema
+        run: node backend/test-integration/verify_migration_015.js
+
       - name: Verify migration re-run
         run: npm run migrate --prefix backend
 

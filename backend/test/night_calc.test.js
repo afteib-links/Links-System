@@ -193,3 +193,38 @@ test('一時単価変更は計算方式を変えず対象行だけ再計算す�
   assert.equal(result.details.overtime.amount, 2500);
   assert.equal(result.total, 41500);
 });
+
+test('不足時間を日次で丸め、時間単価を負額控除する', () => {
+  const item = {
+    matrix: {
+      daily: { basic: rateCell('', ''), shortage: rateCell('', '') },
+      hourly: { shortage: rateCell(1235, 1500) },
+    },
+  };
+  const billingClassified = calculateNightSide({
+    start_time: '08:00', end_time: '16:07', total_break_minutes: 30,
+    standard_minutes: 480,
+    rule: { periods: [], night_mode: 'excluded', night_overtime_mode: 'excluded' },
+    rounding,
+  });
+  const paymentClassified = calculateNightSide({
+    start_time: '08:00', end_time: '16:07', total_break_minutes: 30,
+    standard_minutes: 540,
+    rule: { periods: [], night_mode: 'excluded', night_overtime_mode: 'excluded' },
+    rounding,
+  });
+  const billing = calculateSideAmounts({ side: 'billing', item, classified: billingClassified, rounding });
+  const payment = calculateSideAmounts({ side: 'payment', item, classified: paymentClassified, rounding });
+  assert.equal(billingClassified.raw_shortage_minutes, 23);
+  assert.equal(billingClassified.shortage_minutes, 15);
+  assert.equal(paymentClassified.shortage_minutes, 75);
+  assert.equal(billing.details.shortage.raw_amount, -308.75);
+  assert.equal(billing.details.shortage.amount, -308);
+  assert.equal(payment.details.shortage.amount, -1875);
+});
+
+test('開始・終了が未入力の下書きでは不足を計上しない', () => {
+  const result = calculateNightSide({ start_time: null, end_time: null, standard_minutes: 480, rounding });
+  assert.equal(result.raw_shortage_minutes, 0);
+  assert.equal(result.shortage_minutes, 0);
+});

@@ -36,6 +36,20 @@ test('新規案件相当の深夜帯・丸め既定値を補完する', () => {
   assert.equal(config.rounding.billing.time_mode, 'floor');
   assert.equal(config.rounding.billing.amount_stage, 'detail');
   assert.equal(config.work_rules.standard_minutes, 480);
+  assert.equal(config.work_rules.billing.standard_minutes, 480);
+  assert.equal(config.work_rules.payment.standard_minutes, 480);
+});
+
+test('不足計算の基準時間を請求・支払で分けて保持する', () => {
+  const config = normalizeConfig({
+    work_rules: {
+      standard_minutes: 480,
+      billing: { standard_minutes: 450 },
+      payment: { standard_minutes: 540 },
+    },
+  });
+  assert.equal(config.work_rules.billing.standard_minutes, 450);
+  assert.equal(config.work_rules.payment.standard_minutes, 540);
 });
 
 test('請求側と支払側の深夜条件を独立して保持する', () => {

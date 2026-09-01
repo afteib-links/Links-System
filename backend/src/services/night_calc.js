@@ -1,6 +1,6 @@
 const MINUTES_PER_DAY = 24 * 60;
 const MAX_CLOCK_MINUTES = 47 * 60 + 59;
-const PRICE_TYPES = ['basic', 'overtime', 'night', 'night_overtime'];
+const PRICE_TYPES = ['basic', 'shortage', 'overtime', 'night', 'night_overtime'];
 
 function validationError(message, code = 'validation_error') {
   const err = new Error(message);
@@ -125,6 +125,8 @@ function calculateNightSide(input) {
       work_minutes: 0,
       normal_minutes: 0,
       overtime_minutes: 0,
+      raw_shortage_minutes: 0,
+      shortage_minutes: 0,
       regular_overtime_minutes: 0,
       night_minutes: 0,
       night_overtime_minutes: 0,
@@ -142,6 +144,7 @@ function calculateNightSide(input) {
   const workMinutes = Math.max(0, duration - totalBreak);
   const standardMinutes = Math.max(0, Number(input.standard_minutes ?? 480));
   const overtimeMinutes = Math.max(0, workMinutes - standardMinutes);
+  const shortageMinutes = Math.max(0, standardMinutes - workMinutes);
   const overtimeStart = end - overtimeMinutes;
   const rule = normalizeSideRule(input.rule);
   const shouldDetect = rule.night_mode !== 'excluded' || rule.night_overtime_mode !== 'excluded';
@@ -175,6 +178,7 @@ function calculateNightSide(input) {
   const mode = rounding.time_mode || 'floor';
   const rounded = {
     normal_minutes: roundMinutes(normal, unit, mode),
+    shortage_minutes: roundMinutes(shortageMinutes, unit, mode),
     regular_overtime_minutes: roundMinutes(regularOvertime, unit, mode),
     night_minutes: rule.night_mode === 'excluded' ? null : roundMinutes(night, unit, mode),
     night_overtime_minutes:
@@ -194,6 +198,7 @@ function calculateNightSide(input) {
     work_minutes: workMinutes,
     standard_minutes: standardMinutes,
     overtime_minutes: overtimeMinutes,
+    raw_shortage_minutes: shortageMinutes,
     raw_night_minutes: rawNight,
     night_adjustment_minutes: adjustment,
     adjusted_night_minutes: adjustedNight,
@@ -212,7 +217,11 @@ function hasCellValue(value) {
 }
 
 function rateFor(item, priceType, side) {
-  const preferred = priceType === 'basic' ? ['daily', 'hourly'] : ['hourly', 'daily'];
+  const preferred = priceType === 'basic'
+    ? ['daily', 'hourly']
+    : priceType === 'shortage'
+      ? ['hourly']
+      : ['hourly', 'daily'];
   for (const calcType of preferred) {
     const cell = item?.matrix?.[calcType]?.[priceType];
     const value = cell?.[side];
@@ -227,12 +236,14 @@ function calculateSideAmounts({ side, item, classified, overrides = {}, rounding
     (classified.modes?.night_overtime === 'included' ? Number(classified.night_overtime_minutes || 0) : 0);
   const minutesByType = {
     basic: Number(classified.normal_minutes || 0) + includedInBasicMinutes,
+    shortage: classified.shortage_minutes,
     overtime: classified.regular_overtime_minutes,
     night: classified.night_minutes,
     night_overtime: classified.night_overtime_minutes,
   };
   const modes = {
     basic: 'separate',
+    shortage: 'separate',
     overtime: 'separate',
     night: classified.modes?.night || 'separate',
     night_overtime: classified.modes?.night_overtime || 'separate',
@@ -257,8 +268,13 @@ function calculateSideAmounts({ side, item, classified, overrides = {}, rounding
               ? rate
               : 0
           : rate * (Number(minutes) / 60);
+      if (priceType === 'shortage') rawAmount = -Math.abs(rawAmount);
     }
-    const amount = rounding.amount_stage === 'detail' ? roundAmount(rawAmount, rounding.amount_mode) : rawAmount;
+    const amount = rounding.amount_stage === 'detail'
+      ? priceType === 'shortage'
+        ? -roundAmount(Math.abs(rawAmount), rounding.amount_mode)
+        : roundAmount(rawAmount, rounding.amount_mode)
+      : rawAmount;
     rawTotal += amount;
     details[priceType] = {
       mode,
