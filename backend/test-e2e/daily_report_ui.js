@@ -92,6 +92,11 @@ async function seed(pool, yearMonth) {
       JSON.stringify(buildPriceExtra(false)),
     ]
   );
+  await pool.execute(
+    `INSERT INTO holidays (holiday_date, holiday_name, project_id)
+     VALUES (?, 'E2E案件独自休日', ?)`,
+    [`${yearMonth}-01`, project.insertId]
+  );
   return {
     companyId: Number(company.insertId),
     partnerId: Number(partner.insertId),
@@ -173,6 +178,7 @@ async function main() {
     await firstRow.locator('[data-expand]').click();
     let detail = page.locator('tr.dr-expand').first();
     await detail.locator('[data-common-minutes="night_break"]').waitFor();
+    await detail.getByText(/休日判定: E2E案件独自休日（案件独自）/).waitFor();
     assert.equal(
       await detail.locator('[data-common-minutes="night_break"]').count(),
       1,

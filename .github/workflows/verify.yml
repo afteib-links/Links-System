@@ -102,6 +102,9 @@ jobs:
       - name: Run daily report API integration
         run: node backend/test-integration/daily_report_api.js
 
+      - name: Run holiday selection integration
+        run: node backend/test-integration/holiday_api.js
+
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend
 

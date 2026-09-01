@@ -41,6 +41,10 @@
               <strong>システム設定</strong>
               <span>${this.ctx.escapeHtml(hub.system_settings ?? 0)} 件</span>
             </button>
+            <button type="button" class="hub-card" data-hub="holidays">
+              <strong>祝日・案件休日</strong>
+              <span>${this.ctx.escapeHtml(hub.holidays ?? 0)} 件</span>
+            </button>
           </div>
         </section>`
       );
@@ -53,6 +57,7 @@
           else if (key === 'offices') this.showOffices();
           else if (key === 'numbering') this.showNumberingRules();
           else if (key === 'codes') this.showCodes();
+          else if (key === 'holidays') this.showHolidays();
           else this.showSettings();
         });
       });
@@ -446,6 +451,117 @@
           else this.ctx.showToast('保存しました');
         })
       );
+    },
+
+    async showHolidays(message = '') {
+      this.ctx.renderLoading();
+      const [holidayResult, projectResult] = await Promise.all([
+        this.ctx.api('/api/master-settings/holidays'),
+        this.ctx.api('/api/master-settings/holidays/projects'),
+      ]);
+      if (!holidayResult.res.ok || !holidayResult.data?.ok) {
+        this.ctx.app.innerHTML = this.kit.shell(
+          '祝日・案件休日',
+          `<section class="panel"><p class="error">${this.ctx.escapeHtml(holidayResult.data?.message || '取得失敗')}</p></section>`,
+          { onBack: () => this.showHub() }
+        );
+        this.kit.bindShell({ onBack: () => this.showHub() });
+        return;
+      }
+      this._holidays = holidayResult.data.holidays || [];
+      this._holidayProjects = projectResult.data?.projects || [];
+      const rows = this._holidays.map((holiday) => `
+        <tr>
+          <td>${this.ctx.escapeHtml(String(holiday.holiday_date || '').slice(0, 10))}</td>
+          <td>${this.ctx.escapeHtml(holiday.holiday_name)}</td>
+          <td>${holiday.project_id == null
+            ? '全案件共通'
+            : this.ctx.escapeHtml(`${holiday.company_name || ''} / ${holiday.project_name || holiday.business_type || `案件#${holiday.project_id}`}`)}</td>
+          <td>${holiday.is_active ? '有効' : '無効'}</td>
+          <td>
+            <button type="button" class="btn btn-ghost btn-small" data-edit-holiday="${holiday.holiday_id}">編集</button>
+            <button type="button" class="btn btn-danger btn-small" data-delete-holiday="${holiday.holiday_id}">削除</button>
+          </td>
+        </tr>`).join('');
+      this.ctx.app.innerHTML = this.kit.shell(
+        '祝日・案件休日',
+        `<section class="panel">
+          ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
+          <p class="muted">全案件共通の祝日、または特定案件だけの休日を登録します。登録日は曜日より休日設定を優先します。</p>
+          <div class="toolbar"><button type="button" class="btn" id="new-holiday">＋ 追加</button></div>
+          <div class="table-wrap">
+            <table class="data-table data-table-compact">
+              <thead><tr><th>日付</th><th>休日名</th><th>適用範囲</th><th>状態</th><th>操作</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="5">登録なし</td></tr>'}</tbody>
+            </table>
+          </div>
+          <div id="modal-host"></div>
+        </section>`,
+        { onBack: () => this.showHub() }
+      );
+      this.kit.bindShell({ onBack: () => this.showHub() });
+      document.getElementById('new-holiday')?.addEventListener('click', () => this.openHolidayModal(null));
+      document.querySelectorAll('[data-edit-holiday]').forEach((button) => button.addEventListener('click', () => {
+        const row = this._holidays.find((item) => Number(item.holiday_id) === Number(button.getAttribute('data-edit-holiday')));
+        this.openHolidayModal(row);
+      }));
+      document.querySelectorAll('[data-delete-holiday]').forEach((button) => button.addEventListener('click', async () => {
+        if (!window.confirm('この休日を削除しますか？')) return;
+        const result = await this.ctx.api(`/api/master-settings/holidays/${button.getAttribute('data-delete-holiday')}`, { method: 'DELETE' });
+        if (!result.res.ok) window.alert(result.data?.message || '削除失敗');
+        else await this.showHolidays('削除しました');
+      }));
+    },
+
+    openHolidayModal(row) {
+      const isNew = !row;
+      const projectOptions = this._holidayProjects.map((project) => {
+        const label = [project.company_name, project.manager_name || project.business_type, project.partner_name]
+          .filter(Boolean).join(' / ');
+        return `<option value="${project.project_id}" ${Number(row?.project_id) === Number(project.project_id) ? 'selected' : ''}>${this.ctx.escapeHtml(label || `案件#${project.project_id}`)}</option>`;
+      }).join('');
+      document.getElementById('modal-host').innerHTML = this.kit.modalHtml(
+        isNew ? '休日追加' : '休日編集',
+        `<div class="form-grid">
+          <div><label>日付</label><input type="date" id="holiday-date" value="${this.ctx.escapeHtml(String(row?.holiday_date || '').slice(0, 10))}" /></div>
+          <div><label>休日名</label><input id="holiday-name" value="${this.ctx.escapeHtml(row?.holiday_name || '')}" /></div>
+          <div><label>適用範囲</label><select id="holiday-scope"><option value="global" ${row?.project_id == null ? 'selected' : ''}>全案件共通</option><option value="project" ${row?.project_id != null ? 'selected' : ''}>案件独自</option></select></div>
+          <div><label>案件</label><select id="holiday-project"><option value="">選択してください</option>${projectOptions}</select></div>
+          <div class="full"><label class="check-item"><input type="checkbox" id="holiday-active" ${row?.is_active !== 0 ? 'checked' : ''} /><span>有効</span></label></div>
+        </div>`,
+        '<button type="button" class="btn" id="holiday-save">保存</button>'
+      );
+      this.kit.bindModal();
+      const scope = document.getElementById('holiday-scope');
+      const project = document.getElementById('holiday-project');
+      const syncScope = () => { project.disabled = scope.value !== 'project'; };
+      scope.addEventListener('change', syncScope);
+      syncScope();
+      document.getElementById('holiday-save')?.addEventListener('click', async () => {
+        const payload = {
+          holiday_date: document.getElementById('holiday-date').value,
+          holiday_name: document.getElementById('holiday-name').value.trim(),
+          project_id: scope.value === 'project' ? Number(project.value || 0) || null : null,
+          is_active: document.getElementById('holiday-active').checked,
+        };
+        if (!payload.holiday_date || !payload.holiday_name) {
+          window.alert('日付と休日名は必須です');
+          return;
+        }
+        if (scope.value === 'project' && !payload.project_id) {
+          window.alert('案件独自休日では案件を選択してください');
+          return;
+        }
+        const result = isNew
+          ? await this.ctx.api('/api/master-settings/holidays', { method: 'POST', body: JSON.stringify(payload) })
+          : await this.ctx.api(`/api/master-settings/holidays/${row.holiday_id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        if (!result.res.ok) {
+          window.alert(result.data?.message || '保存失敗');
+          return;
+        }
+        document.getElementById('modal-backdrop')?.remove();
+        await this.showHolidays(isNew ? '追加しました' : '更新しました');
+      });
     },
 
     async showSettings() {
