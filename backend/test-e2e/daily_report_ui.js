@@ -172,6 +172,7 @@ async function main() {
     let firstRow = (await dateRows()).first();
     await firstRow.locator('[data-expand]').click();
     let detail = page.locator('tr.dr-expand').first();
+    await detail.locator('[data-common-minutes="night_break"]').waitFor();
     assert.equal(
       await detail.locator('[data-common-minutes="night_break"]').count(),
       1,
@@ -225,6 +226,8 @@ async function main() {
     firstRow = (await dateRows()).first();
     await firstRow.locator('[data-expand]').click();
     detail = page.locator('tr.dr-expand').first();
+    await detail.locator('[data-minutes-f="night_break_minutes_billing"]').waitFor();
+    await detail.locator('[data-minutes-f="night_break_minutes_payment"]').waitFor();
     assert.equal(await detail.locator('[data-minutes-f="night_break_minutes_billing"]').count(), 1);
     assert.equal(await detail.locator('[data-minutes-f="night_break_minutes_payment"]').count(), 1);
 
