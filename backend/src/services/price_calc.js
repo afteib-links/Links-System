@@ -44,8 +44,8 @@ async function pickPriceSetForDate(projectId, workDate) {
   return hits[0] || null;
 }
 
-function resolvePriceRow(lines, workDate, calcType = 'daily') {
-  const dayTypes = [...dayTypesForWorkDate(workDate), ...DAY_TYPE_FALLBACK_ORDER];
+function resolvePriceRow(lines, workDate, calcType = 'daily', isHoliday = false) {
+  const dayTypes = [...dayTypesForWorkDate(workDate, isHoliday), ...DAY_TYPE_FALLBACK_ORDER];
   const seen = new Set();
   for (const dayType of dayTypes) {
     if (seen.has(dayType)) continue;
@@ -69,7 +69,7 @@ function emptyCell() {
   return { billing: '', payment: '', lineIds: {} };
 }
 
-function legacyFeeItem(lines, workDate) {
+function legacyFeeItem(lines, workDate, isHoliday = false) {
   const item = {
     id: 'legacy_auto',
     name: '料金項目',
@@ -80,7 +80,7 @@ function legacyFeeItem(lines, workDate) {
   for (const priceType of ['basic', 'overtime', 'night', 'night_overtime']) {
     for (const calcType of ['daily', 'hourly']) {
       const candidates = lines.filter((line) => String(line.price_type_code || 'basic') === priceType);
-      const hit = resolvePriceRow(candidates, workDate, calcType);
+      const hit = resolvePriceRow(candidates, workDate, calcType, isHoliday);
       const value = emptyCell();
       if (hit && String(hit.calc_type_code || '') === calcType) {
         value.billing = hit.billing_unit_price;
@@ -103,17 +103,32 @@ async function loadPriceSetContext(projectId, workDate) {
     [Number(priceSet.price_set_id)]
   );
   const extra = parseJson(priceSet.extra_data, {}) || {};
+  const holidays = await query(
+    `SELECT holiday_id, holiday_name, project_id
+     FROM holidays
+     WHERE holiday_date = ? AND is_active = 1 AND is_deleted = 0
+       AND (project_id IS NULL OR project_id = ?)
+     ORDER BY project_id IS NULL ASC, holiday_id ASC`,
+    [normYmd(workDate), Number(projectId)]
+  );
+  const holiday = holidays[0] || null;
   const items = Array.isArray(extra.fee_items) && extra.fee_items.length
     ? extra.fee_items
-    : [legacyFeeItem(lines, workDate)];
-  return { priceSet, lines, extra, items, config: normalizeConfig(extra) };
+    : [legacyFeeItem(lines, workDate, Boolean(holiday))];
+  return { priceSet, lines, extra, items, config: normalizeConfig(extra), holiday };
 }
 
 async function buildDailyCalculationContext(projectId, workDate, selectedFeeItemId = null, isTraining = false) {
   if (!projectId || !workDate) return null;
   const context = await loadPriceSetContext(projectId, workDate);
   if (!context) return null;
-  const resolved = resolveFeeItem(context.items, workDate, selectedFeeItemId, isTraining);
+  const resolved = resolveFeeItem(
+    context.items,
+    workDate,
+    selectedFeeItemId,
+    isTraining,
+    Boolean(context.holiday)
+  );
   return {
     price_set_id: context.priceSet.price_set_id,
     price_set_name: context.priceSet.price_set_name,
@@ -121,6 +136,14 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
     selected_fee_item_name: resolved.item?.name || null,
     fee_item_selection_source: resolved.source,
     fee_item: resolved.item,
+    day_type: context.holiday ? 'holiday' : jsWeekdayCode(workDate),
+    holiday: context.holiday
+      ? {
+          id: context.holiday.holiday_id,
+          name: context.holiday.holiday_name,
+          scope: context.holiday.project_id == null ? 'global' : 'project',
+        }
+      : null,
     fee_items: context.items
       .filter((item) => item.mode !== 'distance')
       .map((item) => ({ id: item.id, name: item.name || '料金項目' })),
@@ -219,6 +242,8 @@ async function applyDailyPriceCalc(data) {
       name: context.selected_fee_item_name,
       selection_source: data.fee_item_selection_source,
     },
+    day_type: context.day_type,
+    holiday: context.holiday,
     standard_minutes: context.work_rules.standard_minutes,
     night_input_mode: nightInputMode(context),
     available_fee_items: context.fee_items,

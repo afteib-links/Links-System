@@ -15,6 +15,19 @@ test('曜日条件から料金区分を自動選択し、手動選択を優先�
   assert.equal(manual.source, 'manual');
 });
 
+test('登録休日は実際の曜日より休日料金を優先し、手動選択はさらに優先する', () => {
+  const items = [
+    { id: 'weekday', name: '通常料金', mode: 'weekdays', weekdays: { weekday: true } },
+    { id: 'holiday', name: '休日料金', mode: 'weekdays', weekdays: { holiday: true } },
+  ];
+  const automatic = resolveFeeItem(items, '2026-09-01', null, false, true);
+  assert.equal(automatic.item.id, 'holiday');
+  assert.equal(automatic.source, 'auto');
+  const manual = resolveFeeItem(items, '2026-09-01', 'weekday', false, true);
+  assert.equal(manual.item.id, 'weekday');
+  assert.equal(manual.source, 'manual');
+});
+
 test('新規案件相当の深夜帯・丸め既定値を補完する', () => {
   const config = normalizeConfig({});
   assert.deepEqual(config.night_rules.billing.periods, [{ start: '22:00', end: '29:00' }]);

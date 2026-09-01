@@ -102,6 +102,9 @@ jobs:
       - name: Run daily report API integration
         run: node backend/test-integration/daily_report_api.js
 
+      - name: Run holiday selection integration
+        run: node backend/test-integration/holiday_api.js
+
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend
 
@@ -110,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: daily-report-e2e-screenshot
-          path: backend/test-results/daily-report-ui.png
+          path: backend/test-results/*.png
           if-no-files-found: ignore
 
       - name: Start API and verify health

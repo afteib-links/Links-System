@@ -29,6 +29,9 @@ router.get('/hub', async (_req, res) => {
     const [ruleCnt] = await query(
       `SELECT COUNT(*) AS cnt FROM numbering_rules WHERE is_deleted = 0`
     );
+    const [holidayCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM holidays WHERE is_deleted = 0 AND is_active = 1`
+    );
     return res.json({
       ok: true,
       hub: {
@@ -37,6 +40,7 @@ router.get('/hub', async (_req, res) => {
         system_settings: Number(settingCnt.cnt || 0),
         office_masters: Number(officeCnt.cnt || 0),
         numbering_rules: Number(ruleCnt.cnt || 0),
+        holidays: Number(holidayCnt.cnt || 0),
       },
     });
   } catch (err) {
@@ -155,6 +159,143 @@ router.put('/settings/:key', async (req, res) => {
   } catch (err) {
     console.error('[master_settings/settings/put]', err);
     return res.status(500).json({ ok: false, message: '設定の保存に失敗しました' });
+  }
+});
+
+function validDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+/** 全案件共通の祝日・案件独自休日 */
+router.get('/holidays/projects', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT p.project_id, p.manager_name, p.business_type, c.company_name, pt.partner_name
+       FROM projects p
+       LEFT JOIN companies c ON c.company_id = p.company_id
+       LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       WHERE p.is_deleted = 0
+       ORDER BY c.company_name ASC, p.project_id ASC`
+    );
+    return res.json({ ok: true, projects: rows });
+  } catch (err) {
+    console.error('[master_settings/holidays/projects]', err);
+    return res.status(500).json({ ok: false, message: '案件一覧の取得に失敗しました' });
+  }
+});
+
+router.get('/holidays', async (req, res) => {
+  try {
+    const values = [];
+    const where = ['h.is_deleted = 0'];
+    if (req.query.from) {
+      if (!validDate(req.query.from)) return res.status(400).json({ ok: false, message: '開始日が不正です' });
+      where.push('h.holiday_date >= ?');
+      values.push(req.query.from);
+    }
+    if (req.query.to) {
+      if (!validDate(req.query.to)) return res.status(400).json({ ok: false, message: '終了日が不正です' });
+      where.push('h.holiday_date <= ?');
+      values.push(req.query.to);
+    }
+    if (req.query.project_id) {
+      where.push('(h.project_id IS NULL OR h.project_id = ?)');
+      values.push(Number(req.query.project_id));
+    }
+    const rows = await query(
+      `SELECT h.*, p.manager_name AS project_name, p.business_type,
+              c.company_name, pt.partner_name
+       FROM holidays h
+       LEFT JOIN projects p ON p.project_id = h.project_id
+       LEFT JOIN companies c ON c.company_id = p.company_id
+       LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY h.holiday_date DESC, h.project_id IS NOT NULL ASC, h.holiday_id DESC`,
+      values
+    );
+    return res.json({ ok: true, holidays: rows });
+  } catch (err) {
+    console.error('[master_settings/holidays/list]', err);
+    return res.status(500).json({ ok: false, message: '休日一覧の取得に失敗しました' });
+  }
+});
+
+router.post('/holidays', async (req, res) => {
+  try {
+    const date = String(req.body.holiday_date || '').trim();
+    const name = String(req.body.holiday_name || '').trim();
+    const hasProject = req.body.project_id != null && req.body.project_id !== '';
+    const projectId = hasProject ? Number(req.body.project_id) : null;
+    if (!validDate(date) || !name) {
+      return res.status(400).json({ ok: false, message: '日付と休日名は必須です' });
+    }
+    if (hasProject && (!Number.isInteger(projectId) || projectId <= 0)) {
+      return res.status(400).json({ ok: false, message: '案件が不正です' });
+    }
+    const result = await query(
+      `INSERT INTO holidays (holiday_date, holiday_name, project_id, is_active)
+       VALUES (?, ?, ?, ?)`,
+      [date, name, projectId, req.body.is_active === false || req.body.is_active === 0 ? 0 : 1]
+    );
+    return res.status(201).json({ ok: true, holiday_id: result.insertId });
+  } catch (err) {
+    console.error('[master_settings/holidays/create]', err);
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, message: '同じ適用範囲・日付の休日が既にあります' });
+    }
+    return res.status(500).json({ ok: false, message: '休日の登録に失敗しました' });
+  }
+});
+
+router.put('/holidays/:id', async (req, res) => {
+  try {
+    const date = String(req.body.holiday_date || '').trim();
+    const name = String(req.body.holiday_name || '').trim();
+    const hasProject = req.body.project_id != null && req.body.project_id !== '';
+    const projectId = hasProject ? Number(req.body.project_id) : null;
+    if (!validDate(date) || !name) {
+      return res.status(400).json({ ok: false, message: '日付と休日名は必須です' });
+    }
+    if (hasProject && (!Number.isInteger(projectId) || projectId <= 0)) {
+      return res.status(400).json({ ok: false, message: '案件が不正です' });
+    }
+    const result = await query(
+      `UPDATE holidays
+       SET holiday_date = ?, holiday_name = ?, project_id = ?, is_active = ?,
+           version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE holiday_id = ? AND is_deleted = 0`,
+      [
+        date,
+        name,
+        projectId,
+        req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
+        Number(req.params.id),
+      ]
+    );
+    if (!result.affectedRows) return res.status(404).json({ ok: false, message: '休日が見つかりません' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/holidays/update]', err);
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, message: '同じ適用範囲・日付の休日が既にあります' });
+    }
+    return res.status(500).json({ ok: false, message: '休日の更新に失敗しました' });
+  }
+});
+
+router.delete('/holidays/:id', async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE holidays
+       SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE holiday_id = ? AND is_deleted = 0`,
+      [Number(req.params.id)]
+    );
+    if (!result.affectedRows) return res.status(404).json({ ok: false, message: '休日が見つかりません' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/holidays/delete]', err);
+    return res.status(500).json({ ok: false, message: '休日の削除に失敗しました' });
   }
 });
 

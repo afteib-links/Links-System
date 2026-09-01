@@ -314,10 +314,11 @@
 
     feeItemOptions(row) {
       const items = this.availableFeeItems(row);
+      const autoName = row.selected_fee_item_name || row._calcContext?.selected_fee_item_name || '';
       if (!items.length && row.selected_fee_item_id) {
-        return `<option value="">自動選択</option><option value="${this.ctx.escapeHtml(row.selected_fee_item_id)}" selected>${this.ctx.escapeHtml(row.selected_fee_item_name || '料金区分')}</option>`;
+        return `<option value="" ${row.fee_item_selection_source !== 'manual' ? 'selected' : ''}>${this.ctx.escapeHtml(autoName ? `自動: ${autoName}` : '自動選択')}</option><option value="${this.ctx.escapeHtml(row.selected_fee_item_id)}" ${row.fee_item_selection_source === 'manual' ? 'selected' : ''}>${this.ctx.escapeHtml(row.selected_fee_item_name || '料金区分')}</option>`;
       }
-      return `<option value="" ${row.fee_item_selection_source !== 'manual' ? 'selected' : ''}>自動選択</option>${items
+      return `<option value="" ${row.fee_item_selection_source !== 'manual' ? 'selected' : ''}>${this.ctx.escapeHtml(autoName ? `自動: ${autoName}` : '自動選択')}</option>${items
         .map(
           (item) => `<option value="${this.ctx.escapeHtml(item.id)}" ${row.fee_item_selection_source === 'manual' && String(item.id) === String(row.selected_fee_item_id) ? 'selected' : ''}>${this.ctx.escapeHtml(item.name)}</option>`
         )
@@ -454,7 +455,7 @@
                       <label>料金名
                         <select data-fee-item="${idx}" ${locked ? 'disabled' : ''}>${this.feeItemOptions(r) || '<option value="">料金設定なし</option>'}</select>
                       </label>
-                      <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}</small>
+                      <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}${r._calcContext?.holiday ? ` / 休日判定: ${this.ctx.escapeHtml(r._calcContext.holiday.name || '休日')}（${r._calcContext.holiday.scope === 'project' ? '案件独自' : '全案件共通'}）` : ''}</small>
                     </section>
                     <section class="dr-detail-section"><h4>深夜時間</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
                     <section class="dr-detail-section"><h4>契約料金</h4>${this.rateTableHtml(r, idx, locked)}</section>

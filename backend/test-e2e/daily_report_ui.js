@@ -92,6 +92,11 @@ async function seed(pool, yearMonth) {
       JSON.stringify(buildPriceExtra(false)),
     ]
   );
+  await pool.execute(
+    `INSERT INTO holidays (holiday_date, holiday_name, project_id)
+     VALUES (?, 'E2E案件独自休日', ?)`,
+    [`${yearMonth}-01`, project.insertId]
+  );
   return {
     companyId: Number(company.insertId),
     partnerId: Number(partner.insertId),
@@ -110,6 +115,7 @@ async function main() {
   const workDate = `${yearMonth}-01`;
   const screenshotDir = path.resolve(__dirname, '../test-results');
   const screenshotPath = path.join(screenshotDir, 'daily-report-ui.png');
+  const holidayScreenshotPath = path.join(screenshotDir, 'daily-report-holiday-detail.png');
 
   try {
     const ids = await seed(pool, yearMonth);
@@ -173,6 +179,14 @@ async function main() {
     await firstRow.locator('[data-expand]').click();
     let detail = page.locator('tr.dr-expand').first();
     await detail.locator('[data-common-minutes="night_break"]').waitFor();
+    await detail.getByText(/休日判定: E2E案件独自休日（案件独自）/).waitFor();
+    assert.match(
+      await detail.locator('[data-fee-item] option:checked').textContent(),
+      /自動: E2E通常料金/,
+      '自動選択された料金名を料金名欄に表示すること'
+    );
+    fs.mkdirSync(screenshotDir, { recursive: true });
+    await page.screenshot({ path: holidayScreenshotPath, fullPage: true });
     assert.equal(
       await detail.locator('[data-common-minutes="night_break"]').count(),
       1,
