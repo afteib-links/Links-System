@@ -180,6 +180,11 @@ async function main() {
     let detail = page.locator('tr.dr-expand').first();
     await detail.locator('[data-common-minutes="night_break"]').waitFor();
     await detail.getByText(/休日判定: E2E案件独自休日（案件独自）/).waitFor();
+    assert.match(
+      await detail.locator('[data-fee-item] option:checked').textContent(),
+      /自動: E2E通常料金/,
+      '自動選択された料金名を料金名欄に表示すること'
+    );
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: holidayScreenshotPath, fullPage: true });
     assert.equal(
