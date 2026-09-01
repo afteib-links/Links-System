@@ -130,7 +130,7 @@ async function main() {
     }
 
     async function dateRows() {
-      return page.locator('tr.dr-main').filter({ hasText: `${Number(workDate.slice(5, 7))}/1` });
+      return page.locator(`tr.dr-main[data-work-date="${workDate}"]`);
     }
 
     await page.goto(baseUrl);
