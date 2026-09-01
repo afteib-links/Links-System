@@ -47,7 +47,7 @@ jobs:
 
   mariadb-migration-and-health:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     services:
       mariadb:
         image: mariadb:10.11
@@ -86,6 +86,10 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --prefix backend
 
+      - name: Install Chromium for UI test
+        working-directory: backend
+        run: npx playwright install --with-deps chromium
+
       - name: Apply all migrations and seed
         run: npm run migrate --prefix backend
 
@@ -97,6 +101,17 @@ jobs:
 
       - name: Run daily report API integration
         run: node backend/test-integration/daily_report_api.js
+
+      - name: Run daily report browser E2E
+        run: npm run test:e2e --prefix backend
+
+      - name: Upload daily report E2E screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report-e2e-screenshot
+          path: backend/test-results/daily-report-ui.png
+          if-no-files-found: ignore
 
       - name: Start API and verify health
         shell: bash

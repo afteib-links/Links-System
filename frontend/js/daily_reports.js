@@ -421,7 +421,7 @@
           const dayConfirmed = sameDateRows.some((row) => row.daily_report_id) &&
             sameDateRows.filter((row) => row.daily_report_id).every((row) => ['confirmed', 'approved'].includes(row.status));
           const main = `
-            <tr class="dr-main" data-idx="${idx}">
+            <tr class="dr-main" data-idx="${idx}" data-work-date="${this.ctx.escapeHtml(date)}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
               <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>

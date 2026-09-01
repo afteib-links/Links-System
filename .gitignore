@@ -7,5 +7,6 @@ backups/
 backend/uploads/
 backend/pdf/
 npm-debug.log*
+backend/test-results/
 .idea/
 .vscode/
