@@ -173,7 +173,7 @@ async function main() {
     await firstRow.locator('[data-expand]').click();
     let detail = page.locator('tr.dr-expand').first();
     assert.equal(
-      await detail.getByText('深夜帯内休憩（共通）', { exact: true }).count(),
+      await detail.locator('label').filter({ hasText: '深夜帯内休憩（共通）' }).count(),
       1,
       '請求・支払条件が同じ場合は共通入力を表示すること'
     );
@@ -225,8 +225,8 @@ async function main() {
     firstRow = (await dateRows()).first();
     await firstRow.locator('[data-expand]').click();
     detail = page.locator('tr.dr-expand').first();
-    assert.equal(await detail.getByText('深夜帯内休憩（請求）', { exact: true }).count(), 1);
-    assert.equal(await detail.getByText('深夜帯内休憩（支払）', { exact: true }).count(), 1);
+    assert.equal(await detail.locator('label').filter({ hasText: '深夜帯内休憩（請求）' }).count(), 1);
+    assert.equal(await detail.locator('label').filter({ hasText: '深夜帯内休憩（支払）' }).count(), 1);
 
     const monthlyWarningDialog = page.waitForEvent('dialog');
     await page.locator('[data-month-action="submit"]').click();
