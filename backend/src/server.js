@@ -20,6 +20,8 @@ const lookupsRoutes = require('./routes/lookups');
 const layoutsRoutes = require('./routes/layouts');
 const priceSetsRoutes = require('./routes/price_sets');
 const masterSettingsRoutes = require('./routes/master_settings');
+const cashManagementRoutes = require('./routes/cash_management');
+const settlementRoutes = require('./routes/settlements');
 
 
 async function createApp() {
@@ -98,6 +100,8 @@ async function createApp() {
   app.use('/api/layouts', layoutsRoutes);
   app.use('/api/price-sets', priceSetsRoutes);
   app.use('/api/master-settings', masterSettingsRoutes);
+  app.use('/api/cash-management', cashManagementRoutes.router);
+  app.use('/api/settlements', settlementRoutes);
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {

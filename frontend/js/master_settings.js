@@ -5,6 +5,25 @@
     { key: 'price_calc_type', label: '料金計算区分' },
   ];
 
+  const PRICE_MATRIX_SETTINGS = [
+    { key: 'price_matrix_profit_warning_percent', label: '利益率警告基準（%）', defaultValue: '10', step: '0.1' },
+    { key: 'price_matrix_overtime_multiplier', label: '時間外倍率', defaultValue: '1.25', step: '0.01' },
+    { key: 'price_matrix_night_multiplier', label: '深夜倍率', defaultValue: '1.35', step: '0.01' },
+    { key: 'price_matrix_night_overtime_multiplier', label: '深夜超過倍率', defaultValue: '1.6', step: '0.01' },
+  ];
+
+  const DAILY_REPORT_SETTINGS = [
+    { key: 'daily_report_input_font_size_px', label: '入力文字サイズ（px）', type: 'number', defaultValue: '16', min: '12', max: '24', step: '1' },
+    { key: 'daily_report_reference_text_color', label: '未入力欄の文字色', type: 'color', defaultValue: '#A7B0BE' },
+    { key: 'daily_report_saturday_background_color', label: '土曜の背景色', type: 'color', defaultValue: '#EAF4FF' },
+    { key: 'daily_report_saturday_text_color', label: '土曜の文字色', type: 'color', defaultValue: '#1D4ED8' },
+    { key: 'daily_report_holiday_background_color', label: '日曜・祝日の背景色', type: 'color', defaultValue: '#FDECEC' },
+    { key: 'daily_report_holiday_text_color', label: '日曜・祝日の文字色', type: 'color', defaultValue: '#B42318' },
+    { key: 'daily_report_fallback_time_step_minutes', label: '時間の代替刻み（分）', type: 'number', defaultValue: '5', min: '1', max: '60', step: '1' },
+    { key: 'daily_report_distance_step', label: '距離の増減単位', type: 'number', defaultValue: '1', min: '1', max: '1000', step: '1' },
+    { key: 'daily_report_expense_step', label: '通行料・駐車料・交通費の増減単位', type: 'number', defaultValue: '100', min: '1', max: '100000', step: '1' },
+  ];
+
   const LinksMasterSettings = {
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
@@ -567,7 +586,36 @@
     async showSettings() {
       this.ctx.renderLoading();
       const { res, data } = await this.ctx.api('/api/master-settings/settings');
-      const rows = (data?.settings || [])
+      const allSettings = data?.settings || [];
+      const priceMatrixKeys = new Set(PRICE_MATRIX_SETTINGS.map((setting) => setting.key));
+      const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
+      const values = new Map(allSettings.map((setting) => [setting.setting_key, setting.setting_value]));
+      const priceMatrixFields = PRICE_MATRIX_SETTINGS.map(
+        (setting) => `
+          <label>${this.ctx.escapeHtml(setting.label)}
+            <input type="number" min="0" step="${setting.step}" data-price-matrix-setting="${setting.key}" value="${this.ctx.escapeHtml(values.get(setting.key) ?? setting.defaultValue)}" />
+          </label>`
+      ).join('');
+      const dailyReportFields = DAILY_REPORT_SETTINGS.map((setting) => {
+        const value = values.get(setting.key) ?? setting.defaultValue;
+        const constraints = setting.type === 'number'
+          ? `min="${setting.min}" max="${setting.max}" step="${setting.step}"`
+          : '';
+        if (setting.type === 'color') {
+          return `<label>${this.ctx.escapeHtml(setting.label)}
+            <span class="color-setting-control">
+              <input type="color" data-daily-report-setting="${setting.key}" value="${this.ctx.escapeHtml(value)}" aria-label="${this.ctx.escapeHtml(setting.label)}の色見本" />
+              <input class="color-setting-code" data-color-code="${setting.key}" value="${this.ctx.escapeHtml(value)}" maxlength="7" aria-label="${this.ctx.escapeHtml(setting.label)}のカラーコード" />
+              <span class="color-setting-preview" data-color-preview="${setting.key}" style="background:${this.ctx.escapeHtml(value)}"></span>
+            </span>
+          </label>`;
+        }
+        return `<label>${this.ctx.escapeHtml(setting.label)}
+          <input type="${setting.type}" ${constraints} data-daily-report-setting="${setting.key}" value="${this.ctx.escapeHtml(value)}" />
+        </label>`;
+      }).join('');
+      const rows = allSettings
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key))
         .map(
           (s) => `
           <tr>
@@ -581,6 +629,18 @@
       this.ctx.app.innerHTML = this.kit.shell(
         'システム設定',
         `<section class="panel">
+          <section class="panel price-matrix-settings-panel">
+            <h3>料金自動計算</h3>
+            <p class="muted">金額データの自動計算と利益率警告に共通で使用します。</p>
+            <div class="form-grid">${priceMatrixFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-price-matrix-settings">料金自動計算設定を保存</button></div>
+          </section>
+          <section class="panel daily-report-settings-panel">
+            <h3>日報入力画面</h3>
+            <p class="muted">入力文字、元単価表示、曜日色、入力欄の増減単位に共通で使用します。祝日・案件休日の日付は「祝日・案件休日」で登録します。</p>
+            <div class="form-grid">${dailyReportFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-daily-report-settings">日報入力画面設定を保存</button></div>
+          </section>
           <div class="toolbar">
             <input id="new-key" placeholder="キー" />
             <input id="new-label" placeholder="ラベル" />
@@ -597,6 +657,76 @@
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      DAILY_REPORT_SETTINGS.filter((setting) => setting.type === 'color').forEach((setting) => {
+        const picker = document.querySelector(`[data-daily-report-setting="${setting.key}"]`);
+        const code = document.querySelector(`[data-color-code="${setting.key}"]`);
+        const preview = document.querySelector(`[data-color-preview="${setting.key}"]`);
+        const applyColor = (value) => {
+          if (!/^#[0-9a-f]{6}$/i.test(value || '')) return;
+          const normalized = value.toUpperCase();
+          picker.value = normalized;
+          code.value = normalized;
+          preview.style.background = normalized;
+        };
+        picker?.addEventListener('input', () => applyColor(picker.value));
+        code?.addEventListener('input', () => {
+          if (/^#[0-9a-f]{6}$/i.test(code.value)) applyColor(code.value);
+        });
+        code?.addEventListener('change', () => {
+          if (!/^#[0-9a-f]{6}$/i.test(code.value)) code.value = picker.value.toUpperCase();
+        });
+      });
+      document.getElementById('save-price-matrix-settings')?.addEventListener('click', async () => {
+        const settings = PRICE_MATRIX_SETTINGS.map((setting) => ({
+          ...setting,
+          value: document.querySelector(`[data-price-matrix-setting="${setting.key}"]`)?.value,
+        }));
+        if (settings.some((setting) => setting.value === '' || !Number.isFinite(Number(setting.value)) || Number(setting.value) < 0)) {
+          window.alert('料金自動計算の設定値は0以上の数値で入力してください');
+          return;
+        }
+        const results = await Promise.all(
+          settings.map((setting) =>
+            this.ctx.api(`/api/master-settings/settings/${encodeURIComponent(setting.key)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ setting_value: setting.value, setting_label: setting.label }),
+            })
+          )
+        );
+        if (results.some((result) => !result.res.ok)) {
+          window.alert('料金自動計算設定の保存に失敗しました');
+          return;
+        }
+        this.ctx.showToast('料金自動計算設定を保存しました');
+      });
+      document.getElementById('save-daily-report-settings')?.addEventListener('click', async () => {
+        const settings = DAILY_REPORT_SETTINGS.map((setting) => ({
+          ...setting,
+          value: document.querySelector(`[data-daily-report-setting="${setting.key}"]`)?.value,
+        }));
+        const invalid = settings.some((setting) => {
+          if (setting.type === 'color') return !/^#[0-9a-f]{6}$/i.test(setting.value || '');
+          const value = Number(setting.value);
+          return !Number.isFinite(value) || value < Number(setting.min) || value > Number(setting.max);
+        });
+        if (invalid) {
+          window.alert('日報入力画面の設定値を指定範囲で入力してください');
+          return;
+        }
+        const results = await Promise.all(
+          settings.map((setting) =>
+            this.ctx.api(`/api/master-settings/settings/${encodeURIComponent(setting.key)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ setting_value: setting.value, setting_label: setting.label }),
+            })
+          )
+        );
+        if (results.some((result) => !result.res.ok)) {
+          window.alert('日報入力画面設定の保存に失敗しました');
+          return;
+        }
+        this.ctx.showToast('日報入力画面設定を保存しました');
+      });
       document.getElementById('add-setting')?.addEventListener('click', async () => {
         const key = document.getElementById('new-key').value.trim();
         if (!key) return;

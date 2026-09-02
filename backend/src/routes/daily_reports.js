@@ -3,7 +3,14 @@ const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { applyDailyPriceCalc, buildDailyCalculationContext, parseJson } = require('../services/price_calc');
 const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
+
 const { calculateMonthlyDistance } = require('../services/distance_calc');
+
+const {
+  SETTING_KEYS: DAILY_REPORT_UI_SETTING_KEYS,
+  normalizeDailyReportUiSettings,
+} = require('../services/daily_report_ui_settings');
+
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'));
@@ -381,6 +388,84 @@ router.get('/distance-monthly', async (req, res) => {
     }
     return res.json({ ok: true, project_id: projectId, target_year_month: ym, results: output });
   } catch (err) { return routeError(res, err, '月間距離計算に失敗しました'); }
+
+router.get('/input-defaults', async (req, res) => {
+  try {
+    const projectId = Number(req.query.project_id || 0);
+    if (!projectId) return res.status(400).json({ ok: false, message: '案件は必須です' });
+    const rows = await query(
+      `SELECT execution_time_start, execution_time_end, break_time
+       FROM projects
+       WHERE project_id = ? AND is_deleted = 0
+       LIMIT 1`,
+      [projectId]
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, message: '案件が見つかりません' });
+    const project = rows[0];
+    const breakHours = Number(project.break_time || 0);
+    return res.json({
+      ok: true,
+      defaults: {
+        start_time: project.execution_time_start || null,
+        end_time: project.execution_time_end || null,
+        break_minutes: Number.isFinite(breakHours) ? Math.max(0, Math.round(breakHours * 60)) : 0,
+      },
+    });
+  } catch (err) {
+    return routeError(res, err, '日報入力初期値の取得に失敗しました');
+  }
+});
+
+router.get('/ui-settings', async (req, res) => {
+  try {
+    const projectId = Number(req.query.project_id || 0);
+    const ym = String(req.query.target_year_month || '').trim();
+    if (!projectId || !/^\d{4}-\d{2}$/.test(ym)) {
+      return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
+    }
+    const keys = Object.values(DAILY_REPORT_UI_SETTING_KEYS);
+    const [settingRows, holidayRows] = await Promise.all([
+      query(
+        `SELECT setting_key, setting_value
+         FROM system_settings
+         WHERE is_deleted = 0 AND setting_key IN (${keys.map(() => '?').join(', ')})`,
+        keys
+      ),
+      query(
+        `SELECT holiday_date
+         FROM holidays
+         WHERE is_active = 1 AND is_deleted = 0
+           AND holiday_date >= ? AND holiday_date < DATE_ADD(?, INTERVAL 1 MONTH)
+           AND (project_id IS NULL OR project_id = ?)
+         ORDER BY holiday_date ASC`,
+        [`${ym}-01`, `${ym}-01`, projectId]
+      ),
+    ]);
+    return res.json({
+      ok: true,
+      settings: normalizeDailyReportUiSettings(settingRows),
+      holiday_dates: [...new Set(holidayRows.map((row) => String(row.holiday_date).slice(0, 10)))],
+    });
+  } catch (err) {
+    return routeError(res, err, '日報画面設定の取得に失敗しました');
+  }
+});
+
+router.post('/preview', async (req, res) => {
+  try {
+    const input = pick(req.body || {});
+    if (!input.project_id || !input.work_date) {
+      return res.status(400).json({ ok: false, message: '案件と勤務日は必須です' });
+    }
+    const calculated = await applySimpleCalc({ ...input });
+    const preview = { ...input, ...pickSystem(calculated) };
+    preview.effective_billing_amount = effectiveAmount(preview, 'billing');
+    preview.effective_payment_amount = effectiveAmount(preview, 'payment');
+    return res.json({ ok: true, preview });
+  } catch (err) {
+    return routeError(res, err, '日報金額の再計算に失敗しました');
+  }
+
 });
 
 router.get('/monthly-approval', async (req, res) => {

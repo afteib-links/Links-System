@@ -1,11 +1,18 @@
 (() => {
   const Fee = () => window.LinksPriceSetFeeModel;
+  const DEFAULT_CALCULATION_SETTINGS = Object.freeze({
+    profit_warning_percent: 10,
+    overtime_multiplier: 1.25,
+    night_multiplier: 1.35,
+    night_overtime_multiplier: 1.6,
+  });
 
   const LinksPriceSets = {
     async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.codes = await this.kit.loadCodes();
+      this.calculationSettings = await this.loadCalculationSettings();
       const companies = await this.ctx.api('/api/lookups/companies');
       this.companies = companies.data?.companies || [];
       this.q = '';
@@ -28,6 +35,12 @@
         return;
       }
       await this.showList();
+    },
+
+    async loadCalculationSettings() {
+      const { res, data } = await this.ctx.api('/api/price-sets/calculation-settings');
+      if (!res.ok || !data?.ok) return { ...DEFAULT_CALCULATION_SETTINGS };
+      return { ...DEFAULT_CALCULATION_SETTINGS, ...(data.settings || {}) };
     },
 
     linkLabel(ps) {
@@ -93,6 +106,51 @@
       const p = Number(payment || 0);
       if (!b) return '-';
       return `${Math.round(((b - p) / b) * 1000) / 10}%`;
+    },
+
+    profitRateValue(billing, payment) {
+      const b = Number(billing || 0);
+      const p = Number(payment || 0);
+      if (!b) return '';
+      return String(Math.round(((b - p) / b) * 1000) / 10);
+    },
+
+    formatDurationMinutes(value) {
+      const minutes = Math.max(0, Math.floor(Number(value) || 0));
+      return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+    },
+
+    parseDurationMinutes(value, fieldName = '時間') {
+      const text = String(value ?? '').trim();
+      if (!text) return 0;
+      const match = text.match(/^(\d+):([0-5]\d)$/);
+      if (!match) throw new Error(`${fieldName}はH:MM形式で入力してください`);
+      return Number(match[1]) * 60 + Number(match[2]);
+    },
+
+    paymentFromProfitRate(billing, profitRate) {
+      const b = Number(billing);
+      const rate = Number(profitRate);
+      if (!Number.isFinite(b) || !Number.isFinite(rate)) return '';
+      return String(Math.round(b * (1 - rate / 100)));
+    },
+
+    moneyValue(value) {
+      const text = String(value ?? '').replace(/[，,\s]/g, '');
+      if (!text) return 0;
+      const amount = Number(text);
+      return Number.isFinite(amount) ? Math.round(amount) : 0;
+    },
+
+    moneyInputValue(value) {
+      const text = String(value ?? '').trim();
+      if (!text) return '';
+      return this.moneyValue(text).toLocaleString('ja-JP');
+    },
+
+    profitWarningClass(rate) {
+      const threshold = Number(this.calculationSettings?.profit_warning_percent ?? DEFAULT_CALCULATION_SETTINGS.profit_warning_percent);
+      return Number.isFinite(Number(rate)) && Number(rate) < threshold ? ' profit-below-threshold' : '';
     },
 
     parseExtraData(raw) {
@@ -191,8 +249,8 @@
         const distance = settings.distance_rules[side];
         return `<fieldset class="night-setting-card">
           <legend>${label}</legend>
-          <label>日次基準時間（分）
-            <input id="standard-${side}-minutes" type="number" min="0" step="1" value="${this.ctx.escapeHtml(workRule.standard_minutes)}" />
+          <label>日次基準時間
+            <input id="standard-${side}-minutes" inputmode="numeric" placeholder="8:00" value="${this.ctx.escapeHtml(this.formatDurationMinutes(workRule.standard_minutes))}" />
           </label>
           <label>深夜帯（複数はカンマ区切り）
             <input id="night-${side}-periods" value="${this.ctx.escapeHtml(this.periodsText(rule.periods))}" placeholder="22:00-29:00" />
@@ -232,7 +290,10 @@
       const settings = this.detailState.nightSettings;
       for (const side of ['billing', 'payment']) {
         settings.work_rules[side] = {
-          standard_minutes: Math.max(0, Number(document.getElementById(`standard-${side}-minutes`)?.value || 0)),
+          standard_minutes: this.parseDurationMinutes(
+            document.getElementById(`standard-${side}-minutes`)?.value,
+            '日次基準時間'
+          ),
         };
         settings.night_rules[side] = {
           periods: this.parsePeriodsText(document.getElementById(`night-${side}-periods`)?.value),
@@ -365,9 +426,9 @@
             <tbody>
               <tr data-item="${itemIdx}" data-calc="distance" data-pt="${pt}">
                 <td>${this.ctx.escapeHtml(this.priceTypeLabel(pt))}</td>
-                <td><input type="number" step="0.01" data-f="billing" value="${this.ctx.escapeHtml(cell.billing ?? '')}" /></td>
-                <td><input type="number" step="0.01" data-f="payment" value="${this.ctx.escapeHtml(cell.payment ?? '')}" /></td>
-                <td class="dt-profit">${this.ctx.escapeHtml(this.profitRate(cell.billing, cell.payment))}</td>
+                <td><input class="money-input" inputmode="numeric" data-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(cell.billing))}" /></td>
+                <td><input class="money-input" inputmode="numeric" data-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(cell.payment))}" /></td>
+                <td><div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(cell.billing, cell.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(cell.billing, cell.payment))}" /><span>%</span></div></td>
               </tr>
             </tbody>
           </table>`;
@@ -389,9 +450,9 @@
               return `
                 <td class="fee-matrix-cell" data-item="${itemIdx}" data-calc="${calc.code}" data-pt="${pt}">
                   <div class="fee-matrix-pair">
-                    <label>請求</label><input type="number" step="0.01" data-f="billing" value="${this.ctx.escapeHtml(cell.billing ?? '')}" />
-                    <label>支払</label><input type="number" step="0.01" data-f="payment" value="${this.ctx.escapeHtml(cell.payment ?? '')}" />
-                    <span class="dt-profit">${this.ctx.escapeHtml(this.profitRate(cell.billing, cell.payment))}</span>
+                    <label>請求</label><input class="money-input" inputmode="numeric" data-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(cell.billing))}" />
+                    <label>支払</label><input class="money-input" inputmode="numeric" data-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(cell.payment))}" />
+                    <label>利益率</label><div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(cell.billing, cell.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(cell.billing, cell.payment))}" /><span>%</span></div>
                   </div>
                 </td>`;
             })
@@ -433,11 +494,13 @@
           <div class="fee-item-head">
             <input type="text" class="fee-item-name" data-item="${itemIdx}" value="${this.ctx.escapeHtml(item.name || '')}" placeholder="料金項目名" />
             <div class="fee-item-actions">
+              ${item.mode !== 'distance' ? `<button type="button" class="btn btn-ghost btn-small" data-auto-calc-item="${itemIdx}">自動計算</button>` : ''}
               <button type="button" class="btn btn-ghost btn-small" data-dup-item="${itemIdx}">項目コピー</button>
               <button type="button" class="btn btn-danger btn-small" data-del-item="${itemIdx}">削除</button>
             </div>
           </div>
           <div class="fee-weekdays">${weekdayChecks}${quick}</div>
+          <p class="error fee-auto-error">${this.ctx.escapeHtml(this.detailState.autoErrors?.[itemIdx] || '')}</p>
           <div class="fee-matrix-wrap" data-matrix-for="${itemIdx}">${this.feeItemMatrixHtml(item, itemIdx)}</div>
         </article>`;
     },
@@ -493,8 +556,8 @@
             const payment = tr.querySelector('[data-f="payment"]')?.value;
             if (!item.matrix.distance[pt]) item.matrix.distance[pt] = Fee().emptyCell();
             const cell = item.matrix.distance[pt];
-            cell.billing = billing;
-            cell.payment = payment;
+            cell.billing = billing === '' ? '' : this.moneyValue(billing);
+            cell.payment = payment === '' ? '' : this.moneyValue(payment);
           }
         } else {
           card.querySelectorAll('.fee-matrix-cell').forEach((td) => {
@@ -505,12 +568,82 @@
             if (!item.matrix[calc]) item.matrix[calc] = {};
             if (!item.matrix[calc][pt]) item.matrix[calc][pt] = Fee().emptyCell();
             const cell = item.matrix[calc][pt];
-            cell.billing = billing;
-            cell.payment = payment;
+            cell.billing = billing === '' ? '' : this.moneyValue(billing);
+            cell.payment = payment === '' ? '' : this.moneyValue(payment);
           });
         }
       });
       this.detailState.items = items;
+    },
+
+    setCalculatedValue(item, calc, priceType, side, amount) {
+      const cell = item.matrix?.[calc]?.[priceType];
+      if (cell) cell[side] = Math.round(amount);
+    },
+
+    autoCalculateFeeItem(itemIdx) {
+      this.collectFeeItemsFromDom();
+      const item = this.detailState.items?.[itemIdx];
+      if (!item || item.mode === 'distance') return;
+      const errors = [];
+      const minutesBySide = {};
+      for (const side of ['billing', 'payment']) {
+        try {
+          minutesBySide[side] = this.parseDurationMinutes(
+            document.getElementById(`standard-${side}-minutes`)?.value,
+            '日次基準時間'
+          );
+        } catch (error) {
+          errors.push(error.message);
+          continue;
+        }
+        if (minutesBySide[side] <= 0) errors.push(`${side === 'billing' ? '請求' : '支払'}の日次基準時間を入力してください`);
+      }
+      for (const side of ['billing', 'payment']) {
+        const base = this.moneyValue(item.matrix?.daily?.basic?.[side]);
+        if (base <= 0) errors.push(`${side === 'billing' ? '請求' : '支払'}の日額基本単価を入力してください`);
+      }
+      if (errors.length) {
+        this.detailState.autoErrors[itemIdx] = [...new Set(errors)].join(' / ');
+        this.refreshFeeItemsDom();
+        return;
+      }
+
+      const multipliers = {
+        overtime: Number(this.calculationSettings.overtime_multiplier),
+        night: Number(this.calculationSettings.night_multiplier),
+        night_overtime: Number(this.calculationSettings.night_overtime_multiplier),
+      };
+      for (const side of ['billing', 'payment']) {
+        const dailyBasic = this.moneyValue(item.matrix?.daily?.basic?.[side]);
+        const hourlyBasic = dailyBasic / (minutesBySide[side] / 60);
+        this.setCalculatedValue(item, 'hourly', 'basic', side, hourlyBasic);
+        this.setCalculatedValue(item, 'hourly', 'shortage', side, hourlyBasic);
+        Object.entries(multipliers).forEach(([priceType, multiplier]) => {
+          this.setCalculatedValue(item, 'daily', priceType, side, dailyBasic * multiplier);
+          this.setCalculatedValue(item, 'hourly', priceType, side, hourlyBasic * multiplier);
+        });
+      }
+      delete this.detailState.autoErrors[itemIdx];
+      this.refreshFeeItemsDom();
+    },
+
+    updateProfitInput(cell) {
+      const billing = cell.querySelector('[data-f="billing"]')?.value;
+      const payment = cell.querySelector('[data-f="payment"]')?.value;
+      const profit = cell.querySelector('[data-f="profit"]');
+      if (!profit) return;
+      const rate = this.profitRateValue(this.moneyValue(billing), this.moneyValue(payment));
+      profit.value = rate;
+      profit.classList.toggle('profit-below-threshold', this.profitWarningClass(rate).includes('profit-below-threshold'));
+    },
+
+    matrixTabOrder(row) {
+      const cells = [...row.querySelectorAll('.fee-matrix-cell')];
+      if (!cells.length) return [];
+      return ['billing', 'payment', 'profit'].flatMap((field) =>
+        cells.map((cell) => cell.querySelector(`[data-f="${field}"]`)).filter(Boolean)
+      );
     },
 
     bindFeeItemsArea() {
@@ -540,13 +673,45 @@
           this.refreshFeeItemsDom();
         })
       );
-      document.querySelectorAll('.fee-matrix input[data-f]').forEach((inp) => {
+      document.querySelectorAll('[data-auto-calc-item]').forEach((btn) =>
+        btn.addEventListener('click', () => this.autoCalculateFeeItem(Number(btn.getAttribute('data-auto-calc-item'))))
+      );
+      document.querySelectorAll('.fee-matrix input[data-f]:not([data-f="profit"])').forEach((inp) => {
         inp.addEventListener('input', () => {
           const cell = inp.closest('.fee-matrix-cell') || inp.closest('tr');
-          const b = cell.querySelector('[data-f="billing"]')?.value;
-          const p = cell.querySelector('[data-f="payment"]')?.value;
-          const profit = cell.querySelector('.dt-profit');
-          if (profit) profit.textContent = this.profitRate(b, p);
+          this.updateProfitInput(cell);
+        });
+      });
+      document.querySelectorAll('.money-input').forEach((inp) => {
+        inp.addEventListener('input', () => {
+          const cleaned = inp.value.replace(/[^0-9,，]/g, '');
+          if (inp.value !== cleaned) inp.value = cleaned;
+        });
+        inp.addEventListener('blur', () => {
+          inp.value = this.moneyInputValue(inp.value);
+          this.updateProfitInput(inp.closest('.fee-matrix-cell') || inp.closest('tr'));
+        });
+      });
+      document.querySelectorAll('.fee-matrix input[data-f="profit"]').forEach((inp) => {
+        inp.addEventListener('input', () => {
+          const cell = inp.closest('.fee-matrix-cell') || inp.closest('tr');
+          const billing = cell.querySelector('[data-f="billing"]');
+          const payment = cell.querySelector('[data-f="payment"]');
+          if (!billing || !payment || billing.value === '') return;
+          payment.value = this.moneyInputValue(this.paymentFromProfitRate(this.moneyValue(billing.value), inp.value));
+          inp.classList.toggle('profit-below-threshold', this.profitWarningClass(inp.value).includes('profit-below-threshold'));
+        });
+      });
+      document.querySelectorAll('.fee-matrix input[data-f]').forEach((inp) => {
+        inp.addEventListener('keydown', (event) => {
+          if (event.key !== 'Tab') return;
+          const row = inp.closest('tr');
+          const inputs = row ? this.matrixTabOrder(row) : [];
+          const index = inputs.indexOf(inp);
+          const target = inputs[index + (event.shiftKey ? -1 : 1)];
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
         });
       });
     },
@@ -606,6 +771,7 @@
         id: row.price_set_id,
         version: row.version || 1,
         items,
+        autoErrors: {},
         nightSettings: this.normalizeNightSettings(row.extra_data),
         rowMeta: row,
       };
@@ -647,6 +813,11 @@
           .weekday-quick { display: flex; gap: 0.25rem; flex-wrap: wrap; }
           .fee-matrix-pair { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; }
           .fee-matrix-pair input { width: 100%; max-width: 7rem; }
+          .fee-matrix .money-input { width: 9ch; min-width: 9ch; font-size: 1.15rem; font-variant-numeric: tabular-nums; text-align: right; }
+          .fee-profit-input { display: flex; align-items: center; gap: 0.2rem; }
+          .fee-profit-input input { max-width: 5rem; }
+          .fee-profit-input input.profit-below-threshold { color: #b42318; border-color: #d92d20; background: #fef3f2; font-weight: 700; }
+          .fee-auto-error { min-height: 1.2rem; margin: 0.25rem 0; }
           .fee-matrix-wide th, .fee-matrix-wide td { vertical-align: top; }
           .fee-import-bar { margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
           .night-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
