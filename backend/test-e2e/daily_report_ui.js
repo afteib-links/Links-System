@@ -37,6 +37,8 @@ function buildPriceExtra(split = false) {
   const payment = split
     ? { ...billing, periods: [{ start: '23:00', end: '30:00' }] }
     : JSON.parse(JSON.stringify(billing));
+  const specialMatrix = feeMatrix();
+  specialMatrix.daily.basic = rateCell(30000, 22000);
   return {
     fee_items: [
       {
@@ -45,6 +47,13 @@ function buildPriceExtra(split = false) {
         mode: 'weekdays',
         weekdays: { all: true },
         matrix: feeMatrix(),
+      },
+      {
+        id: 'e2e-special',
+        name: 'E2E特別料金',
+        mode: 'weekdays',
+        weekdays: { all: true },
+        matrix: specialMatrix,
       },
     ],
     night_rules: { billing, payment },
@@ -82,8 +91,9 @@ async function seed(pool, yearMonth) {
     `INSERT INTO partners (partner_name) VALUES ('E2E匿名パートナー')`
   );
   const [project] = await pool.execute(
-    `INSERT INTO projects (company_id, partner_id, manager_name, business_type)
-     VALUES (?, ?, 'E2E担当', '日報画面E2E')`,
+    `INSERT INTO projects
+      (company_id, partner_id, manager_name, business_type, execution_time_start, execution_time_end, break_time)
+     VALUES (?, ?, 'E2E担当', '日報画面E2E', '08:00:00', '17:00:00', 1)`,
     [company.insertId, partner.insertId]
   );
   const [priceSet] = await pool.execute(
@@ -183,6 +193,11 @@ async function main() {
 
     await openDailyReport();
     assert.equal(await (await dateRows()).count(), 2, '同日の2作業行が表示されること');
+    assert.match(
+      await (await dateRows()).first().getAttribute('class'),
+      /dr-holiday-row/,
+      '祝日マスターの日付は日祝色の行として表示すること'
+    );
 
     let firstRow = (await dateRows()).first();
     await firstRow.locator('[data-expand]').click();
@@ -196,6 +211,17 @@ async function main() {
     );
     await detail.getByText(/不足 5:00 \/ ¥-6,000/).waitFor();
     await detail.getByText(/不足 6:00 \/ ¥-5,400/).waitFor();
+    const previewResponse = page.waitForResponse(
+      (response) => response.url().includes('/api/daily-reports/preview') && response.status() === 200
+    );
+    await detail.locator('[data-fee-item]').selectOption('e2e-special');
+    await previewResponse;
+    detail = page.locator('tr.dr-expand').first();
+    assert.equal(
+      await detail.locator('[data-rate-side="billing"][data-rate-type="basic"]').getAttribute('placeholder'),
+      '30000',
+      '料金種類の変更直後に新しい契約単価へ再計算すること'
+    );
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: holidayScreenshotPath, fullPage: true });
     assert.equal(
@@ -226,7 +252,8 @@ async function main() {
     const warning = await warningDialog;
     assert.match(warning.message(), /深夜帯内休憩時間が0:00/);
     await warning.accept();
-    await page.locator('span.status-confirmed').first().waitFor();
+    await page.locator('.status-confirmed').first().waitFor();
+    await page.locator('tr.dr-expand').first().waitFor();
     assert.equal(await (await dateRows()).count(), 2);
     assert.equal(
       await (await dateRows()).first().locator('[data-f="start_time"]').isDisabled(),
@@ -236,10 +263,27 @@ async function main() {
 
     firstRow = (await dateRows()).first();
     await firstRow.locator('[data-day-status="draft"]').click();
-    await page.locator('span.status-draft').first().waitFor();
+    await page.locator('.status-draft').first().waitFor();
+    await page.locator('tr.dr-expand').first().waitFor();
     firstRow = (await dateRows()).first();
     await firstRow.locator('[data-add-work]').click();
     assert.equal(await (await dateRows()).count(), 3, '同日に作業行を追加できること');
+    const addedRow = (await dateRows()).nth(2);
+    await addedRow.locator('[data-f="start_time"]').fill('8.00');
+    await addedRow.locator('[data-f="start_time"]').blur();
+    assert.equal(await addedRow.locator('[data-f="start_time"]').inputValue(), '08:00');
+    await addedRow.locator('[data-default-time="start_time"]').dblclick();
+    await addedRow.locator('[data-default-time="end_time"]').dblclick();
+    await addedRow.locator('[data-default-time="break_minutes"]').dblclick();
+    assert.equal(await addedRow.locator('[data-f="start_time"]').inputValue(), '08:00');
+    assert.equal(await addedRow.locator('[data-f="end_time"]').inputValue(), '17:00');
+    assert.equal(await addedRow.locator('[data-minutes-f="break_minutes"]').inputValue(), '1:00');
+    await addedRow.locator('[data-time-step="start_time"][data-direction="1"]').click();
+    assert.equal(await addedRow.locator('[data-f="start_time"]').inputValue(), '08:15');
+    assert.equal(await addedRow.locator('[data-f="total_distance"]').getAttribute('step'), '1');
+    assert.equal(await addedRow.locator('[data-f="toll_fee"]').getAttribute('step'), '100');
+    assert.equal(await addedRow.locator('[data-f="parking_fee"]').getAttribute('step'), '100');
+    assert.equal(await addedRow.locator('[data-f="transport_fee"]').getAttribute('step'), '100');
 
     await pool.execute(
       `UPDATE price_sets SET extra_data = ?, version = version + 1 WHERE price_set_id = ?`,

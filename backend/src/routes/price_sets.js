@@ -6,6 +6,7 @@ const {
   assertValidFromRequired,
   allocatePriceSetNo,
 } = require('../services/price_set_lifecycle');
+const { normalizePriceMatrixSettings, SETTING_KEYS } = require('../services/price_matrix_settings');
 
 function todayTokyoYmd() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
@@ -200,6 +201,22 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('[price_sets/list]', err);
     return res.status(500).json({ ok: false, message: '金額データ一覧の取得に失敗しました' });
+  }
+});
+
+router.get('/calculation-settings', async (_req, res) => {
+  try {
+    const keys = Object.values(SETTING_KEYS);
+    const rows = await query(
+      `SELECT setting_key, setting_value
+       FROM system_settings
+       WHERE is_deleted = 0 AND setting_key IN (${keys.map(() => '?').join(', ')})`,
+      keys
+    );
+    return res.json({ ok: true, settings: normalizePriceMatrixSettings(rows) });
+  } catch (err) {
+    console.error('[price_sets/calculation-settings]', err);
+    return res.status(500).json({ ok: false, message: '料金自動計算設定の取得に失敗しました' });
   }
 });
 
