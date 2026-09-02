@@ -7,7 +7,7 @@ ENV TZ=Asia/Tokyo
 
 COPY backend/package.json backend/package-lock.json* ./backend/
 WORKDIR /app/backend
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npx playwright install --with-deps chromium
 
 WORKDIR /app
 COPY backend ./backend
