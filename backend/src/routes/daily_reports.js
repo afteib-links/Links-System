@@ -417,6 +417,18 @@ router.post('/monthly-approval', async (req, res) => {
        ORDER BY work_date ASC, daily_report_id ASC`,
       [projectId, ym]
     );
+    const [monthlyDistanceRows] = await conn.query(
+      `SELECT side_code, calculation_version, result_data, calculated_at
+       FROM daily_report_distance_monthly_results
+       WHERE project_id = ? AND target_year_month = ?`, [projectId, ym]
+    );
+    const monthlyDistanceResults = Object.fromEntries(
+      monthlyDistanceRows.map((row) => [row.side_code, {
+        calculation_version: row.calculation_version,
+        calculated_at: row.calculated_at,
+        result: parseJson(row.result_data, row.result_data),
+      }])
+    );
     if (!reports.length) {
       await conn.rollback();
       return res.status(400).json({ ok: false, message: '承認対象の日報がありません' });
@@ -450,6 +462,7 @@ router.post('/monthly-approval', async (req, res) => {
         target_year_month: ym,
         submitted_at: new Date().toISOString(),
         unchecked_dates: unchecked,
+        monthly_distance_results: monthlyDistanceResults,
         reports,
       };
       await conn.query(
@@ -469,6 +482,7 @@ router.post('/monthly-approval', async (req, res) => {
           project_id: projectId,
           target_year_month: ym,
           approved_at: new Date().toISOString(),
+          monthly_distance_results: monthlyDistanceResults,
           reports,
         };
         await conn.query(
