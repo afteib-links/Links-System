@@ -59,6 +59,7 @@ function resolveFeeItem(items, workDate, selectedId, isTraining = false, isHolid
 
 function normalizeConfig(extraData) {
   const extra = parseJson(extraData, {}) || {};
+  const legacyStandardMinutes = Math.max(0, Number(extra.work_rules?.standard_minutes ?? 480));
   return {
     night_rules: {
       billing: { ...DEFAULT_SIDE_RULE, ...(extra.night_rules?.billing || {}) },
@@ -69,7 +70,19 @@ function normalizeConfig(extraData) {
       payment: { ...DEFAULT_ROUNDING, ...(extra.rounding?.payment || {}) },
     },
     work_rules: {
-      standard_minutes: Math.max(0, Number(extra.work_rules?.standard_minutes ?? 480)),
+      standard_minutes: legacyStandardMinutes,
+      billing: {
+        standard_minutes: Math.max(
+          0,
+          Number(extra.work_rules?.billing?.standard_minutes ?? legacyStandardMinutes)
+        ),
+      },
+      payment: {
+        standard_minutes: Math.max(
+          0,
+          Number(extra.work_rules?.payment?.standard_minutes ?? legacyStandardMinutes)
+        ),
+      },
     },
   };
 }

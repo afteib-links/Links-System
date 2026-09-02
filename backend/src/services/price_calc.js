@@ -77,7 +77,7 @@ function legacyFeeItem(lines, workDate, isHoliday = false) {
     weekdays: { [jsWeekdayCode(workDate)]: true },
     matrix: { daily: {}, hourly: {} },
   };
-  for (const priceType of ['basic', 'overtime', 'night', 'night_overtime']) {
+  for (const priceType of ['basic', 'shortage', 'overtime', 'night', 'night_overtime']) {
     for (const calcType of ['daily', 'hourly']) {
       const candidates = lines.filter((line) => String(line.price_type_code || 'basic') === priceType);
       const hit = resolvePriceRow(candidates, workDate, calcType, isHoliday);
@@ -197,12 +197,12 @@ async function applyDailyPriceCalc(data) {
   const amountResults = {};
   for (const side of ['billing', 'payment']) {
     const classified = calculateNightSide({
-      start_time: data.start_time,
-      end_time: data.end_time,
+      start_time: Number(data.is_absent || 0) ? null : data.start_time,
+      end_time: Number(data.is_absent || 0) ? null : data.end_time,
       total_break_minutes: breakMinutes,
       night_break_minutes: data[`night_break_minutes_${side}`] || 0,
       night_adjustment_minutes: data[`night_adjustment_minutes_${side}`] || 0,
-      standard_minutes: context.work_rules.standard_minutes,
+      standard_minutes: context.work_rules[side].standard_minutes,
       rule: context.night_rules[side],
       rounding: context.rounding[side],
     });
@@ -225,6 +225,11 @@ async function applyDailyPriceCalc(data) {
   data.binding_hours = sideResults.billing.duration_minutes == null ? null : sideResults.billing.duration_minutes / 60;
   data.work_hours = sideResults.billing.work_minutes / 60;
   data.overtime_hours = sideResults.billing.overtime_minutes / 60;
+  data.shortage_hours = sideResults.billing.shortage_minutes / 60;
+  data.shortage_minutes_billing = sideResults.billing.shortage_minutes;
+  data.shortage_minutes_payment = sideResults.payment.shortage_minutes;
+  data.shortage_amount_billing = amountResults.billing.details.shortage.amount;
+  data.shortage_amount_payment = amountResults.payment.details.shortage.amount;
   data.night_hours = sideResults.billing.night_minutes == null ? null : sideResults.billing.night_minutes / 60;
   data.night_minutes_billing = sideResults.billing.night_minutes;
   data.night_minutes_payment = sideResults.payment.night_minutes;
@@ -244,7 +249,7 @@ async function applyDailyPriceCalc(data) {
     },
     day_type: context.day_type,
     holiday: context.holiday,
-    standard_minutes: context.work_rules.standard_minutes,
+    work_rules: context.work_rules,
     night_input_mode: nightInputMode(context),
     available_fee_items: context.fee_items,
     billing: { ...sideResults.billing, amounts: amountResults.billing },

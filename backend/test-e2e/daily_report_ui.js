@@ -13,12 +13,14 @@ function feeMatrix() {
   return {
     daily: {
       basic: rateCell(20000, 15000),
+      shortage: rateCell('', ''),
       overtime: rateCell('', ''),
       night: rateCell('', ''),
       night_overtime: rateCell('', ''),
     },
     hourly: {
       basic: rateCell('', ''),
+      shortage: rateCell(1200, 900),
       overtime: rateCell(2000, 1500),
       night: rateCell(2500, 2000),
       night_overtime: rateCell(3000, 2500),
@@ -50,7 +52,10 @@ function buildPriceExtra(split = false) {
       billing: { time_unit_minutes: 15, time_mode: 'floor', amount_mode: 'floor', amount_stage: 'detail' },
       payment: { time_unit_minutes: 15, time_mode: 'floor', amount_mode: 'floor', amount_stage: 'detail' },
     },
-    work_rules: { standard_minutes: 480 },
+    work_rules: {
+      billing: { standard_minutes: 480 },
+      payment: { standard_minutes: 540 },
+    },
   };
 }
 
@@ -171,6 +176,10 @@ async function main() {
       return results;
     }, { ids, workDate, yearMonth });
     assert.deepEqual(created.map((item) => item.status), [201, 201]);
+    assert.equal(created[0].body.report.shortage_minutes_billing, 300);
+    assert.equal(created[0].body.report.shortage_minutes_payment, 360);
+    assert.equal(Number(created[0].body.report.shortage_amount_billing), -6000);
+    assert.equal(Number(created[0].body.report.shortage_amount_payment), -5400);
 
     await openDailyReport();
     assert.equal(await (await dateRows()).count(), 2, '同日の2作業行が表示されること');
@@ -185,6 +194,8 @@ async function main() {
       /自動: E2E通常料金/,
       '自動選択された料金名を料金名欄に表示すること'
     );
+    await detail.getByText(/不足 5:00 \/ ¥-6,000/).waitFor();
+    await detail.getByText(/不足 6:00 \/ ¥-5,400/).waitFor();
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: holidayScreenshotPath, fullPage: true });
     assert.equal(

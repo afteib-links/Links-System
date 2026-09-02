@@ -68,7 +68,11 @@
     },
 
     rateForItem(item, priceType, side) {
-      const preferred = priceType === 'basic' ? ['daily', 'hourly'] : ['hourly', 'daily'];
+      const preferred = priceType === 'basic'
+        ? ['daily', 'hourly']
+        : priceType === 'shortage'
+          ? ['hourly']
+          : ['hourly', 'daily'];
       for (const calcType of preferred) {
         const value = item?.matrix?.[calcType]?.[priceType]?.[side];
         if (value !== '' && value != null && Number.isFinite(Number(value))) {
@@ -334,7 +338,7 @@
     },
 
     rateTableHtml(row, idx, locked) {
-      const labels = { basic: '基本加算', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
+      const labels = { basic: '基本加算', shortage: '不足控除', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
       const overrides = this.parseJson(row.rate_overrides, {});
       const cells = (side, priceType) => {
         const info = this.rateInfo(row, side, priceType);
@@ -343,7 +347,7 @@
         const value = override !== '' && override != null ? Number(override) : original;
         return `<td><input type="number" step="0.01" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" ${locked ? 'disabled' : ''} /><small>${this.ctx.escapeHtml(info.calc_type || '')}</small></td>`;
       };
-      const rows = ['basic', 'overtime', 'night', 'night_overtime']
+      const rows = ['basic', 'shortage', 'overtime', 'night', 'night_overtime']
         .map((type) => `<tr><th>${labels[type]}</th>${cells('billing', type)}${cells('payment', type)}</tr>`)
         .join('');
       return `<table class="data-table data-table-compact dr-rate-table">
@@ -389,7 +393,9 @@
       const side = (key, label) => {
         const value = detail[key] || {};
         const amount = value.amounts?.total ?? (key === 'billing' ? row.calculated_billing_amount : row.calculated_payment_amount);
+        const shortageAmount = value.amounts?.details?.shortage?.amount ?? row[`shortage_amount_${key}`] ?? 0;
         return `<div class="dr-calc-card"><strong>${label}</strong>
+          <span>不足 ${this.formatMinutes(value.shortage_minutes ?? row[`shortage_minutes_${key}`]) || '0:00'} / ¥${Number(shortageAmount || 0).toLocaleString()}</span>
           <span>超過 ${this.formatMinutes(value.regular_overtime_minutes ?? row[`regular_overtime_minutes_${key}`]) || '-'}</span>
           <span>深夜 ${this.formatMinutes(value.night_minutes ?? row[`night_minutes_${key}`]) || '対象外'}</span>
           <span>深夜超過 ${this.formatMinutes(value.night_overtime_minutes ?? row[`night_overtime_minutes_${key}`]) || '対象外'}</span>
@@ -486,7 +492,7 @@
             <div class="dr-summary">
               <span>稼働日数: <strong>${sum.workDays}</strong></span>
               <span>超過合計: <strong>${sum.overtime}</strong></span>
-              <span>不足合計: <strong>${sum.shortage}</strong></span>
+              <span>不足合計（請求）: <strong>${sum.shortage}</strong></span>
               <span>総距離: <strong>${sum.distance}</strong></span>
             </div>
             <div class="btn-row">
@@ -502,7 +508,7 @@
               <thead>
                 <tr>
                   <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
-                  <th>休憩</th><th>稼働</th><th>超過</th><th>不足</th><th>距離</th>
+                  <th>休憩</th><th>稼働</th><th>超過</th><th>不足（請求）</th><th>距離</th>
                   <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th><th>操作</th>
                 </tr>
               </thead>
@@ -805,7 +811,6 @@
         break_minutes: Number(row.break_minutes || 0),
         is_absent: row.is_absent ? 1 : 0,
         is_training: row.is_training ? 1 : 0,
-        shortage_hours: row.shortage_hours || null,
         total_distance: row.total_distance || null,
         toll_fee: row.toll_fee || null,
         parking_fee: row.parking_fee || null,
