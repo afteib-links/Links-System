@@ -3,10 +3,14 @@ const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { applyDailyPriceCalc, buildDailyCalculationContext, parseJson } = require('../services/price_calc');
 const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
+
+const { calculateMonthlyDistance } = require('../services/distance_calc');
+
 const {
   SETTING_KEYS: DAILY_REPORT_UI_SETTING_KEYS,
   normalizeDailyReportUiSettings,
 } = require('../services/daily_report_ui_settings');
+
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'));
@@ -30,6 +34,9 @@ const FIELDS = [
   'start_meter',
   'end_meter',
   'total_distance',
+  'distance_amount_billing',
+  'distance_amount_payment',
+  'distance_calculation_mode',
   'toll_fee',
   'parking_fee',
   'transport_fee',
@@ -73,6 +80,9 @@ const SYSTEM_FIELDS = [
   'shortage_minutes_payment',
   'shortage_amount_billing',
   'shortage_amount_payment',
+  'distance_amount_billing',
+  'distance_amount_payment',
+  'distance_calculation_mode',
   'night_hours',
   'night_minutes_billing',
   'night_minutes_payment',
@@ -350,6 +360,35 @@ router.get('/calculation-context', async (req, res) => {
   }
 });
 
+router.get('/distance-monthly', async (req, res) => {
+  try {
+    const projectId = Number(req.query.project_id || 0);
+    const ym = String(req.query.target_year_month || '').trim();
+    if (!projectId || !/^\d{4}-\d{2}$/.test(ym)) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
+    const rows = await query(
+      `SELECT work_date, total_distance FROM daily_reports
+       WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0
+       ORDER BY work_date, daily_report_id`, [projectId, ym]
+    );
+    const context = rows.length ? await buildDailyCalculationContext(projectId, rows[0].work_date, null, false) : null;
+    const output = {};
+    for (const side of ['billing', 'payment']) {
+      const rule = context?.distance_rules?.[side];
+      if (!rule?.mode) { output[side] = null; continue; }
+      const result = calculateMonthlyDistance({ distances: rows.map((r) => r.total_distance || 0), rule });
+      output[side] = result;
+      await query(
+        `INSERT INTO daily_report_distance_monthly_results
+          (project_id, target_year_month, side_code, result_data)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE calculation_version = calculation_version + 1,
+           result_data = VALUES(result_data), calculated_at = CURRENT_TIMESTAMP`,
+        [projectId, ym, side, JSON.stringify(result)]
+      );
+    }
+    return res.json({ ok: true, project_id: projectId, target_year_month: ym, results: output });
+  } catch (err) { return routeError(res, err, '月間距離計算に失敗しました'); }
+
 router.get('/input-defaults', async (req, res) => {
   try {
     const projectId = Number(req.query.project_id || 0);
@@ -426,6 +465,7 @@ router.post('/preview', async (req, res) => {
   } catch (err) {
     return routeError(res, err, '日報金額の再計算に失敗しました');
   }
+
 });
 
 router.get('/monthly-approval', async (req, res) => {
@@ -462,6 +502,18 @@ router.post('/monthly-approval', async (req, res) => {
        ORDER BY work_date ASC, daily_report_id ASC`,
       [projectId, ym]
     );
+    const [monthlyDistanceRows] = await conn.query(
+      `SELECT side_code, calculation_version, result_data, calculated_at
+       FROM daily_report_distance_monthly_results
+       WHERE project_id = ? AND target_year_month = ?`, [projectId, ym]
+    );
+    const monthlyDistanceResults = Object.fromEntries(
+      monthlyDistanceRows.map((row) => [row.side_code, {
+        calculation_version: row.calculation_version,
+        calculated_at: row.calculated_at,
+        result: parseJson(row.result_data, row.result_data),
+      }])
+    );
     if (!reports.length) {
       await conn.rollback();
       return res.status(400).json({ ok: false, message: '承認対象の日報がありません' });
@@ -495,6 +547,7 @@ router.post('/monthly-approval', async (req, res) => {
         target_year_month: ym,
         submitted_at: new Date().toISOString(),
         unchecked_dates: unchecked,
+        monthly_distance_results: monthlyDistanceResults,
         reports,
       };
       await conn.query(
@@ -514,6 +567,7 @@ router.post('/monthly-approval', async (req, res) => {
           project_id: projectId,
           target_year_month: ym,
           approved_at: new Date().toISOString(),
+          monthly_distance_results: monthlyDistanceResults,
           reports,
         };
         await conn.query(

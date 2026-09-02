@@ -194,6 +194,10 @@
           billing: { ...defaultRounding, ...(extra.rounding?.billing || {}) },
           payment: { ...defaultRounding, ...(extra.rounding?.payment || {}) },
         },
+        distance_rules: {
+          billing: { mode: '', base_distance: 0, tier_mode: 'excess_distance', unit_price: 0, fixed_amount: 0, tiers: [], ...(extra.distance_rules?.billing || {}) },
+          payment: { mode: '', base_distance: 0, tier_mode: 'excess_distance', unit_price: 0, fixed_amount: 0, tiers: [], ...(extra.distance_rules?.payment || {}) },
+        },
       };
     },
 
@@ -242,6 +246,7 @@
         const rule = settings.night_rules[side];
         const round = settings.rounding[side];
         const workRule = settings.work_rules[side];
+        const distance = settings.distance_rules[side];
         return `<fieldset class="night-setting-card">
           <legend>${label}</legend>
           <label>日次基準時間
@@ -256,6 +261,23 @@
           <label>時間丸め <select id="round-${side}-time-mode">${roundingOptions(round.time_mode)}</select></label>
           <label>金額丸め <select id="round-${side}-amount-mode">${roundingOptions(round.amount_mode)}</select></label>
           <label>金額丸め段階 <select id="round-${side}-amount-stage">${amountStageOptions(round.amount_stage)}</select></label>
+          <label>距離計算方式 <select id="distance-${side}-mode">
+            <option value="" ${!distance.mode ? 'selected' : ''}>対象外</option>
+            <option value="daily_excess" ${distance.mode === 'daily_excess' ? 'selected' : ''}>日次基準距離超過</option>
+            <option value="monthly_excess" ${distance.mode === 'monthly_excess' ? 'selected' : ''}>月間累計基準距離超過</option>
+            <option value="tiered" ${distance.mode === 'tiered' ? 'selected' : ''}>段階テーブル</option>
+          </select></label>
+          <label>基準距離（km） <input id="distance-${side}-base" type="number" min="0" step="1" value="${this.ctx.escapeHtml(distance.base_distance)}" /></label>
+          <label>距離単価（円/km） <input id="distance-${side}-unit" type="number" step="0.01" value="${this.ctx.escapeHtml(distance.unit_price)}" /></label>
+          <label>固定額（円） <input id="distance-${side}-fixed" type="number" step="0.01" value="${this.ctx.escapeHtml(distance.fixed_amount)}" /></label>
+          <label>段階の計算方式 <select id="distance-${side}-tier-mode">
+            <option value="fixed" ${distance.tier_mode === 'fixed' ? 'selected' : ''}>該当段階の固定額</option>
+            <option value="all_distance" ${distance.tier_mode === 'all_distance' ? 'selected' : ''}>該当段階単価×全距離</option>
+            <option value="excess_distance" ${(!distance.tier_mode || distance.tier_mode === 'excess_distance') ? 'selected' : ''}>該当段階単価×超過距離</option>
+            <option value="progressive" ${distance.tier_mode === 'progressive' ? 'selected' : ''}>各段階内距離の累積</option>
+          </select></label>
+          <label class="full">段階JSON（上限なしはnull、例: [{"upper_distance":100,"unit_price":10},{"upper_distance":null,"unit_price":20}]）
+            <textarea id="distance-${side}-tiers" rows="2">${this.ctx.escapeHtml(JSON.stringify(distance.tiers || []))}</textarea></label>
         </fieldset>`;
       };
       return `<div class="night-settings-grid">
@@ -283,6 +305,18 @@
           time_mode: document.getElementById(`round-${side}-time-mode`)?.value || 'floor',
           amount_mode: document.getElementById(`round-${side}-amount-mode`)?.value || 'floor',
           amount_stage: document.getElementById(`round-${side}-amount-stage`)?.value || 'detail',
+        };
+        let tiers = [];
+        const tiersText = document.getElementById(`distance-${side}-tiers`)?.value || '[]';
+        try { tiers = JSON.parse(tiersText); } catch { throw new Error(`${side === 'billing' ? '請求' : '支払'}側の距離段階JSONが不正です`); }
+        settings.distance_rules[side] = {
+          mode: document.getElementById(`distance-${side}-mode`)?.value || '',
+          base_distance: Math.max(0, Number(document.getElementById(`distance-${side}-base`)?.value || 0)),
+          tier_mode: document.getElementById(`distance-${side}-tier-mode`)?.value || 'excess_distance',
+          unit_price: Number(document.getElementById(`distance-${side}-unit`)?.value || 0),
+          fixed_amount: Number(document.getElementById(`distance-${side}-fixed`)?.value || 0),
+          tiers,
+          rounding: { amount_mode: settings.rounding[side].amount_mode, amount_stage: settings.rounding[side].amount_stage },
         };
       }
       return settings;
@@ -865,6 +899,7 @@
           night_rules: nightSettings.night_rules,
           rounding: nightSettings.rounding,
           work_rules: nightSettings.work_rules,
+          distance_rules: nightSettings.distance_rules,
         };
         const payload = {
           price_set_name: form.price_set_name.value.trim(),

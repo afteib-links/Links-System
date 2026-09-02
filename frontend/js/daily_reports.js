@@ -423,6 +423,10 @@
         this.ctx.api(`/api/daily-reports/ui-settings?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`),
       ]);
       this.monthlyApproval = monthly.res.ok && monthly.data?.ok ? monthly.data.approval : null;
+      const monthlyDistance = await this.ctx.api(
+        `/api/daily-reports/distance-monthly?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
+      );
+      this.monthlyDistance = monthlyDistance.res.ok && monthlyDistance.data?.ok ? monthlyDistance.data.results : {};
       this.projectInputDefaults = inputDefaults.res.ok && inputDefaults.data?.ok ? inputDefaults.data.defaults : {};
       this.dailyReportUiSettings = uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.settings : {};
       this.dailyReportHolidayDates = new Set(uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.holiday_dates || [] : []);
@@ -648,6 +652,8 @@
               <span>超過合計: <strong>${sum.overtime}</strong></span>
               <span>不足合計（請求）: <strong>${sum.shortage}</strong></span>
               <span>総距離: <strong>${sum.distance}</strong></span>
+              ${this.monthlyDistance?.billing ? `<span>距離超過（請求/月）: <strong>¥${Number(this.monthlyDistance.billing.amount || 0).toLocaleString()}</strong></span>` : ''}
+              ${this.monthlyDistance?.payment ? `<span>距離超過（支払/月）: <strong>¥${Number(this.monthlyDistance.payment.amount || 0).toLocaleString()}</strong></span>` : ''}
             </div>
             <div class="btn-row">
               ${this.monthlyButtonsHtml()}

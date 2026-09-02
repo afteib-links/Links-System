@@ -84,6 +84,10 @@ function normalizeConfig(extraData) {
         ),
       },
     },
+    distance_rules: {
+      billing: extra.distance_rules?.billing || null,
+      payment: extra.distance_rules?.payment || null,
+    },
   };
 }
 
