@@ -388,6 +388,7 @@ router.get('/distance-monthly', async (req, res) => {
     }
     return res.json({ ok: true, project_id: projectId, target_year_month: ym, results: output });
   } catch (err) { return routeError(res, err, '月間距離計算に失敗しました'); }
+});
 
 router.get('/input-defaults', async (req, res) => {
   try {

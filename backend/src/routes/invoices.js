@@ -1,6 +1,6 @@
 const express = require('express');
 const { getPool, query } = require('../db');
-const { requireAuth, requirePermission } = require('../middleware/auth');
+const { requireAuth, requirePermission, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('invoices'));
@@ -8,6 +8,46 @@ router.use(requireAuth, requirePermission('invoices'));
 function effectiveBilling(row) {
   if (row.override_billing_amount != null) return Number(row.override_billing_amount);
   return Number(row.calculated_billing_amount || 0);
+}
+
+function roundTax(amount, mode) {
+  if (mode === 'ceil') return Math.ceil(amount);
+  if (mode === 'round') return Math.round(amount);
+  return Math.floor(amount);
+}
+
+async function resolveTargetTax(companyId, projectIds) {
+  const company = await query('SELECT tax_rate, tax_rounding FROM company_invoice_settings WHERE company_id = ?', [companyId]);
+  if (company[0]?.tax_rate != null) {
+    return { rate: Number(company[0].tax_rate), rounding: company[0].tax_rounding || 'floor' };
+  }
+  const ids = [...projectIds].map(Number).filter(Boolean);
+  const projectRows = ids.length ? await query(
+    `SELECT tax_rate, tax_rounding FROM project_invoice_settings
+     WHERE project_id IN (${ids.map(() => '?').join(',')})`, ids
+  ) : [];
+  const system = await query("SELECT setting_value FROM system_settings WHERE setting_key = 'default_tax_rate' AND is_deleted = 0 LIMIT 1");
+  const configuredSystemRate = Number(system[0]?.setting_value);
+  const systemRate = Number.isFinite(configuredSystemRate) ? configuredSystemRate : 0.1;
+  const byProject = new Map(projectRows.map((row) => [Number(row.project_id), row]));
+  const rates = [...new Set(ids.map((projectId) => {
+    const value = byProject.get(projectId)?.tax_rate;
+    return value == null ? systemRate : Number(value);
+  }))];
+  const modes = [...new Set(ids.map((projectId) => byProject.get(projectId)?.tax_rounding || 'floor'))];
+  if (rates.length > 1 || modes.length > 1) {
+    return { error: '案件ごとの税率または端数処理が異なります。請求先税率を設定してください' };
+  }
+  return { rate: rates[0] ?? systemRate, rounding: modes[0] || 'floor' };
+}
+
+function roleSet(req) { return new Set(req.session.user?.roles || []); }
+function restrictInvoiceRead(req, where, params, invoiceAlias='i') {
+  const roles=roleSet(req);
+  if(roles.has('admin')||roles.has('soumu')||roles.has('executive'))return;
+  if(roles.has('company')){where.push(`${invoiceAlias}.company_id=?`);params.push(req.session.user.company_id);return;}
+  if(roles.has('sales')){where.push(`EXISTS (SELECT 1 FROM invoice_daily_reports air JOIN daily_reports adr ON adr.daily_report_id=air.daily_report_id JOIN project_settlement_reviewers psr ON psr.project_id=adr.project_id WHERE air.invoice_id=${invoiceAlias}.invoice_id AND psr.user_id=?)`);params.push(req.session.user.user_id);return;}
+  where.push('1=0');
 }
 
 /** 締め対象の仮集計一覧 */
@@ -26,6 +66,10 @@ router.get('/targets', async (req, res) => {
       `d.billing_status = 'none'`,
     ];
     const params = [ym];
+    const targetRoles=roleSet(req);
+    if(targetRoles.has('company')){where.push('d.company_id=?');params.push(req.session.user.company_id);}
+    else if(targetRoles.has('sales')){where.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=d.project_id AND psr.user_id=?)');params.push(req.session.user.user_id);}
+    else if(!(targetRoles.has('admin')||targetRoles.has('soumu')||targetRoles.has('executive'))){where.push('1=0');}
     if (closing) {
       where.push(`(pr.closing_date = ? OR c.closing_date_code = ?)`);
       params.push(closing, closing);
@@ -70,9 +114,11 @@ router.get('/targets', async (req, res) => {
       g.project_ids.add(r.project_id);
     }
 
-    const targets = [...groups.values()].map((g) => {
-      const tax = Math.floor(g.subtotal_amount * 0.1);
-      return {
+    const targets = [];
+    for (const g of groups.values()) {
+      const taxSetting = await resolveTargetTax(g.company_id, g.project_ids);
+      const tax = taxSetting.error ? null : roundTax(g.subtotal_amount * taxSetting.rate, taxSetting.rounding);
+      targets.push({
         company_id: g.company_id,
         company_name: g.company_name,
         billing_id: g.billing_id,
@@ -84,9 +130,12 @@ router.get('/targets', async (req, res) => {
         report_ids: g.report_ids,
         subtotal_amount: g.subtotal_amount,
         tax_amount: tax,
-        total_amount: g.subtotal_amount + tax,
-      };
-    });
+        total_amount: tax == null ? null : g.subtotal_amount + tax,
+        tax_rate: taxSetting.rate ?? null,
+        tax_rounding: taxSetting.rounding ?? null,
+        tax_error: taxSetting.error || null,
+      });
+    }
 
     return res.json({ ok: true, target_year_month: ym, targets });
   } catch (err) {
@@ -100,6 +149,7 @@ router.get('/', async (req, res) => {
     const ym = String(req.query.target_year_month || '').trim();
     const where = ['i.is_deleted = 0'];
     const params = [];
+    restrictInvoiceRead(req,where,params,'i');
     if (ym) {
       where.push('i.target_year_month = ?');
       params.push(ym);
@@ -122,14 +172,19 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const where=['i.invoice_id = ?','i.is_deleted = 0'];const params=[id];restrictInvoiceRead(req,where,params,'i');
     const rows = await query(
       `SELECT i.*, c.company_name
        FROM invoices i
        LEFT JOIN companies c ON c.company_id = i.company_id
-       WHERE i.invoice_id = ? AND i.is_deleted = 0`,
-      [id]
+       WHERE ${where.join(' AND ')}`,
+      params
     );
-    if (!rows.length) return res.status(404).json({ ok: false, message: '請求が見つかりません' });
+    if (!rows.length) {
+      const exists = await query('SELECT invoice_id FROM invoices WHERE invoice_id = ? AND is_deleted = 0', [id]);
+      if (exists.length) return res.status(403).json({ ok: false, message: 'この請求は閲覧できません' });
+      return res.status(404).json({ ok: false, message: '請求が見つかりません' });
+    }
     const details = await query(
       `SELECT * FROM invoice_details WHERE invoice_id = ? AND is_deleted = 0 ORDER BY invoice_detail_id`,
       [id]
@@ -139,6 +194,14 @@ router.get('/:id', async (req, res) => {
     console.error('[invoices/get]', err);
     return res.status(500).json({ ok: false, message: '請求詳細の取得に失敗しました' });
   }
+});
+
+router.post('/close', (_req, res) => {
+  return res.status(410).json({
+    ok: false,
+    error: 'legacy_endpoint_disabled',
+    message: '旧請求締めAPIは停止しました。/api/settlements/invoice/drafts を使用してください',
+  });
 });
 
 router.post('/close', async (req, res) => {
@@ -267,7 +330,7 @@ router.post('/close', async (req, res) => {
 });
 
 /** G-07: 請求確定解除 → 再編集可、日報の billed を戻す */
-router.post('/:id/unconfirm', async (req, res) => {
+router.post('/:id/unconfirm', requireRole('admin','soumu','executive'), async (req, res) => {
   const pool = getPool();
   const conn = await pool.getConnection();
   try {
@@ -316,7 +379,7 @@ router.post('/:id/unconfirm', async (req, res) => {
   }
 });
 
-router.post('/:id/confirm', async (req, res) => {
+router.post('/:id/confirm', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     await query(
@@ -333,7 +396,7 @@ router.post('/:id/confirm', async (req, res) => {
   }
 });
 
-router.post('/:id/approve', async (req, res) => {
+router.post('/:id/approve', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     await query(
@@ -349,7 +412,7 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
-router.post('/:id/print', async (req, res) => {
+router.post('/:id/print', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     await query(
@@ -365,7 +428,7 @@ router.post('/:id/print', async (req, res) => {
   }
 });
 
-router.post('/exclude', async (req, res) => {
+router.post('/exclude', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     const companyId = Number(req.body.company_id);
     const ym = String(req.body.target_year_month || '').trim();
@@ -386,7 +449,7 @@ router.post('/exclude', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('admin','soumu','executive'), async (req, res) => {
   const pool = getPool();
   const conn = await pool.getConnection();
   try {

@@ -37,11 +37,19 @@ jobs:
         run: |
           set -euo pipefail
           expected=1
+          previous=0
           while IFS= read -r path; do
             name="$(basename "$path")"
             number="${name%%_*}"
             expected_padded="$(printf '%03d' "$expected")"
+            numeric=$((10#$number))
+            if test "$numeric" -eq "$previous"; then
+              # 016 は既に2本適用済みのため、同番号だけ後方互換として許可する。
+              test "$number" = "016"
+              continue
+            fi
             test "$number" = "$expected_padded"
+            previous="$numeric"
             expected=$((expected + 1))
           done < <(find db/migrations -maxdepth 1 -type f -name '*.sql' | sort)
 

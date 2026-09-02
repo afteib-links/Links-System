@@ -12,10 +12,10 @@ docker compose exec -T app npm run verify:verification-data
 ローカルDBまたはテストNASの業務データを初期化してから再投入する場合は、次を実行します。これは企業、パートナー、案件、料金、日報、前払、請求、支払などの業務データを削除します。管理者アカウント、コードマスタ、システム設定、テーブル構造は保持します。
 
 ```powershell
-docker compose exec -T app npm run reset-and-seed:verification
+docker compose exec -T -e NODE_ENV=development -e VERIFICATION_RESET_CONFIRM=DELETE_VERIFICATION_DATA app npm run reset-and-seed:verification
 ```
 
-テストNASでは、通常更新で `main` を反映してアプリを再構築した後、先に `./scripts/nas-backup.sh` を実行してから同じコマンドを実行します。本番NASへは投入しません。
+テストNASでは、通常更新で `main` を反映してアプリを再構築した後、先に `./scripts/nas-backup.sh` を実行してから同じコマンドを実行します。リセットで削除するのは `seed_key` が一致する匿名検証データだけです。本番モードと本番NASでは実行できません。
 
 作成済みの `【検証】` 接頭辞データがある環境では、誤った重複投入を防ぐため処理を中止します。既存データの削除・上書きは行いません。初期化が必要な場合だけ、上記の `reset-and-seed:verification` を明示的に実行します。
 
