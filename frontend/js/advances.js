@@ -1,169 +1,22 @@
 (() => {
   const LinksAdvances = {
-    async open(ctx) {
-      this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
-      this.ctx = ctx;
-      this.ym = this.kit.currentYearMonth();
-      this.q = '';
-      await this.showList();
-    },
-
-    calcTotal(isTarget, unitPrice, days) {
-      if (!isTarget) return 0;
-      return Math.round(Number(unitPrice || 0) * Number(days || 0) * 100) / 100;
-    },
-
-    async showList(message = '') {
+    async open(ctx) { this.ctx=ctx; this.kit=window.LinksFeatureKit.createFeatureKit(ctx); this.ym=this.kit.currentYearMonth(); await this.show(); },
+    async show(message='') {
       this.ctx.renderLoading();
-      const params = new URLSearchParams({ target_year_month: this.ym, q: this.q });
-      const { res, data } = await this.ctx.api(`/api/advances?${params}`);
-      if (!res.ok || !data?.ok) {
-        this.ctx.app.innerHTML = this.kit.shell(
-          '先払い',
-          `<section class="panel"><p class="error">${this.ctx.escapeHtml(data?.message || '取得失敗')}</p></section>`
-        );
-        this.kit.bindShell();
-        return;
-      }
-
-      const bodyRows = (data.rows || [])
-        .map((row) => {
-          const cycles = row.cycles
-            .map((c) => {
-              const days =
-                c.work_days_input != null && c.work_days_input !== ''
-                  ? Number(c.work_days_input)
-                  : Number(c.work_days || 0);
-              const total = this.calcTotal(c.is_target, c.unit_price, days);
-              return `
-              <td class="adv-cycle" data-p="${row.project_id}" data-c="${c.cycle_number}">
-                <div class="adv-title">
-                  <input type="text" placeholder="タイトル" data-field="title" value="${this.ctx.escapeHtml(c.title || `${row.template_name || ''} 第${c.cycle_number}回`)}" />
-                </div>
-                <label class="check-item"><input type="checkbox" data-field="is_target" ${c.is_target ? 'checked' : ''} /><span>対象</span></label>
-                <div class="adv-row">
-                  <label>単価</label>
-                  <input type="number" step="0.01" data-field="unit_price" value="${this.ctx.escapeHtml(c.unit_price)}" />
-                  ${c.is_price_overridden ? '<span class="muted">（変）</span>' : ''}
-                </div>
-                <div class="adv-row">
-                  <label>日数</label>
-                  <button type="button" class="btn btn-ghost btn-small" data-spin="-1">−</button>
-                  <input type="number" step="0.1" data-field="work_days_input" value="${this.ctx.escapeHtml(days)}" />
-                  <button type="button" class="btn btn-ghost btn-small" data-spin="1">＋</button>
-                  <span class="muted">自動:${this.ctx.escapeHtml(c.work_days)}</span>
-                </div>
-                <div class="adv-row">
-                  <label>手数料</label>
-                  <input type="number" step="0.01" data-field="applied_transfer_fee" value="${this.ctx.escapeHtml(c.applied_transfer_fee)}" />
-                </div>
-                <div class="adv-total">合計: <strong data-total>${this.ctx.escapeHtml(total)}</strong></div>
-              </td>`;
-            })
-            .join('');
-          return `
-            <tr>
-              <td>
-                <div><strong>#${this.ctx.escapeHtml(row.project_id)}</strong></div>
-                <div class="muted">${this.ctx.escapeHtml(row.template_name || '')}</div>
-              </td>
-              <td>${this.ctx.escapeHtml(row.company_name || '-')}</td>
-              <td>${this.ctx.escapeHtml(row.partner_name || '-')}</td>
-              ${cycles}
-            </tr>`;
-        })
-        .join('');
-
-      this.ctx.app.innerHTML = this.kit.shell(
-        '先払い（仮組）',
-        `<section class="panel">
-          ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <p class="muted">分割案件のみ。日数は小数第1位まで手入力可。スピンは1刻み。</p>
-          <div class="toolbar">
-            <input type="month" id="ym" value="${this.ctx.escapeHtml(this.ym)}" />
-            <input id="q" type="text" placeholder="企業・パートナー・案件" value="${this.ctx.escapeHtml(this.q)}" />
-            <button type="button" class="btn" id="search">表示</button>
-            <button type="button" class="btn" id="save">保存</button>
-          </div>
-          <div class="table-wrap">
-            <table class="data-table data-table-compact">
-              <thead>
-                <tr>
-                  <th>案件</th><th>企業</th><th>パートナー</th>
-                  <th>第1サイクル</th><th>第2サイクル</th><th>第3サイクル</th>
-                </tr>
-              </thead>
-              <tbody>${bodyRows || '<tr><td colspan="6">分割案件がありません</td></tr>'}</tbody>
-            </table>
-          </div>
-        </section>`
-      );
-      this.kit.bindShell();
-      document.getElementById('search')?.addEventListener('click', () => {
-        this.ym = document.getElementById('ym').value;
-        this.q = document.getElementById('q').value.trim();
-        this.showList();
-      });
-      document.getElementById('save')?.addEventListener('click', () => this.save());
-      this.bindLiveCalc();
+      const [terms, projects, cycles, records] = await Promise.all([this.ctx.api('/api/advances/terms'),this.ctx.api('/api/projects'),this.ctx.api(`/api/cash-management/cycles?target_year_month=${this.ym}`),this.ctx.api(`/api/advances/records?target_year_month=${this.ym}`)]);
+      if (!terms.res.ok || !projects.res.ok || !cycles.res.ok || !records.res.ok) return this.error();
+      const ps=projects.data.projects||[], cs=cycles.data.cycles||[];
+      const options=ps.map(p=>`<option value="${p.project_id}">#${p.project_id} ${this.ctx.escapeHtml(p.company_name||'')} / ${this.ctx.escapeHtml(p.partner_name||'')}</option>`).join('');
+      const cycleOptions=cs.map(c=>`<option value="${c.cash_cycle_id}">${c.cycle_code==='end'?'末日':Number(c.cycle_code)}日回</option>`).join('');
+      const rows=(terms.data.terms||[]).map(t=>`<tr><td>#${t.project_id}</td><td>${this.ctx.escapeHtml(t.company_name||'-')}</td><td>${this.ctx.escapeHtml(t.partner_name||'-')}</td><td>${String(t.valid_from).slice(0,10)}</td><td>${Number(t.unit_price).toLocaleString()}円</td><td>${t.is_enabled?'有効':'無効'}</td></tr>`).join('');
+      const recordRows=(records.data.records||[]).map(r=>`<tr><td>#${r.advance_record_id}</td><td>${this.ctx.escapeHtml(r.partner_name||'-')}</td><td>${String(r.period_start).slice(0,10)}〜${String(r.period_end).slice(0,10)}</td><td>${Number(r.advance_amount).toLocaleString()}円</td><td>${this.ctx.escapeHtml(r.cash_status)}</td><td>${r.status==='planned'?`<button class="btn btn-ghost btn-small" data-cancel="${r.advance_record_id}">取消</button>`:r.status==='executed'?`<button class="btn btn-ghost btn-small" data-reverse="${r.advance_record_id}">返金調整</button>`:''}</td></tr>`).join('');
+      this.ctx.app.innerHTML=this.kit.shell('前払',`<section class="panel">${message?`<p class="flash">${this.ctx.escapeHtml(message)}</p>`:''}<p class="muted">確認済み日報だけから算定し、算定額を超える前払は登録できません。</p><div class="toolbar"><input id="adv-ym" type="month" value="${this.ym}"><button class="btn" id="reload">表示</button><button class="btn" id="add-term">＋ 前払条件</button><button class="btn btn-secondary" id="add-record">＋ 前払予定</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>案件</th><th>企業</th><th>パートナー</th><th>開始日</th><th>単価</th><th>状態</th></tr></thead><tbody>${rows||'<tr><td colspan="6">前払条件がありません</td></tr>'}</tbody></table></div><h3 class="section-title">前払記録</h3><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>No</th><th>パートナー</th><th>対象期間</th><th>前払額</th><th>出金状態</th><th>操作</th></tr></thead><tbody>${recordRows||'<tr><td colspan="6">前払記録がありません</td></tr>'}</tbody></table></div></section><div id="adv-editor"></div>`);
+      this.kit.bindShell(); document.getElementById('reload').onclick=()=>{this.ym=document.getElementById('adv-ym').value;this.show();}; document.getElementById('add-term').onclick=()=>this.editor('term',options); document.getElementById('add-record').onclick=()=>this.editor('record',options,cycleOptions);
+      document.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{if(!window.confirm('この前払予定を取消しますか？'))return;const r=await this.ctx.api(`/api/advances/records/${b.dataset.cancel}/cancel`,{method:'POST',body:'{}'});if(!r.res.ok)return window.alert(r.data?.message||'取消失敗');this.show('前払予定を取消しました');});
+      document.querySelectorAll('[data-reverse]').forEach(b=>b.onclick=()=>this.reversal(Number(b.dataset.reverse),cycleOptions));
     },
-
-    recalcCell(cell) {
-      const isTarget = cell.querySelector('[data-field="is_target"]')?.checked;
-      const unit = cell.querySelector('[data-field="unit_price"]')?.value;
-      const days = cell.querySelector('[data-field="work_days_input"]')?.value;
-      const totalEl = cell.querySelector('[data-total]');
-      if (totalEl) totalEl.textContent = String(this.calcTotal(isTarget, unit, days));
-    },
-
-    bindLiveCalc() {
-      document.querySelectorAll('.adv-cycle').forEach((cell) => {
-        cell.querySelectorAll('[data-field]').forEach((el) => {
-          el.addEventListener('input', () => this.recalcCell(cell));
-          el.addEventListener('change', () => this.recalcCell(cell));
-        });
-        cell.querySelectorAll('[data-spin]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const input = cell.querySelector('[data-field="work_days_input"]');
-            if (!input) return;
-            const delta = Number(btn.getAttribute('data-spin'));
-            const next = Math.round((Number(input.value || 0) + delta) * 10) / 10;
-            input.value = String(Math.max(0, next));
-            this.recalcCell(cell);
-          });
-        });
-      });
-    },
-
-    async save() {
-      const map = new Map();
-      document.querySelectorAll('.adv-cycle').forEach((cell) => {
-        const key = `${cell.getAttribute('data-p')}:${cell.getAttribute('data-c')}`;
-        const item = {
-          project_id: Number(cell.getAttribute('data-p')),
-          cycle_number: Number(cell.getAttribute('data-c')),
-        };
-        cell.querySelectorAll('[data-field]').forEach((el) => {
-          const field = el.getAttribute('data-field');
-          if (field === 'is_target') item.is_target = el.checked;
-          else item[field] = el.value;
-        });
-        map.set(key, item);
-      });
-      const result = await this.ctx.api('/api/advances/upsert', {
-        method: 'PUT',
-        body: JSON.stringify({
-          target_year_month: this.ym,
-          items: [...map.values()],
-        }),
-      });
-      if (!result.res.ok || !result.data?.ok) {
-        window.alert(result.data?.message || '保存失敗');
-        return;
-      }
-      await this.showList('保存しました');
-    },
-  };
-
-  window.LinksAdvances = LinksAdvances;
+    error(){this.ctx.app.innerHTML=this.kit.shell('前払','<section class="panel"><p class="error">前払情報を取得できませんでした</p></section>');this.kit.bindShell();},
+    editor(kind,options,cycleOptions='') { const e=document.getElementById('adv-editor'); const form=kind==='term'?`<h2>前払条件</h2><form id="adv-form"><div class="form-grid"><div><label>案件</label><select name="project_id">${options}</select></div><div><label>適用開始日</label><input name="valid_from" type="date" required></div><div><label>前払単価</label><input name="unit_price" type="number" min="0" required></div><div><label class="check-item"><input name="is_enabled" type="checkbox" checked><span>前払可</span></label></div></div><button class="btn">登録</button></form>`:`<h2>前払予定</h2><form id="adv-form"><div class="form-grid"><div><label>案件</label><select name="project_id">${options}</select></div><div><label>管理回</label><select name="cash_cycle_id">${cycleOptions}</select></div><div><label>対象開始日</label><input name="period_start" type="date" required></div><div><label>対象終了日</label><input name="period_end" type="date" required></div><div><label>前払額（空欄は算定額）</label><input name="advance_amount" type="number" min="0"></div><div><label>減額理由</label><input name="adjustment_reason"></div></div><button class="btn">予定を作成</button></form>`; e.innerHTML=`<section class="panel">${form}</section>`; document.getElementById('adv-form').onsubmit=async(ev)=>{ev.preventDefault();const f=new FormData(ev.currentTarget);const body=Object.fromEntries(f);if(kind==='term')body.is_enabled=f.get('is_enabled')==='on';const r=await this.ctx.api(kind==='term'?'/api/advances/terms':'/api/advances/records',{method:'POST',body:JSON.stringify(body)});if(!r.res.ok)return window.alert(r.data?.message||'登録に失敗しました');this.show(kind==='term'?'前払条件を登録しました':`前払予定を作成しました（${r.data.work_days}日）`);}; },
+    reversal(id, cycleOptions) { const e=document.getElementById('adv-editor'); e.innerHTML=`<section class="panel"><h2>前払返金・訂正</h2><form id="reverse-form"><div class="form-grid"><div><label>入金管理回</label><select name="cash_cycle_id">${cycleOptions}</select></div><div><label>調整額</label><input name="amount" type="number" min="1" required></div></div><button class="btn">返金予定を作成</button></form></section>`;document.getElementById('reverse-form').onsubmit=async(ev)=>{ev.preventDefault();const r=await this.ctx.api(`/api/advances/records/${id}/reversal`,{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(ev.currentTarget)))});if(!r.res.ok)return window.alert(r.data?.message||'作成失敗');this.show('返金・訂正予定を作成しました');}; },
+  }; window.LinksAdvances=LinksAdvances;
 })();

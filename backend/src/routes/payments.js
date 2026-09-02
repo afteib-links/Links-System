@@ -161,6 +161,7 @@ router.post('/close', async (req, res) => {
     const closingDate = String(req.body.closing_date || '').trim() || 'end';
     const otherAdj = Number(req.body.other_adjustment_amount || 0);
     const paymentOutputCode = req.body.payment_output_code || null;
+    const cashCycleId = req.body.cash_cycle_id ? Number(req.body.cash_cycle_id) : null;
 
     if (!ym || !partnerId || !reportIds.length) {
       return res.status(400).json({ ok: false, message: '年月・パートナー・対象日報は必須です' });
@@ -183,16 +184,18 @@ router.post('/close', async (req, res) => {
     let gross = 0;
     for (const r of reports) gross += effectivePayment(r);
 
-    const [advRows] = await conn.query(
-      `SELECT
-         SUM(CASE WHEN is_target = 1 THEN total_amount ELSE 0 END) AS advance_sum,
-         SUM(CASE WHEN is_target = 1 THEN applied_transfer_fee ELSE 0 END) AS fee_sum
-       FROM advance_payments
-       WHERE partner_id = ? AND target_year_month = ? AND is_deleted = 0`,
-      [partnerId, ym]
+    const [advanceRows] = await conn.query(
+      `SELECT ar.advance_record_id, ar.advance_amount - COALESCE(SUM(aa.amount), 0) AS remaining_amount
+       FROM advance_records ar
+       JOIN cash_schedules cs ON cs.cash_schedule_id = ar.cash_schedule_id AND cs.status = 'executed'
+       LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id = ar.advance_record_id
+       WHERE ar.partner_id = ? AND ar.status = 'executed'
+       GROUP BY ar.advance_record_id, ar.advance_amount
+       HAVING remaining_amount > 0 FOR UPDATE`,
+      [partnerId]
     );
-    const advanceDeduction = Number(advRows[0]?.advance_sum || 0);
-    const transferFee = Number(advRows[0]?.fee_sum || 0);
+    const advanceDeduction = advanceRows.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0);
+    const transferFee = 0;
     const finalAmount = gross - advanceDeduction - transferFee - OFFICE_FEE - SAFETY_FEE + otherAdj;
 
     const [payResult] = await conn.query(
@@ -217,6 +220,24 @@ router.post('/close', async (req, res) => {
       ]
     );
     const paymentId = payResult.insertId;
+
+    if (cashCycleId) {
+      const [cycles] = await conn.query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ? FOR UPDATE', [cashCycleId]);
+      if (!cycles.length) throw new Error('出金管理回が見つかりません');
+      const [partners] = await conn.query('SELECT partner_name FROM partners WHERE partner_id = ?', [partnerId]);
+      await conn.query(
+        `INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,partner_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by)
+         VALUES (?, 'outgoing', 'payment', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [cashCycleId, paymentId, partnerId, partners[0]?.partner_name || `パートナー #${partnerId}`, '通常支払', finalAmount, cycles[0].planned_outgoing_date, JSON.stringify({ payment_id: paymentId, final_transfer_amount: finalAmount }), req.session.user?.user_id || null]
+      );
+    }
+
+    for (const advance of advanceRows) {
+      await conn.query(
+        'INSERT INTO advance_payment_allocations (advance_record_id, payment_id, amount) VALUES (?, ?, ?)',
+        [advance.advance_record_id, paymentId, Number(advance.remaining_amount)]
+      );
+    }
 
     await conn.query(
       `INSERT INTO payment_details
@@ -310,6 +331,11 @@ router.post('/:id/unconfirm', async (req, res) => {
       `UPDATE payments
        SET is_confirmed = 0, approval_status = 'draft', payment_status = 'draft',
            version = version + 1 WHERE payment_id = ?`,
+      [id]
+    );
+    await conn.query(
+      `UPDATE cash_schedules SET status = 'cancelled', version = version + 1
+       WHERE source_type = 'payment' AND source_id = ? AND status IN ('planned', 'exported', 'held')`,
       [id]
     );
     await conn.commit();

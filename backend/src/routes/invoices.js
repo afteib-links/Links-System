@@ -156,6 +156,7 @@ router.post('/close', async (req, res) => {
     const billingSummaryNo = req.body.billing_summary_no || null;
     const billingPrintName = req.body.billing_print_name || null;
     const billingId = req.body.billing_id ? Number(req.body.billing_id) : null;
+    const cashCycleId = req.body.cash_cycle_id ? Number(req.body.cash_cycle_id) : null;
 
     if (!ym || !companyId || !reportIds.length) {
       return res.status(400).json({ ok: false, message: '年月・企業・対象日報は必須です' });
@@ -204,6 +205,17 @@ router.post('/close', async (req, res) => {
       ]
     );
     const invoiceId = invResult.insertId;
+
+    if (cashCycleId) {
+      const [cycles] = await conn.query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ? FOR UPDATE', [cashCycleId]);
+      if (!cycles.length) throw new Error('入金管理回が見つかりません');
+      const [companies] = await conn.query('SELECT company_name FROM companies WHERE company_id = ?', [companyId]);
+      await conn.query(
+        `INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,company_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by)
+         VALUES (?, 'incoming', 'invoice', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [cashCycleId, invoiceId, companyId, companies[0]?.company_name || `企業 #${companyId}`, '請求入金', total, cycles[0].planned_incoming_date, JSON.stringify({ invoice_id: invoiceId, total_amount: total }), req.session.user?.user_id || null]
+      );
+    }
 
     await conn.query(
       `INSERT INTO invoice_details
@@ -286,6 +298,11 @@ router.post('/:id/unconfirm', async (req, res) => {
        SET is_confirmed = 0, approval_status = 'draft', invoice_status = 'draft',
            version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE invoice_id = ?`,
+      [id]
+    );
+    await conn.query(
+      `UPDATE cash_schedules SET status = 'cancelled', version = version + 1
+       WHERE source_type = 'invoice' AND source_id = ? AND status IN ('planned', 'exported', 'held')`,
       [id]
     );
     await conn.commit();

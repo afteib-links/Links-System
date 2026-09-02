@@ -24,9 +24,10 @@
         target_year_month: this.ym,
         closing_date: this.closing,
       });
-      const [targetsRes, issuedRes] = await Promise.all([
+      const [targetsRes, issuedRes, cyclesRes] = await Promise.all([
         this.ctx.api(`/api/payments/targets?${params}`),
         this.ctx.api(`/api/payments?target_year_month=${encodeURIComponent(this.ym)}`),
+        this.ctx.api(`/api/cash-management/cycles?target_year_month=${encodeURIComponent(this.ym)}`),
       ]);
       if (!targetsRes.res.ok || !targetsRes.data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
@@ -80,6 +81,7 @@
           <div class="toolbar">
             <input type="month" id="ym" value="${this.ctx.escapeHtml(this.ym)}" />
             <select id="closing">${this.kit.codeOptions(this.codes.closing_date, this.closing)}</select>
+            <select id="cash-cycle"><option value="">入出金予定を作らない</option>${(cyclesRes.data?.cycles || []).map((c) => `<option value="${c.cash_cycle_id}">${c.cycle_code === 'end' ? '末日' : Number(c.cycle_code)}日回へ予定作成</option>`).join('')}</select>
             <button type="button" class="btn" id="search">表示</button>
           </div>
           <h3 class="section-title">締め対象（仮集計）</h3>
@@ -119,6 +121,7 @@
               closing_date: t.closing_date || this.closing || 'end',
               payment_output_code: t.payment_output_code,
               other_adjustment_amount: Number(adj) || 0,
+              cash_cycle_id: Number(document.getElementById('cash-cycle').value) || null,
             }),
           });
           if (!result.res.ok || !result.data?.ok) {
