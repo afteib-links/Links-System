@@ -294,6 +294,10 @@
         `/api/daily-reports/monthly-approval?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
       );
       this.monthlyApproval = monthly.res.ok && monthly.data?.ok ? monthly.data.approval : null;
+      const monthlyDistance = await this.ctx.api(
+        `/api/daily-reports/distance-monthly?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
+      );
+      this.monthlyDistance = monthlyDistance.res.ok && monthlyDistance.data?.ok ? monthlyDistance.data.results : {};
       this.renderGrid();
     },
 
@@ -439,7 +443,7 @@
               <td><span>${this.formatMinutes(Number(r.work_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.overtime_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.shortage_hours || 0) * 60) || '-'}</span></td>
-              <td><input type="number" step="0.1" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input type="number" min="0" step="1" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input type="number" step="1" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
@@ -494,6 +498,8 @@
               <span>超過合計: <strong>${sum.overtime}</strong></span>
               <span>不足合計（請求）: <strong>${sum.shortage}</strong></span>
               <span>総距離: <strong>${sum.distance}</strong></span>
+              ${this.monthlyDistance?.billing ? `<span>距離超過（請求/月）: <strong>¥${Number(this.monthlyDistance.billing.amount || 0).toLocaleString()}</strong></span>` : ''}
+              ${this.monthlyDistance?.payment ? `<span>距離超過（支払/月）: <strong>¥${Number(this.monthlyDistance.payment.amount || 0).toLocaleString()}</strong></span>` : ''}
             </div>
             <div class="btn-row">
               ${this.monthlyButtonsHtml()}

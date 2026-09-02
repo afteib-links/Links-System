@@ -16,6 +16,7 @@ const {
   normalizeConfig,
   nightInputMode,
 } = require('./price_calc_config');
+const { calculateDistanceSide } = require('./distance_calc');
 
 const DAY_TYPE_FALLBACK_ORDER = [
   'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
@@ -195,6 +196,9 @@ async function applyDailyPriceCalc(data) {
   const breakMinutes = parseDurationMinutes(data.break_minutes, data.break_time, '合計休憩時間');
   const sideResults = {};
   const amountResults = {};
+  const distanceResults = {};
+  const distanceKm = data.total_distance == null || data.total_distance === '' ? 0 : Number(data.total_distance);
+  if (!Number.isInteger(distanceKm) || distanceKm < 0) throw validationError('走行距離は0以上の整数kmで入力してください');
   for (const side of ['billing', 'payment']) {
     const classified = calculateNightSide({
       start_time: Number(data.is_absent || 0) ? null : data.start_time,
@@ -214,6 +218,10 @@ async function applyDailyPriceCalc(data) {
       overrides: overrides[side] || {},
       rounding: context.rounding[side],
     });
+    const distanceRule = context.distance_rules?.[side];
+    distanceResults[side] = distanceRule?.mode
+      ? calculateDistanceSide({ distance: distanceKm, rule: distanceRule })
+      : null;
   }
 
   data.applied_price_set_id = context.price_set_id;
@@ -237,8 +245,11 @@ async function applyDailyPriceCalc(data) {
   data.night_overtime_minutes_payment = sideResults.payment.night_overtime_minutes;
   data.regular_overtime_minutes_billing = sideResults.billing.regular_overtime_minutes;
   data.regular_overtime_minutes_payment = sideResults.payment.regular_overtime_minutes;
-  data.calculated_billing_amount = amountResults.billing.total;
-  data.calculated_payment_amount = amountResults.payment.total;
+  data.distance_amount_billing = distanceResults.billing?.mode === 'monthly_excess' ? 0 : distanceResults.billing?.amount || 0;
+  data.distance_amount_payment = distanceResults.payment?.mode === 'monthly_excess' ? 0 : distanceResults.payment?.amount || 0;
+  data.distance_calculation_mode = distanceResults.billing?.mode || distanceResults.payment?.mode || null;
+  data.calculated_billing_amount = amountResults.billing.total + data.distance_amount_billing;
+  data.calculated_payment_amount = amountResults.payment.total + data.distance_amount_payment;
   data.calculation_detail = JSON.stringify({
     version: 1,
     price_set: { id: context.price_set_id, name: context.price_set_name },
@@ -254,6 +265,7 @@ async function applyDailyPriceCalc(data) {
     available_fee_items: context.fee_items,
     billing: { ...sideResults.billing, amounts: amountResults.billing },
     payment: { ...sideResults.payment, amounts: amountResults.payment },
+    distance: { billing: distanceResults.billing, payment: distanceResults.payment },
     rate_override_reason: data.rate_override_reason || null,
   });
   return data;

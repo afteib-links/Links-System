@@ -6,6 +6,7 @@ const {
   assertValidFromRequired,
   allocatePriceSetNo,
 } = require('../services/price_set_lifecycle');
+const { validateDistanceRule } = require('../services/distance_calc');
 
 function todayTokyoYmd() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
@@ -48,6 +49,14 @@ function mergeExtraData(current, patch) {
   const base = parseExtraDataField(current) || {};
   if (!patch || typeof patch !== 'object') return base;
   return { ...base, ...patch };
+}
+
+function validateExtraData(extra) {
+  for (const side of ['billing', 'payment']) {
+    const rule = extra?.distance_rules?.[side];
+    if (rule?.mode) validateDistanceRule(rule);
+  }
+  return extra;
 }
 
 function normalizeLines(list) {
@@ -225,7 +234,7 @@ router.post('/', async (req, res) => {
     assertOwnerExclusive(data);
     assertValidFromRequired(data.apply_start_date);
     const lines = normalizeLines(req.body.lines);
-    const extraData = mergeExtraData(null, req.body.extra_data);
+    const extraData = validateExtraData(mergeExtraData(null, req.body.extra_data));
     await conn.beginTransaction();
     const priceSetNo = await allocatePriceSetNo(conn);
     const [result] = await conn.query(
@@ -281,7 +290,7 @@ router.put('/:id', async (req, res) => {
       }
     }
     if (Object.prototype.hasOwnProperty.call(req.body, 'extra_data')) {
-      const extraData = mergeExtraData(current.extra_data, req.body.extra_data);
+      const extraData = validateExtraData(mergeExtraData(current.extra_data, req.body.extra_data));
       fields.push('extra_data = ?');
       params.push(extraData ? JSON.stringify(extraData) : null);
     }

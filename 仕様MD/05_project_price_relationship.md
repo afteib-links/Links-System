@@ -166,6 +166,8 @@ flowchart TD
 | 他セットから行取込 | `POST /api/price-sets/:id/import-lines`（`replace` / `merge`） |
 | 項目コピー | フロント（同一画面内・曜日だけ変更して単価微修正） |
 
+距離超過の契約条件はPriceSetの`extra_data.distance_rules`へ請求側・支払側を独立保存する。料金行の`calc_type_code=distance`は表示単価との後方互換として保持し、実計算の方式・基準・段階・丸めは距離ルールを正とする。
+
 ### E-03 対応（画面一覧との対応）
 
 | E-03 要件 | マトリクス UI での表現 |
