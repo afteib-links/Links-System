@@ -55,6 +55,34 @@
       return sign * (hour * 60 + minute);
     },
 
+    parseClockInput(value) {
+      const minutes = this.parseMinutesInput(value);
+      if (minutes > 47 * 60 + 59) throw new Error('開始・終了時刻は47:59までで入力してください');
+      return minutes;
+    },
+
+    formatClockMinutes(value) {
+      const minutes = Math.max(0, Math.min(47 * 60 + 59, Math.round(Number(value) || 0)));
+      return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    },
+
+    normalizeTimeText(value, duration = false) {
+      const text = String(value ?? '').normalize('NFKC').trim();
+      if (!text) return '';
+      const normalized = /^\d{1,2}$/.test(text) ? `${text}:00` : text.replace('.', ':');
+      const minutes = duration ? this.parseMinutesInput(normalized) : this.parseClockInput(normalized);
+      return duration ? this.formatMinutes(minutes) : this.formatClockMinutes(minutes);
+    },
+
+    inputTimeStep(row) {
+      const billing = Number(row?._calcContext?.rounding?.billing?.time_unit_minutes);
+      const payment = Number(row?._calcContext?.rounding?.payment?.time_unit_minutes);
+      if (Number.isInteger(billing) && billing > 0) return billing;
+      if (Number.isInteger(payment) && payment > 0) return payment;
+      const fallback = Number(this.dailyReportUiSettings?.fallback_time_step_minutes);
+      return Number.isInteger(fallback) && fallback > 0 ? fallback : 5;
+    },
+
     durationInput(row, minuteField, decimalField = null) {
       if (row[minuteField] != null && row[minuteField] !== '') return this.formatMinutes(row[minuteField]);
       if (decimalField && row[decimalField] != null && row[decimalField] !== '') {
@@ -118,6 +146,105 @@
       const w = this.weekdayLabel(s);
       const md = `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
       return w ? `${md}（${w}）` : md;
+    },
+
+    dayRowClass(dateStr) {
+      const date = this.kit.dateValue(dateStr);
+      if (this.dailyReportHolidayDates?.has(date) || this.weekdayLabel(date) === '日') return 'dr-holiday-row';
+      if (this.weekdayLabel(date) === '土') return 'dr-saturday-row';
+      return '';
+    },
+
+    rowEffectiveAmount(row, side) {
+      const effective = row[`effective_${side}_amount`];
+      if (effective !== '' && effective != null) return Number(effective || 0);
+      const override = row[`override_${side}_amount`];
+      if (override !== '' && override != null) return Number(override || 0);
+      return Number(row[`calculated_${side}_amount`] || 0);
+    },
+
+    dayTotals(date) {
+      return this.gridRows
+        .filter((row) => this.kit.dateValue(row.work_date) === date)
+        .reduce(
+          (totals, row) => ({
+            billing: totals.billing + this.rowEffectiveAmount(row, 'billing'),
+            payment: totals.payment + this.rowEffectiveAmount(row, 'payment'),
+          }),
+          { billing: 0, payment: 0 }
+        );
+    },
+
+    updateDayTotalCells(date) {
+      const totals = this.dayTotals(date);
+      ['billing', 'payment'].forEach((side) => {
+        document.querySelectorAll(`[data-day-total="${side}"][data-work-date="${date}"]`).forEach((cell) => {
+          cell.textContent = `¥${Math.round(totals[side]).toLocaleString()}`;
+        });
+      });
+    },
+
+    captureGridViewState() {
+      const wrap = document.querySelector('.dr-grid-wrap');
+      return {
+        gridScrollTop: wrap?.scrollTop || 0,
+        gridScrollLeft: wrap?.scrollLeft || 0,
+        windowScrollX: window.scrollX || 0,
+        windowScrollY: window.scrollY || 0,
+      };
+    },
+
+    mergeStatusReports(reports = []) {
+      const byId = new Map((reports || []).map((report) => [Number(report.daily_report_id), report]));
+      this.gridRows = this.gridRows.map((row) => {
+        const updated = byId.get(Number(row.daily_report_id));
+        if (!updated) return row;
+        return {
+          ...row,
+          ...updated,
+          _calcContext: row._calcContext,
+          _dirty: false,
+          _expanded: row._expanded,
+        };
+      });
+    },
+
+    renderGridWithViewState(viewState, focusIdx = null) {
+      this.renderGrid();
+      const restore = () => {
+        const wrap = document.querySelector('.dr-grid-wrap');
+        if (wrap) {
+          wrap.scrollTop = viewState?.gridScrollTop || 0;
+          wrap.scrollLeft = viewState?.gridScrollLeft || 0;
+        }
+        window.scrollTo(viewState?.windowScrollX || 0, viewState?.windowScrollY || 0);
+        if (focusIdx != null) {
+          document.querySelector(`.status-button[data-idx="${focusIdx}"]`)?.focus({ preventScroll: true });
+        }
+      };
+      restore();
+      window.requestAnimationFrame(restore);
+    },
+
+    async previewRow(idx) {
+      const row = this.gridRows[idx];
+      if (!row) return false;
+      const result = await this.ctx.api('/api/daily-reports/preview', {
+        method: 'POST',
+        body: JSON.stringify(this.rowPayload(row)),
+      });
+      if (!result.res.ok || !result.data?.ok) {
+        window.alert(result.data?.message || '料金の再計算に失敗しました');
+        return false;
+      }
+      this.gridRows[idx] = {
+        ...row,
+        ...result.data.preview,
+        _calcContext: row._calcContext,
+        _dirty: true,
+        _expanded: true,
+      };
+      return true;
     },
 
     async showMonthList(message = '') {
@@ -290,10 +417,15 @@
         if (rows.length) this.gridRows.push(...rows);
         else this.gridRows.push(this.emptyDay(dateStr, meta));
       }
-      const monthly = await this.ctx.api(
-        `/api/daily-reports/monthly-approval?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`
-      );
+      const [monthly, inputDefaults, uiSettings] = await Promise.all([
+        this.ctx.api(`/api/daily-reports/monthly-approval?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`),
+        this.ctx.api(`/api/daily-reports/input-defaults?project_id=${encodeURIComponent(meta.project_id)}`),
+        this.ctx.api(`/api/daily-reports/ui-settings?project_id=${encodeURIComponent(meta.project_id)}&target_year_month=${encodeURIComponent(this.ym)}`),
+      ]);
       this.monthlyApproval = monthly.res.ok && monthly.data?.ok ? monthly.data.approval : null;
+      this.projectInputDefaults = inputDefaults.res.ok && inputDefaults.data?.ok ? inputDefaults.data.defaults : {};
+      this.dailyReportUiSettings = uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.settings : {};
+      this.dailyReportHolidayDates = new Set(uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.holiday_dates || [] : []);
       this.renderGrid();
     },
 
@@ -338,22 +470,41 @@
     },
 
     rateTableHtml(row, idx, locked) {
-      const labels = { basic: '基本加算', shortage: '不足控除', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
+      const labels = { basic: '基本単価', shortage: '不足控除', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
       const overrides = this.parseJson(row.rate_overrides, {});
       const cells = (side, priceType) => {
         const info = this.rateInfo(row, side, priceType);
         const original = Number(info.original_rate ?? info.rate ?? 0);
         const override = overrides?.[side]?.[priceType];
-        const value = override !== '' && override != null ? Number(override) : original;
-        return `<td><input type="number" step="0.01" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" ${locked ? 'disabled' : ''} /><small>${this.ctx.escapeHtml(info.calc_type || '')}</small></td>`;
+        const value = override !== '' && override != null ? Number(override) : '';
+        const reference = original ? `¥${original.toLocaleString()}` : '-';
+        return `<td><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(info.calc_type)}` : ''}</small></td>`;
       };
-      const rows = ['basic', 'shortage', 'overtime', 'night', 'night_overtime']
-        .map((type) => `<tr><th>${labels[type]}</th>${cells('billing', type)}${cells('payment', type)}</tr>`)
+      const types = ['basic', 'shortage', 'overtime', 'night', 'night_overtime'];
+      const header = types.map((type) => `<th>${labels[type]}</th>`).join('');
+      const rows = ['billing', 'payment']
+        .map((side) => `<tr><th>${side === 'billing' ? '請求' : '支払'}</th>${types.map((type) => cells(side, type)).join('')}</tr>`)
         .join('');
-      return `<table class="data-table data-table-compact dr-rate-table">
-        <thead><tr><th>契約料金</th><th>請求</th><th>支払</th></tr></thead><tbody>${rows}</tbody>
-      </table>
+      return `<div class="dr-rate-wrap"><table class="data-table data-table-compact dr-rate-table">
+        <thead><tr><th></th>${header}</tr></thead><tbody>${rows}</tbody>
+      </table></div>
       <label>一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(row.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>`;
+    },
+
+    timeInputHtml(row, idx, field, locked, options = {}) {
+      const isDuration = Boolean(options.duration);
+      let value = isDuration
+        ? this.durationInput(row, field, options.decimalField || null)
+        : this.kit.timeValue(row[field]);
+      const isEmpty = !value || (isDuration && this.parseMinutesInput(value) === 0);
+      if (isEmpty) value = '';
+      const fieldAttr = isDuration ? `data-minutes-f="${field}"` : `data-f="${field}"`;
+      const defaultKind = options.defaultKind || field;
+      return `<div class="dr-time-control">
+        <button type="button" class="dr-step-button" data-time-step="${field}" data-direction="-1" data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="時間を減らす">−</button>
+        <input class="dr-time-input dr-large-input ${isEmpty ? 'dr-input-empty' : ''}" ${fieldAttr} data-idx="${idx}" data-default-time="${defaultKind}" value="${this.ctx.escapeHtml(value)}" placeholder="${isDuration ? '0:00' : field === 'end_time' ? '28:00' : '08:00'}" ${locked ? 'disabled' : ''} />
+        <button type="button" class="dr-step-button" data-time-step="${field}" data-direction="1" data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="時間を増やす">＋</button>
+      </div>`;
     },
 
     nightInputHtml(row, idx, locked) {
@@ -418,6 +569,9 @@
 
     renderGrid(message = '') {
       const sum = this.summaryFromGrid();
+      const ui = this.dailyReportUiSettings || {};
+      const distanceStep = Number(ui.distance_step || 1);
+      const expenseStep = Number(ui.expense_step || 100);
       const body = this.gridRows
         .map((r, idx) => {
           const locked = r.status === 'confirmed' || r.status === 'approved';
@@ -425,36 +579,36 @@
           const date = this.kit.dateValue(r.work_date);
           const sameDateRows = this.gridRows.filter((row) => this.kit.dateValue(row.work_date) === date);
           const firstOfDate = idx === 0 || this.kit.dateValue(this.gridRows[idx - 1].work_date) !== date;
+          const totals = this.dayTotals(date);
           const dayConfirmed = sameDateRows.some((row) => row.daily_report_id) &&
             sameDateRows.filter((row) => row.daily_report_id).every((row) => ['confirmed', 'approved'].includes(row.status));
           const main = `
-            <tr class="dr-main" data-idx="${idx}" data-work-date="${this.ctx.escapeHtml(date)}">
+            <tr class="dr-main ${this.dayRowClass(date)}" data-idx="${idx}" data-work-date="${this.ctx.escapeHtml(date)}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
               <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-time-input" data-f="start_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.start_time))}" placeholder="08:00" ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-time-input" data-f="end_time" data-idx="${idx}" value="${this.ctx.escapeHtml(this.kit.timeValue(r.end_time))}" placeholder="28:00" ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-time-input" data-minutes-f="break_minutes" data-idx="${idx}" value="${this.durationInput(r, 'break_minutes', 'break_time')}" ${locked ? 'disabled' : ''} /></td>
+              <td>${this.timeInputHtml(r, idx, 'start_time', locked)}</td>
+              <td>${this.timeInputHtml(r, idx, 'end_time', locked)}</td>
+              <td>${this.timeInputHtml(r, idx, 'break_minutes', locked, { duration: true, decimalField: 'break_time', defaultKind: 'break_minutes' })}</td>
               <td><span>${this.formatMinutes(Number(r.work_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.overtime_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.shortage_hours || 0) * 60) || '-'}</span></td>
-              <td><input type="number" step="0.1" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input type="number" step="1" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><span class="status-badge status-${this.ctx.escapeHtml(r.status || 'draft')}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</span></td>
+              <td><input class="dr-large-input dr-distance-input" type="number" step="${distanceStep}" min="0" inputmode="numeric" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><button type="button" class="status-badge status-button status-${this.ctx.escapeHtml(r.status || 'draft')}" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'クリックしてこの日のロックを解除' : 'クリックしてこの日をロック'}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</button></td>
               <td class="btn-row">
-                ${firstOfDate && sameDateRows.some((row) => row.daily_report_id)
-                  ? `<button type="button" class="btn btn-ghost btn-small" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'この日の確認解除' : 'この日を確認'}">${dayConfirmed ? '↶' : '✓'}</button>`
-                  : ''}
                 <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
                 ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
               </td>
+              <td class="dr-day-total-cell" data-day-total="billing" data-work-date="${this.ctx.escapeHtml(date)}">¥${Math.round(totals.billing).toLocaleString()}</td>
+              <td class="dr-day-total-cell" data-day-total="payment" data-work-date="${this.ctx.escapeHtml(date)}">¥${Math.round(totals.payment).toLocaleString()}</td>
             </tr>`;
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
-                <td colspan="16">
+                <td colspan="18">
                   <div class="dr-detail-grid">
                     <section class="dr-detail-section">
                       <h4>料金区分</h4>
@@ -486,7 +640,7 @@
 
       this.ctx.app.innerHTML = this.kit.shell(
         `日報入力（案件#${this.gridMeta.project_id} / ${this.ym}）`,
-        `<section class="panel dr-grid-screen">
+        `<section class="panel dr-grid-screen" style="--dr-input-font-size:${this.ctx.escapeHtml(ui.input_font_size_px || 16)}px;--dr-reference-color:${this.ctx.escapeHtml(ui.reference_text_color || '#A7B0BE')};--dr-saturday-bg:${this.ctx.escapeHtml(ui.saturday_background_color || '#EAF4FF')};--dr-saturday-text:${this.ctx.escapeHtml(ui.saturday_text_color || '#1D4ED8')};--dr-holiday-bg:${this.ctx.escapeHtml(ui.holiday_background_color || '#FDECEC')};--dr-holiday-text:${this.ctx.escapeHtml(ui.holiday_text_color || '#B42318')}">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="dr-toolbar">
             <div class="dr-summary">
@@ -507,9 +661,10 @@
             <table class="data-table data-table-compact dr-month-table">
               <thead>
                 <tr>
-                  <th></th><th>日付</th><th>不参</th><th>研修</th><th>開始</th><th>終了</th>
+                  <th></th><th>日付</th><th>不要</th><th>研修</th><th>開始</th><th>終了</th>
                   <th>休憩</th><th>稼働</th><th>超過</th><th>不足（請求）</th><th>距離</th>
                   <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th><th>操作</th>
+                  <th class="dr-day-total-header">請求合計</th><th class="dr-day-total-header">支払合計</th>
                 </tr>
               </thead>
               <tbody>${body}</tbody>
@@ -534,7 +689,18 @@
 
     bindGrid() {
       document.querySelectorAll('[data-f][data-idx]').forEach((el) => {
-        el.addEventListener('change', () => this.collectField(el));
+        el.addEventListener('change', () => {
+          const field = el.getAttribute('data-f');
+          if (field === 'start_time' || field === 'end_time') {
+            try {
+              el.value = this.normalizeTimeText(el.value);
+            } catch (error) {
+              window.alert(error.message);
+              return;
+            }
+          }
+          this.collectField(el);
+        });
         el.addEventListener('input', () => this.collectField(el));
       });
       document.querySelectorAll('[data-minutes-f][data-idx]').forEach((el) => {
@@ -542,11 +708,18 @@
           const idx = Number(el.getAttribute('data-idx'));
           const field = el.getAttribute('data-minutes-f');
           try {
+            el.value = this.normalizeTimeText(el.value, true);
             this.gridRows[idx][field] = this.parseMinutesInput(el.value);
             this.gridRows[idx]._dirty = true;
           } catch (error) {
             window.alert(error.message);
           }
+        });
+      });
+      document.querySelectorAll('[data-default-time][data-idx]').forEach((el) => {
+        el.addEventListener('input', () => {
+          const empty = !el.value || el.value === '0:00' || el.value === '00:00';
+          el.classList.toggle('dr-input-empty', empty);
         });
       });
       document.querySelectorAll('[data-signed-minutes-f][data-idx]').forEach((el) => {
@@ -600,14 +773,72 @@
           this.gridRows[idx]._dirty = true;
         });
       });
+      document.querySelectorAll('[data-default-time][data-idx]').forEach((el) => {
+        el.addEventListener('dblclick', () => {
+          const idx = Number(el.getAttribute('data-idx'));
+          const field = el.getAttribute('data-default-time');
+          const defaults = this.projectInputDefaults || {};
+          const row = this.gridRows[idx];
+          if (!row) return;
+          if (field === 'break_minutes') {
+            row.break_minutes = Number(defaults.break_minutes || 0);
+            el.value = this.formatMinutes(row.break_minutes);
+          } else {
+            const value = this.kit.timeValue(defaults[field]);
+            if (!value) return;
+            row[field] = value;
+            el.value = value;
+          }
+          el.classList.toggle('dr-input-empty', !el.value || el.value === '0:00' || el.value === '00:00');
+          row._dirty = true;
+        });
+      });
+      document.querySelectorAll('[data-time-step][data-direction][data-idx]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const idx = Number(btn.getAttribute('data-idx'));
+          const field = btn.getAttribute('data-time-step');
+          const direction = Number(btn.getAttribute('data-direction'));
+          const row = this.gridRows[idx];
+          if (!row) return;
+          await this.ensureContext(idx);
+          const step = this.inputTimeStep(row);
+          try {
+            if (field === 'break_minutes') {
+              row.break_minutes = Math.max(0, Number(row.break_minutes || 0) + direction * step);
+              const input = btn.parentElement.querySelector('input');
+              input.value = this.formatMinutes(row.break_minutes);
+              input.classList.toggle('dr-input-empty', row.break_minutes === 0);
+            } else {
+              const current = row[field] ? this.parseClockInput(this.kit.timeValue(row[field])) : 0;
+              const next = Math.min(47 * 60 + 59, Math.max(0, current + direction * step));
+              row[field] = this.formatClockMinutes(next);
+              const input = btn.parentElement.querySelector('input');
+              input.value = row[field];
+              input.classList.remove('dr-input-empty');
+            }
+            row._dirty = true;
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
       document.querySelectorAll('[data-fee-item]').forEach((select) => {
         select.addEventListener('change', async () => {
           const idx = Number(select.getAttribute('data-fee-item'));
           const row = this.gridRows[idx];
           row.selected_fee_item_id = select.value || null;
           row.fee_item_selection_source = select.value ? 'manual' : 'auto';
+          row.rate_overrides = {};
+          row.rate_override_reason = '';
+          row.calculation_detail = null;
           row._dirty = true;
+          select.disabled = true;
           await this.ensureContext(idx, true);
+          const calculated = await this.previewRow(idx);
+          if (!calculated) {
+            select.disabled = false;
+            return;
+          }
           row._expanded = true;
           this.renderGrid();
         });
@@ -660,6 +891,7 @@
       );
       document.querySelectorAll('[data-status-row]').forEach((btn) =>
         btn.addEventListener('click', async () => {
+          const viewState = this.captureGridViewState();
           const idx = Number(btn.getAttribute('data-status-row'));
           const status = btn.getAttribute('data-status');
           const row = this.gridRows[idx];
@@ -683,7 +915,8 @@
             window.alert(result.data?.message || 'ステータス更新失敗');
             return;
           }
-          await this.showInputGrid(this.gridMeta);
+          if (result.data?.report) this.mergeStatusReports([result.data.report]);
+          this.renderGridWithViewState(viewState, idx);
         })
       );
       document.querySelectorAll('[data-add-work]').forEach((btn) =>
@@ -725,6 +958,7 @@
       );
       document.querySelectorAll('[data-day-status][data-idx]').forEach((btn) =>
         btn.addEventListener('click', async () => {
+          const viewState = this.captureGridViewState();
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
           const idx = Number(btn.getAttribute('data-idx'));
           const status = btn.getAttribute('data-day-status');
@@ -757,7 +991,8 @@
             window.alert(result.data?.message || '日次確認処理に失敗しました');
             return;
           }
-          await this.showInputGrid(this.gridMeta);
+          this.mergeStatusReports(result.data.reports || []);
+          this.renderGridWithViewState(viewState, idx);
         })
       );
     },
@@ -861,6 +1096,7 @@
       const saved = result.data.report;
       if (saved) {
         this.gridRows[idx] = { ...this.gridRows[idx], ...saved, _dirty: false, _expanded: row._expanded };
+        this.updateDayTotalCells(this.kit.dateValue(saved.work_date || row.work_date));
       }
       return true;
     },
@@ -878,7 +1114,6 @@
           if (!ok) return;
         }
       }
-      await this.showInputGrid(this.gridMeta);
       this.ctx.showToast('保存しました');
     },
   };
