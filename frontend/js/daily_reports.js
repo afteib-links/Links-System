@@ -4,6 +4,7 @@
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ym = this.kit.currentYearMonth();
+      this.listFilters = { q:'', closing_date:'', workflow_status:'', input_progress:'' };
       await this.showMonthList();
     },
 
@@ -249,9 +250,9 @@
 
     async showMonthList(message = '') {
       this.ctx.renderLoading();
-      const { res, data } = await this.ctx.api(
-        `/api/daily-reports/month-projects?target_year_month=${encodeURIComponent(this.ym)}`
-      );
+      const params = new URLSearchParams({ target_year_month:this.ym });
+      Object.entries(this.listFilters || {}).forEach(([key,value]) => { if (value) params.set(key,value); });
+      const { res, data } = await this.ctx.api(`/api/daily-reports/month-projects?${params}`);
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
           '日報',
@@ -265,13 +266,13 @@
         .map(
           (r) => `
           <tr>
-            <td>${this.ctx.escapeHtml(r.project_id)}</td>
+            <td>#${this.ctx.escapeHtml(r.project_id)}</td>
+            <td>${this.ctx.escapeHtml(r.template_name || r.manager_name || '-')}</td>
             <td>${this.ctx.escapeHtml(r.company_name || '-')}</td>
             <td>${this.ctx.escapeHtml(r.partner_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(r.template_name || r.manager_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(r.input_days)}/${this.ctx.escapeHtml(r.days_in_month)}</td>
-            <td>${this.ctx.escapeHtml(r.completion_rate)}%</td>
-            <td>${this.ctx.escapeHtml(r.input_status)}</td>
+            <td>${r.closing_date === 'end' ? '末日' : `${this.ctx.escapeHtml(r.closing_date || '-')}日`}</td>
+            <td>${this.ctx.escapeHtml(r.input_days)}/${this.ctx.escapeHtml(r.days_in_month)}（${this.ctx.escapeHtml(r.completion_rate)}%）</td>
+            <td><span class="status-badge status-${this.ctx.escapeHtml(r.workflow_status)}">${this.ctx.escapeHtml(r.workflow_status_label || r.input_status)}</span></td>
             <td>
               <button type="button" class="btn btn-small" data-input="${r.project_id}"
                 data-company="${r.company_id || ''}" data-partner="${r.partner_id || ''}">入力</button>
@@ -280,39 +281,31 @@
         )
         .join('');
       this.ctx.app.innerHTML = this.kit.shell(
-        '日報（仮組）',
+        '日報管理',
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <div class="toolbar">
-            <button type="button" class="btn btn-ghost" id="prev-month">← 前月</button>
-            <input type="month" id="ym" value="${this.ctx.escapeHtml(this.ym)}" />
-            <button type="button" class="btn btn-ghost" id="next-month">次月 →</button>
-            <button type="button" class="btn" id="reload">表示</button>
+          ${this.kit.monthNavigatorHtml(this.ym,'daily-month')}
+          <div class="settlement-filters">
+            <input id="daily-q" placeholder="案件・会社・パートナーを検索" value="${this.ctx.escapeHtml(this.listFilters.q)}">
+            <select id="daily-closing"><option value="">全締日</option>${['5','10','15','20','25','end'].map(v=>`<option value="${v}" ${this.listFilters.closing_date===v?'selected':''}>${v==='end'?'末日':`${v}日`}</option>`).join('')}</select>
+            <select id="daily-status"><option value="">全状態</option>${[['not_started','未入力'],['inputting','入力中'],['ready','申請可能'],['submitted','承認待ち'],['approved','承認済み'],['rejected','差戻し'],['correcting','訂正中']].map(([v,l])=>`<option value="${v}" ${this.listFilters.workflow_status===v?'selected':''}>${l}</option>`).join('')}</select>
+            <select id="daily-progress"><option value="">全入力状況</option><option value="with_input" ${this.listFilters.input_progress==='with_input'?'selected':''}>入力あり</option><option value="without_input" ${this.listFilters.input_progress==='without_input'?'selected':''}>未入力</option></select>
+            <button id="daily-filter" class="btn btn-secondary">絞り込み</button>
           </div>
           <p class="muted">対象案件 ${this.ctx.escapeHtml(summary.project_count ?? 0)} /
             入力あり ${this.ctx.escapeHtml(summary.input_project_count ?? 0)} /
             平均完了率 ${this.ctx.escapeHtml(summary.avg_completion_rate ?? 0)}%</p>
           <div class="table-wrap table-wrap-sticky">
             <table class="data-table data-table-compact">
-              <thead><tr><th>案件</th><th>企業</th><th>パートナー</th><th>名称</th><th>入力日数</th><th>完了率</th><th>状況</th><th>操作</th></tr></thead>
+              <thead><tr><th>案件No</th><th>案件名</th><th>企業</th><th>パートナー</th><th>締日</th><th>入力進捗</th><th>月次承認状態</th><th>操作</th></tr></thead>
               <tbody>${rows || '<tr><td colspan="8">案件がありません</td></tr>'}</tbody>
             </table>
           </div>
         </section>`
       );
       this.kit.bindShell();
-      document.getElementById('prev-month')?.addEventListener('click', () => {
-        this.shiftMonth(-1);
-        this.showMonthList();
-      });
-      document.getElementById('next-month')?.addEventListener('click', () => {
-        this.shiftMonth(1);
-        this.showMonthList();
-      });
-      document.getElementById('reload')?.addEventListener('click', () => {
-        this.ym = document.getElementById('ym').value || this.ym;
-        this.showMonthList();
-      });
+      this.kit.bindMonthNavigator('daily-month',()=>this.ym,(value)=>{this.ym=value;},()=>this.showMonthList());
+      document.getElementById('daily-filter')?.addEventListener('click',()=>{this.listFilters={q:document.getElementById('daily-q').value.trim(),closing_date:document.getElementById('daily-closing').value,workflow_status:document.getElementById('daily-status').value,input_progress:document.getElementById('daily-progress').value};this.showMonthList();});
       document.querySelectorAll('[data-input]').forEach((btn) =>
         btn.addEventListener('click', () => {
           this.kit.pushNav(() => this.showMonthList());

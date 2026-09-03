@@ -97,6 +97,7 @@ router.get('/targets', async (req, res) => {
           payment_output_code: r.payment_output_code,
           closing_date: closing || r.project_closing_date || r.closing_date_code || '',
           report_ids: [],
+          projects: new Map(),
           gross_amount: 0,
         });
       }
@@ -104,6 +105,19 @@ router.get('/targets', async (req, res) => {
       if (!g.report_ids.includes(r.daily_report_id)) {
         g.report_ids.push(r.daily_report_id);
         g.gross_amount += effectivePayment(r);
+      }
+      if (!g.projects.has(Number(r.project_id))) {
+        g.projects.set(Number(r.project_id), {
+          project_id:Number(r.project_id),
+          closing_date:r.project_closing_date || r.closing_date_code || '',
+          report_ids:[],
+          gross_amount:0,
+        });
+      }
+      const project=g.projects.get(Number(r.project_id));
+      if (!project.report_ids.includes(Number(r.daily_report_id))) {
+        project.report_ids.push(Number(r.daily_report_id));
+        project.gross_amount += effectivePayment(r);
       }
     }
 
@@ -131,6 +145,7 @@ router.get('/targets', async (req, res) => {
       const finalAmount = Math.max(0, g.gross_amount - advanceDeduction - ruleDeduction);
       const target = {
         ...g,
+        projects:[...g.projects.values()],
         advance_deduction_amount: advanceDeduction,
         deduction_rules: selectedRules,
         rule_deduction_amount: ruleDeduction,

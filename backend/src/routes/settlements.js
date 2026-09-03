@@ -4,6 +4,7 @@ const { getPool, query } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { ensureCycles } = require('./cash_management');
 const { PDF_DIR, writePdf } = require('../services/settlement_pdf');
+const { buildAggregatedLines } = require('../services/settlement_line_builder');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -112,11 +113,42 @@ async function canAccessSettlement(req, kind, id) {
   return false;
 }
 
-async function insertLines(conn, kind, settlementId, lines) {
+async function insertLines(conn, kind, settlementId, lines, actorUserId = null, auditReason = '明細を作成') {
   const ids = [];
-  for (const line of lines) {
-    const [result] = await conn.query(`INSERT INTO settlement_lines (settlement_type,settlement_id,line_type,source_type,source_id,project_id,daily_report_id,item_name,quantity,unit_price,amount,tax_category,reason,snapshot_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [kind, settlementId, line.line_type, line.source_type, line.source_id || null, line.project_id || null, line.daily_report_id || null, line.item_name, line.quantity ?? 1, line.unit_price ?? line.amount, line.amount, line.tax_category || 'taxable', line.reason || null, JSON.stringify(line.snapshot || {})]);
-    ids.push(Number(result.insertId));
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const displayOrder = Number(line.display_order || (index + 1) * 10);
+    const [result] = await conn.query(
+      `INSERT INTO settlement_lines
+        (settlement_type,settlement_id,display_order,line_type,source_type,source_id,project_id,daily_report_id,
+         item_name,quantity,unit_price,amount,tax_category,reason,is_manually_added,is_manually_edited,
+         amount_overridden,status,snapshot_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',?)`,
+      [kind, settlementId, displayOrder, line.line_type, line.source_type, line.source_id || null,
+        line.project_id || null, line.daily_report_id || null, line.item_name, line.quantity ?? 1,
+        line.unit_price ?? line.amount, line.amount, line.tax_category || 'taxable', line.reason || null,
+        line.is_manually_added ? 1 : 0, line.is_manually_edited ? 1 : 0,
+        line.amount_overridden ? 1 : 0, JSON.stringify(line.snapshot || {})]
+    );
+    const lineId = Number(result.insertId);
+    ids.push(lineId);
+    for (const source of line.sources || []) {
+      await conn.query(
+        `INSERT INTO settlement_line_sources
+          (settlement_line_id,daily_report_id,monthly_approval_id,source_component,quantity,amount,snapshot_json)
+         VALUES (?,?,?,?,?,?,?)`,
+        [lineId, source.daily_report_id, source.monthly_approval_id, source.source_component,
+          source.quantity || 0, source.amount || 0, JSON.stringify(source.snapshot || {})]
+      );
+    }
+    if (actorUserId) {
+      await conn.query(
+        `INSERT INTO settlement_line_audit_logs
+          (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id)
+         VALUES (?,'create',NULL,?,?,?)`,
+        [lineId, JSON.stringify({ ...line, sources: undefined }), auditReason, actorUserId]
+      );
+    }
   }
   return ids;
 }
@@ -161,24 +193,105 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
     if (reports.length !== ids.length) throw new Error('対象日報には承認済みでない、または既に確定対象となったものが含まれます');
     await checkMonthlyApprovals(conn, reports, ym);
     const approvedReports = await approvedSnapshotReports(conn, reports, ym);
-    const workLines = approvedReports.map((r) => ({ line_type:'work',source_type:'monthly_approval_snapshot',source_id:r.monthly_approval_id,project_id:r.project_id,daily_report_id:r.daily_report_id,item_name:`${r.project_name || '案件'} ${String(r.work_date).slice(0,10)}`,quantity:1,unit_price:effective(r,kind),amount:effective(r,kind),tax_category:'taxable',snapshot:r }));
-    const manual = Array.isArray(b.adjustments) ? b.adjustments.map((x) => ({ line_type:'adjustment',source_type:'manual_adjustment',item_name:String(x.item_name || '調整'),quantity:1,unit_price:asMoney(x.amount),amount:asMoney(x.amount),tax_category:x.tax_category || 'taxable',reason:String(x.reason || '').trim() || null,snapshot:x })) : [];
-    if (manual.some((x)=>x.amount < 0 && !x.reason)) throw new Error('負額調整には理由が必要です');
+    const workLines = buildAggregatedLines(approvedReports, kind);
+    const manual = Array.isArray(b.adjustments) ? b.adjustments.map((x,index) => ({
+      line_type:'adjustment', source_type:'manual_adjustment', item_name:String(x.item_name || '調整'),
+      quantity:Number(x.quantity ?? 1), unit_price:asMoney(x.unit_price ?? x.amount), amount:asMoney(x.amount),
+      tax_category:x.tax_category || 'taxable', reason:String(x.reason || '').trim() || null,
+      is_manually_added:true, amount_overridden:true, display_order:(workLines.length+index+1)*10, snapshot:x,
+    })) : [];
+    if (manual.some((x)=>!x.reason)) throw new Error('手動明細には変更理由が必要です');
     const lines = [...workLines, ...manual];
     let settlementId;
     if (kind === 'invoice') {
       const [company] = await conn.query('SELECT company_name FROM companies WHERE company_id=? AND is_deleted=0',[entityId]); if (!company.length) throw new Error('企業が見つかりません');
-      const [result] = await conn.query(`INSERT INTO invoices (company_id,target_year_month,closing_date,invoice_status,settlement_status,subtotal_amount,adjustment_amount,taxable_amount,tax_amount,total_amount,extra_data) VALUES (?,?,?,'draft','draft',0,0,0,0,0,?)`,[entityId,ym,String(b.closing_date || 'end'),JSON.stringify({ draft_source:'settlement' })]); settlementId=result.insertId;
+      let billingId=null,billingSummaryNo=null,billingPrintName=company[0].company_name;
+      if(b.billing_id){const [billings]=await conn.query('SELECT billing_id,billing_summary_no,billing_print_name FROM company_billings WHERE billing_id=? AND company_id=? AND is_deleted=0',[Number(b.billing_id),entityId]);if(!billings.length)throw new Error('選択した請求先は対象企業に属していません');billingId=Number(billings[0].billing_id);billingSummaryNo=billings[0].billing_summary_no||null;billingPrintName=billings[0].billing_print_name||billingPrintName;if(String(b.billing_summary_no||'')!==String(billingSummaryNo||''))throw new Error('請求取纏番号が請求先設定と一致しません');}
+      const [result] = await conn.query(`INSERT INTO invoices (company_id,billing_id,billing_summary_no,billing_print_name,target_year_month,closing_date,invoice_status,settlement_status,subtotal_amount,adjustment_amount,taxable_amount,tax_amount,total_amount,extra_data) VALUES (?,?,?,?,?,?,'draft','draft',0,0,0,0,0,?)`,[entityId,billingId,billingSummaryNo,billingPrintName,ym,String(b.closing_date || 'end'),JSON.stringify({ draft_source:'settlement',selected_project_ids:[...new Set(reports.map((row)=>Number(row.project_id)))] })]); settlementId=result.insertId;
     } else {
       const [partner] = await conn.query('SELECT partner_name,payment_output_code FROM partners WHERE partner_id=? AND is_deleted=0',[entityId]); if (!partner.length) throw new Error('パートナーが見つかりません');
       const [result] = await conn.query(`INSERT INTO payments (partner_id,target_year_month,closing_date,payment_status,settlement_status,gross_amount,final_transfer_amount,payment_output_code,extra_data) VALUES (?,?,?,'draft','draft',0,0,?,?)`,[entityId,ym,String(b.closing_date || 'end'),partner[0].payment_output_code || null,JSON.stringify({ draft_source:'settlement', issue_salary_statement: Boolean(b.issue_salary_statement) })]); settlementId=result.insertId;
     }
-    await insertLines(conn,kind,settlementId,lines); await addCompatibilityLines(conn,kind,settlementId,lines);
+    await insertLines(conn,kind,settlementId,lines,req.session.user.user_id,'月次承認済み日報から下書きを作成');
     for (const r of reports) await conn.query(kind === 'invoice' ? 'INSERT INTO invoice_daily_reports (invoice_id,daily_report_id) VALUES (?,?)' : 'INSERT INTO payment_daily_reports (payment_id,daily_report_id) VALUES (?,?)',[settlementId,r.daily_report_id]);
     for (const r of reports) await conn.query(kind === 'invoice' ? "UPDATE daily_reports SET billing_status='reserved',version=version+1 WHERE daily_report_id=?" : "UPDATE daily_reports SET payment_status='reserved',version=version+1 WHERE daily_report_id=?", [r.daily_report_id]);
     await conn.query(`INSERT INTO settlement_workflows (settlement_type,settlement_id,drafted_by_user_id) VALUES (?,?,?)`,[kind,settlementId,req.session.user.user_id]);
+    await recalculateDraft(conn,kind,settlementId);
     await conn.commit(); return res.status(201).json({ok:true, settlement_id:settlementId, status:'draft'});
   } catch(err) { await conn.rollback(); return res.status(400).json({ok:false,message:err.message}); } finally { conn.release(); }
+});
+
+router.post('/:kind/:id/lines', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id),b=req.body||{};
+  if(!validKind(kind))return res.status(404).end();
+  const reason=String(b.reason||'').trim();
+  if(!String(b.item_name||'').trim()||!reason)return res.status(400).json({ok:false,message:'摘要と追加理由は必須です'});
+  const quantity=Number(b.quantity??1),unitPrice=asMoney(b.unit_price),calculated=asMoney(quantity*unitPrice);
+  const amount=b.amount==null||b.amount===''?calculated:asMoney(b.amount);
+  if(!Number.isFinite(quantity)||!Number.isFinite(unitPrice)||!Number.isFinite(amount))return res.status(400).json({ok:false,message:'単価、数量、金額を数値で入力してください'});
+  const conn=await getPool().getConnection();
+  try{await conn.beginTransaction();await assertEditable(conn,kind,id);
+    const [maxRows]=await conn.query(`SELECT COALESCE(MAX(display_order),0) max_order FROM settlement_lines WHERE settlement_type=? AND settlement_id=?`,[kind,id]);
+    const line={line_type:'adjustment',source_type:'manual_adjustment',item_name:String(b.item_name).trim(),quantity,unit_price:unitPrice,amount,tax_category:['taxable','non_taxable','tax_exempt'].includes(b.tax_category)?b.tax_category:'taxable',reason,is_manually_added:true,amount_overridden:Math.abs(amount-calculated)>0.009,display_order:Number(maxRows[0].max_order||0)+10,snapshot:{manual:true}};
+    const [lineId]=await insertLines(conn,kind,id,[line],req.session.user.user_id,reason);await recalculateDraft(conn,kind,id);await conn.commit();return res.status(201).json({ok:true,settlement_line_id:lineId});
+  }catch(err){await conn.rollback();return res.status(400).json({ok:false,message:err.message});}finally{conn.release();}
+});
+
+router.put('/:kind/:id/lines/:lineId', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id),lineId=Number(req.params.lineId),b=req.body||{};
+  if(!validKind(kind))return res.status(404).end();
+  const reason=String(b.reason||'').trim();if(!reason)return res.status(400).json({ok:false,message:'変更理由は必須です'});
+  const conn=await getPool().getConnection();
+  try{await conn.beginTransaction();await assertEditable(conn,kind,id);
+    const [rows]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_line_id=? AND settlement_type=? AND settlement_id=? AND status='active' FOR UPDATE`,[lineId,kind,id]);
+    const before=rows[0];if(!before)throw new Error('明細が見つかりません');if(Number(b.version)!==Number(before.version))throw new Error('他の利用者が明細を更新しました。再読込してください');
+    const quantity=Number(b.quantity),unitPrice=asMoney(b.unit_price),formulaAmount=asMoney(quantity*unitPrice);
+    const amount=b.amount==null||b.amount===''?formulaAmount:asMoney(b.amount);
+    if(!String(b.item_name||'').trim()||!Number.isFinite(quantity)||!Number.isFinite(unitPrice)||!Number.isFinite(amount))throw new Error('摘要、単価、数量、金額を正しく入力してください');
+    const after={item_name:String(b.item_name).trim(),quantity,unit_price:unitPrice,amount,tax_category:['taxable','non_taxable','tax_exempt'].includes(b.tax_category)?b.tax_category:'taxable',amount_overridden:Math.abs(amount-formulaAmount)>0.009};
+    await conn.query(`UPDATE settlement_lines SET item_name=?,quantity=?,unit_price=?,amount=?,tax_category=?,reason=?,is_manually_edited=1,amount_overridden=?,version=version+1 WHERE settlement_line_id=?`,[after.item_name,after.quantity,after.unit_price,after.amount,after.tax_category,reason,after.amount_overridden?1:0,lineId]);
+    await conn.query(`INSERT INTO settlement_line_audit_logs (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id) VALUES (?,'update',?,?,?,?)`,[lineId,JSON.stringify(before),JSON.stringify(after),reason,req.session.user.user_id]);
+    await recalculateDraft(conn,kind,id);await conn.commit();return res.json({ok:true});
+  }catch(err){await conn.rollback();return res.status(400).json({ok:false,message:err.message});}finally{conn.release();}
+});
+
+router.delete('/:kind/:id/lines/:lineId', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id),lineId=Number(req.params.lineId),reason=String(req.body?.reason||'').trim();
+  if(!validKind(kind))return res.status(404).end();if(!reason)return res.status(400).json({ok:false,message:'取消理由は必須です'});
+  const conn=await getPool().getConnection();
+  try{await conn.beginTransaction();await assertEditable(conn,kind,id);const [rows]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_line_id=? AND settlement_type=? AND settlement_id=? AND status='active' FOR UPDATE`,[lineId,kind,id]);if(!rows.length)throw new Error('明細が見つかりません');
+    await conn.query(`UPDATE settlement_lines SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP,cancelled_by_user_id=?,cancellation_reason=?,version=version+1 WHERE settlement_line_id=?`,[req.session.user.user_id,reason,lineId]);
+    await conn.query(`INSERT INTO settlement_line_audit_logs (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id) VALUES (?,'cancel',?,NULL,?,?)`,[lineId,JSON.stringify(rows[0]),reason,req.session.user.user_id]);
+    await recalculateDraft(conn,kind,id);await conn.commit();return res.json({ok:true});
+  }catch(err){await conn.rollback();return res.status(400).json({ok:false,message:err.message});}finally{conn.release();}
+});
+
+router.post('/:kind/:id/lines/reorder', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id),lineIds=(req.body?.line_ids||[]).map(Number).filter(Boolean),reason=String(req.body?.reason||'並び順変更').trim();
+  if(!validKind(kind))return res.status(404).end();const conn=await getPool().getConnection();
+  try{await conn.beginTransaction();await assertEditable(conn,kind,id);const [rows]=await conn.query(`SELECT settlement_line_id FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' FOR UPDATE`,[kind,id]);if(rows.length!==lineIds.length||rows.some((row)=>!lineIds.includes(Number(row.settlement_line_id))))throw new Error('有効な明細をすべて指定してください');
+    for(let index=0;index<lineIds.length;index+=1){await conn.query('UPDATE settlement_lines SET display_order=?,version=version+1 WHERE settlement_line_id=?',[(index+1)*10,lineIds[index]]);await conn.query(`INSERT INTO settlement_line_audit_logs (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id) VALUES (?,'reorder',NULL,?,?,?)`,[lineIds[index],JSON.stringify({display_order:(index+1)*10}),reason,req.session.user.user_id]);}
+    await conn.commit();return res.json({ok:true});
+  }catch(err){await conn.rollback();return res.status(400).json({ok:false,message:err.message});}finally{conn.release();}
+});
+
+async function currentAggregateForSettlement(conn,kind,id,ym){
+  const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';const key=idFor(kind);
+  const [reports]=await conn.query(`SELECT d.*,bp.template_name project_name FROM ${linkTable} l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id LEFT JOIN projects p ON p.project_id=d.project_id LEFT JOIN base_projects bp ON bp.base_project_id=p.base_project_id WHERE l.${key}=? AND d.is_deleted=0 ORDER BY d.daily_report_id`,[id]);
+  const approved=await approvedSnapshotReports(conn,reports,ym);return buildAggregatedLines(approved,kind);
+}
+
+router.get('/:kind/:id/source-diff', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id);if(!validKind(kind))return res.status(404).end();
+  try{const conn=getPool();const [headers]=await conn.query(`SELECT target_year_month FROM ${tableFor(kind)} WHERE ${idFor(kind)}=?`,[id]);if(!headers.length)return res.status(404).json({ok:false,message:'対象が見つかりません'});const fresh=await currentAggregateForSettlement(conn,kind,id,headers[0].target_year_month);const [existing]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' AND is_manually_added=0`,[kind,id]);const oldByKey=new Map(existing.map((line)=>[json(line.snapshot_json).source_key,line]));const newByKey=new Map(fresh.map((line)=>[line.source_key,line]));const changes=[];for(const [key,line] of newByKey){const old=oldByKey.get(key);if(!old)changes.push({change_key:key,action:'add',current:null,next:line});else if(asMoney(old.amount)!==asMoney(line.amount)||Number(old.quantity)!==Number(line.quantity))changes.push({change_key:key,action:'update',current:old,next:line,protected:Boolean(old.is_manually_edited)});}for(const [key,line] of oldByKey){if(!newByKey.has(key))changes.push({change_key:key,action:'remove',current:line,next:null,protected:Boolean(line.is_manually_edited)});}return res.json({ok:true,changes});}catch(err){return res.status(400).json({ok:false,message:err.message});}
+});
+
+router.post('/:kind/:id/source-diff/apply', requireRole('admin','soumu'), async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id),keys=new Set((req.body?.change_keys||[]).map(String)),replaceIds=new Set((req.body?.replace_line_ids||[]).map(Number)),reason=String(req.body?.reason||'').trim();if(!validKind(kind))return res.status(404).end();if(!keys.size||!reason)return res.status(400).json({ok:false,message:'反映対象と変更理由は必須です'});const conn=await getPool().getConnection();
+  try{await conn.beginTransaction();await assertEditable(conn,kind,id);const [headers]=await conn.query(`SELECT target_year_month FROM ${tableFor(kind)} WHERE ${idFor(kind)}=? FOR UPDATE`,[id]);const fresh=await currentAggregateForSettlement(conn,kind,id,headers[0].target_year_month);const freshByKey=new Map(fresh.map((line)=>[line.source_key,line]));const [existing]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' AND is_manually_added=0 FOR UPDATE`,[kind,id]);const oldByKey=new Map(existing.map((line)=>[json(line.snapshot_json).source_key,line]));
+    for(const key of keys){const old=oldByKey.get(key),next=freshByKey.get(key);if(old&&old.is_manually_edited&&!replaceIds.has(Number(old.settlement_line_id)))continue;if(old){await conn.query(`UPDATE settlement_lines SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP,cancelled_by_user_id=?,cancellation_reason=?,version=version+1 WHERE settlement_line_id=?`,[req.session.user.user_id,reason,old.settlement_line_id]);await conn.query(`INSERT INTO settlement_line_audit_logs (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id) VALUES (?,'source_refresh',?,?,?,?)`,[old.settlement_line_id,JSON.stringify(old),JSON.stringify(next||null),reason,req.session.user.user_id]);}if(next){next.display_order=old?.display_order||next.display_order;await insertLines(conn,kind,id,[next],req.session.user.user_id,reason);}}
+    await recalculateDraft(conn,kind,id);await conn.commit();return res.json({ok:true});
+  }catch(err){await conn.rollback();return res.status(400).json({ok:false,message:err.message});}finally{conn.release();}
 });
 
 router.post('/:kind/:id/sales-review', requireRole('admin','sales'), async (req,res) => {
@@ -214,6 +327,57 @@ async function executedNetForCorrectionChain(conn, kind, workflow) {
   );
   const baseDirection=kind==='invoice'?'incoming':'outgoing';
   return rows.reduce((sum,row)=>sum+(row.direction===baseDirection?1:-1)*Number(row.amount),0);
+}
+
+async function rebuildCompatibilityLines(conn, kind, id) {
+  const table = kind === 'invoice' ? 'invoice_details' : 'payment_details';
+  const key = kind === 'invoice' ? 'invoice_id' : 'payment_id';
+  await conn.query(`UPDATE ${table} SET is_deleted=1 WHERE ${key}=?`, [id]);
+  const [lines] = await conn.query(
+    `SELECT * FROM settlement_lines
+     WHERE settlement_type=? AND settlement_id=? AND status='active'
+     ORDER BY display_order,settlement_line_id`, [kind,id]
+  );
+  await addCompatibilityLines(conn, kind, id, lines);
+}
+
+async function assertEditable(conn, kind, id) {
+  const [rows] = await conn.query(
+    `SELECT * FROM settlement_workflows
+     WHERE settlement_type=? AND settlement_id=? FOR UPDATE`, [kind,id]
+  );
+  if (!rows.length || rows[0].status !== 'draft') throw new Error('下書き状態の明細だけ編集できます');
+  return rows[0];
+}
+
+async function recalculateDraft(conn, kind, id) {
+  const [lines] = await conn.query(
+    `SELECT * FROM settlement_lines
+     WHERE settlement_type=? AND settlement_id=? AND status='active'
+     ORDER BY display_order,settlement_line_id`, [kind,id]
+  );
+  const normalized = lines.map((line) => ({ ...line, amount:Number(line.amount), quantity:Number(line.quantity), unit_price:Number(line.unit_price) }));
+  if (kind === 'invoice') {
+    const [headers] = await conn.query('SELECT company_id FROM invoices WHERE invoice_id=?', [id]);
+    const projectIds = [...new Set(normalized.map((line) => Number(line.project_id)).filter(Boolean))];
+    const resolved = await resolveInvoiceTax(conn, headers[0].company_id, projectIds);
+    const subtotal = asMoney(normalized.reduce((sum,line) => sum + line.amount, 0));
+    const adjustment = asMoney(normalized.filter((line) => line.line_type === 'adjustment').reduce((sum,line) => sum + line.amount, 0));
+    const taxable = asMoney(normalized.filter((line) => line.tax_category === 'taxable').reduce((sum,line) => sum + line.amount, 0));
+    const tax = rounding(taxable * resolved.rate, resolved.mode);
+    await conn.query(
+      `UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,version=version+1
+       WHERE invoice_id=?`, [subtotal,adjustment,taxable,tax,asMoney(subtotal+tax),id]
+    );
+  } else {
+    const gross = asMoney(normalized.filter((line) => ['work','adjustment'].includes(line.line_type)).reduce((sum,line) => sum + line.amount, 0));
+    const deductions = asMoney(normalized.filter((line) => !['work','adjustment'].includes(line.line_type)).reduce((sum,line) => sum + line.amount, 0));
+    await conn.query(
+      `UPDATE payments SET gross_amount=?,other_adjustment_amount=?,final_transfer_amount=?,version=version+1
+       WHERE payment_id=?`, [gross,asMoney(normalized.filter((line) => line.line_type === 'adjustment').reduce((sum,line) => sum + line.amount, 0)),Math.max(0,asMoney(gross+deductions)),id]
+    );
+  }
+  await rebuildCompatibilityLines(conn,kind,id);
 }
 
 const DOCUMENT_SETTING_KEYS = [
@@ -353,7 +517,7 @@ async function restorePaymentAllocations(conn, paymentId, actor, reason) {
 router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,res) => {
   const kind=req.params.kind,id=Number(req.params.id); if(!validKind(kind)) return res.status(404).end(); const b=req.body||{}; const conn=await getPool().getConnection(); const generated=[];
   try { await conn.beginTransaction(); const [headerRows]=await conn.query(`SELECT s.*, ${kind==='invoice'?'c.company_name':'p.partner_name'} FROM ${tableFor(kind)} s LEFT JOIN ${kind==='invoice'?'companies c ON c.company_id=s.company_id':'partners p ON p.partner_id=s.partner_id'} WHERE s.${idFor(kind)}=? FOR UPDATE`,[id]); const header=headerRows[0]; if(!header) throw new Error('対象が見つかりません'); const [wf]=await conn.query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE',[kind,id]); if(!wf.length || wf[0].status!=='sales_reviewed') throw new Error('営業確認済みの下書きだけ最終確定できます');
-    const [lines]=await conn.query('SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? ORDER BY settlement_line_id',[kind,id]); let finalLines=lines.map(x=>({...x,amount:Number(x.amount),unit_price:Number(x.unit_price),quantity:Number(x.quantity)}));
+    const [lines]=await conn.query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]); let finalLines=lines.map(x=>({...x,amount:Number(x.amount),unit_price:Number(x.unit_price),quantity:Number(x.quantity)}));
     let pdfLines = finalLines;
     let invoiceDisplayMode = 'detailed';
     let invoiceTaxRate = SYSTEM_TAX_RATE;
@@ -391,23 +555,28 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         const rules=await applicableRules(conn,header.partner_id,header.target_year_month);
         const [carries]=await conn.query(`SELECT * FROM settlement_carry_forwards WHERE partner_id=? AND status='open' FOR UPDATE`,[header.partner_id]);
         const [advances]=await conn.query(
-          `SELECT ar.advance_record_id, ar.advance_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.amount ELSE 0 END),0) remaining
+          `SELECT ar.advance_record_id,
+                  ar.advance_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.amount ELSE 0 END),0) remaining,
+                  ar.transfer_fee_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.transfer_fee_amount ELSE 0 END),0) fee_remaining
            FROM advance_records ar
            JOIN cash_schedules cs ON cs.cash_schedule_id=ar.cash_schedule_id AND cs.status='executed'
            LEFT JOIN advance_payment_allocations a ON a.advance_record_id=ar.advance_record_id
            WHERE ar.partner_id=? AND ar.status='executed'
-           GROUP BY ar.advance_record_id,ar.advance_amount HAVING remaining>0 FOR UPDATE`,[header.partner_id]
+           GROUP BY ar.advance_record_id,ar.advance_amount,ar.transfer_fee_amount HAVING remaining>0 OR fee_remaining>0 FOR UPDATE`,[header.partner_id]
         );
         const candidates=[
           ...carries.map(x=>({type:'carry',row:x,name:x.item_name,amount:Number(x.remaining_amount),tax:x.tax_category})),
-          ...advances.map(x=>({type:'advance',row:x,name:'前払控除',amount:Number(x.remaining),tax:'non_taxable'})),
+          ...advances.flatMap(x=>[
+            ...(Number(x.remaining)>0?[{type:'advance',row:x,name:'前払控除',amount:Number(x.remaining),tax:'non_taxable'}]:[]),
+            ...(Number(x.fee_remaining)>0?[{type:'advance_fee',row:x,name:'前払手数料',amount:Number(x.fee_remaining),tax:'non_taxable'}]:[]),
+          ]),
           ...rules.map(x=>({type:'rule',row:x,name:x.display_name,amount:Number(x.amount),tax:x.tax_category})),
         ];
         let available=Math.max(0,gross);
         for(const c of candidates){
           const applied=Math.min(available,c.amount);
           if(applied>0){
-            const line={line_type:c.type==='advance'?'advance':c.type==='carry'?'carry_forward':'deduction',source_type:c.type,source_id:c.type==='rule'?c.row.settlement_deduction_rule_id:c.type==='advance'?c.row.advance_record_id:c.row.settlement_carry_forward_id,item_name:c.name,quantity:1,unit_price:-applied,amount:-applied,tax_category:c.tax,snapshot:c.row};
+            const line={line_type:c.type==='advance'?'advance':c.type==='carry'?'carry_forward':'deduction',source_type:c.type,source_id:c.type==='rule'?c.row.settlement_deduction_rule_id:(c.type==='advance'||c.type==='advance_fee')?c.row.advance_record_id:c.row.settlement_carry_forward_id,item_name:c.name,quantity:1,unit_price:-applied,amount:-applied,tax_category:c.tax,snapshot:c.row};
             finalLines.push(line);
             await insertLines(conn,kind,id,[line]);
             await addCompatibilityLines(conn,kind,id,[line]);
@@ -415,7 +584,8 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
               await conn.query(`UPDATE settlement_carry_forwards SET remaining_amount=remaining_amount-?,status=IF(remaining_amount-?<=0,'settled','open') WHERE settlement_carry_forward_id=?`,[applied,applied,c.row.settlement_carry_forward_id]);
               await conn.query('INSERT INTO settlement_carry_forward_allocations (settlement_carry_forward_id,payment_id,amount) VALUES (?,?,?)',[c.row.settlement_carry_forward_id,id,applied]);
             }
-            if(c.type==='advance') await conn.query('INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount) VALUES (?,?,?)',[c.row.advance_record_id,id,applied]);
+            if(c.type==='advance') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE amount=amount+VALUES(amount)`,[c.row.advance_record_id,id,applied]);
+            if(c.type==='advance_fee') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,0,?) ON DUPLICATE KEY UPDATE transfer_fee_amount=transfer_fee_amount+VALUES(transfer_fee_amount)`,[c.row.advance_record_id,id,applied]);
           }
           const remainder=c.amount-applied;
           if(remainder>0 && c.type==='rule'){
@@ -425,7 +595,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         }
         final=asMoney(available);
       }
-      await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='安全協力会費').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines}),id]);
+      await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,transfer_fee_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.source_type==='advance_fee').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='安全協力会費').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines}),id]);
       header.gross_amount=gross;
       header.total_amount=final;
     }
@@ -474,7 +644,10 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         [kind,id,type,year,number,header.company_id||null,header.partner_id||null,pdf.fileName,JSON.stringify({document,lines:pdfLines,internal_lines:finalLines})]
       );
     }
-    await conn.query(`UPDATE settlement_workflows SET status='finalized',finalized_by_user_id=?,finalized_at=CURRENT_TIMESTAMP WHERE settlement_workflow_id=?`,[req.session.user.user_id,wf[0].settlement_workflow_id]); for(const l of finalLines.filter(x=>x.daily_report_id)) await conn.query(kind==='invoice'?`UPDATE daily_reports SET billing_status='billed' WHERE daily_report_id=?`:`UPDATE daily_reports SET payment_status='paid' WHERE daily_report_id=?`,[l.daily_report_id]); await conn.commit(); return res.json({ok:true,status:'finalized',total_amount:header.total_amount});
+    await conn.query(`UPDATE settlement_workflows SET status='finalized',finalized_by_user_id=?,finalized_at=CURRENT_TIMESTAMP WHERE settlement_workflow_id=?`,[req.session.user.user_id,wf[0].settlement_workflow_id]);
+    const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';
+    await conn.query(`UPDATE daily_reports d JOIN ${linkTable} l ON l.daily_report_id=d.daily_report_id SET d.${kind==='invoice'?'billing_status':'payment_status'}=?,d.version=d.version+1 WHERE l.${idFor(kind)}=?`,[kind==='invoice'?'billed':'paid',id]);
+    await conn.commit(); return res.json({ok:true,status:'finalized',total_amount:header.total_amount});
   } catch(err){await conn.rollback();for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}return res.status(400).json({ok:false,message:err.message});} finally {conn.release();}
 });
 
@@ -529,11 +702,11 @@ router.post('/:kind/:id/corrections', requireRole('admin','executive'), async(re
     }else{
       const [result]=await conn.query(`INSERT INTO payments (partner_id,target_year_month,closing_date,payment_status,settlement_status,gross_amount,final_transfer_amount,payment_output_code,extra_data) VALUES (?,?,?,'draft','draft',0,0,?,?)`,[source.partner_id,source.target_year_month,source.closing_date,source.payment_output_code,JSON.stringify(correctionExtra)]);newId=result.insertId;
     }
-    const [sourceLines]=await conn.query('SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? ORDER BY settlement_line_id',[kind,id]);
-    const copied=sourceLines.map(line=>({line_type:line.line_type,source_type:'correction_copy',source_id:line.settlement_line_id,project_id:line.project_id,daily_report_id:line.daily_report_id,item_name:line.item_name,quantity:Number(line.quantity),unit_price:Number(line.unit_price),amount:Number(line.amount),tax_category:line.tax_category,reason:line.reason,snapshot:{correction_of_line_id:line.settlement_line_id,original_snapshot:json(line.snapshot_json)}}));
+    const [sourceLines]=await conn.query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]);
+    const copied=sourceLines.map(line=>({line_type:line.line_type,source_type:'correction_copy',source_id:line.settlement_line_id,project_id:line.project_id,daily_report_id:line.daily_report_id,item_name:line.item_name,quantity:Number(line.quantity),unit_price:Number(line.unit_price),amount:Number(line.amount),tax_category:line.tax_category,reason:line.reason,is_manually_added:Boolean(line.is_manually_added),is_manually_edited:Boolean(line.is_manually_edited),amount_overridden:Boolean(line.amount_overridden),display_order:Number(line.display_order),snapshot:{...json(line.snapshot_json),correction_of_line_id:line.settlement_line_id}}));
     const adjustments=Array.isArray(req.body?.adjustments)?req.body.adjustments.map(x=>({line_type:'adjustment',source_type:'correction_adjustment',item_name:String(x.item_name||'訂正調整'),quantity:1,unit_price:asMoney(x.amount),amount:asMoney(x.amount),tax_category:x.tax_category||'taxable',reason:String(x.reason||reason),snapshot:x})):[];
     const allLines=[...copied,...adjustments];
-    await insertLines(conn,kind,newId,allLines);await addCompatibilityLines(conn,kind,newId,allLines);
+    await insertLines(conn,kind,newId,allLines,req.session.user.user_id,reason);await rebuildCompatibilityLines(conn,kind,newId);
     const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';
     const [links]=await conn.query(`SELECT daily_report_id FROM ${linkTable} WHERE ${idFor(kind)}=?`,[id]);
     for(const link of links){await conn.query(`INSERT INTO ${linkTable} (${idFor(kind)},daily_report_id) VALUES (?,?)`,[newId,link.daily_report_id]);await conn.query(`UPDATE daily_reports SET ${kind==='invoice'?'billing_status':'payment_status'}='reserved',version=version+1 WHERE daily_report_id=?`,[link.daily_report_id]);}
@@ -573,10 +746,12 @@ router.get('/:kind/:id', async(req,res)=>{
   try{
     if(!(await canAccessSettlement(req,kind,id)))return res.status(403).json({ok:false,message:'この精算は閲覧できません'});
     const [header]=await query(`SELECT * FROM ${tableFor(kind)} WHERE ${idFor(kind)}=? AND is_deleted=0`,[id]);if(!header)return res.status(404).json({ok:false,message:'対象が見つかりません'});
-    const lines=await query('SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? ORDER BY settlement_line_id',[kind,id]);
+    const lines=await query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]);
     const workflow=await query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=?',[kind,id]);
     const documents=await query('SELECT settlement_document_id,document_type,document_number,status,issued_at FROM settlement_documents WHERE settlement_type=? AND settlement_id=?',[kind,id]);
-    return res.json({ok:true,settlement:header,lines,workflow:workflow[0]||null,documents});
+    const lineIds=lines.map((line)=>Number(line.settlement_line_id));
+    const auditLogs=lineIds.length?await query(`SELECT * FROM settlement_line_audit_logs WHERE settlement_line_id IN (${lineIds.map(()=>'?').join(',')}) ORDER BY acted_at DESC,settlement_line_audit_log_id DESC`,lineIds):[];
+    return res.json({ok:true,settlement:header,lines,workflow:workflow[0]||null,documents,audit_logs:auditLogs});
   }catch(_err){return res.status(500).json({ok:false,message:'取得に失敗しました'});}
 });
 
