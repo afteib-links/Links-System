@@ -129,6 +129,8 @@ function publicUser(row) {
     permissions: featuresFromRoles(roles),
     departments,
     areas,
+    company_id: row.company_id == null ? null : Number(row.company_id),
+    partner_id: row.partner_id == null ? null : Number(row.partner_id),
     is_active: row.is_active === undefined ? true : Boolean(Number(row.is_active)),
   };
 }

@@ -8,6 +8,9 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "migrate": "node src/migrate.js",
+    "seed:verification": "node scripts/seed_verification_data.js",
+    "reset-and-seed:verification": "node scripts/seed_verification_data.js --reset",
+    "verify:verification-data": "node scripts/seed_verification_data.js --verify",
     "preview": "node src/preview-static.js",
     "test": "node --test test/*.test.js",
     "test:e2e": "node test-e2e/daily_report_ui.js"

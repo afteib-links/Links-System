@@ -806,7 +806,7 @@
           const direction = Number(btn.getAttribute('data-direction'));
           const row = this.gridRows[idx];
           if (!row) return;
-          await this.ensureContext(idx);
+          if (!row._calcContext) await this.ensureContext(idx);
           const step = this.inputTimeStep(row);
           try {
             if (field === 'break_minutes') {
@@ -935,6 +935,7 @@
             insertAt += 1;
           }
           const row = this.emptyDay(date, this.gridMeta);
+          row._calcContext = this.gridRows[idx]._calcContext || null;
           row._expanded = true;
           this.gridRows.splice(insertAt, 0, row);
           this.renderGrid();

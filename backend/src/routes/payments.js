@@ -1,16 +1,30 @@
 const express = require('express');
 const { getPool, query } = require('../db');
-const { requireAuth, requirePermission } = require('../middleware/auth');
+const { requireAuth, requirePermission, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('payments'));
 
-const OFFICE_FEE = 1100;
-const SAFETY_FEE = 8800;
-
 function effectivePayment(row) {
   if (row.override_payment_amount != null) return Number(row.override_payment_amount);
   return Number(row.calculated_payment_amount || 0);
+}
+
+function roleSet(req) { return new Set(req.session.user?.roles || []); }
+function restrictPaymentRead(req, where, params, paymentAlias = 'pay') {
+  const roles = roleSet(req);
+  if (roles.has('admin') || roles.has('soumu') || roles.has('executive')) return;
+  if (roles.has('partner')) {
+    where.push(`${paymentAlias}.partner_id = ?`);
+    params.push(req.session.user.partner_id);
+    return;
+  }
+  if (roles.has('sales')) {
+    where.push(`EXISTS (SELECT 1 FROM payment_daily_reports pdr JOIN daily_reports dr ON dr.daily_report_id=pdr.daily_report_id JOIN project_settlement_reviewers psr ON psr.project_id=dr.project_id WHERE pdr.payment_id=${paymentAlias}.payment_id AND psr.user_id=?)`);
+    params.push(req.session.user.user_id);
+    return;
+  }
+  where.push('1=0');
 }
 
 router.get('/targets', async (req, res) => {
@@ -29,6 +43,16 @@ router.get('/targets', async (req, res) => {
       `d.partner_id IS NOT NULL`,
     ];
     const params = [ym];
+    const targetRoles = new Set(req.session.user?.roles || []);
+    if (targetRoles.has('partner')) {
+      where.push('d.partner_id = ?');
+      params.push(req.session.user.partner_id);
+    } else if (targetRoles.has('sales')) {
+      where.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=d.project_id AND psr.user_id=?)');
+      params.push(req.session.user.user_id);
+    } else if (!(targetRoles.has('admin') || targetRoles.has('soumu') || targetRoles.has('executive'))) {
+      where.push('1=0');
+    }
     if (closing) {
       where.push(`(pr.closing_date = ? OR c.closing_date_code = ?)`);
       params.push(closing, closing);
@@ -47,15 +71,20 @@ router.get('/targets', async (req, res) => {
     );
 
     const advances = await query(
-      `SELECT partner_id,
-              SUM(CASE WHEN is_target = 1 THEN total_amount ELSE 0 END) AS advance_sum,
-              SUM(CASE WHEN is_target = 1 THEN applied_transfer_fee ELSE 0 END) AS fee_sum
-       FROM advance_payments
-       WHERE target_year_month = ? AND is_deleted = 0
-       GROUP BY partner_id`,
-      [ym]
+      `SELECT ar.partner_id,
+              SUM(ar.advance_amount - COALESCE(alloc.allocated_amount, 0)) AS advance_sum
+       FROM advance_records ar
+       JOIN cash_schedules cs ON cs.cash_schedule_id = ar.cash_schedule_id AND cs.status = 'executed'
+       LEFT JOIN (
+         SELECT advance_record_id, SUM(amount) AS allocated_amount
+         FROM advance_payment_allocations
+         WHERE status = 'active'
+         GROUP BY advance_record_id
+       ) alloc ON alloc.advance_record_id = ar.advance_record_id
+       WHERE ar.status = 'executed'
+       GROUP BY ar.partner_id`,
     );
-    const advMap = new Map(advances.map((a) => [Number(a.partner_id), a]));
+    const advMap = new Map(advances.map((a) => [Number(a.partner_id), Number(a.advance_sum || 0)]));
 
     const groups = new Map();
     for (const r of reports) {
@@ -78,23 +107,39 @@ router.get('/targets', async (req, res) => {
       }
     }
 
-    const targets = [...groups.values()].map((g) => {
-      const adv = advMap.get(g.partner_id) || { advance_sum: 0, fee_sum: 0 };
-      const advanceDeduction = Number(adv.advance_sum || 0);
-      const transferFee = Number(adv.fee_sum || 0);
-      const finalAmount =
-        g.gross_amount - advanceDeduction - transferFee - OFFICE_FEE - SAFETY_FEE;
-      return {
+    const targets = [];
+    for (const g of groups.values()) {
+      const ruleRows = await query(
+        `SELECT rule_code, scope, display_name, amount
+         FROM settlement_deduction_rules
+         WHERE is_active = 1
+           AND valid_from <= LAST_DAY(?)
+           AND (valid_to IS NULL OR valid_to >= ?)
+           AND (scope = 'common' OR partner_id = ?)
+         ORDER BY rule_code, CASE WHEN scope = 'partner' THEN 0 ELSE 1 END, valid_from DESC`,
+        [`${ym}-01`, `${ym}-01`, g.partner_id]
+      );
+      const selectedRules = [];
+      const seenRuleCodes = new Set();
+      for (const rule of ruleRows) {
+        if (seenRuleCodes.has(rule.rule_code)) continue;
+        seenRuleCodes.add(rule.rule_code);
+        selectedRules.push(rule);
+      }
+      const advanceDeduction = Math.max(0, Number(advMap.get(g.partner_id) || 0));
+      const ruleDeduction = selectedRules.reduce((sum, rule) => sum + Number(rule.amount || 0), 0);
+      const finalAmount = Math.max(0, g.gross_amount - advanceDeduction - ruleDeduction);
+      const target = {
         ...g,
         advance_deduction_amount: advanceDeduction,
-        transfer_fee_deduction_amount: transferFee,
-        office_fee_amount: OFFICE_FEE,
-        safety_fee_amount: SAFETY_FEE,
+        deduction_rules: selectedRules,
+        rule_deduction_amount: ruleDeduction,
         other_adjustment_amount: 0,
         final_transfer_amount: finalAmount,
         report_count: g.report_ids.length,
       };
-    });
+      targets.push(target);
+    }
 
     return res.json({ ok: true, target_year_month: ym, targets });
   } catch (err) {
@@ -108,6 +153,7 @@ router.get('/', async (req, res) => {
     const ym = String(req.query.target_year_month || '').trim();
     const where = ['pay.is_deleted = 0'];
     const params = [];
+    restrictPaymentRead(req, where, params);
     if (ym) {
       where.push('pay.target_year_month = ?');
       params.push(ym);
@@ -130,14 +176,21 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const where = ['pay.payment_id = ?', 'pay.is_deleted = 0'];
+    const params = [id];
+    restrictPaymentRead(req, where, params);
     const rows = await query(
       `SELECT pay.*, p.partner_name
        FROM payments pay
        LEFT JOIN partners p ON p.partner_id = pay.partner_id
-       WHERE pay.payment_id = ? AND pay.is_deleted = 0`,
-      [id]
+       WHERE ${where.join(' AND ')}`,
+      params
     );
-    if (!rows.length) return res.status(404).json({ ok: false, message: '支払が見つかりません' });
+    if (!rows.length) {
+      const exists = await query('SELECT payment_id FROM payments WHERE payment_id = ? AND is_deleted = 0', [id]);
+      if (exists.length) return res.status(403).json({ ok: false, message: 'この支払は閲覧できません' });
+      return res.status(404).json({ ok: false, message: '支払が見つかりません' });
+    }
     const details = await query(
       `SELECT * FROM payment_details WHERE payment_id = ? AND is_deleted = 0 ORDER BY payment_detail_id`,
       [id]
@@ -147,6 +200,14 @@ router.get('/:id', async (req, res) => {
     console.error('[payments/get]', err);
     return res.status(500).json({ ok: false, message: '支払詳細の取得に失敗しました' });
   }
+});
+
+router.post('/close', (_req, res) => {
+  return res.status(410).json({
+    ok: false,
+    error: 'legacy_endpoint_disabled',
+    message: '旧支払締めAPIは停止しました。/api/settlements/payment/drafts を使用してください',
+  });
 });
 
 router.post('/close', async (req, res) => {
@@ -303,7 +364,7 @@ router.post('/close', async (req, res) => {
   }
 });
 
-router.post('/:id/unconfirm', async (req, res) => {
+router.post('/:id/unconfirm', requireRole('admin','soumu','executive'), async (req, res) => {
   const pool = getPool();
   const conn = await pool.getConnection();
   try {
@@ -349,7 +410,7 @@ router.post('/:id/unconfirm', async (req, res) => {
   }
 });
 
-router.post('/:id/approve', async (req, res) => {
+router.post('/:id/approve', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     await query(
       `UPDATE payments SET approval_status = 'approved', version = version + 1 WHERE payment_id = ?`,
@@ -361,7 +422,7 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
-router.post('/:id/print', async (req, res) => {
+router.post('/:id/print', requireRole('admin','soumu','executive'), async (req, res) => {
   try {
     await query(
       `UPDATE payments SET is_printed = 1, version = version + 1 WHERE payment_id = ?`,

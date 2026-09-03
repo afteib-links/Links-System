@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
 
     const rows = await query(
       `SELECT user_id, login_id, password_hash, display_name, role, roles,
-              is_active, permissions, departments, areas
+              is_active, permissions, departments, areas, company_id, partner_id
        FROM users
        WHERE login_id = ? AND is_deleted = 0
        LIMIT 1`,

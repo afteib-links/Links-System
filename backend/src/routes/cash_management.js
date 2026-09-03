@@ -108,7 +108,7 @@ router.get('/exports', async (req, res) => {
     const batches = await query(
       `SELECT b.*, c.target_year_month, c.cycle_code, COUNT(i.cash_schedule_id) AS item_count
        FROM cash_export_batches b JOIN cash_cycles c ON c.cash_cycle_id=b.cash_cycle_id
-       LEFT JOIN cash_export_batch_items i ON i.cash_export_batch_id=b.cash_export_batch_id
+       LEFT JOIN cash_export_batch_items i ON i.cash_export_batch_id=b.cash_export_batch_id AND i.status='active'
        WHERE c.target_year_month=? GROUP BY b.cash_export_batch_id ORDER BY b.cash_export_batch_id DESC`, [ym]
     );
     return res.json({ ok:true, batches });
@@ -119,11 +119,12 @@ router.post('/exports/:id/cancel', async (req, res) => {
   try {
     const id=Number(req.params.id); await conn.beginTransaction();
     const [batches]=await conn.query('SELECT * FROM cash_export_batches WHERE cash_export_batch_id=? FOR UPDATE',[id]);
-    if(!batches.length || batches[0].status !== 'active') throw new Error('取消できるCSV出力が見つかりません');
-    const [executed]=await conn.query(`SELECT COUNT(*) AS cnt FROM cash_export_batch_items i JOIN cash_schedules s ON s.cash_schedule_id=i.cash_schedule_id WHERE i.cash_export_batch_id=? AND s.status='executed'`,[id]);
+    if(!batches.length || !['active','partially_cancelled'].includes(batches[0].status)) throw new Error('取消できるCSV出力が見つかりません');
+    const [executed]=await conn.query(`SELECT COUNT(*) AS cnt FROM cash_export_batch_items i JOIN cash_schedules s ON s.cash_schedule_id=i.cash_schedule_id WHERE i.cash_export_batch_id=? AND i.status='active' AND s.status='executed'`,[id]);
     if(Number(executed[0].cnt)) throw new Error('実行済みの予定を含むCSV出力は取消できません');
     await conn.query("UPDATE cash_export_batches SET status='cancelled' WHERE cash_export_batch_id=?",[id]);
-    await conn.query(`UPDATE cash_schedules s JOIN cash_export_batch_items i ON i.cash_schedule_id=s.cash_schedule_id SET s.status='planned', s.version=s.version+1 WHERE i.cash_export_batch_id=? AND s.status='exported'`,[id]);
+    await conn.query(`UPDATE cash_schedules s JOIN cash_export_batch_items i ON i.cash_schedule_id=s.cash_schedule_id SET s.status='planned', s.version=s.version+1 WHERE i.cash_export_batch_id=? AND i.status='active' AND s.status='exported'`,[id]);
+    await conn.query(`UPDATE cash_export_batch_items SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP,cancellation_reason=? WHERE cash_export_batch_id=? AND status='active'`,[String(req.body?.reason||'CSV出力取消'),id]);
     await conn.commit(); return res.json({ok:true});
   } catch(err) { await conn.rollback(); return res.status(400).json({ok:false,message:err.message}); } finally {conn.release();}
 });
