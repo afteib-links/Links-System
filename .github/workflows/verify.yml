@@ -129,6 +129,15 @@ jobs:
       - name: Verify safe reset with existing non-seed data
         run: npm run test:verification-reset --prefix backend
 
+      - name: Upload anonymous settlement PDF samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: settlement-pdf-samples
+          path: backend/test-results/pdfs/TEST-*.pdf
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend
 
