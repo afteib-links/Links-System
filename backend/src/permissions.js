@@ -42,7 +42,7 @@ const FEATURE_ROLE_MAP = {
   daily_reports: ['admin', 'system', 'soumu', 'sales', 'partner', 'executive'],
   advances: ['admin', 'executive', 'soumu'],
   invoices: ['admin', 'executive', 'soumu', 'sales', 'company'],
-  payments: ['admin', 'executive', 'soumu'],
+  payments: ['admin', 'executive', 'soumu', 'sales', 'partner'],
   cash_management: ['admin', 'executive', 'soumu'],
   master_settings: ['admin', 'system', 'soumu'],
   ui_builder: ['admin', 'system'],
