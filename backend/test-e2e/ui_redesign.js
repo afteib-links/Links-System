@@ -3,7 +3,6 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const { createApp } = require('../src/server');
-const { getPool } = require('../src/db');
 
 let baseUrl = process.env.UI_BASE_URL || '';
 const outputDir = path.resolve(__dirname, '../test-results/ui-redesign');
@@ -53,13 +52,14 @@ async function main() {
     await browser.close();
     if (server) {
       await new Promise((resolve) => server.close(resolve));
-      await getPool().end();
     }
   }
   console.log('[ui-redesign] 1920x1080 / 1366x768 の共通シェルを確認しました');
 }
 
-main().catch((error) => {
-  console.error('[ui-redesign] failed:', error);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('[ui-redesign] failed:', error);
+    process.exit(1);
+  });
