@@ -60,6 +60,9 @@ async function main() {
     assert.equal(setting.response.status, 200);
     const invoiceBody = {
       target_year_month: '2026-05', company_id: invoiceTarget.company_id,
+      billing_id: invoiceTarget.billing_id,
+      billing_summary_no: invoiceTarget.billing_summary_no,
+      billing_print_name: invoiceTarget.billing_print_name,
       daily_report_ids: invoiceTarget.report_ids, closing_date: invoiceTarget.closing_date || 'end',
       adjustments: [{ item_name: 'UAT調整', amount: -500, reason: '運用受入確認', tax_category: 'taxable' }],
     };
@@ -68,7 +71,7 @@ async function main() {
     const invoiceId = Number(invoiceDraft.data.settlement_id);
     assert.equal((await post('/api/settlements/invoice/drafts', invoiceBody)).response.status, 400, '同じ日報の二重予約を拒否する');
     const invoiceBefore = await request(`/api/settlements/invoice/${invoiceId}`);
-    assert.ok(invoiceBefore.data.lines.every((line) => line.source_type === 'monthly_approval_snapshot' || line.source_type === 'manual_adjustment'));
+    assert.ok(invoiceBefore.data.lines.every((line) => line.source_type === 'monthly_aggregate' || line.source_type === 'manual_adjustment'));
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/sales-review`, {})).response.status, 200);
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/finalize`, { cash_cycle_id: cashCycleId })).response.status, 200);
     const [finalInvoices] = await pool.query('SELECT total_amount,finalized_snapshot FROM invoices WHERE invoice_id=?', [invoiceId]);

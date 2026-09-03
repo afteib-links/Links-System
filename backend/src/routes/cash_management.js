@@ -92,8 +92,14 @@ router.post('/exports', async (req, res) => {
   try {
     const cycleId = Number(req.body.cash_cycle_id); if (!cycleId) throw new Error('管理回は必須です');
     await conn.beginTransaction(); const [cycleRows] = await conn.query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ? FOR UPDATE', [cycleId]); if (!cycleRows.length) throw new Error('管理回が見つかりません');
-    const [items] = await conn.query("SELECT * FROM cash_schedules WHERE cash_cycle_id = ? AND direction = 'outgoing' AND status = 'planned' FOR UPDATE", [cycleId]); if (!items.length) throw new Error('出力対象の出金予定がありません');
-    const fileName = `cash-${cycleRows[0].target_year_month.replace('-', '')}-${cycleRows[0].cycle_code}.csv`;
+    const groupCode = String(req.body.group_code || '').trim();
+    if (groupCode && !['early','middle','late'].includes(groupCode)) throw new Error('前払グループが不正です');
+    const itemSql = groupCode
+      ? "SELECT * FROM cash_schedules WHERE cash_cycle_id = ? AND direction = 'outgoing' AND status = 'planned' AND source_type='advance' AND JSON_UNQUOTE(JSON_EXTRACT(snapshot_json,'$.group_code'))=? FOR UPDATE"
+      : "SELECT * FROM cash_schedules WHERE cash_cycle_id = ? AND direction = 'outgoing' AND status = 'planned' FOR UPDATE";
+    const [items] = await conn.query(itemSql, groupCode ? [cycleId,groupCode] : [cycleId]); if (!items.length) throw new Error('出力対象の出金予定がありません');
+    const prefix = groupCode ? `advance-${groupCode}` : 'cash';
+    const fileName = `${prefix}-${cycleRows[0].target_year_month.replace('-', '')}-${cycleRows[0].cycle_code}.csv`;
     const [batch] = await conn.query('INSERT INTO cash_export_batches (cash_cycle_id,bank_name,file_name,created_by) VALUES (?,?,?,?)', [cycleId,req.body.bank_name || null,fileName,req.session.user?.user_id || null]);
     for (const item of items) { await conn.query('INSERT INTO cash_export_batch_items (cash_export_batch_id,cash_schedule_id) VALUES (?,?)', [batch.insertId,item.cash_schedule_id]); await conn.query("UPDATE cash_schedules SET status = 'exported', version = version + 1 WHERE cash_schedule_id = ?", [item.cash_schedule_id]); }
     await conn.commit();

@@ -278,7 +278,7 @@ router.get('/month-projects', async (req, res) => {
     const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
 
     const projects = await query(
-      `SELECT p.project_id, p.company_id, p.partner_id, p.manager_name, p.business_type,
+      `SELECT p.project_id, p.company_id, p.partner_id, p.manager_name, p.business_type, p.closing_date,
               c.company_name, pt.partner_name, b.template_name
        FROM projects p
        LEFT JOIN companies c ON c.company_id = p.company_id
@@ -295,6 +295,18 @@ router.get('/month-projects', async (req, res) => {
        GROUP BY project_id, status, work_date`,
       [ym]
     );
+    const reportVersions = await query(
+      `SELECT project_id,daily_report_id,version FROM daily_reports
+       WHERE is_deleted=0 AND target_year_month=?`, [ym]
+    );
+    const approvals = await query(
+      `SELECT a.* FROM daily_report_monthly_approvals a
+       JOIN (SELECT project_id,MAX(approval_version) approval_version
+             FROM daily_report_monthly_approvals WHERE target_year_month=? GROUP BY project_id) latest
+         ON latest.project_id=a.project_id AND latest.approval_version=a.approval_version
+       WHERE a.target_year_month=?`, [ym,ym]
+    );
+    const approvalByProject = new Map(approvals.map((row) => [Number(row.project_id), row]));
 
     const byProject = new Map();
     for (const r of reports) {
@@ -313,17 +325,52 @@ router.get('/month-projects', async (req, res) => {
       const confirmed = bag.byStatus.confirmed || 0;
       const draft = bag.byStatus.draft || 0;
       const totalRows = Object.values(bag.byStatus).reduce((a, b) => a + b, 0);
+      const approval = approvalByProject.get(Number(p.project_id));
+      const approvalSnapshot = jsonValue(approval?.snapshot_data);
+      const approvedVersions = new Map((approvalSnapshot?.reports || []).map((row) => [Number(row.daily_report_id), Number(row.version || 0)]));
+      const currentProjectReports = reportVersions.filter((row) => Number(row.project_id) === Number(p.project_id));
+      const snapshotChanged = Boolean(approval && (
+        currentProjectReports.length !== approvedVersions.size ||
+        currentProjectReports.some((row) => {
+          const approvedVersion=approvedVersions.get(Number(row.daily_report_id));
+          return approvedVersion == null || Number(row.version || 0) > approvedVersion + 1;
+        })
+      ));
+      let workflowStatus = 'inputting';
+      if (!totalRows) workflowStatus = 'not_started';
+      else if (approval?.status === 'submitted') workflowStatus = 'submitted';
+      else if (approval?.status === 'rejected') workflowStatus = 'rejected';
+      else if (approval?.status === 'approved') workflowStatus = snapshotChanged ? 'correcting' : 'approved';
+      else if (approval?.status === 'cancelled') workflowStatus = 'correcting';
+      else if (draft === 0 && confirmed > 0) workflowStatus = 'ready';
+      const workflowLabels = {not_started:'未入力',inputting:'入力中',ready:'申請可能',submitted:'承認待ち',approved:'承認済み',rejected:'差戻し',correcting:'訂正中'};
       return {
         ...p,
         input_days: inputDays,
         days_in_month: daysInMonth,
         completion_rate: daysInMonth ? Math.round((inputDays / daysInMonth) * 1000) / 10 : 0,
         status_summary: { draft, confirmed, approved, total: totalRows },
-        input_status: totalRows === 0 ? '未入力' : approved > 0 && draft === 0 ? '承認済あり' : '入力中',
+        workflow_status: workflowStatus,
+        workflow_status_label: workflowLabels[workflowStatus],
+        latest_approval_status: approval?.status || null,
+        snapshot_changed: snapshotChanged,
+        input_status: workflowLabels[workflowStatus],
       };
     });
 
-    const active = rows.filter((r) => r.status_summary.total > 0 || true);
+    const q=String(req.query.q||'').trim().toLocaleLowerCase('ja');
+    const closing=String(req.query.closing_date||'').trim();
+    const status=String(req.query.workflow_status||'').trim();
+    const progress=String(req.query.input_progress||'').trim();
+    const filtered=rows.filter((row)=>{
+      if(q&&!`${row.project_id} ${row.template_name||''} ${row.company_name||''} ${row.partner_name||''}`.toLocaleLowerCase('ja').includes(q))return false;
+      if(closing&&String(row.closing_date||'')!==closing)return false;
+      if(status&&row.workflow_status!==status)return false;
+      if(progress==='with_input'&&row.input_days===0)return false;
+      if(progress==='without_input'&&row.input_days>0)return false;
+      return true;
+    });
+    const active = rows;
     const withInput = rows.filter((r) => r.input_days > 0);
     return res.json({
       ok: true,
@@ -336,7 +383,7 @@ router.get('/month-projects', async (req, res) => {
             ? Math.round((active.reduce((s, r) => s + r.completion_rate, 0) / active.length) * 10) / 10
             : 0,
       },
-      rows,
+      rows:filtered,
     });
   } catch (err) {
     console.error('[daily_reports/month-projects]', err);

@@ -23,7 +23,7 @@ async function resolveTargetTax(companyId, projectIds) {
   }
   const ids = [...projectIds].map(Number).filter(Boolean);
   const projectRows = ids.length ? await query(
-    `SELECT tax_rate, tax_rounding FROM project_invoice_settings
+    `SELECT project_id, tax_rate, tax_rounding FROM project_invoice_settings
      WHERE project_id IN (${ids.map(() => '?').join(',')})`, ids
   ) : [];
   const system = await query("SELECT setting_value FROM system_settings WHERE setting_key = 'default_tax_rate' AND is_deleted = 0 LIMIT 1");
@@ -77,22 +77,24 @@ router.get('/targets', async (req, res) => {
 
     const reports = await query(
       `SELECT d.*, c.company_name, c.closing_date_code,
-              pr.closing_date AS project_closing_date,
+              pr.closing_date AS project_closing_date, bp.template_name AS project_name,
               cb.billing_id, cb.billing_summary_no, cb.billing_print_name
        FROM daily_reports d
        JOIN companies c ON c.company_id = d.company_id
        LEFT JOIN projects pr ON pr.project_id = d.project_id
+       LEFT JOIN base_projects bp ON bp.base_project_id = pr.base_project_id
        LEFT JOIN company_billings cb
-         ON cb.company_id = d.company_id AND cb.is_deleted = 0
+          ON cb.billing_id = (SELECT MIN(cb2.billing_id) FROM company_billings cb2 WHERE cb2.company_id=d.company_id AND cb2.is_deleted=0)
        WHERE ${where.join(' AND ')}
+         AND EXISTS (SELECT 1 FROM daily_report_monthly_approvals ma WHERE ma.project_id=d.project_id AND ma.target_year_month=d.target_year_month AND ma.status='approved')
        ORDER BY d.company_id, cb.billing_summary_no, d.work_date`,
       params
     );
 
-    // billing_summary_no 単位で集約（なければ company 単位）
+    // 画面では案件単位で選択し、同じ請求先・請求取纏番号だけをまとめる。
     const groups = new Map();
     for (const r of reports) {
-      const key = `${r.company_id}::${r.billing_summary_no || `company-${r.company_id}`}`;
+      const key = `${r.company_id}::${r.billing_summary_no || `company-${r.company_id}`}::${r.project_id}`;
       if (!groups.has(key)) {
         groups.set(key, {
           company_id: r.company_id,
@@ -100,6 +102,8 @@ router.get('/targets', async (req, res) => {
           billing_id: r.billing_id || null,
           billing_summary_no: r.billing_summary_no || null,
           billing_print_name: r.billing_print_name || r.company_name,
+          project_id: Number(r.project_id),
+          project_name: r.project_name || `案件 #${r.project_id}`,
           closing_date: closing || r.project_closing_date || r.closing_date_code || '',
           report_ids: [],
           project_ids: new Set(),
@@ -124,8 +128,10 @@ router.get('/targets', async (req, res) => {
         billing_id: g.billing_id,
         billing_summary_no: g.billing_summary_no,
         billing_print_name: g.billing_print_name,
+        project_id: g.project_id,
+        project_name: g.project_name,
         closing_date: g.closing_date,
-        project_count: g.project_ids.size,
+        project_count: 1,
         report_count: g.report_ids.length,
         report_ids: g.report_ids,
         subtotal_amount: g.subtotal_amount,

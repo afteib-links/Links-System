@@ -89,6 +89,19 @@ function detailedWorkRows(document, lines) {
   const grouped = new Map();
   for (const line of lines.filter((item) => item.line_type === 'work' && number(item.amount) !== 0)) {
     const snapshot = snapshotFor(line);
+    if (line.source_type === 'monthly_aggregate' || line.source_type === 'correction_copy') {
+      addGrouped(grouped, snapshot.source_key || `line:${line.settlement_line_id}`, {
+        projectName:snapshot.project_name || `案件 #${line.project_id || '-'}`,
+        itemName:line.item_name,
+        calcType:snapshot.calc_type || 'monthly',
+        unitPrice:number(line.unit_price),
+        quantity:number(line.quantity),
+        amount:number(line.amount),
+        minutes:number(snapshot.minutes || 0),
+        workDate:'',
+      });
+      continue;
+    }
     const calculation = snapshot.calculation_detail || {};
     const detail = calculation?.[side]?.amounts?.details || {};
     const projectName = snapshot.project_name || line.project_name || `案件 #${line.project_id || '-'}`;
@@ -169,6 +182,18 @@ function summaryRows(lines) {
   const grouped = new Map();
   for (const line of lines.filter((item) => item.line_type === 'work' && number(item.amount) !== 0)) {
     const snapshot = snapshotFor(line);
+    if (line.source_type === 'monthly_aggregate' || line.source_type === 'correction_copy') {
+      const key = String(line.project_id || `line:${line.settlement_line_id}`);
+      const existing = grouped.get(key) || {
+        itemName:snapshot.project_name || `案件 #${line.project_id || '-'}`,
+        quantity:0,
+        unitPrice:0,
+        amount:0,
+        dates:new Set(),
+      };
+      existing.quantity += number(line.quantity); existing.amount += number(line.amount); grouped.set(key,existing);
+      continue;
+    }
     const projectName = snapshot.project_name || line.project_name || `案件 #${line.project_id || '-'}`;
     const key = String(line.project_id || projectName);
     const existing = grouped.get(key) || {

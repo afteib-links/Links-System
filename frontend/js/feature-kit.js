@@ -119,6 +119,25 @@
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       },
+      shiftYearMonth(value, delta) {
+        const [year, month] = String(value || this.currentYearMonth()).split('-').map(Number);
+        const date = new Date(year, month - 1 + delta, 1);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      },
+      monthNavigatorHtml(value, prefix = 'month-nav') {
+        return `<div class="toolbar month-navigator">
+          <button type="button" class="btn btn-ghost" id="${prefix}-prev">← 前月</button>
+          <input id="${prefix}-value" type="month" value="${ctx.escapeHtml(value)}" aria-label="対象年月">
+          <button type="button" class="btn" id="${prefix}-load">表示</button>
+          <button type="button" class="btn btn-ghost" id="${prefix}-next">翌月 →</button>
+        </div>`;
+      },
+      bindMonthNavigator(prefix, getValue, setValue, reload) {
+        const current = () => getValue?.() || document.getElementById(`${prefix}-value`)?.value || this.currentYearMonth();
+        document.getElementById(`${prefix}-prev`)?.addEventListener('click', () => { setValue(this.shiftYearMonth(current(), -1)); reload(); });
+        document.getElementById(`${prefix}-next`)?.addEventListener('click', () => { setValue(this.shiftYearMonth(current(), 1)); reload(); });
+        document.getElementById(`${prefix}-load`)?.addEventListener('click', () => { setValue(document.getElementById(`${prefix}-value`)?.value || current()); reload(); });
+      },
       async loadLayout(screenKey) {
         const { res, data } = await ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`);
         if (!res.ok || !data?.ok) return null;
