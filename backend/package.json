@@ -17,7 +17,8 @@
     "test:verification-reset": "node test-integration/verification_seed_reset.js",
     "preview": "node src/preview-static.js",
     "test": "node --test test/*.test.js",
-    "test:e2e": "node test-e2e/daily_report_ui.js"
+    "test:e2e": "node test-e2e/daily_report_ui.js",
+    "test:e2e-ui": "node test-e2e/ui_redesign.js"
   },
   "engines": {
     "node": ">=20"

@@ -38,6 +38,7 @@
   let featureCatalog = FEATURE_FALLBACK;
   let roleCatalog = ROLE_FALLBACK;
   let currentView = 'home';
+  const SIDEBAR_STORAGE_KEY = 'links.sidebar.collapsed';
 
   async function api(path, options = {}) {
     const res = await fetch(path, {
@@ -106,11 +107,9 @@
   function headerHtml() {
     const rolesText = (currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし';
     return `
-      <header class="app-header">
-        <div class="brand-mark">
-          <span class="brand-icon" aria-hidden="true"></span>
-          <h1 class="brand">Links-System</h1>
-        </div>
+      <header class="app-header app-topbar">
+        <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true">☰</button>
+        <div class="topbar-context"><span>運送業務基幹システム</span></div>
         <div class="header-actions">
           <div class="user-pill">
             <strong>${escapeHtml(currentUser.display_name)}</strong>
@@ -120,6 +119,50 @@
         </div>
       </header>
     `;
+  }
+
+  function sidebarHtml(activeKey = currentView) {
+    const groups = GROUPS.map((group) => {
+      const items = featureCatalog.filter((feature) => feature.group === group.key && can(feature.key));
+      if (!items.length) return '';
+      return `<div class="sidebar-group"><div class="sidebar-group-label">${escapeHtml(group.label)}</div>${items.map((feature) => `
+        <button type="button" class="sidebar-link ${activeKey === feature.key ? 'is-active' : ''}" data-nav-feature="${escapeHtml(feature.key)}" title="${escapeHtml(feature.label)}">
+          <span class="sidebar-icon" aria-hidden="true">${escapeHtml(feature.label.slice(0, 1))}</span>
+          <span class="sidebar-text">${escapeHtml(feature.label)}</span>
+        </button>`).join('')}</div>`;
+    }).join('');
+    return `<aside class="app-sidebar" aria-label="機能メニュー">
+      <button type="button" class="sidebar-brand" data-nav-home title="ホーム">
+        <span class="brand-symbol" aria-hidden="true">L</span><span class="sidebar-text">Links-System</span>
+      </button>
+      <nav class="sidebar-nav">
+        <button type="button" class="sidebar-link ${activeKey === 'home' ? 'is-active' : ''}" data-nav-home title="ホーム">
+          <span class="sidebar-icon" aria-hidden="true">⌂</span><span class="sidebar-text">ホーム</span>
+        </button>
+        ${groups}
+      </nav>
+    </aside>`;
+  }
+
+  function bindChrome() {
+    bindLogout();
+    const shell = document.querySelector('.app-shell');
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+    if (saved || window.innerWidth <= 1366) shell?.classList.add('sidebar-collapsed');
+    const toggle = document.getElementById('sidebar-toggle');
+    const updateToggle = () => {
+      const collapsed = shell?.classList.contains('sidebar-collapsed');
+      toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle?.setAttribute('aria-label', collapsed ? 'メニューを展開する' : 'メニューを折り畳む');
+    };
+    updateToggle();
+    toggle?.addEventListener('click', () => {
+      shell?.classList.toggle('sidebar-collapsed');
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, shell?.classList.contains('sidebar-collapsed') ? '1' : '0');
+      updateToggle();
+    });
+    document.querySelectorAll('[data-nav-home]').forEach((button) => button.addEventListener('click', () => showHome()));
+    document.querySelectorAll('[data-nav-feature]').forEach((button) => button.addEventListener('click', () => openFeature(button.getAttribute('data-nav-feature'))));
   }
 
   function bindLogout() {
@@ -197,6 +240,8 @@
       api,
       escapeHtml,
       headerHtml,
+      sidebarHtml,
+      bindChrome,
       bindLogout,
       showHome,
       renderLoading,
@@ -207,6 +252,7 @@
   }
 
   function openFeature(featureKey, options = {}) {
+    currentView = featureKey;
     const ctx = featureContext();
     if (featureKey === 'companies' && window.LinksCompanies) {
       window.LinksCompanies.open(ctx);
@@ -268,40 +314,31 @@
     currentView = 'home';
     renderLoading();
 
-    const groupsHtml = GROUPS.map((group) => {
-      const items = featureCatalog.filter((f) => f.group === group.key && can(f.key));
-      if (!items.length) {
-        return '';
-      }
-      const oneCol = items.length === 1 ? ' one-col' : '';
-      const buttons = items
-        .map(
-          (f) => `
-          <button type="button" class="feature-btn" data-feature="${escapeHtml(f.key)}">
-            <span class="title">${escapeHtml(f.label)}</span>
-            <span class="desc">${escapeHtml(f.desc || '')}</span>
-          </button>`
-        )
-        .join('');
-
-      return `
-        <section class="feature-group">
-          <h2 class="feature-group-title">${escapeHtml(group.label)}</h2>
-          <div class="feature-grid${oneCol}">${buttons}</div>
-        </section>`;
-    }).join('');
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const dashboard = await api(`/api/dashboard/summary?target_year_month=${encodeURIComponent(ym)}`);
+    const cards = dashboard.res.ok && dashboard.data?.ok ? dashboard.data.cards || [] : [];
+    const cardsHtml = cards.map((item) => `<button type="button" class="dashboard-card" data-feature="${escapeHtml(item.feature_key)}">
+      <div class="dashboard-card-head"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.progress_percent)}%</strong></div>
+      <div class="progress-track" aria-label="${escapeHtml(item.label)}完了率 ${escapeHtml(item.progress_percent)}%"><span style="width:${Math.max(0, Math.min(100, Number(item.progress_percent || 0)))}%"></span></div>
+      <div class="dashboard-card-counts"><span>全件 <strong>${escapeHtml(item.total)}</strong></span><span class="count-waiting">確認待ち <strong>${escapeHtml(item.waiting)}</strong></span><span class="count-attention">要対応 <strong>${escapeHtml(item.attention)}</strong></span><span class="count-done">完了 <strong>${escapeHtml(item.completed)}</strong></span></div>
+    </button>`).join('');
+    const actionCards = cards.filter((item) => item.incomplete || item.attention).map((item) => `<button type="button" class="action-item" data-feature="${escapeHtml(item.feature_key)}"><span class="status-dot tone-${item.attention ? 'attention' : 'waiting'}">${item.attention ? '!' : '◷'}</span><span><strong>${escapeHtml(item.label)}</strong><small>${item.attention ? `要対応 ${escapeHtml(item.attention)}件` : `未完了 ${escapeHtml(item.incomplete)}件`}</small></span><span aria-hidden="true">›</span></button>`).join('');
 
     app.innerHTML = `
       <div class="app-shell">
-        ${headerHtml()}
-        <main class="app-main">
-          <p class="launcher-intro">やりたい機能のボタンを押してください。権限のある機能だけ表示しています。</p>
-          ${groupsHtml || '<p class="muted">利用できる機能がありません。管理者に連絡してください。</p>'}
-        </main>
+        ${sidebarHtml('home')}
+        <div class="app-frame">${headerHtml()}
+          <main class="app-main dashboard-main">
+            <div class="dashboard-title"><div><p class="eyebrow">${escapeHtml(ym)} 業務状況</p><h1>業務ダッシュボード</h1><p>未完了と確認待ちを先に確認できます。</p></div></div>
+            <section class="dashboard-grid">${cardsHtml || '<p class="muted">表示できる業務集計がありません。</p>'}</section>
+            <section class="dashboard-section"><div class="section-head"><div><p class="eyebrow">NEXT ACTION</p><h2>次に処理する項目</h2></div></div><div class="action-list">${actionCards || '<div class="empty-state"><strong>✓ 対応が必要な項目はありません</strong><span>現在表示できる業務は完了しています。</span></div>'}</div></section>
+          </main>
+        </div>
       </div>
     `;
 
-    bindLogout();
+    bindChrome();
     document.querySelectorAll('[data-feature]').forEach((btn) => {
       btn.addEventListener('click', () => openFeature(btn.getAttribute('data-feature')));
     });
@@ -348,12 +385,12 @@
     if (!res.ok || !data?.ok) {
       app.innerHTML = `
         <div class="app-shell">
-          ${headerHtml()}
+          ${sidebarHtml('users')}<div class="app-frame">${headerHtml()}
           <main class="app-main">
             <section class="panel"><p class="error">${escapeHtml(data?.message || '一覧を取得できませんでした')}</p></section>
           </main>
-        </div>`;
-      bindLogout();
+        </div></div>`;
+      bindChrome();
       return;
     }
 
@@ -383,7 +420,7 @@
 
     app.innerHTML = `
       <div class="app-shell">
-        ${headerHtml()}
+        ${sidebarHtml('users')}<div class="app-frame">${headerHtml()}
         <main class="app-main">
           <div class="page-header-row">
             <div class="back-row">
@@ -417,9 +454,9 @@
           </section>
           <div id="user-editor"></div>
         </main>
-      </div>`;
+      </div></div>`;
 
-    bindLogout();
+    bindChrome();
     document.getElementById('back-home')?.addEventListener('click', () => showHome());
     document.getElementById('new-user-btn')?.addEventListener('click', () => openUserEditor(null));
 

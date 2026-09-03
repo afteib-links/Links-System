@@ -8,6 +8,9 @@ ENV TZ=Asia/Tokyo
 COPY backend/package.json backend/package-lock.json* ./backend/
 WORKDIR /app/backend
 RUN npm install --omit=dev && npx playwright install --with-deps chromium
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends fonts-morisawa-bizud-gothic \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY backend ./backend

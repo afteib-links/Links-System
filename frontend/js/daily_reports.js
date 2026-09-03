@@ -273,7 +273,7 @@
             <td>${this.ctx.escapeHtml(r.partner_name || '-')}</td>
             <td>${r.closing_date === 'end' ? '末日' : `${this.ctx.escapeHtml(r.closing_date || '-')}日`}</td>
             <td>${this.ctx.escapeHtml(r.input_days)}/${this.ctx.escapeHtml(r.days_in_month)}（${this.ctx.escapeHtml(r.completion_rate)}%）</td>
-            <td><span class="status-badge status-${this.ctx.escapeHtml(r.workflow_status)}">${this.ctx.escapeHtml(r.workflow_status_label || r.input_status)}</span></td>
+            <td>${this.kit.statusBadge(r.workflow_status, r.workflow_status_label || r.input_status)}</td>
             <td>
               <button type="button" class="btn btn-small" data-input="${r.project_id}"
                 data-company="${r.company_id || ''}" data-partner="${r.partner_id || ''}">入力</button>
@@ -293,9 +293,14 @@
             <select id="daily-progress"><option value="">全入力状況</option><option value="with_input" ${this.listFilters.input_progress==='with_input'?'selected':''}>入力あり</option><option value="without_input" ${this.listFilters.input_progress==='without_input'?'selected':''}>未入力</option></select>
             <button id="daily-filter" class="btn btn-secondary">絞り込み</button>
           </div>
-          <p class="muted">対象案件 ${this.ctx.escapeHtml(summary.project_count ?? 0)} /
-            入力あり ${this.ctx.escapeHtml(summary.input_project_count ?? 0)} /
-            平均完了率 ${this.ctx.escapeHtml(summary.avg_completion_rate ?? 0)}%</p>
+          ${this.kit.summaryCardsHtml([
+            {label:'対象案件',value:summary.project_count ?? 0},
+            {label:'未入力',value:(data.rows||[]).filter(row=>row.workflow_status==='not_started').length},
+            {label:'作業中',value:(data.rows||[]).filter(row=>['inputting','ready'].includes(row.workflow_status)).length,tone:'working'},
+            {label:'確認待ち',value:(data.rows||[]).filter(row=>row.workflow_status==='submitted').length,tone:'waiting'},
+            {label:'完了',value:(data.rows||[]).filter(row=>row.workflow_status==='approved').length,tone:'complete'},
+            {label:'要対応',value:(data.rows||[]).filter(row=>['rejected','correcting'].includes(row.workflow_status)).length,tone:'attention'},
+          ])}
           <div class="table-wrap table-wrap-sticky">
             <table class="data-table data-table-compact">
               <thead><tr><th>案件No</th><th>案件名</th><th>企業</th><th>パートナー</th><th>締日</th><th>入力進捗</th><th>月次承認状態</th><th>操作</th></tr></thead>
