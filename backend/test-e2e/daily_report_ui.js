@@ -145,7 +145,7 @@ async function main() {
     page = await context.newPage();
 
     async function openDailyReport() {
-      await page.locator('[data-feature="daily_reports"]').click();
+      await page.locator('.dashboard-card[data-feature="daily_reports"]').click();
       await page.locator(`[data-input="${ids.projectId}"]`).click();
       await page.locator('.dr-month-table').waitFor();
     }
@@ -158,7 +158,7 @@ async function main() {
     await page.locator('#login_id').fill(process.env.ADMIN_LOGIN_ID || 'ci-admin');
     await page.locator('#password').fill(process.env.ADMIN_PASSWORD || 'ci-admin-password');
     await page.locator('#login-form button[type="submit"]').click();
-    await page.locator('[data-feature="daily_reports"]').waitFor();
+    await page.locator('.dashboard-card[data-feature="daily_reports"]').waitFor();
 
     const created = await page.evaluate(async ({ ids: seedIds, workDate: date, yearMonth: ym }) => {
       const payloads = [
@@ -290,7 +290,7 @@ async function main() {
       [JSON.stringify(buildPriceExtra(true)), ids.priceSetId]
     );
     await page.reload();
-    await page.locator('[data-feature="daily_reports"]').waitFor();
+    await page.locator('.dashboard-card[data-feature="daily_reports"]').waitFor();
     await openDailyReport();
     firstRow = (await dateRows()).first();
     await firstRow.locator('[data-expand]').click();
