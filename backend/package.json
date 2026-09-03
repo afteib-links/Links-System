@@ -11,6 +11,9 @@
     "seed:verification": "node scripts/seed_verification_data.js",
     "reset-and-seed:verification": "node scripts/seed_verification_data.js --reset",
     "verify:verification-data": "node scripts/seed_verification_data.js --verify",
+    "test:settlement-access": "node test-integration/settlement_access_api.js",
+    "test:settlement-workflow": "node test-integration/settlement_workflow_api.js",
+    "test:verification-reset": "node test-integration/verification_seed_reset.js",
     "preview": "node src/preview-static.js",
     "test": "node --test test/*.test.js",
     "test:e2e": "node test-e2e/daily_report_ui.js"

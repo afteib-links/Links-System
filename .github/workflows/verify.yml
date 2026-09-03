@@ -82,6 +82,7 @@ jobs:
       ADMIN_PASSWORD: ci-admin-password
       ADMIN_DISPLAY_NAME: CI管理者
       APP_PORT: 3000
+      PDF_DIR: ${{ github.workspace }}/backend/test-results/pdfs
     steps:
       - uses: actions/checkout@v4
 
@@ -115,6 +116,18 @@ jobs:
 
       - name: Run holiday selection integration
         run: node backend/test-integration/holiday_api.js
+
+      - name: Seed anonymous settlement verification data
+        run: npm run seed:verification --prefix backend
+
+      - name: Run settlement role access integration
+        run: npm run test:settlement-access --prefix backend
+
+      - name: Run settlement workflow integration
+        run: npm run test:settlement-workflow --prefix backend
+
+      - name: Verify safe reset with existing non-seed data
+        run: npm run test:verification-reset --prefix backend
 
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend

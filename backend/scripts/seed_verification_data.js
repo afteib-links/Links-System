@@ -315,7 +315,8 @@ async function createInvoicesAndPayments(conn) {
     await createSeedDocument(conn,'invoice',invoiceId,'invoice',{company_id:companyId,company_name:companyRows[0].company_name},taxable+tax,lines,documentSequence++);
     await createSeedDocument(conn,'invoice',invoiceId,'invoice_summary',{company_id:companyId,company_name:companyRows[0].company_name},taxable+tax,lines,documentSequence++);
   }
-  for (const [partnerId, rows] of [...byPartner.entries()].slice(0, 2)) {
+  const paymentGroups = [...byPartner.entries()].slice(0, 2);
+  for (const [paymentIndex, [partnerId, rows]] of paymentGroups.entries()) {
     const gross = rows.reduce((sum, row) => sum + Number(row.calculated_payment_amount || 0), 0);
     const [partnerRows]=await conn.execute('SELECT partner_name FROM partners WHERE partner_id=?',[partnerId]);
     const [advance]=await conn.execute(`SELECT ar.advance_record_id,ar.advance_amount-COALESCE(SUM(CASE WHEN aa.status='active' THEN aa.amount ELSE 0 END),0) amount FROM advance_records ar LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id=ar.advance_record_id WHERE ar.partner_id=? AND ar.status='executed' GROUP BY ar.advance_record_id,ar.advance_amount ORDER BY ar.advance_record_id LIMIT 1`,[partnerId]);
@@ -329,7 +330,8 @@ async function createInvoicesAndPayments(conn) {
       advance_deduction_amount: advanceAmount, transfer_fee_deduction_amount: 0,
       office_fee_amount: appliedRules.find(x=>x.rule_code==='office_fee')?.applied||0, safety_fee_amount: appliedRules.find(x=>x.rule_code==='safety_fee')?.applied||0, other_adjustment_amount: 0,
       final_transfer_amount: finalAmount, payment_output_code: 'type_a', payment_status: 'finalized', settlement_status:'finalized',
-      approval_status: 'approved', is_confirmed: 1, extra_data: JSON.stringify({ seed_key: SEED_KEY }),
+      approval_status: 'approved', is_confirmed: 1,
+      extra_data: JSON.stringify({ seed_key: SEED_KEY, issue_salary_statement: paymentIndex === 1 }),
     });
     const lines=rows.map(row=>({settlement_type:'payment',settlement_id:paymentId,line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_payment_amount||0),amount:Number(row.calculated_payment_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY,daily_report_id:row.daily_report_id})}));
     if(advanceAmount>0)lines.push({settlement_type:'payment',settlement_id:paymentId,line_type:'advance',source_type:'advance',source_id:advance[0].advance_record_id,item_name:'前払控除',quantity:1,unit_price:-advanceAmount,amount:-advanceAmount,tax_category:'non_taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY})});
@@ -344,6 +346,7 @@ async function createInvoicesAndPayments(conn) {
     await insert(conn,'settlement_workflows',{settlement_type:'payment',settlement_id:paymentId,status:'finalized',drafted_by_user_id:actorId,sales_reviewed_by_user_id:actorId,sales_reviewed_at:'2026-06-01',finalized_by_user_id:actorId,finalized_at:'2026-06-01'});
     if(finalAmount>0)await insert(conn,'cash_schedules',{cash_cycle_id:cycle.cash_cycle_id,direction:'outgoing',source_type:'payment',source_id:paymentId,partner_id:partnerId,counterparty_name:partnerRows[0].partner_name,title:'通常支払（匿名検証用）',amount:finalAmount,scheduled_date:cycle.planned_outgoing_date,snapshot_json:JSON.stringify({seed_key:SEED_KEY,settlement_type:'payment',settlement_id:paymentId})});
     await createSeedDocument(conn,'payment',paymentId,'payment_statement',{partner_id:partnerId,partner_name:partnerRows[0].partner_name},finalAmount,lines,documentSequence++);
+    if(paymentIndex===1)await createSeedDocument(conn,'payment',paymentId,'salary_statement',{partner_id:partnerId,partner_name:partnerRows[0].partner_name},finalAmount,lines,documentSequence++);
   }
 }
 
@@ -415,10 +418,19 @@ async function resetBusinessData() {
     const projects=await ids('projects'); const bases=await ids('base_projects');
     const priceSets=await ids('price_sets');
     const invoices=await ids('invoices'); const payments=await ids('payments');
-    const companyIds=companies.map(x=>x.company_id),partnerIds=partners.map(x=>x.partner_id),projectIds=projects.map(x=>x.project_id),baseIds=bases.map(x=>x.base_project_id),priceSetIds=priceSets.map(x=>x.price_set_id),invoiceIds=invoices.map(x=>x.invoice_id),paymentIds=payments.map(x=>x.payment_id);
+    const companyIds=companies.map(x=>x.company_id),partnerIds=partners.map(x=>x.partner_id),projectIds=projects.map(x=>x.project_id),baseIds=bases.map(x=>x.base_project_id),priceSetIds=priceSets.map(x=>x.price_set_id);
+    let invoiceIds=invoices.map(x=>x.invoice_id),paymentIds=payments.map(x=>x.payment_id);
     const marks=(values)=>values.map(()=>'?').join(',');
     const [reports]=projectIds.length?await conn.query(`SELECT * FROM daily_reports WHERE project_id IN (${marks(projectIds)})`,projectIds):[[]];
     const reportIds=reports.map(x=>x.daily_report_id);
+    if(reportIds.length){
+      const [linkedInvoices]=await conn.query(`SELECT DISTINCT invoice_id FROM invoice_daily_reports WHERE daily_report_id IN (${marks(reportIds)})`,reportIds);
+      const [linkedPayments]=await conn.query(`SELECT DISTINCT payment_id FROM payment_daily_reports WHERE daily_report_id IN (${marks(reportIds)})`,reportIds);
+      invoiceIds=[...new Set([...invoiceIds,...linkedInvoices.map(x=>x.invoice_id)])];
+      paymentIds=[...new Set([...paymentIds,...linkedPayments.map(x=>x.payment_id)])];
+    }
+    const [advanceRecords]=projectIds.length?await conn.query(`SELECT advance_record_id FROM advance_records WHERE project_id IN (${marks(projectIds)})`,projectIds):[[]];
+    const advanceRecordIds=advanceRecords.map(x=>x.advance_record_id);
     const removeWhere=async(table,column,values)=>{if(values.length)await conn.query(`DELETE FROM ${table} WHERE ${column} IN (${marks(values)})`,values);};
     await conn.beginTransaction();
     let documentFiles=[];
@@ -434,6 +446,7 @@ async function resetBusinessData() {
     }
     await removeWhere('settlement_carry_forward_allocations','payment_id',paymentIds);
     await removeWhere('advance_payment_allocations','payment_id',paymentIds);
+    await removeWhere('advance_payment_allocations','advance_record_id',advanceRecordIds);
     await removeWhere('settlement_carry_forwards','source_payment_id',paymentIds);
     await removeWhere('payment_daily_reports','payment_id',paymentIds);
     await removeWhere('invoice_daily_reports','invoice_id',invoiceIds);
@@ -464,11 +477,15 @@ async function resetBusinessData() {
     await removeWhere('price_set_lines','price_set_id',priceSetIds);
     await removeWhere('price_sets','price_set_id',priceSetIds);
     await removeWhere('project_revisions','project_id',projectIds);
+    await removeWhere('project_settlement_reviewers','project_id',projectIds);
+    await removeWhere('project_invoice_settings','project_id',projectIds);
     await removeWhere('partner_vehicles','partner_id',partnerIds);
     await removeWhere('company_vehicles','company_id',companyIds);
     await removeWhere('company_billings','company_id',companyIds);
     await removeWhere('company_manager_periods','company_id',companyIds);
+    await removeWhere('company_invoice_settings','company_id',companyIds);
     await removeWhere('invoice_exclusions','company_id',companyIds);
+    await removeWhere('settlement_deduction_rules','partner_id',partnerIds);
     await removeWhere('projects','project_id',projectIds);
     await removeWhere('base_projects','base_project_id',baseIds);
     await removeWhere('holidays','extra_data',[]);

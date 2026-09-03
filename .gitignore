@@ -6,6 +6,8 @@ backups/
 .DS_Store
 backend/uploads/
 backend/pdf/
+output/pdf/
+tmp/
 npm-debug.log*
 backend/test-results/
 .idea/

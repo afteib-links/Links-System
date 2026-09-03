@@ -92,7 +92,8 @@ async function canAccessSettlement(req, kind, id) {
   const elevated = has(req, ['admin', 'soumu', 'executive']);
   if (elevated) return true;
   const table = tableFor(kind); const key = idFor(kind);
-  const [rows] = await getPool().query(`SELECT company_id,partner_id FROM ${table} WHERE ${key}=? AND is_deleted=0`, [id]);
+  const entityColumns = kind === 'invoice' ? 'company_id,NULL AS partner_id' : 'NULL AS company_id,partner_id';
+  const [rows] = await getPool().query(`SELECT ${entityColumns} FROM ${table} WHERE ${key}=? AND is_deleted=0`, [id]);
   if (!rows.length) return false;
   const row = rows[0];
   if (roles(req).has('company')) return kind === 'invoice' && Number(req.session.user.company_id) === Number(row.company_id);
