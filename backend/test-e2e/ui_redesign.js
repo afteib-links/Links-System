@@ -33,6 +33,16 @@ async function inspectViewport(browser, viewport) {
     assert.equal(await page.locator('.app-sidebar').count(), 1, '業務画面でもサイドバーを維持すること');
     await page.screenshot({ path:path.join(outputDir, `daily-reports-${suffix}.png`), fullPage:true });
   }
+  const masterSettings = page.locator('[data-nav-feature="master_settings"]');
+  if (await masterSettings.count()) {
+    await masterSettings.click();
+    await page.locator('[data-hub="settings"]').click();
+    await page.locator('#document-logo-uploader').waitFor();
+    const transparentPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+XK6mAAAAAElFTkSuQmCC', 'base64');
+    await page.locator('#document-logo-file').setInputFiles({ name:'company-logo.png', mimeType:'image/png', buffer:transparentPng });
+    await page.locator('#document-logo-preview:not([hidden])').waitFor();
+    assert.ok((await page.locator('#document-logo-preview').getAttribute('src'))?.startsWith('data:image/png;base64,'), '会社ロゴを選択してプレビューできること');
+  }
   await page.close();
 }
 

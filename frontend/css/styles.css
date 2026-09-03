@@ -658,6 +658,12 @@ select {
 .color-setting-control input[type="color"] { width: 3.25rem; height: 2.5rem; min-height: 2.5rem; padding: 0.2rem; cursor: pointer; }
 .color-setting-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; }
 .color-setting-preview { display: inline-block; width: 2.25rem; height: 2.25rem; border: 1px solid #98a2b3; border-radius: 0.35rem; }
+.document-logo-settings-panel { margin-top: 1rem; }
+.document-logo-uploader { display: grid; place-items: center; width: min(100%, 38rem); min-height: 9rem; margin: 1rem 0; padding: 1rem; border: 2px dashed #98a2b3; border-radius: 0.6rem; background: #f8fafc; color: #475467; cursor: pointer; }
+.document-logo-uploader:hover { border-color: #0f6b78; background: #eef7f8; }
+.document-logo-uploader:focus-visible { outline: 3px solid #2e90fa; outline-offset: 2px; }
+.document-logo-uploader img { display: block; max-width: 100%; max-height: 7rem; object-fit: contain; }
+.document-logo-uploader [hidden] { display: none; }
 
 .flash {
   background: #e8f5e9;

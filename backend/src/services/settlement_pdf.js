@@ -58,6 +58,12 @@ function safeImage(value) {
   return /^data:image\/(png|jpeg|webp);base64,/i.test(source) ? source : '';
 }
 
+function companyNameStyle(value, suffix = '') {
+  const length = [...`${value || ''}${suffix || ''}`].length;
+  const size = length >= 30 ? 7.5 : length >= 24 ? 8.5 : length >= 18 ? 9.5 : 11.5;
+  return `font-size:${size}pt`;
+}
+
 function snapshotFor(line) {
   const snapshot = parseJson(line.snapshot ?? line.snapshot_json, {});
   if (typeof snapshot.calculation_detail === 'string') {
@@ -220,8 +226,8 @@ function issuerBlock(document, compact = false) {
   const logo = safeImage(issuer.logo_data_url);
   const stamp = safeImage(issuer.stamp_data_url);
   return `<div class="issuer ${compact ? 'compact' : ''}">
-    <div class="logo">${logo ? `<img src="${logo}" alt="会社ロゴ">` : '会社ロゴ'}</div>
-    <div class="issuer-name">${escape(issuer.name || '発行元会社名')}</div>
+    <div class="logo ${logo ? 'has-image' : ''}">${logo ? `<img src="${logo}" alt="会社ロゴ">` : '会社ロゴ'}</div>
+    <div class="issuer-name company-name" style="${companyNameStyle(issuer.name || '発行元会社名')}">${escape(issuer.name || '発行元会社名')}</div>
     ${issuer.registration_number ? `<div>登録番号　${escape(issuer.registration_number)}</div>` : ''}
     ${issuer.zip_code ? `<div>〒 ${escape(issuer.zip_code)}</div>` : ''}
     <div>${escape(issuer.address || '')}</div>
@@ -234,7 +240,7 @@ function recipientBlock(recipient, suffix) {
   return `<div class="recipient-box">
     ${recipient?.zip_code ? `<div>〒 ${escape(recipient.zip_code)}</div>` : '<div>　</div>'}
     <div>${escape(recipient?.address || '')}</div>
-    <div class="recipient-name">${escape(recipient?.name || '')}　${suffix}</div>
+    <div class="recipient-name company-name" style="${companyNameStyle(recipient?.name, suffix)}">${escape(recipient?.name || '')}　${suffix}</div>
   </div>`;
 }
 
@@ -333,7 +339,7 @@ function renderPayment(document, lines) {
     <div class="payment-total"><span>お支払金額</span><strong>${yen(total)}</strong></div>
     <table class="lines compact-lines"><thead><tr><th class="no">NO.</th><th>摘　要</th><th>数　量</th><th>単　価</th><th>金　額</th></tr></thead><tbody>${paymentRowsHtml(rows, 5)}<tr class="sum"><td colspan="2">※ お問い合わせ等は各営業担当までご連絡下さい。</td><th colspan="2">合計</th><td class="money">${yen(total)}</td></tr></tbody></table>
     <div class="split-rule"></div><h2>${formatMonth(document.target_year_month)}度　作業料金請求書</h2>
-    <div class="work-invoice-head"><div><div>〒 ${escape(document.issuer?.zip_code || '')}　${escape(document.issuer?.address || '')}</div><div class="recipient-name">${escape(document.issuer?.name || '発行元会社名')}　御中</div></div><div><div>${formatDate(document.issued_date)}</div><div>〒 ${escape(recipient.zip_code || '')}</div><div>${escape(recipient.address || '')}</div><div class="recipient-name small">${escape(recipient.name || '')}　印</div></div></div>
+    <div class="work-invoice-head"><div><div>〒 ${escape(document.issuer?.zip_code || '')}　${escape(document.issuer?.address || '')}</div><div class="recipient-name company-name" style="${companyNameStyle(document.issuer?.name || '発行元会社名', '御中')}">${escape(document.issuer?.name || '発行元会社名')}　御中</div></div><div><div>${formatDate(document.issued_date)}</div><div>〒 ${escape(recipient.zip_code || '')}</div><div>${escape(recipient.address || '')}</div><div class="recipient-name small company-name" style="${companyNameStyle(recipient.name, '印')}">${escape(recipient.name || '')}　印</div></div></div>
     <div class="claim-total"><span>御請求金額</span><strong>${yen(gross, '-')}</strong><span>（税込）</span></div>
     <table class="lines work-lines"><thead><tr><th class="no">NO.</th><th>摘　要</th><th>数　量</th><th>単　価</th><th>金　額</th></tr></thead><tbody>${paymentRowsHtml(workInvoiceRows, 4)}
       <tr class="sum"><td colspan="3" rowspan="3"></td><th>小計</th><td class="money">${yen(workSubtotal)}</td></tr><tr class="sum"><th>内消費税 ${Math.round(rate * 100)}％</th><td class="money">${yen(includedTax)}</td></tr><tr class="sum"><th>総合計</th><td class="money emphasis">${yen(gross)}</td></tr>
@@ -373,7 +379,7 @@ function renderSalary(document, lines) {
   const deductionColumns = [...model.deductions.slice(0, 5)];
   while (deductionColumns.length < 5) deductionColumns.push({ itemName:'', amount:0 });
   return `<section class="sheet salary-sheet">
-    <div class="salary-head"><div><h1>${formatMonth(document.target_year_month)}　給与明細</h1><div class="recipient-name">${escape(recipient.name || '')}　殿</div></div><div>${issuerBlock(document, true)}<div class="pay-date"><strong>給与支払日　</strong>${formatDate(document.payment_date)}</div></div></div>
+    <div class="salary-head"><div><h1>${formatMonth(document.target_year_month)}　給与明細</h1><div class="recipient-name company-name" style="${companyNameStyle(recipient.name, '殿')}">${escape(recipient.name || '')}　殿</div></div><div>${issuerBlock(document, true)}<div class="pay-date"><strong>給与支払日　</strong>${formatDate(document.payment_date)}</div></div></div>
     <table class="salary-table salary-horizontal"><tbody>
       <tr><th rowspan="3" class="salary-side">支給</th>${payColumns.map((row) => `<th>${escape(row[0]) || '　'}</th>`).join('')}</tr>
       <tr>${payColumns.map((row) => `<td class="money">${row[3] ? yen(row[3]) : '　'}</td>`).join('')}</tr>
@@ -400,7 +406,7 @@ function commonCss() {
 }
 
 function layoutCorrectionsCss() {
-  return `h1{font-size:17pt;letter-spacing:.04em}.pay-date{width:78%;white-space:nowrap}.work-invoice-head{line-height:1.45}.work-invoice-head>div:last-child{padding-left:3mm}.salary-head .pay-date{width:100%;font-size:8.5pt}`;
+  return `h1{font-size:17pt;letter-spacing:.04em}.pay-date{width:78%;white-space:nowrap}.work-invoice-head{line-height:1.45}.work-invoice-head>div:last-child{padding-left:3mm}.salary-head .pay-date{width:100%;font-size:8.5pt}.company-name{white-space:nowrap;max-width:100%;letter-spacing:-.02em}.logo.has-image{background:transparent}.logo.has-image img{width:100%;height:100%;object-fit:contain}.invoice-sheet .lines th:nth-child(3),.invoice-sheet .lines td:nth-child(3){width:30mm;text-align:right}.invoice-sheet .lines th:nth-child(4),.invoice-sheet .lines td:nth-child(4){width:15mm}.payment-sheet .lines th:nth-child(3),.payment-sheet .lines td:nth-child(3){width:15mm}.payment-sheet .lines th:nth-child(4),.payment-sheet .lines td:nth-child(4){width:30mm;text-align:right}`;
 }
 
 function renderHtml(document, lines = []) {
