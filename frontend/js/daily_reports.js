@@ -5,6 +5,7 @@
       this.ctx = ctx;
       this.ym = this.kit.currentYearMonth();
       this.listFilters = { q:'', closing_date:'', workflow_status:'', input_progress:'' };
+      this.saveInFlight = null;
       await this.showMonthList();
     },
 
@@ -885,7 +886,13 @@
       document.querySelectorAll('[data-save-row]').forEach((btn) =>
         btn.addEventListener('click', async () => {
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
-          await this.saveRow(Number(btn.getAttribute('data-save-row')));
+          const save = this.saveRow(Number(btn.getAttribute('data-save-row')));
+          this.saveInFlight = save;
+          try {
+            await save;
+          } finally {
+            if (this.saveInFlight === save) this.saveInFlight = null;
+          }
         })
       );
       document.querySelectorAll('[data-status-row]').forEach((btn) =>
@@ -958,6 +965,7 @@
       );
       document.querySelectorAll('[data-day-status][data-idx]').forEach((btn) =>
         btn.addEventListener('click', async () => {
+          if (this.saveInFlight) await this.saveInFlight;
           const viewState = this.captureGridViewState();
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
           const idx = Number(btn.getAttribute('data-idx'));
