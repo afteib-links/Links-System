@@ -42,7 +42,7 @@ async function main() {
     );
     assert.deepEqual(
       { companies: Number(counts[0].companies), projects: Number(counts[0].projects), invoices: Number(counts[0].invoices), payments: Number(counts[0].payments), documents: Number(counts[0].documents) },
-      { companies: 20, projects: 50, invoices: 2, payments: 2, documents: 7 }
+      { companies: 20, projects: 50, invoices: 2, payments: 2, documents: 5 }
     );
 
     const [types] = await pool.query(

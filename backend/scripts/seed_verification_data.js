@@ -266,9 +266,46 @@ async function ensureVerificationCycles(conn, ym) {
   return rows;
 }
 
-async function createSeedDocument(conn, kind, settlementId, type, entity, total, lines, sequence) {
+const VERIFICATION_ISSUER = {
+  name:'【検証】リンクスシステム株式会社',
+  zip_code:'000-0000',
+  address:'東京都サンプル区テスト1-2-3',
+  registration_number:'T0000000000000',
+  tel:'00-0000-0000',
+  fax:'00-0000-0001',
+  bank_accounts:[
+    { bank_name:'検証銀行', branch_name:'本店', deposit_type:'普通', account_number:'0000000', account_name:'リンクスシステム（カ' },
+  ],
+};
+
+async function createSeedDocument(conn, kind, settlementId, type, entity, total, lines, sequence, amounts = {}) {
   const number=`TEST-${type.toUpperCase()}-2026-${String(sequence).padStart(4,'0')}`;
-  const document={settlement_type:kind,document_type:type,document_number:number,issued_date:'2026-06-01',target_year_month:'2026-05',total_amount:total,company_name:entity.company_name,partner_name:entity.partner_name};
+  const document={
+    settlement_type:kind,
+    document_type:type,
+    document_number:number,
+    issued_date:'2026-06-01',
+    due_date:'2026-06-30',
+    payment_date:'2026-06-30',
+    target_year_month:'2026-05',
+    total_amount:total,
+    company_name:entity.company_name,
+    partner_name:entity.partner_name,
+    issuer:VERIFICATION_ISSUER,
+    recipient:{
+      name:entity.company_name || entity.partner_name,
+      zip_code:entity.zip_code || '000-0000',
+      address:entity.address || '匿名化住所',
+      bank_name:entity.bank_name || '',
+      branch_name:entity.branch_name || '',
+      deposit_type:entity.deposit_type || '',
+      account_number:entity.account_number || '',
+      account_name:entity.account_name || '',
+    },
+    transfer_fee_note:'恐れ入りますが、振込手数料は御社でご負担をお願い申し上げます。',
+    tax_rate:0.1,
+    ...amounts,
+  };
   const pdf=await writePdf(document,lines);
   await insert(conn,'settlement_documents',{settlement_type:kind,settlement_id:settlementId,document_type:type,document_year:2026,document_number:number,company_id:entity.company_id||null,partner_id:entity.partner_id||null,file_path:pdf.fileName,snapshot_json:JSON.stringify({seed_key:SEED_KEY,document,lines})});
 }
@@ -280,8 +317,13 @@ async function createInvoicesAndPayments(conn) {
   const actorId=Number(actors[0].user_id);
   const cycles=await ensureVerificationCycles(conn,ym);const cycle=cycles.find(x=>x.cycle_code==='end')||cycles[0];
   const [reports] = await conn.execute(
-    `SELECT * FROM daily_reports WHERE target_year_month = ? AND status = 'approved'
-       AND is_deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.seed_key')) = ? ORDER BY company_id, partner_id, work_date`, [ym, SEED_KEY]
+    `SELECT d.*,COALESCE(bp.template_name,CONCAT('案件 #',d.project_id)) AS project_name
+       FROM daily_reports d
+       LEFT JOIN projects p ON p.project_id=d.project_id
+       LEFT JOIN base_projects bp ON bp.base_project_id=p.base_project_id
+      WHERE d.target_year_month = ? AND d.status = 'approved'
+        AND d.is_deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(d.extra_data, '$.seed_key')) = ?
+      ORDER BY d.company_id, d.partner_id, d.work_date`, [ym, SEED_KEY]
   );
   const byCompany = new Map();
   const byPartner = new Map();
@@ -292,18 +334,24 @@ async function createInvoicesAndPayments(conn) {
     byPartner.get(row.partner_id).push(row);
   }
   let documentSequence=1;
-  for (const [companyId, rows] of [...byCompany.entries()].slice(0, 2)) {
+  for (const [invoiceIndex, [companyId, rows]] of [...byCompany.entries()].slice(0, 2).entries()) {
     const subtotal = rows.reduce((sum, row) => sum + Number(row.calculated_billing_amount || 0), 0);
     const adjustment = companyId % 4 === 0 ? -500 : 0;
     const taxable = subtotal + adjustment; const tax = Math.floor(taxable * 0.1);
-    const [companyRows]=await conn.execute('SELECT company_name FROM companies WHERE company_id=?',[companyId]);
+    const [companyRows]=await conn.execute('SELECT company_name,zip_code,address FROM companies WHERE company_id=?',[companyId]);
+    const displayMode=invoiceIndex===0?'detailed':'project_aggregated';
+    await conn.execute(
+      `INSERT INTO company_invoice_settings (company_id,display_mode,tax_rate,tax_rounding)
+       VALUES (?,?,0.10,'floor') ON DUPLICATE KEY UPDATE display_mode=VALUES(display_mode),tax_rate=VALUES(tax_rate),tax_rounding=VALUES(tax_rounding)`,
+      [companyId,displayMode]
+    );
     const invoiceId = await insert(conn, 'invoices', {
       company_id: companyId, target_year_month: ym, closing_date: 'end', subtotal_amount: subtotal,
       adjustment_amount: adjustment, taxable_amount: taxable, tax_amount: tax, total_amount: taxable + tax,
       invoice_status: 'finalized', settlement_status:'finalized', approval_status: 'approved', is_confirmed: 1,
       extra_data: JSON.stringify({ seed_key: SEED_KEY }),
     });
-    const lines=rows.map(row=>({line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_billing_amount||0),amount:Number(row.calculated_billing_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY,daily_report_id:row.daily_report_id})}));
+    const lines=rows.map(row=>({line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_billing_amount||0),amount:Number(row.calculated_billing_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({...row,seed_key:SEED_KEY})}));
     for(const line of lines)await insert(conn,'settlement_lines',{settlement_type:'invoice',settlement_id:invoiceId,...line});
     await insert(conn, 'invoice_details', { invoice_id: invoiceId, price_name: '稼働分（匿名検証用）', unit_price: subtotal, quantity: 1, amount: subtotal, is_adjustment_row: 0 });
     for (const row of rows) {
@@ -312,13 +360,19 @@ async function createInvoicesAndPayments(conn) {
     }
     await insert(conn,'settlement_workflows',{settlement_type:'invoice',settlement_id:invoiceId,status:'finalized',drafted_by_user_id:actorId,sales_reviewed_by_user_id:actorId,sales_reviewed_at:'2026-06-01',finalized_by_user_id:actorId,finalized_at:'2026-06-01'});
     await insert(conn,'cash_schedules',{cash_cycle_id:cycle.cash_cycle_id,direction:'incoming',source_type:'invoice',source_id:invoiceId,company_id:companyId,counterparty_name:companyRows[0].company_name,title:'請求入金（匿名検証用）',amount:taxable+tax,scheduled_date:cycle.planned_incoming_date,snapshot_json:JSON.stringify({seed_key:SEED_KEY,settlement_type:'invoice',settlement_id:invoiceId})});
-    await createSeedDocument(conn,'invoice',invoiceId,'invoice',{company_id:companyId,company_name:companyRows[0].company_name},taxable+tax,lines,documentSequence++);
-    await createSeedDocument(conn,'invoice',invoiceId,'invoice_summary',{company_id:companyId,company_name:companyRows[0].company_name},taxable+tax,lines,documentSequence++);
+    await createSeedDocument(
+      conn,'invoice',invoiceId,displayMode==='project_aggregated'?'invoice_summary':'invoice',
+      {company_id:companyId,...companyRows[0]},taxable+tax,lines,documentSequence++,
+      {subtotal_amount:taxable,tax_amount:tax}
+    );
   }
   const paymentGroups = [...byPartner.entries()].slice(0, 2);
   for (const [paymentIndex, [partnerId, rows]] of paymentGroups.entries()) {
     const gross = rows.reduce((sum, row) => sum + Number(row.calculated_payment_amount || 0), 0);
-    const [partnerRows]=await conn.execute('SELECT partner_name FROM partners WHERE partner_id=?',[partnerId]);
+    const [partnerRows]=await conn.execute(
+      'SELECT partner_name,zip_code,address,bank_name,branch_name,deposit_type,account_number,account_name FROM partners WHERE partner_id=?',
+      [partnerId]
+    );
     const [advance]=await conn.execute(`SELECT ar.advance_record_id,ar.advance_amount-COALESCE(SUM(CASE WHEN aa.status='active' THEN aa.amount ELSE 0 END),0) amount FROM advance_records ar LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id=ar.advance_record_id WHERE ar.partner_id=? AND ar.status='executed' GROUP BY ar.advance_record_id,ar.advance_amount ORDER BY ar.advance_record_id LIMIT 1`,[partnerId]);
     const advanceAmount=Math.min(gross,Number(advance[0]?.amount||0));
     const [rules]=await conn.execute(`SELECT * FROM settlement_deduction_rules WHERE scope='common' AND is_active=1 AND valid_from<=? AND (valid_to IS NULL OR valid_to>=?) ORDER BY settlement_deduction_rule_id`,[`${ym}-31`,`${ym}-01`]);
@@ -333,7 +387,7 @@ async function createInvoicesAndPayments(conn) {
       approval_status: 'approved', is_confirmed: 1,
       extra_data: JSON.stringify({ seed_key: SEED_KEY, issue_salary_statement: paymentIndex === 1 }),
     });
-    const lines=rows.map(row=>({settlement_type:'payment',settlement_id:paymentId,line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_payment_amount||0),amount:Number(row.calculated_payment_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY,daily_report_id:row.daily_report_id})}));
+    const lines=rows.map(row=>({settlement_type:'payment',settlement_id:paymentId,line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_payment_amount||0),amount:Number(row.calculated_payment_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({...row,seed_key:SEED_KEY})}));
     if(advanceAmount>0)lines.push({settlement_type:'payment',settlement_id:paymentId,line_type:'advance',source_type:'advance',source_id:advance[0].advance_record_id,item_name:'前払控除',quantity:1,unit_price:-advanceAmount,amount:-advanceAmount,tax_category:'non_taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY})});
     for(const rule of appliedRules.filter(x=>x.applied>0))lines.push({settlement_type:'payment',settlement_id:paymentId,line_type:'deduction',source_type:'rule',source_id:rule.settlement_deduction_rule_id,item_name:rule.display_name,quantity:1,unit_price:-rule.applied,amount:-rule.applied,tax_category:rule.tax_category,snapshot_json:JSON.stringify({seed_key:SEED_KEY})});
     for(const line of lines)await insert(conn,'settlement_lines',line);
@@ -345,8 +399,8 @@ async function createInvoicesAndPayments(conn) {
     }
     await insert(conn,'settlement_workflows',{settlement_type:'payment',settlement_id:paymentId,status:'finalized',drafted_by_user_id:actorId,sales_reviewed_by_user_id:actorId,sales_reviewed_at:'2026-06-01',finalized_by_user_id:actorId,finalized_at:'2026-06-01'});
     if(finalAmount>0)await insert(conn,'cash_schedules',{cash_cycle_id:cycle.cash_cycle_id,direction:'outgoing',source_type:'payment',source_id:paymentId,partner_id:partnerId,counterparty_name:partnerRows[0].partner_name,title:'通常支払（匿名検証用）',amount:finalAmount,scheduled_date:cycle.planned_outgoing_date,snapshot_json:JSON.stringify({seed_key:SEED_KEY,settlement_type:'payment',settlement_id:paymentId})});
-    await createSeedDocument(conn,'payment',paymentId,'payment_statement',{partner_id:partnerId,partner_name:partnerRows[0].partner_name},finalAmount,lines,documentSequence++);
-    if(paymentIndex===1)await createSeedDocument(conn,'payment',paymentId,'salary_statement',{partner_id:partnerId,partner_name:partnerRows[0].partner_name},finalAmount,lines,documentSequence++);
+    await createSeedDocument(conn,'payment',paymentId,'payment_statement',{partner_id:partnerId,...partnerRows[0]},finalAmount,lines,documentSequence++,{gross_amount:gross});
+    if(paymentIndex===1)await createSeedDocument(conn,'payment',paymentId,'salary_statement',{partner_id:partnerId,...partnerRows[0]},finalAmount,lines,documentSequence++,{gross_amount:gross});
   }
 }
 

@@ -103,7 +103,7 @@ async function main() {
       assert.equal(documents.response.status, 200, `${role} document list`);
       assert.ok(invoiceList.data.invoices.length >= 2);
       assert.ok(paymentList.data.payments.length >= 2);
-      assert.ok(documents.data.documents.length >= 7);
+      assert.ok(documents.data.documents.length >= 5);
     }
 
     const companyInvoices = await api(baseUrl, cookies.company, '/api/invoices?target_year_month=2026-05');
@@ -114,7 +114,7 @@ async function main() {
     assert.equal((await api(baseUrl, cookies.company, '/api/payments?target_year_month=2026-05')).response.status, 403);
 
     const companyDocuments = await api(baseUrl, cookies.company, '/api/settlements/documents');
-    assert.ok(companyDocuments.data.documents.length >= 2);
+    assert.ok(companyDocuments.data.documents.length >= 1);
     assert.ok(companyDocuments.data.documents.every((row) => row.settlement_type === 'invoice'));
     const companyPdf = await api(baseUrl, cookies.company, `/api/settlements/documents/${companyDocuments.data.documents[0].settlement_document_id}/download`);
     assert.equal(companyPdf.response.status, 200);

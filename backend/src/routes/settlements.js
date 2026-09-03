@@ -216,6 +216,82 @@ async function executedNetForCorrectionChain(conn, kind, workflow) {
   return rows.reduce((sum,row)=>sum+(row.direction===baseDirection?1:-1)*Number(row.amount),0);
 }
 
+const DOCUMENT_SETTING_KEYS = [
+  'document_issuer_name',
+  'document_issuer_zip_code',
+  'document_issuer_address',
+  'document_issuer_registration_number',
+  'document_issuer_tel',
+  'document_issuer_fax',
+  'document_issuer_bank_accounts',
+  'document_issuer_logo_data_url',
+  'document_issuer_stamp_data_url',
+  'document_transfer_fee_note',
+];
+
+async function documentSettings(conn) {
+  const [rows] = await conn.query(
+    `SELECT setting_key,setting_value FROM system_settings
+     WHERE is_deleted=0 AND setting_key IN (${DOCUMENT_SETTING_KEYS.map(() => '?').join(',')})`,
+    DOCUMENT_SETTING_KEYS
+  );
+  const values = Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value]));
+  return {
+    issuer: {
+      name:values.document_issuer_name || '',
+      zip_code:values.document_issuer_zip_code || '',
+      address:values.document_issuer_address || '',
+      registration_number:values.document_issuer_registration_number || '',
+      tel:values.document_issuer_tel || '',
+      fax:values.document_issuer_fax || '',
+      bank_accounts:json(values.document_issuer_bank_accounts),
+      logo_data_url:values.document_issuer_logo_data_url || '',
+      stamp_data_url:values.document_issuer_stamp_data_url || '',
+    },
+    transfer_fee_note:values.document_transfer_fee_note || '恐れ入りますが、振込手数料は御社でご負担をお願い申し上げます。',
+  };
+}
+
+async function documentRecipient(conn, kind, header) {
+  if (kind === 'invoice') {
+    const [rows] = await conn.query(
+      `SELECT c.company_name,c.zip_code,c.address,c.contact,c.fax,
+              cb.billing_print_name,cb.billing_address,cb.billing_phone,cb.billing_fax
+       FROM companies c
+       LEFT JOIN company_billings cb ON cb.billing_id=? AND cb.company_id=c.company_id AND cb.is_deleted=0
+       WHERE c.company_id=? LIMIT 1`,
+      [header.billing_id || null,header.company_id]
+    );
+    const row=rows[0] || {};
+    return {
+      name:header.billing_print_name || row.billing_print_name || row.company_name || header.company_name || '',
+      zip_code:row.zip_code || '',
+      address:row.billing_address || row.address || '',
+      tel:row.billing_phone || row.contact || '',
+      fax:row.billing_fax || row.fax || '',
+    };
+  }
+  const [rows] = await conn.query(
+    `SELECT partner_name,zip_code,address,contact_phone,bank_name,branch_name,
+            account_number,deposit_type,account_name,invoice_number
+     FROM partners WHERE partner_id=? LIMIT 1`,
+    [header.partner_id]
+  );
+  const row=rows[0] || {};
+  return {
+    name:row.partner_name || header.partner_name || '',
+    zip_code:row.zip_code || '',
+    address:row.address || '',
+    tel:row.contact_phone || '',
+    registration_number:row.invoice_number || '',
+    bank_name:row.bank_name || '',
+    branch_name:row.branch_name || '',
+    account_number:row.account_number || '',
+    deposit_type:row.deposit_type || '',
+    account_name:row.account_name || '',
+  };
+}
+
 async function cancelScheduleExports(conn, kind, settlementId, reason) {
   const [batchRows] = await conn.query(
     `SELECT DISTINCT i.cash_export_batch_id
@@ -279,8 +355,13 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
   try { await conn.beginTransaction(); const [headerRows]=await conn.query(`SELECT s.*, ${kind==='invoice'?'c.company_name':'p.partner_name'} FROM ${tableFor(kind)} s LEFT JOIN ${kind==='invoice'?'companies c ON c.company_id=s.company_id':'partners p ON p.partner_id=s.partner_id'} WHERE s.${idFor(kind)}=? FOR UPDATE`,[id]); const header=headerRows[0]; if(!header) throw new Error('対象が見つかりません'); const [wf]=await conn.query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE',[kind,id]); if(!wf.length || wf[0].status!=='sales_reviewed') throw new Error('営業確認済みの下書きだけ最終確定できます');
     const [lines]=await conn.query('SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? ORDER BY settlement_line_id',[kind,id]); let finalLines=lines.map(x=>({...x,amount:Number(x.amount),unit_price:Number(x.unit_price),quantity:Number(x.quantity)}));
     let pdfLines = finalLines;
+    let invoiceDisplayMode = 'detailed';
+    let invoiceTaxRate = SYSTEM_TAX_RATE;
+    let invoiceTaxAmount = 0;
+    let invoiceSubtotal = 0;
     if(kind==='invoice'){
       const [setting]=await conn.query('SELECT * FROM company_invoice_settings WHERE company_id=?',[header.company_id]);
+      invoiceDisplayMode=setting[0]?.display_mode || 'detailed';
       const projects=[...new Set(finalLines.map(x=>x.project_id).filter(Boolean))];
       const resolvedTax = await resolveInvoiceTax(conn, header.company_id, projects);
       const taxRate=resolvedTax.rate, taxMode=resolvedTax.mode;
@@ -297,6 +378,9 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         pdfLines=[...grouped.values()];
       }
       await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[finalLines.filter(x=>x.line_type==='work').reduce((n,x)=>n+x.amount,0),finalLines.filter(x=>x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode}),id]);
+      invoiceTaxRate=taxRate;
+      invoiceTaxAmount=tax;
+      invoiceSubtotal=asMoney(finalLines.reduce((n,x)=>n+x.amount,0));
       header.total_amount=total;
     } else {
       const gross=finalLines.filter(x=>x.line_type==='work'||x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0);
@@ -342,6 +426,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         final=asMoney(available);
       }
       await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='安全協力会費').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines}),id]);
+      header.gross_amount=gross;
       header.total_amount=final;
     }
     const cycleId=Number(b.cash_cycle_id);
@@ -355,7 +440,40 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
       const direction=scheduleDelta>0?baseDirection:(baseDirection==='incoming'?'outgoing':'incoming');
       await conn.query(`INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,company_id,partner_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,[cycleId,direction,wf[0].correction_of_settlement_id?'adjustment':kind,id,header.company_id||null,header.partner_id||null,header.company_name||header.partner_name,wf[0].correction_of_settlement_id?'訂正差額':kind==='invoice'?'請求入金':'通常支払',Math.abs(scheduleDelta),direction==='incoming'?cycles[0].planned_incoming_date:cycles[0].planned_outgoing_date,JSON.stringify({settlement_type:kind,settlement_id:id,total_amount:header.total_amount,executed_net:correctionExecuted,difference:scheduleDelta}),req.session.user.user_id]);
     }
-    const types=kind==='invoice'?['invoice','invoice_summary']:['payment_statement', ...(json(header.extra_data).issue_salary_statement?['salary_statement']:[])]; const year=Number(String(header.target_year_month).slice(0,4)); for(const type of types){const number=await nextDocumentNumber(conn,type,year); const document={settlement_type:kind,document_type:type,document_number:number,issued_date:new Date().toISOString().slice(0,10),target_year_month:header.target_year_month,total_amount:header.total_amount,company_name:header.company_name,partner_name:header.partner_name}; const pdf=await writePdf(document,pdfLines); generated.push(pdf.absolutePath); await conn.query(`INSERT INTO settlement_documents (settlement_type,settlement_id,document_type,document_year,document_number,company_id,partner_id,file_path,snapshot_json) VALUES (?,?,?,?,?,?,?,?,?)`,[kind,id,type,year,number,header.company_id||null,header.partner_id||null,pdf.fileName,JSON.stringify({document,lines:pdfLines,internal_lines:finalLines})]);}
+    const types=kind==='invoice'
+      ? [invoiceDisplayMode==='project_aggregated'?'invoice_summary':'invoice']
+      : ['payment_statement', ...(json(header.extra_data).issue_salary_statement?['salary_statement']:[])];
+    const year=Number(String(header.target_year_month).slice(0,4));
+    const settings=await documentSettings(conn);
+    const recipient=await documentRecipient(conn,kind,header);
+    for(const type of types){
+      const number=await nextDocumentNumber(conn,type,year);
+      const document={
+        settlement_type:kind,
+        document_type:type,
+        document_number:number,
+        issued_date:new Date().toISOString().slice(0,10),
+        due_date:cycles[0].planned_incoming_date,
+        payment_date:cycles[0].planned_outgoing_date,
+        target_year_month:header.target_year_month,
+        total_amount:header.total_amount,
+        gross_amount:header.gross_amount,
+        subtotal_amount:kind==='invoice'?invoiceSubtotal:undefined,
+        tax_amount:kind==='invoice'?invoiceTaxAmount:undefined,
+        tax_rate:kind==='invoice'?invoiceTaxRate:SYSTEM_TAX_RATE,
+        company_name:header.company_name,
+        partner_name:header.partner_name,
+        recipient,
+        ...settings,
+      };
+      // 帳票側で日報明細から詳細／案件集約を組み立てるため、集約前の正本明細を渡す。
+      const pdf=await writePdf(document,finalLines);
+      generated.push(pdf.absolutePath);
+      await conn.query(
+        `INSERT INTO settlement_documents (settlement_type,settlement_id,document_type,document_year,document_number,company_id,partner_id,file_path,snapshot_json) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [kind,id,type,year,number,header.company_id||null,header.partner_id||null,pdf.fileName,JSON.stringify({document,lines:pdfLines,internal_lines:finalLines})]
+      );
+    }
     await conn.query(`UPDATE settlement_workflows SET status='finalized',finalized_by_user_id=?,finalized_at=CURRENT_TIMESTAMP WHERE settlement_workflow_id=?`,[req.session.user.user_id,wf[0].settlement_workflow_id]); for(const l of finalLines.filter(x=>x.daily_report_id)) await conn.query(kind==='invoice'?`UPDATE daily_reports SET billing_status='billed' WHERE daily_report_id=?`:`UPDATE daily_reports SET payment_status='paid' WHERE daily_report_id=?`,[l.daily_report_id]); await conn.commit(); return res.json({ok:true,status:'finalized',total_amount:header.total_amount});
   } catch(err){await conn.rollback();for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}return res.status(400).json({ok:false,message:err.message});} finally {conn.release();}
 });

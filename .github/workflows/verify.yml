@@ -120,6 +120,28 @@ jobs:
       - name: Seed anonymous settlement verification data
         run: npm run seed:verification --prefix backend
 
+      - name: Generate Excel-style settlement PDF previews
+        run: npm run preview:settlement-pdfs --prefix backend
+
+      - name: Render settlement PDF preview images
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pdftoppm >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+          mkdir -p backend/test-results/pdf-previews
+          for pdf in backend/test-results/pdfs/PREVIEW-*.pdf; do
+            name="$(basename "$pdf" .pdf)"
+            pages="$(pdfinfo "$pdf" | awk '/^Pages:/ { print $2 }')"
+            if [ "$pages" != "1" ]; then
+              echo "帳票 $name は1ページではありません（$pages ページ）"
+              exit 1
+            fi
+            pdftoppm -f 1 -singlefile -png -r 120 "$pdf" "backend/test-results/pdf-previews/$name"
+          done
+
       - name: Run settlement role access integration
         run: npm run test:settlement-access --prefix backend
 
@@ -133,7 +155,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: settlement-pdf-samples
-          path: backend/test-results/pdfs/TEST-*.pdf
+          path: |
+            backend/test-results/pdfs/TEST-*.pdf
+            backend/test-results/pdfs/PREVIEW-*.pdf
+            backend/test-results/pdf-previews/PREVIEW-*.png
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

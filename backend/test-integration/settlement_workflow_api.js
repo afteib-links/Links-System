@@ -76,8 +76,9 @@ async function main() {
     assert.equal(Number(invoiceSnapshot.tax_rate), 0.08);
     assert.equal(invoiceSnapshot.tax_rounding, 'ceil');
     assert.ok(invoiceSnapshot.display_lines.length <= invoiceSnapshot.lines.length);
-    const [invoiceDocs] = await pool.query("SELECT document_number FROM settlement_documents WHERE settlement_type='invoice' AND settlement_id=? AND status='issued'", [invoiceId]);
-    assert.equal(invoiceDocs.length, 2);
+    const [invoiceDocs] = await pool.query("SELECT document_type,document_number FROM settlement_documents WHERE settlement_type='invoice' AND settlement_id=? AND status='issued'", [invoiceId]);
+    assert.equal(invoiceDocs.length, 1);
+    assert.equal(invoiceDocs[0].document_type, 'invoice_summary');
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/cancel`, { reason: 'UAT未実行取消' })).response.status, 200);
     const [restoredInvoiceReports] = await pool.query(`SELECT DISTINCT billing_status FROM daily_reports WHERE daily_report_id IN (${invoiceTarget.report_ids.map(() => '?').join(',')})`, invoiceTarget.report_ids);
     assert.deepEqual(restoredInvoiceReports.map((row) => row.billing_status), ['none']);
