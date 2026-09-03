@@ -496,6 +496,10 @@ async function resetBusinessData() {
       documentFiles=documents.map(x=>x.file_path).filter(Boolean);
       await conn.query(`DELETE FROM settlement_documents WHERE ${conditions.join(' OR ')}`,params);
       await conn.query(`DELETE FROM settlement_workflows WHERE ${conditions.join(' OR ')}`,params);
+      const [seedLines]=await conn.query(`SELECT settlement_line_id FROM settlement_lines WHERE ${conditions.join(' OR ')}`,params);
+      const settlementLineIds=seedLines.map(x=>x.settlement_line_id);
+      await removeWhere('settlement_line_audit_logs','settlement_line_id',settlementLineIds);
+      await removeWhere('settlement_line_sources','settlement_line_id',settlementLineIds);
       await conn.query(`DELETE FROM settlement_lines WHERE ${conditions.join(' OR ')}`,params);
     }
     await removeWhere('settlement_carry_forward_allocations','payment_id',paymentIds);
@@ -519,6 +523,7 @@ async function resetBusinessData() {
       await removeWhere('cash_schedules','cash_schedule_id',scheduleIds);
       for(const batch of batchIds)await conn.query('DELETE FROM cash_export_batches WHERE cash_export_batch_id=? AND NOT EXISTS (SELECT 1 FROM cash_export_batch_items WHERE cash_export_batch_id=?)',[batch.cash_export_batch_id,batch.cash_export_batch_id]);
     }
+    await removeWhere('advance_record_audit_logs','advance_record_id',advanceRecordIds);
     await removeWhere('advance_records','project_id',projectIds);
     await removeWhere('project_advance_terms','project_id',projectIds);
     await removeWhere('payments','payment_id',paymentIds);
