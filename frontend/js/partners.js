@@ -84,6 +84,7 @@
           <button type="button" class="btn btn-ghost btn-small" data-edit="${p.partner_id}">編集</button>
           <button type="button" class="btn btn-ghost btn-small" data-projects="${p.partner_id}">案件一覧</button>
           <button type="button" class="btn btn-danger btn-small" data-del="${p.partner_id}">削除</button>`,
+        rowKey: 'partner_id',
       });
 
       this.ctx.app.innerHTML = this.kit.shell(
@@ -114,6 +115,10 @@
         onFilter: (filters) => {
           this.listState.filters = filters;
           this.showList(message);
+        },
+        onActivate: (key) => {
+          this.kit.pushNav(() => this.showList());
+          this.showDetail(Number(key));
         },
       });
       document.getElementById('search')?.addEventListener('click', () => {
@@ -239,8 +244,9 @@
         `<section class="panel">
           <p class="error" id="form-error"></p>
           <form id="partner-form">
-            <h3 class="section-title">基本情報</h3>
-            <div class="form-grid">
+            <div class="form-sections">
+            <section class="form-section-card"><h3>基本・契約情報</h3>
+            <div class="form-grid form-grid-compact">
               <div><label>名称（必須）</label><input name="partner_name" required value="${this.ctx.escapeHtml(partner.partner_name || '')}" /></div>
               <div><label>カナ</label><input name="partner_name_kana" value="${this.ctx.escapeHtml(partner.partner_name_kana || '')}" /></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(partner.zip_code || '')}" /></div>
@@ -254,12 +260,13 @@
               <div><label>雇用区分</label><select name="employment_type_code">${this.kit.codeOptions(this.codes.employment_type, partner.employment_type_code)}</select></div>
               <div><label>インボイス番号</label><input name="invoice_number" value="${this.ctx.escapeHtml(partner.invoice_number || '')}" /></div>
               <div class="full"><label class="check-item"><input type="checkbox" name="advance_payment_enabled" ${partner.advance_payment_enabled ? 'checked' : ''} /><span>先払い対象</span></label></div>
-            </div>
-            <h3 class="section-title">免許・各種区分・銀行</h3>
-            <div class="form-grid">
+            </div></section>
+            <section class="form-section-card"><h3>免許・安全管理</h3><div class="form-grid form-grid-compact">
               <div><label>免許期限</label><input type="date" name="license_expiry_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.license_expiry_date))}" /></div>
               <div class="full"><label>免許種類</label><input name="license_types" value="${this.ctx.escapeHtml(partner.license_types || '')}" /></div>
               <div class="full"><label>安全大会履歴</label><textarea name="safety_conference_history" rows="2">${this.ctx.escapeHtml(partner.safety_conference_history || '')}</textarea></div>
+            </div></section>
+            <section class="form-section-card"><h3>各種区分</h3><div class="form-grid form-grid-compact">
               <div><label>傷害保険</label><select name="accident_insurance_code">${this.kit.codeOptions(this.codes.accident_insurance, partner.accident_insurance_code)}</select></div>
               <div><label>請負賠償</label><select name="contractor_liability_code">${this.kit.codeOptions(this.codes.contractor_liability, partner.contractor_liability_code)}</select></div>
               <div><label>貨物保険</label><select name="cargo_insurance_code">${this.kit.codeOptions(this.codes.cargo_insurance, partner.cargo_insurance_code)}</select></div>
@@ -267,18 +274,22 @@
               <div><label>確定申告</label><select name="tax_return_code">${this.kit.codeOptions(this.codes.tax_return, partner.tax_return_code)}</select></div>
               <div><label>ループ</label><select name="loop_code">${this.kit.codeOptions(this.codes.loop_code, partner.loop_code)}</select></div>
               <div><label>支払出力</label><select name="payment_output_code">${this.kit.codeOptions(this.codes.payment_output, partner.payment_output_code)}</select></div>
+            </div></section>
+            <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(partner.bank_name || '')}" /></div>
               <div><label>支店名</label><input name="branch_name" value="${this.ctx.escapeHtml(partner.branch_name || '')}" /></div>
               <div><label>口座種別</label><select name="deposit_type">${this.kit.codeOptions(this.codes.deposit_type, partner.deposit_type)}</select></div>
               <div><label>口座番号</label><input name="account_number" value="${this.ctx.escapeHtml(partner.account_number || '')}" /></div>
               <div><label>口座名義</label><input name="account_name" value="${this.ctx.escapeHtml(partner.account_name || '')}" /></div>
-            </div>
+            </div></section>
+            <section class="form-section-card">
             <div class="section-head">
               <h3 class="section-title">車両</h3>
               <button type="button" class="btn btn-ghost" id="add-vehicle">＋ 車両追加</button>
             </div>
             <div class="table-wrap" id="vehicles-mini">${this.vehiclesTableHtml()}</div>
-            <div class="btn-row">
+            </section></div>
+            <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>

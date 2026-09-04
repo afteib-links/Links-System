@@ -103,6 +103,78 @@
           )}" autocomplete="off" />
           <datalist id="${ctx.escapeHtml(listId)}">${opts}</datalist>`;
       },
+      searchSelectHtml(name, list, valueKey, labelKey, selected, options = {}) {
+        const selectedRow = (list || []).find((row) => String(row[valueKey]) === String(selected ?? ''));
+        const display = selectedRow ? (options.formatLabel?.(selectedRow) || selectedRow[labelKey] || '') : '';
+        const required = options.required ? 'required' : '';
+        const placeholder = options.placeholder || '名称・番号で検索';
+        const aliases = options.aliasKeys || [];
+        const items = (list || []).map((row) => {
+          const label = options.formatLabel?.(row) || row[labelKey] || row[valueKey];
+          const search = [label, row[valueKey], ...aliases.map((key) => row[key])].filter(Boolean).join(' ');
+          return `<button type="button" class="search-select-option" role="option" data-value="${ctx.escapeHtml(row[valueKey])}" data-label="${ctx.escapeHtml(label)}" data-search="${ctx.escapeHtml(search)}">${ctx.escapeHtml(label)}</button>`;
+        }).join('');
+        return `<div class="search-select" data-search-select="${ctx.escapeHtml(name)}">
+          <input type="search" class="search-select-input" value="${ctx.escapeHtml(display)}" placeholder="${ctx.escapeHtml(placeholder)}" autocomplete="off" ${required} aria-autocomplete="list" aria-expanded="false">
+          <input type="hidden" name="${ctx.escapeHtml(name)}" value="${ctx.escapeHtml(selectedRow ? selectedRow[valueKey] : '')}">
+          <div class="search-select-list" role="listbox" hidden>${items || '<p class="search-select-empty">候補がありません</p>'}</div>
+        </div>`;
+      },
+      bindSearchSelects(root = document, onChange = null) {
+        const normalize = (value) => String(value || '').normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+        root.querySelectorAll?.('[data-search-select]').forEach((wrap) => {
+          if (wrap.dataset.bound === '1') return;
+          wrap.dataset.bound = '1';
+          const input = wrap.querySelector('.search-select-input');
+          const hidden = wrap.querySelector('input[type="hidden"]');
+          const list = wrap.querySelector('.search-select-list');
+          const options = [...wrap.querySelectorAll('.search-select-option')];
+          const open = () => { list.hidden = false; input.setAttribute('aria-expanded', 'true'); };
+          const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+          const choose = (option) => {
+            input.value = option.dataset.label || '';
+            input.dataset.selectedLabel = input.value;
+            hidden.value = option.dataset.value || '';
+            input.setCustomValidity('');
+            close();
+            onChange?.(wrap.dataset.searchSelect, hidden.value, option);
+            hidden.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+          const filter = () => {
+            if (input.value !== input.dataset.selectedLabel) hidden.value = '';
+            const terms = normalize(input.value).split(/\s+/).filter(Boolean);
+            let visible = 0;
+            options.forEach((option) => {
+              const haystack = normalize(option.dataset.search);
+              option.hidden = !terms.every((term) => haystack.includes(term));
+              if (!option.hidden) visible += 1;
+            });
+            input.setCustomValidity(input.value && !hidden.value ? '候補から選択してください' : '');
+            open();
+            const empty = wrap.querySelector('.search-select-empty');
+            if (empty) empty.hidden = visible > 0;
+          };
+          input.dataset.selectedLabel = input.value;
+          input.addEventListener('focus', open);
+          input.addEventListener('input', filter);
+          input.addEventListener('keydown', (event) => {
+            const visible = options.filter((option) => !option.hidden);
+            const current = visible.indexOf(document.activeElement);
+            if (event.key === 'ArrowDown' && visible.length) { event.preventDefault(); visible[Math.min(current + 1, visible.length - 1)].focus(); }
+            if (event.key === 'Escape') close();
+            if (event.key === 'Enter' && visible.length === 1) { event.preventDefault(); choose(visible[0]); }
+          });
+          options.forEach((option) => {
+            option.addEventListener('click', () => { input.dataset.selectedLabel = option.dataset.label || ''; choose(option); });
+            option.addEventListener('keydown', (event) => {
+              if (event.key === 'Escape') { close(); input.focus(); }
+            });
+          });
+          wrap.addEventListener('focusout', () => setTimeout(() => {
+            if (!wrap.contains(document.activeElement)) close();
+          }, 0));
+        });
+      },
       codeLabel(codes, value) {
         if (!value) return '-';
         const hit = (codes || []).find((c) => c.code_value === value);

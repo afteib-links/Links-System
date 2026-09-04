@@ -47,6 +47,7 @@ const PROJECT_FIELDS = [
   'company_id',
   'partner_id',
   'vehicle_id',
+  'vehicle_owner_type',
   'manager_name',
   'business_type',
   'payment_type',
@@ -116,6 +117,31 @@ function pick(body, fields) {
   return out;
 }
 
+async function validateVehicleSelection(data) {
+  if (!data.vehicle_id) {
+    data.vehicle_id = null;
+    data.vehicle_owner_type = null;
+    return null;
+  }
+  if (!['company', 'partner'].includes(data.vehicle_owner_type)) {
+    return '車両の所有元を選択してください';
+  }
+  const isCompany = data.vehicle_owner_type === 'company';
+  const ownerId = Number(isCompany ? data.company_id : data.partner_id);
+  if (!ownerId) {
+    return isCompany ? '企業を選択してください' : 'パートナーを選択してください';
+  }
+  const table = isCompany ? 'company_vehicles' : 'partner_vehicles';
+  const ownerColumn = isCompany ? 'company_id' : 'partner_id';
+  const rows = await query(
+    `SELECT vehicle_id FROM ${table}
+     WHERE vehicle_id = ? AND ${ownerColumn} = ? AND is_deleted = 0
+     LIMIT 1`,
+    [Number(data.vehicle_id), ownerId]
+  );
+  return rows.length ? null : '選択した車両が案件の所有元に属していません';
+}
+
 async function fetchBase(id) {
   const rows = await query(
     `SELECT b.*, c.company_name
@@ -173,7 +199,8 @@ router.get('/base', async (req, res) => {
     }
     const rows = await query(
       `SELECT b.base_project_id, b.company_id, b.template_name, b.default_manager,
-              b.business_type, b.basic_work_hours, b.work_time_type, b.version,
+              b.business_type, b.basic_work_hours, b.work_time_type, b.work_mode_code,
+              b.closing_date, b.version,
               c.company_name
        FROM base_projects b
        LEFT JOIN companies c ON c.company_id = b.company_id
@@ -285,11 +312,24 @@ router.post('/base/:id/create-project', async (req, res) => {
     const base = await fetchBase(Number(req.params.id));
     if (!base) return res.status(404).json({ ok: false, message: '基本案件が見つかりません' });
     const overrides = pick(req.body || {}, PROJECT_FIELDS);
+    const projectCompanyId = overrides.company_id || base.company_id;
+    let vehicleId = overrides.vehicle_id != null ? overrides.vehicle_id : base.vehicle_id;
+    let vehicleOwnerType = overrides.vehicle_owner_type || null;
+    if (vehicleId && !vehicleOwnerType) {
+      const companyVehicles = await query(
+        `SELECT vehicle_id FROM company_vehicles
+         WHERE vehicle_id = ? AND company_id = ? AND is_deleted = 0 LIMIT 1`,
+        [Number(vehicleId), Number(projectCompanyId)]
+      );
+      if (companyVehicles.length) vehicleOwnerType = 'company';
+      else vehicleId = null;
+    }
     const data = {
       base_project_id: base.base_project_id,
-      company_id: overrides.company_id || base.company_id,
+      company_id: projectCompanyId,
       partner_id: overrides.partner_id != null ? overrides.partner_id : base.partner_id,
-      vehicle_id: overrides.vehicle_id != null ? overrides.vehicle_id : base.vehicle_id,
+      vehicle_id: vehicleId,
+      vehicle_owner_type: vehicleOwnerType,
       manager_name: overrides.manager_name || base.default_manager,
       business_type: overrides.business_type || base.business_type,
       payment_type: overrides.payment_type || base.payment_type || 'normal',
@@ -312,6 +352,8 @@ router.post('/base/:id/create-project', async (req, res) => {
       gogo_site_area: overrides.gogo_site_area || base.gogo_site_area,
       price_set_id: null,
     };
+    const vehicleError = await validateVehicleSelection(data);
+    if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
     const cols = Object.keys(data).filter((k) => data[k] !== undefined);
     await conn.beginTransaction();
     const [insertResult] = await conn.query(
@@ -367,6 +409,7 @@ router.get('/', async (req, res) => {
     }
     const rows = await query(
       `SELECT p.project_id, p.base_project_id, p.company_id, p.partner_id, p.vehicle_id,
+              p.vehicle_owner_type,
               p.manager_name, p.business_type, p.payment_type, p.installment_amount,
               p.operation_start_date, p.closing_date, p.version,
               c.company_name, pt.partner_name, b.template_name AS base_template_name
@@ -404,6 +447,8 @@ router.post('/', async (req, res) => {
     if (!data.company_id) {
       return res.status(400).json({ ok: false, message: '企業は必須です' });
     }
+    const vehicleError = await validateVehicleSelection(data);
+    if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
     if (!data.payment_type) data.payment_type = 'normal';
     data.price_set_id = null;
     const cols = Object.keys(data);
@@ -458,6 +503,8 @@ router.put('/:id', async (req, res) => {
     if (!data.company_id) {
       return res.status(400).json({ ok: false, message: '企業は必須です' });
     }
+    const vehicleError = await validateVehicleSelection(data);
+    if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
     const sets = PROJECT_FIELDS.map((f) => `${f} = ?`);
     const params = PROJECT_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));

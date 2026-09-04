@@ -19,7 +19,8 @@
     "preview": "node src/preview-static.js",
     "test": "node --test test/*.test.js",
     "test:e2e": "node test-e2e/daily_report_ui.js",
-    "test:e2e-ui": "node test-e2e/ui_redesign.js"
+    "test:e2e-ui": "node test-e2e/ui_redesign.js",
+    "test:e2e-usability": "node test-e2e/list_editor_usability.js"
   },
   "engines": {
     "node": ">=20"

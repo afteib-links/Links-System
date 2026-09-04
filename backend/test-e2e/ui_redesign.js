@@ -80,6 +80,35 @@ async function inspectViewport(browser, viewport) {
     await page.screenshot({ path:path.join(outputDir, `daily-reports-${suffix}.png`), fullPage:true });
   }
 
+  const companies = page.locator('[data-nav-feature="companies"]');
+  if (!isMobile && await companies.count()) {
+    await openFeature(page, 'companies', false);
+    assert.equal(await page.locator('#shared-data-table thead tr').count(), 2, '企業一覧に列別フィルターを表示すること');
+    const firstRow = page.locator('#shared-data-table tbody tr[data-row-key]').first();
+    if (await firstRow.count()) {
+      await firstRow.click();
+      assert.equal(await firstRow.getAttribute('aria-selected'), 'true', 'クリックした企業行を選択表示すること');
+      await firstRow.dblclick();
+      await page.locator('#company-form').waitFor();
+      assert.ok(await page.locator('#company-form .form-section-card').count() >= 4, '企業編集をカテゴリ別カードで表示すること');
+    } else {
+      await page.locator('#company-new').click();
+      await page.locator('#company-form').waitFor();
+    }
+    await assertNoPageOverflow(page, viewport, '企業編集画面');
+  }
+
+  const projects = page.locator('[data-nav-feature="projects"]');
+  if (!isMobile && await projects.count()) {
+    await openFeature(page, 'projects', false);
+    assert.equal(await page.locator('#projects-table th').filter({hasText:'締日'}).count() > 0, true, '個別案件一覧に締日を表示すること');
+    await page.locator('#new-project').click();
+    await page.locator('#project-form').waitFor();
+    assert.equal(await page.locator('#vehicle-owner-type').count(), 1, '個別案件で車両所有元を選べること');
+    assert.ok(await page.locator('#project-form .search-select').count() >= 4, '個別案件の参照項目を検索選択にすること');
+    await assertNoPageOverflow(page, viewport, '個別案件編集画面');
+  }
+
   if (isMobile && await page.locator('[data-nav-feature="payments"]').count()) {
     await openFeature(page, 'payments', true);
     await page.locator('.settlement-filters').waitFor();
