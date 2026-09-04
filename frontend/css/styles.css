@@ -632,6 +632,28 @@ select {
 .dr-input-empty { color: var(--dr-reference-color, #a7b0be) !important; }
 .dr-distance-input { width: 5.2rem !important; }
 .dr-fee-input { width: 7rem !important; }
+.dr-source-mark { display:block; margin-top:.2rem; font-size:.72rem; color:#475467; white-space:nowrap; }
+.dr-import-entry { justify-content:flex-end; margin:.5rem 0; }
+.dr-import-upload { display:grid; grid-template-columns:minmax(12rem,18rem) minmax(18rem,1fr) auto; gap:1rem; align-items:end; }
+.dr-import-upload label,.dr-import-mapping-grid label { display:grid; gap:.35rem; font-weight:600; }
+.dr-import-mapping-grid { display:grid; grid-template-columns:repeat(3,minmax(12rem,1fr)); gap:.8rem; margin:1rem 0; }
+.dr-import-template-row { display:flex; gap:1rem; align-items:center; margin:1rem 0; }
+.dr-import-template-row input[type="text"],.dr-import-template-row input:not([type]) { min-width:20rem; }
+.dr-import-review-wrap { max-height:62vh; }
+.dr-import-review-table { min-width:1850px; }
+.dr-import-review-table input:not([type="checkbox"]) { min-width:6.5rem; }
+.dr-import-review-table td:nth-child(3) { min-width:15rem; }
+.dr-import-review-table td:nth-child(14) input { min-width:14rem; }
+.dr-import-review-table small,.dr-import-messages span { display:block; margin-top:.2rem; }
+.dr-import-error { color:#b42318; font-weight:700; }
+.dr-import-warning { color:#8a4b08; font-weight:700; }
+.dr-import-ok { color:#067647; font-weight:700; }
+.dr-import-actions { position:sticky; bottom:0; z-index:3; margin-top:1rem; padding:.75rem; border-top:1px solid var(--line); background:#fff; }
+@media (max-width: 900px) {
+  .dr-import-upload,.dr-import-mapping-grid { grid-template-columns:1fr; }
+  .dr-import-template-row { align-items:stretch; flex-direction:column; }
+  .dr-import-template-row input[type="text"],.dr-import-template-row input:not([type]) { min-width:0; width:100%; }
+}
 .status-button { border: 0; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .status-button:disabled { cursor: not-allowed; }
 .dr-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; padding: 0.5rem; }

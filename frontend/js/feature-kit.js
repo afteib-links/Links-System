@@ -126,11 +126,11 @@
       statusMeta(code, label = '') {
         const map = {
           not_started:['neutral','○','未着手'], unplanned:['neutral','○','未作成'], none:['neutral','○','未処理'],
-          draft:['working','●','下書き'], inputting:['working','●','入力中'], ready:['working','●','申請可能'], planned:['working','●','予定作成済み'], open:['working','●','処理中'],
-          submitted:['waiting','◷','承認待ち'], confirmed:['waiting','◷','日次確認済み'], sales_reviewed:['waiting','◷','営業確認済み'], exported:['waiting','◷','CSV出力済み'], held:['waiting','◷','保留'], reserved:['waiting','◷','処理予約済み'],
+          draft:['working','●','下書き'], inputting:['working','●','入力中'], ready:['working','●','申請可能'], planned:['working','●','予定作成済み'], open:['working','●','処理中'], uploaded:['working','●','アップロード済み'], parsing:['working','●','解析中'],
+          submitted:['waiting','◷','承認待ち'], confirmed:['waiting','◷','日次確認済み'], sales_reviewed:['waiting','◷','営業確認済み'], exported:['waiting','◷','CSV出力済み'], held:['waiting','◷','保留'], reserved:['waiting','◷','処理予約済み'], needs_review:['waiting','◷','確認待ち'], partial:['waiting','◷','一部反映'], warning:['waiting','△','要確認'],
           approved:['complete','✓','承認済み'], finalized:['complete','✓','最終確定済み'], executed:['complete','✓','実行済み'], closed:['complete','✓','完了'], issued:['complete','✓','発行済み'], billed:['complete','✓','請求済み'], paid:['complete','✓','支払済み'], active:['complete','✓','有効'],
           rejected:['attention','!','差戻し'], correcting:['attention','!','訂正中'], error:['attention','!','エラー'], failed:['attention','!','失敗'], overdue:['attention','!','期限超過'],
-          cancelled:['inactive','—','取消済み'], disabled:['inactive','—','無効'], inactive:['inactive','—','無効'],
+          cancelled:['inactive','—','取消済み'], disabled:['inactive','—','無効'], inactive:['inactive','—','無効'], skipped:['inactive','—','対象外'],
         };
         const [tone, icon, defaultLabel] = map[String(code || '').toLowerCase()] || ['neutral','○',label || code || '未設定'];
         return { code:String(code || ''), tone, icon, label:label || defaultLabel };

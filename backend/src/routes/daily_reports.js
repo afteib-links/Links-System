@@ -248,7 +248,9 @@ router.get('/', async (req, res) => {
     }
 
     const rows = await query(
-      `SELECT d.*, c.company_name, p.partner_name
+      `SELECT d.*, c.company_name, p.partner_name,
+              (SELECT ir.source_file_id FROM daily_report_import_rows ir
+                WHERE ir.daily_report_id=d.daily_report_id ORDER BY ir.daily_report_import_row_id LIMIT 1) AS source_file_id
        FROM daily_reports d
        LEFT JOIN companies c ON c.company_id = d.company_id
        LEFT JOIN partners p ON p.partner_id = d.partner_id
@@ -831,7 +833,9 @@ router.post('/', async (req, res) => {
         message: '案件・企業・勤務日・対象年月は必須です',
       });
     }
-    if (!input.input_source_type) input.input_source_type = 'manual';
+    // 通常の日報作成APIは画面入力専用。取込元は専用APIだけが設定する。
+    input.input_source_type = 'manual';
+    delete input.scanned_image_url;
     const calculated = await applySimpleCalc({ ...input });
     const data = { ...input, ...pickSystem(calculated) };
     const cols = Object.keys(data);
@@ -882,6 +886,9 @@ router.put('/:id', async (req, res) => {
       };
     } else {
       const input = pick(req.body || {});
+      // 初回入力元は作成後に変更しない。
+      delete input.input_source_type;
+      delete input.scanned_image_url;
       const calculated = await applySimpleCalc({ ...current, ...input });
       data = { ...input, ...pickSystem(calculated) };
     }
