@@ -85,6 +85,27 @@ test('請求書と請求取纏書は専用見出し・発行情報・税額を�
   assert.match(summary, /請求取纏書/);
 });
 
+test('負号付き7桁単価・8桁金額・会社名1行・会社ロゴを帳票へ反映する', () => {
+  const logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+XK6mAAAAAElFTkSuQmCC';
+  const html = renderHtml({
+    settlement_type:'invoice', document_type:'invoice', document_number:'INV-WIDE',
+    target_year_month:'2026-05', issued_date:'2026-06-01', due_date:'2026-06-30',
+    issuer:{ ...issuer, logo_data_url:logo },
+    recipient:{ name:'改行せずに表示する長い検証請求先株式会社' },
+  }, [
+    { line_type:'adjustment', item_name:'単価表示確認', quantity:1, unit_price:-1234567, amount:-1234567 },
+    { line_type:'adjustment', item_name:'金額表示確認', quantity:100.01, unit_price:999999, amount:99999999 },
+  ]);
+  assert.match(html, /¥-1,234,567/);
+  assert.match(html, /¥99,999,999/);
+  assert.match(html, /th:nth-child\(3\)\{width:25mm;text-align:center/);
+  assert.match(html, /th:nth-child\(5\),\.invoice-sheet \.lines td:nth-child\(5\)\{width:25mm/);
+  assert.match(html, /td\.money,.lines td\.num\{padding-left:0/);
+  assert.match(html, /company-name\{white-space:nowrap/);
+  assert.match(html, /class="logo has-image"/);
+  assert.match(html, /<img src="data:image\/png;base64,/);
+});
+
 test('支払明細書は上段明細と下段作業料金請求書を一体表示する', () => {
   const lines = [
     workLine({ id:1, date:'2026-05-01', amount:22000, overtime:2000 }),

@@ -166,6 +166,9 @@ jobs:
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend
 
+      - name: Run redesigned shell browser E2E
+        run: npm run test:e2e-ui --prefix backend
+
       - name: Upload daily report E2E screenshot
         if: always()
         uses: actions/upload-artifact@v4

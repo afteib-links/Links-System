@@ -21,6 +21,8 @@
         const shellClass = options.wide ? 'app-shell app-shell-wide' : 'app-shell';
         return `
           <div class="${shellClass}">
+            ${ctx.sidebarHtml?.() || ''}
+            <div class="app-frame">
             ${ctx.headerHtml()}
             <main class="${mainClass}">
               <div class="page-header-row">
@@ -36,10 +38,12 @@
               </div>
               ${bodyHtml}
             </main>
+            </div>
           </div>`;
       },
       bindShell(options = {}) {
-        ctx.bindLogout();
+        if (ctx.bindChrome) ctx.bindChrome();
+        else ctx.bindLogout();
         document.getElementById('back-launcher')?.addEventListener('click', () => {
           navStack.length = 0;
           ctx.showHome();
@@ -118,6 +122,25 @@
       currentYearMonth() {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      },
+      statusMeta(code, label = '') {
+        const map = {
+          not_started:['neutral','○','未着手'], unplanned:['neutral','○','未作成'], none:['neutral','○','未処理'],
+          draft:['working','●','下書き'], inputting:['working','●','入力中'], ready:['working','●','申請可能'], planned:['working','●','予定作成済み'], open:['working','●','処理中'],
+          submitted:['waiting','◷','承認待ち'], confirmed:['waiting','◷','日次確認済み'], sales_reviewed:['waiting','◷','営業確認済み'], exported:['waiting','◷','CSV出力済み'], held:['waiting','◷','保留'], reserved:['waiting','◷','処理予約済み'],
+          approved:['complete','✓','承認済み'], finalized:['complete','✓','最終確定済み'], executed:['complete','✓','実行済み'], closed:['complete','✓','完了'], issued:['complete','✓','発行済み'], billed:['complete','✓','請求済み'], paid:['complete','✓','支払済み'], active:['complete','✓','有効'],
+          rejected:['attention','!','差戻し'], correcting:['attention','!','訂正中'], error:['attention','!','エラー'], failed:['attention','!','失敗'], overdue:['attention','!','期限超過'],
+          cancelled:['inactive','—','取消済み'], disabled:['inactive','—','無効'], inactive:['inactive','—','無効'],
+        };
+        const [tone, icon, defaultLabel] = map[String(code || '').toLowerCase()] || ['neutral','○',label || code || '未設定'];
+        return { code:String(code || ''), tone, icon, label:label || defaultLabel };
+      },
+      statusBadge(code, label = '') {
+        const meta = this.statusMeta(code, label);
+        return `<span class="status-badge tone-${meta.tone}" data-status="${ctx.escapeHtml(meta.code)}" aria-label="${ctx.escapeHtml(meta.label)}">${ctx.escapeHtml(meta.label)}</span>`;
+      },
+      summaryCardsHtml(items = []) {
+        return `<div class="summary-cards">${items.map((item) => `<div class="summary-card tone-${ctx.escapeHtml(item.tone || 'neutral')}"><span>${ctx.escapeHtml(item.label)}</span><strong>${ctx.escapeHtml(item.value ?? 0)}</strong></div>`).join('')}</div>`;
       },
       shiftYearMonth(value, delta) {
         const [year, month] = String(value || this.currentYearMonth()).split('-').map(Number);

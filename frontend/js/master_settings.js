@@ -590,6 +590,8 @@
       const priceMatrixKeys = new Set(PRICE_MATRIX_SETTINGS.map((setting) => setting.key));
       const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
       const values = new Map(allSettings.map((setting) => [setting.setting_key, setting.setting_value]));
+      const logoSettingKey = 'document_issuer_logo_data_url';
+      let currentLogoDataUrl = values.get(logoSettingKey) || '';
       const priceMatrixFields = PRICE_MATRIX_SETTINGS.map(
         (setting) => `
           <label>${this.ctx.escapeHtml(setting.label)}
@@ -615,7 +617,7 @@
         </label>`;
       }).join('');
       const rows = allSettings
-        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key))
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
         .map(
           (s) => `
           <tr>
@@ -641,6 +643,20 @@
             <div class="form-grid">${dailyReportFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-daily-report-settings">日報入力画面設定を保存</button></div>
           </section>
+          <section class="panel document-logo-settings-panel">
+            <h3>PDF帳票の会社ロゴ</h3>
+            <p class="muted">PNG・JPEG・WebP画像を選択するか、下の枠を選んでクリップボードから貼り付けてください。帳票内では縦横比を維持して表示します。</p>
+            <div class="document-logo-uploader" id="document-logo-uploader" tabindex="0" role="button" aria-label="会社ロゴ画像を選択または貼り付け">
+              <img id="document-logo-preview" src="${this.ctx.escapeHtml(currentLogoDataUrl)}" alt="会社ロゴのプレビュー" ${currentLogoDataUrl ? '' : 'hidden'} />
+              <span id="document-logo-placeholder" ${currentLogoDataUrl ? 'hidden' : ''}>画像を選択、ドロップ、または貼り付け</span>
+            </div>
+            <input id="document-logo-file" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+            <div class="btn-row">
+              <button type="button" class="btn btn-secondary" id="choose-document-logo">画像を選択</button>
+              <button type="button" class="btn btn-ghost" id="clear-document-logo">画像を削除</button>
+              <button type="button" class="btn" id="save-document-logo">会社ロゴを保存</button>
+            </div>
+          </section>
           <div class="toolbar">
             <input id="new-key" placeholder="キー" />
             <input id="new-label" placeholder="ラベル" />
@@ -657,6 +673,79 @@
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      const logoUploader = document.getElementById('document-logo-uploader');
+      const logoInput = document.getElementById('document-logo-file');
+      const logoPreview = document.getElementById('document-logo-preview');
+      const logoPlaceholder = document.getElementById('document-logo-placeholder');
+      const showLogoPreview = (dataUrl) => {
+        currentLogoDataUrl = dataUrl || '';
+        logoPreview.src = currentLogoDataUrl;
+        logoPreview.hidden = !currentLogoDataUrl;
+        logoPlaceholder.hidden = Boolean(currentLogoDataUrl);
+      };
+      const prepareLogo = (file) => new Promise((resolve, reject) => {
+        if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+          reject(new Error('PNG、JPEG、WebP画像を選択してください'));
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          reject(new Error('元画像は5MB以下にしてください'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('画像を読み込めませんでした'));
+        reader.onload = () => {
+          const image = new Image();
+          image.onerror = () => reject(new Error('画像を読み込めませんでした'));
+          image.onload = () => {
+            const scale = Math.min(1, 720 / image.width, 240 / image.height);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+            const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            const dataUrl = canvas.toDataURL(outputType, 0.88);
+            if (dataUrl.length > 750000) {
+              reject(new Error('画像容量が大きすぎます。より小さい画像を選択してください'));
+              return;
+            }
+            resolve(dataUrl);
+          };
+          image.src = String(reader.result || '');
+        };
+        reader.readAsDataURL(file);
+      });
+      const acceptLogoFile = async (file) => {
+        try {
+          showLogoPreview(await prepareLogo(file));
+        } catch (error) {
+          window.alert(error.message || '会社ロゴを読み込めませんでした');
+        }
+      };
+      logoUploader?.addEventListener('click', () => logoInput?.click());
+      logoUploader?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); logoInput?.click(); }
+      });
+      logoUploader?.addEventListener('paste', (event) => {
+        const file = [...(event.clipboardData?.files || [])].find((item) => item.type.startsWith('image/'));
+        if (file) { event.preventDefault(); acceptLogoFile(file); }
+      });
+      logoUploader?.addEventListener('dragover', (event) => event.preventDefault());
+      logoUploader?.addEventListener('drop', (event) => {
+        event.preventDefault();
+        acceptLogoFile([...(event.dataTransfer?.files || [])][0]);
+      });
+      logoInput?.addEventListener('change', () => acceptLogoFile(logoInput.files?.[0]));
+      document.getElementById('choose-document-logo')?.addEventListener('click', () => logoInput?.click());
+      document.getElementById('clear-document-logo')?.addEventListener('click', () => showLogoPreview(''));
+      document.getElementById('save-document-logo')?.addEventListener('click', async () => {
+        const result = await this.ctx.api(`/api/master-settings/settings/${logoSettingKey}`, {
+          method: 'PUT',
+          body: JSON.stringify({ setting_value:currentLogoDataUrl, setting_label:'帳票 会社ロゴ画像' }),
+        });
+        if (!result.res.ok) window.alert(result.data?.message || '会社ロゴの保存に失敗しました');
+        else this.ctx.showToast(currentLogoDataUrl ? '会社ロゴを保存しました' : '会社ロゴを削除しました');
+      });
       DAILY_REPORT_SETTINGS.filter((setting) => setting.type === 'color').forEach((setting) => {
         const picker = document.querySelector(`[data-daily-report-setting="${setting.key}"]`);
         const code = document.querySelector(`[data-color-code="${setting.key}"]`);

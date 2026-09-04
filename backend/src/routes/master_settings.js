@@ -137,6 +137,14 @@ router.put('/settings/:key', async (req, res) => {
     const key = String(req.params.key || '').trim();
     const value = req.body.setting_value != null ? String(req.body.setting_value) : null;
     const label = req.body.setting_label != null ? String(req.body.setting_label) : null;
+    if (key === 'document_issuer_logo_data_url') {
+      if (value && !/^data:image\/(png|jpeg|webp);base64,/i.test(value)) {
+        return res.status(400).json({ ok: false, message: '会社ロゴはPNG、JPEG、WebP画像を指定してください' });
+      }
+      if (value && value.length > 750000) {
+        return res.status(400).json({ ok: false, message: '会社ロゴの画像容量が大きすぎます' });
+      }
+    }
     const existing = await query(
       `SELECT setting_id FROM system_settings WHERE setting_key = ? AND is_deleted = 0 LIMIT 1`,
       [key]
