@@ -15,27 +15,92 @@ async function login(page) {
   await page.locator('.app-sidebar').waitFor();
 }
 
+async function assertNoPageOverflow(page, viewport, label) {
+  const widths = await page.evaluate(() => ({
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  assert.ok(widths.document <= viewport.width + 1, `${label}でページ全体が横にはみ出さないこと`);
+  assert.ok(widths.body <= viewport.width + 1, `${label}でbodyが横にはみ出さないこと`);
+  assert.ok(widths.client <= viewport.width + 1, `${label}で表示領域を超えないこと`);
+}
+
+async function openFeature(page, featureKey, isMobile) {
+  if (isMobile) {
+    await page.locator('#sidebar-toggle').click();
+    await page.locator('.app-shell.mobile-menu-open').waitFor();
+  }
+  await page.locator(`[data-nav-feature="${featureKey}"]`).click();
+  await page.locator('.app-main').waitFor();
+  if (isMobile) {
+    assert.equal(await page.locator('.app-shell.mobile-menu-open').count(), 0, '画面遷移後にスマホメニューが閉じること');
+  }
+}
+
 async function inspectViewport(browser, viewport) {
   const page = await browser.newPage({ viewport });
   await login(page);
   const suffix = `${viewport.width}x${viewport.height}`;
+  const isMobile = viewport.width <= 760;
   const shellWidth = await page.locator('.app-shell').evaluate((node) => node.getBoundingClientRect().width);
   assert.ok(shellWidth <= viewport.width && shellWidth >= viewport.width - 2, '共通シェルが画面幅を利用すること');
   assert.equal(await page.locator('.app-sidebar').count(), 1, 'サイドバーを表示すること');
   assert.equal(await page.locator('.dashboard-main').count(), 1, '業務ダッシュボードを表示すること');
-  if (viewport.width <= 1366) assert.ok(await page.locator('.app-shell').evaluate((node) => node.classList.contains('sidebar-collapsed')), '1366px以下ではサイドバーを折り畳むこと');
+  if (!isMobile && viewport.width <= 1366) {
+    assert.ok(await page.locator('.app-shell').evaluate((node) => node.classList.contains('sidebar-collapsed')), '1366px以下ではサイドバーを折り畳むこと');
+  }
+  await assertNoPageOverflow(page, viewport, 'ホーム');
+
+  if (isMobile) {
+    assert.equal(await page.locator('.app-shell.sidebar-collapsed').count(), 0, 'スマホ表示でPC用折り畳み状態を使わないこと');
+    assert.equal(await page.locator('.app-shell.mobile-menu-open').count(), 0, 'スマホメニューが初期状態で閉じていること');
+    assert.equal(await page.locator('.app-sidebar').getAttribute('inert'), '', '閉じたスマホメニューをキーボード操作対象から外すこと');
+    await page.locator('#sidebar-toggle').click();
+    await page.locator('.app-shell.mobile-menu-open').waitFor();
+    assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'true', 'メニュー展開状態を通知すること');
+    assert.equal(await page.locator('.app-sidebar').getAttribute('inert'), null, '開いたスマホメニューを操作可能にすること');
+    await page.waitForFunction(() => document.querySelector('.app-sidebar')?.getBoundingClientRect().left >= -1);
+    const sidebarLeft = await page.locator('.app-sidebar').evaluate((node) => node.getBoundingClientRect().left);
+    assert.ok(sidebarLeft >= -1, 'スマホメニューが画面内へ表示されること');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.app-shell.mobile-menu-open').count(), 0, 'Escキーでスマホメニューが閉じること');
+    assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'false', 'メニュー閉鎖状態を通知すること');
+    await page.locator('#sidebar-toggle').click();
+    await page.locator('#sidebar-backdrop').click({ position:{ x:viewport.width - 8, y:20 } });
+    assert.equal(await page.locator('.app-shell.mobile-menu-open').count(), 0, '背景操作でスマホメニューが閉じること');
+  }
   await page.screenshot({ path:path.join(outputDir, `dashboard-${suffix}.png`), fullPage:true });
 
   const daily = page.locator('[data-nav-feature="daily_reports"]');
   if (await daily.count()) {
-    await daily.click();
-    await page.locator('.app-main').waitFor();
+    await openFeature(page, 'daily_reports', isMobile);
     assert.equal(await page.locator('.app-sidebar').count(), 1, '業務画面でもサイドバーを維持すること');
+    await assertNoPageOverflow(page, viewport, '日報画面');
     await page.screenshot({ path:path.join(outputDir, `daily-reports-${suffix}.png`), fullPage:true });
   }
+
+  if (isMobile && await page.locator('[data-nav-feature="payments"]').count()) {
+    await openFeature(page, 'payments', true);
+    await page.locator('.settlement-filters').waitFor();
+    const layout = await page.evaluate(() => ({
+      mainWidth: document.querySelector('.app-main')?.getBoundingClientRect().width || 0,
+      filterWidth: document.querySelector('.settlement-filters input')?.getBoundingClientRect().width || 0,
+      monthControls: [...document.querySelectorAll('.month-navigator > *')].map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { width:rect.width, height:rect.height };
+      }),
+    }));
+    assert.ok(layout.mainWidth >= viewport.width - 2, '支払画面の本文がスマホ幅を利用すること');
+    assert.ok(layout.filterWidth >= viewport.width - 60, '検索欄がスマホ幅を利用すること');
+    assert.ok(layout.monthControls.every((control) => control.width >= 100 && control.height <= 52), '月選択を横書き可能な2列へ配置すること');
+    await assertNoPageOverflow(page, viewport, '支払画面');
+    await page.screenshot({ path:path.join(outputDir, `payments-${suffix}.png`), fullPage:true });
+  }
+
   const masterSettings = page.locator('[data-nav-feature="master_settings"]');
-  if (await masterSettings.count()) {
-    await masterSettings.click();
+  if (!isMobile && await masterSettings.count()) {
+    await openFeature(page, 'master_settings', false);
     await page.locator('[data-hub="settings"]').click();
     await page.locator('#document-logo-uploader').waitFor();
     const transparentPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+XK6mAAAAAElFTkSuQmCC', 'base64');
@@ -54,17 +119,22 @@ async function main() {
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
     baseUrl = `http://127.0.0.1:${server.address().port}`;
   }
-  const browser = await chromium.launch({ headless:true });
+  const browser = await chromium.launch({
+    headless:true,
+    ...(process.env.PLAYWRIGHT_CHANNEL ? { channel:process.env.PLAYWRIGHT_CHANNEL } : {}),
+  });
   try {
     await inspectViewport(browser, { width:1920, height:1080 });
     await inspectViewport(browser, { width:1366, height:768 });
+    await inspectViewport(browser, { width:430, height:932 });
+    await inspectViewport(browser, { width:390, height:844 });
   } finally {
     await browser.close();
     if (server) {
       await new Promise((resolve) => server.close(resolve));
     }
   }
-  console.log('[ui-redesign] 1920x1080 / 1366x768 の共通シェルを確認しました');
+  console.log('[ui-redesign] 1920x1080 / 1366x768 / 430x932 / 390x844 の共通シェルを確認しました');
 }
 
 main()

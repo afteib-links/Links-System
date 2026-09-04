@@ -39,6 +39,8 @@
   let roleCatalog = ROLE_FALLBACK;
   let currentView = 'home';
   const SIDEBAR_STORAGE_KEY = 'links.sidebar.collapsed';
+  const MOBILE_SIDEBAR_QUERY = '(max-width: 760px)';
+  let shellControlsCleanup = null;
 
   async function api(path, options = {}) {
     const res = await fetch(path, {
@@ -108,7 +110,7 @@
     const rolesText = (currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし';
     return `
       <header class="app-header app-topbar">
-        <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true">☰</button>
+        <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true" aria-controls="app-sidebar">☰</button>
         <div class="topbar-context"><span>運送業務基幹システム</span></div>
         <div class="header-actions">
           <div class="user-pill">
@@ -131,7 +133,7 @@
           <span class="sidebar-text">${escapeHtml(feature.label)}</span>
         </button>`).join('')}</div>`;
     }).join('');
-    return `<aside class="app-sidebar" aria-label="機能メニュー">
+    return `<aside class="app-sidebar" id="app-sidebar" aria-label="機能メニュー">
       <button type="button" class="sidebar-brand" data-nav-home title="ホーム">
         <span class="brand-symbol" aria-hidden="true">L</span><span class="sidebar-text">Links-System</span>
       </button>
@@ -141,28 +143,83 @@
         </button>
         ${groups}
       </nav>
-    </aside>`;
+    </aside><button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="メニューを閉じる" tabindex="-1"></button>`;
   }
 
   function bindChrome() {
+    shellControlsCleanup?.();
     bindLogout();
     const shell = document.querySelector('.app-shell');
-    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
-    if (saved || window.innerWidth <= 1366) shell?.classList.add('sidebar-collapsed');
+    if (!shell) return;
+    const media = window.matchMedia(MOBILE_SIDEBAR_QUERY);
     const toggle = document.getElementById('sidebar-toggle');
-    const updateToggle = () => {
-      const collapsed = shell?.classList.contains('sidebar-collapsed');
-      toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      toggle?.setAttribute('aria-label', collapsed ? 'メニューを展開する' : 'メニューを折り畳む');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const sidebar = document.getElementById('app-sidebar');
+    const isMobile = () => media.matches;
+    const closeMobileMenu = () => {
+      shell.classList.remove('mobile-menu-open');
+      document.body.classList.remove('mobile-menu-visible');
     };
-    updateToggle();
-    toggle?.addEventListener('click', () => {
-      shell?.classList.toggle('sidebar-collapsed');
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, shell?.classList.contains('sidebar-collapsed') ? '1' : '0');
+    const updateToggle = () => {
+      const expanded = isMobile()
+        ? shell.classList.contains('mobile-menu-open')
+        : !shell.classList.contains('sidebar-collapsed');
+      toggle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      toggle?.setAttribute('aria-label', isMobile()
+        ? (expanded ? 'メニューを閉じる' : 'メニューを開く')
+        : (expanded ? 'メニューを折り畳む' : 'メニューを展開する'));
+      if (isMobile()) {
+        sidebar?.toggleAttribute('inert', !expanded);
+        sidebar?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+      } else {
+        sidebar?.removeAttribute('inert');
+        sidebar?.removeAttribute('aria-hidden');
+      }
+    };
+    const applyViewportState = () => {
+      closeMobileMenu();
+      if (isMobile()) {
+        shell.classList.remove('sidebar-collapsed');
+      } else {
+        shell.classList.toggle('sidebar-collapsed', localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1' || window.innerWidth <= 1366);
+      }
       updateToggle();
-    });
-    document.querySelectorAll('[data-nav-home]').forEach((button) => button.addEventListener('click', () => showHome()));
-    document.querySelectorAll('[data-nav-feature]').forEach((button) => button.addEventListener('click', () => openFeature(button.getAttribute('data-nav-feature'))));
+    };
+    const handleToggle = () => {
+      if (isMobile()) {
+        shell.classList.toggle('mobile-menu-open');
+        document.body.classList.toggle('mobile-menu-visible', shell.classList.contains('mobile-menu-open'));
+      } else {
+        shell.classList.toggle('sidebar-collapsed');
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, shell.classList.contains('sidebar-collapsed') ? '1' : '0');
+      }
+      updateToggle();
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && shell.classList.contains('mobile-menu-open')) {
+        closeMobileMenu();
+        updateToggle();
+        toggle?.focus();
+      }
+    };
+    toggle?.addEventListener('click', handleToggle);
+    backdrop?.addEventListener('click', handleToggle);
+    document.addEventListener('keydown', handleEscape);
+    media.addEventListener('change', applyViewportState);
+    document.querySelectorAll('[data-nav-home]').forEach((button) => button.addEventListener('click', () => {
+      closeMobileMenu();
+      showHome();
+    }));
+    document.querySelectorAll('[data-nav-feature]').forEach((button) => button.addEventListener('click', () => {
+      closeMobileMenu();
+      openFeature(button.getAttribute('data-nav-feature'));
+    }));
+    shellControlsCleanup = () => {
+      document.body.classList.remove('mobile-menu-visible');
+      document.removeEventListener('keydown', handleEscape);
+      media.removeEventListener('change', applyViewportState);
+    };
+    applyViewportState();
   }
 
   function bindLogout() {
