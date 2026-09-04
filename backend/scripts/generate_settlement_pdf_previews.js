@@ -54,8 +54,12 @@ const lines = [
   { line_type:'advance', item_name:'前払金額', quantity:1, unit_price:-12000, amount:-12000, tax_category:'non_taxable' },
 ];
 const wideUnitPriceLine = {
-  line_type:'adjustment', item_name:'単価表示確認（負号付き7桁）',
+  line_type:'deduction', item_name:'単価表示確認（負号付き7桁）',
   quantity:0.01, unit_price:-1234567, amount:-12346, tax_category:'non_taxable',
+};
+const wideAmountLine = {
+  line_type:'deduction', item_name:'金額表示確認（8桁）',
+  quantity:100.01, unit_price:999999, amount:99900000, tax_category:'non_taxable',
 };
 
 const base = {
@@ -71,10 +75,10 @@ const base = {
 };
 
 async function main() {
-  const invoiceLines = [...lines.slice(0, 3), wideUnitPriceLine];
-  await writePdf({ ...base, settlement_type:'invoice', document_type:'invoice', document_number:'PREVIEW-INVOICE', subtotal_amount:48554, tax_amount:4855, total_amount:53409 }, invoiceLines);
-  await writePdf({ ...base, settlement_type:'invoice', document_type:'invoice_summary', document_number:'PREVIEW-INVOICE-SUMMARY', subtotal_amount:48554, tax_amount:4855, total_amount:53409 }, invoiceLines);
-  await writePdf({ ...base, settlement_type:'payment', document_type:'payment_statement', document_number:'PREVIEW-PAYMENT', gross_amount:60900, total_amount:39000 }, [...lines, wideUnitPriceLine]);
+  const invoiceLines = [...lines.slice(0, 3), wideUnitPriceLine, wideAmountLine];
+  await writePdf({ ...base, settlement_type:'invoice', document_type:'invoice', document_number:'PREVIEW-INVOICE', subtotal_amount:99948554, tax_amount:4855, total_amount:99953409 }, invoiceLines);
+  await writePdf({ ...base, settlement_type:'invoice', document_type:'invoice_summary', document_number:'PREVIEW-INVOICE-SUMMARY', subtotal_amount:99948554, tax_amount:4855, total_amount:99953409 }, invoiceLines);
+  await writePdf({ ...base, settlement_type:'payment', document_type:'payment_statement', document_number:'PREVIEW-PAYMENT', gross_amount:60900, total_amount:39000 }, [...lines, wideUnitPriceLine, wideAmountLine]);
   await writePdf({ ...base, settlement_type:'payment', document_type:'salary_statement', document_number:'PREVIEW-SALARY', gross_amount:60900, total_amount:39000 }, lines);
   await writePdf({
     ...base,

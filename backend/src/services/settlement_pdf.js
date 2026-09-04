@@ -406,7 +406,7 @@ function commonCss() {
 }
 
 function layoutCorrectionsCss() {
-  return `h1{font-size:17pt;letter-spacing:.04em}.pay-date{width:78%;white-space:nowrap}.work-invoice-head{line-height:1.45}.work-invoice-head>div:last-child{padding-left:3mm}.salary-head .pay-date{width:100%;font-size:8.5pt}.company-name{white-space:nowrap;max-width:100%;letter-spacing:-.02em}.logo.has-image{background:transparent}.logo.has-image img{width:100%;height:100%;object-fit:contain}.invoice-sheet .lines th:nth-child(3),.invoice-sheet .lines td:nth-child(3){width:30mm;text-align:right}.invoice-sheet .lines th:nth-child(4),.invoice-sheet .lines td:nth-child(4){width:15mm}.payment-sheet .lines th:nth-child(3),.payment-sheet .lines td:nth-child(3){width:15mm}.payment-sheet .lines th:nth-child(4),.payment-sheet .lines td:nth-child(4){width:30mm;text-align:right}`;
+  return `h1{font-size:17pt;letter-spacing:.04em}.pay-date{width:78%;white-space:nowrap}.work-invoice-head{line-height:1.45}.work-invoice-head>div:last-child{padding-left:3mm}.salary-head .pay-date{width:100%;font-size:8.5pt}.company-name{white-space:nowrap;max-width:100%;letter-spacing:-.02em}.logo.has-image{background:transparent}.logo.has-image img{width:100%;height:100%;object-fit:contain}.invoice-sheet .lines th:nth-child(3){width:25mm;text-align:center}.invoice-sheet .lines td:nth-child(3){width:25mm}.invoice-sheet .lines th:nth-child(4),.invoice-sheet .lines td:nth-child(4){width:12mm}.invoice-sheet .lines th:nth-child(5),.invoice-sheet .lines td:nth-child(5){width:25mm}.payment-sheet .lines th:nth-child(3),.payment-sheet .lines td:nth-child(3){width:12mm}.payment-sheet .lines th:nth-child(4){width:25mm;text-align:center}.payment-sheet .lines td:nth-child(4){width:25mm}.payment-sheet .lines th:nth-child(5),.payment-sheet .lines td:nth-child(5){width:25mm}.lines thead th:nth-child(3),.lines thead th:nth-child(4),.lines thead th:nth-child(5){white-space:nowrap;font-size:8.5pt;letter-spacing:.02em;padding-left:.4mm;padding-right:.4mm}.lines td:nth-child(3),.lines td:nth-child(4),.lines td:nth-child(5){font-size:8.3pt;letter-spacing:-.04em}.lines td.money,.lines td.num{padding-left:0;padding-right:.7mm}`;
 }
 
 function renderHtml(document, lines = []) {
@@ -426,7 +426,10 @@ async function writePdf(document, lines) {
   const absolutePath = path.join(PDF_DIR, fileName);
   let chromium;
   try { ({ chromium } = require('playwright')); } catch (_error) { throw new Error('PDF生成用Chromiumがインストールされていません'); }
-  const browser = await chromium.launch({ headless:true });
+  const browser = await chromium.launch({
+    headless:true,
+    executablePath:process.env.PDF_CHROMIUM_EXECUTABLE_PATH || undefined,
+  });
   try {
     const page = await browser.newPage();
     await page.setContent(renderHtml(document, lines), { waitUntil:'networkidle' });
