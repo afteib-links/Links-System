@@ -75,23 +75,22 @@ async function advanceCard(ym) {
   const projects = await query(
     `SELECT DISTINCT p.project_id
      FROM projects p
-     JOIN project_advance_terms t ON t.project_id=p.project_id AND t.is_enabled=1 AND t.is_deleted=0
-     WHERE p.is_deleted=0 AND p.closing_date IN ('5','10','15','20','25','end')
-       AND t.valid_from<=LAST_DAY(?) AND (t.valid_to IS NULL OR t.valid_to>=?)`,
-    [`${ym}-01`, `${ym}-01`]
+     WHERE p.is_deleted=0 AND p.payment_type='installment'
+       AND p.closing_date IN ('5','10','15','20','25','end')`,
+    []
   );
   const records = await query(
-    `SELECT ar.project_id, ar.status
+    `SELECT ar.project_id, ar.status, ar.group_code
      FROM advance_records ar
-     JOIN (SELECT project_id,MAX(advance_record_id) advance_record_id FROM advance_records WHERE target_year_month=? GROUP BY project_id) latest
+     JOIN (SELECT project_id,group_code,MAX(advance_record_id) advance_record_id FROM advance_records WHERE target_year_month=? GROUP BY project_id,group_code) latest
        ON latest.advance_record_id=ar.advance_record_id`, [ym]
   );
-  const byProject = new Map(records.map((row) => [Number(row.project_id), row.status]));
+  const byProject = new Map();
+  records.forEach((row) => { const id=Number(row.project_id); if (!byProject.has(id)) byProject.set(id, []); byProject.get(id).push(row.status); });
   const statuses = projects.map((row) => {
-    const status = byProject.get(Number(row.project_id));
-    if (status === 'executed') return 'completed';
-    if (status === 'planned') return 'waiting';
-    if (status === 'cancelled') return 'attention';
+    const projectStatuses = byProject.get(Number(row.project_id)) || [];
+    if (projectStatuses.length === 3 && projectStatuses.every((status) => status === 'executed')) return 'completed';
+    if (projectStatuses.some((status) => ['planned','exported','held'].includes(status))) return 'waiting';
     return 'not_started';
   });
   return card('advances', '先払い', statuses);

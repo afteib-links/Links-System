@@ -64,6 +64,10 @@
               <strong>祝日・案件休日</strong>
               <span>${this.ctx.escapeHtml(hub.holidays ?? 0)} 件</span>
             </button>
+            <button type="button" class="hub-card" data-hub="transfer-fees">
+              <strong>振込手数料マスター</strong>
+              <span>${this.ctx.escapeHtml(hub.transfer_fee_patterns ?? 0)} 件</span>
+            </button>
           </div>
         </section>`
       );
@@ -77,8 +81,34 @@
           else if (key === 'numbering') this.showNumberingRules();
           else if (key === 'codes') this.showCodes();
           else if (key === 'holidays') this.showHolidays();
+          else if (key === 'transfer-fees') this.showTransferFees();
           else this.showSettings();
         });
+      });
+    },
+
+    async showTransferFees(message = '') {
+      this.ctx.renderLoading();
+      const { res, data } = await this.ctx.api('/api/master-settings/transfer-fees');
+      if (!res.ok || !data?.ok) return window.alert(data?.message || '振込手数料マスターを取得できませんでした');
+      this._transferFees = data.transfer_fees || [];
+      const rows = this._transferFees.map((row) => `<tr><td>${this.ctx.escapeHtml(row.pattern_name)}</td><td class="num">${Number(row.amount || 0).toLocaleString('ja-JP')}円</td><td>${row.is_active ? '有効' : '無効'}</td><td>${row.sort_order}</td><td><button class="btn btn-ghost btn-small" data-fee-edit="${row.transfer_fee_pattern_id}">編集</button> <button class="btn btn-danger btn-small" data-fee-delete="${row.transfer_fee_pattern_id}">削除</button></td></tr>`).join('');
+      this.ctx.app.innerHTML = this.kit.shell('振込手数料マスター', `<section class="panel">${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}<p class="muted">先払・支払処理で共通利用する固定手数料パターンです。</p><div class="toolbar"><button class="btn" id="new-transfer-fee">＋ 追加</button></div><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>名称</th><th>固定金額</th><th>状態</th><th>並び順</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="5">登録がありません</td></tr>'}</tbody></table></div><div id="modal-host"></div></section>`, { onBack:() => this.showHub() });
+      this.kit.bindShell({ onBack:() => this.showHub() });
+      document.getElementById('new-transfer-fee')?.addEventListener('click', () => this.openTransferFeeModal(null));
+      document.querySelectorAll('[data-fee-edit]').forEach((button) => button.addEventListener('click', () => this.openTransferFeeModal(this._transferFees.find((row) => Number(row.transfer_fee_pattern_id) === Number(button.dataset.feeEdit)))));
+      document.querySelectorAll('[data-fee-delete]').forEach((button) => button.addEventListener('click', async () => { if (!window.confirm('この手数料パターンを削除しますか？')) return; const result = await this.ctx.api(`/api/master-settings/transfer-fees/${button.dataset.feeDelete}`, { method:'DELETE' }); if (!result.res.ok) return window.alert(result.data?.message || '削除失敗'); this.showTransferFees('削除しました'); }));
+    },
+
+    openTransferFeeModal(row) {
+      const isNew = !row;
+      document.getElementById('modal-host').innerHTML = this.kit.modalHtml(isNew ? '振込手数料追加' : '振込手数料編集', `<div class="form-grid"><div class="full"><label>名称</label><input id="fee-name" value="${this.ctx.escapeHtml(row?.pattern_name || '')}"></div><div><label>固定金額</label><input id="fee-amount" type="number" min="0" value="${Number(row?.amount || 0)}"></div><div><label>並び順</label><input id="fee-sort" type="number" value="${Number(row?.sort_order || 0)}"></div><div class="full"><label class="check-item"><input id="fee-active" type="checkbox" ${row?.is_active !== 0 ? 'checked' : ''}><span>有効</span></label></div></div>`, '<button class="btn" id="fee-save">保存</button>');
+      this.kit.bindModal();
+      document.getElementById('fee-save')?.addEventListener('click', async () => {
+        const payload = { pattern_name:document.getElementById('fee-name').value.trim(), amount:Number(document.getElementById('fee-amount').value), sort_order:Number(document.getElementById('fee-sort').value || 0), is_active:document.getElementById('fee-active').checked, version:Number(row?.version || 0) };
+        if (!payload.pattern_name || !Number.isFinite(payload.amount) || payload.amount < 0) return window.alert('名称と0円以上の固定金額を入力してください');
+        const result = await this.ctx.api(isNew ? '/api/master-settings/transfer-fees' : `/api/master-settings/transfer-fees/${row.transfer_fee_pattern_id}`, { method:isNew ? 'POST' : 'PUT', body:JSON.stringify(payload) });
+        if (!result.res.ok) return window.alert(result.data?.message || '保存失敗'); document.getElementById('modal-backdrop')?.remove(); this.showTransferFees(isNew ? '追加しました' : '更新しました');
       });
     },
 

@@ -8,6 +8,7 @@ router.use(requireAuth, requirePermission('partners'));
 const PARTNER_FIELDS = [
   'partner_name',
   'partner_name_kana',
+  'transfer_fee_pattern_id',
   'zip_code',
   'address',
   'contact_phone',
@@ -159,6 +160,7 @@ router.get('/', async (req, res) => {
       `SELECT p.partner_id, p.partner_name, p.partner_name_kana, p.contact_phone,
               p.partner_category_code, p.employment_type_code, p.invoice_number,
               p.advance_payment_enabled, p.payment_output_code,
+              p.transfer_fee_pattern_id,
               p.bank_name, p.branch_name, p.license_expiry_date, p.work_start_date,
               p.blood_type, p.birth_date,
               p.accident_insurance_code, p.contractor_liability_code,

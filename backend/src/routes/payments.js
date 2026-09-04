@@ -72,11 +72,12 @@ router.get('/targets', async (req, res) => {
 
     const advances = await query(
       `SELECT ar.partner_id,
-              SUM(ar.advance_amount - COALESCE(alloc.allocated_amount, 0)) AS advance_sum
+              SUM(ar.advance_amount - COALESCE(alloc.allocated_amount, 0)) AS advance_sum,
+              SUM(ar.transfer_fee_amount - COALESCE(alloc.allocated_fee, 0)) AS transfer_fee_sum
        FROM advance_records ar
        JOIN cash_schedules cs ON cs.cash_schedule_id = ar.cash_schedule_id AND cs.status = 'executed'
        LEFT JOIN (
-         SELECT advance_record_id, SUM(amount) AS allocated_amount
+         SELECT advance_record_id, SUM(amount) AS allocated_amount, SUM(transfer_fee_amount) AS allocated_fee
          FROM advance_payment_allocations
          WHERE status = 'active'
          GROUP BY advance_record_id
@@ -84,7 +85,7 @@ router.get('/targets', async (req, res) => {
        WHERE ar.status = 'executed'
        GROUP BY ar.partner_id`,
     );
-    const advMap = new Map(advances.map((a) => [Number(a.partner_id), Number(a.advance_sum || 0)]));
+    const advMap = new Map(advances.map((a) => [Number(a.partner_id), { amount:Number(a.advance_sum || 0), fee:Number(a.transfer_fee_sum || 0) }]));
 
     const groups = new Map();
     for (const r of reports) {
@@ -140,13 +141,16 @@ router.get('/targets', async (req, res) => {
         seenRuleCodes.add(rule.rule_code);
         selectedRules.push(rule);
       }
-      const advanceDeduction = Math.max(0, Number(advMap.get(g.partner_id) || 0));
+      const advance = advMap.get(g.partner_id) || { amount:0, fee:0 };
+      const advanceDeduction = Math.max(0, advance.amount);
+      const transferFeeDeduction = Math.max(0, advance.fee);
       const ruleDeduction = selectedRules.reduce((sum, rule) => sum + Number(rule.amount || 0), 0);
-      const finalAmount = Math.max(0, g.gross_amount - advanceDeduction - ruleDeduction);
+      const finalAmount = Math.max(0, g.gross_amount - advanceDeduction - transferFeeDeduction - ruleDeduction);
       const target = {
         ...g,
         projects:[...g.projects.values()],
         advance_deduction_amount: advanceDeduction,
+        transfer_fee_deduction_amount: transferFeeDeduction,
         deduction_rules: selectedRules,
         rule_deduction_amount: ruleDeduction,
         other_adjustment_amount: 0,
@@ -261,17 +265,19 @@ router.post('/close', async (req, res) => {
     for (const r of reports) gross += effectivePayment(r);
 
     const [advanceRows] = await conn.query(
-      `SELECT ar.advance_record_id, ar.advance_amount - COALESCE(SUM(aa.amount), 0) AS remaining_amount
+      `SELECT ar.advance_record_id,
+              ar.advance_amount - COALESCE(SUM(aa.amount), 0) AS remaining_amount,
+              ar.transfer_fee_amount - COALESCE(SUM(aa.transfer_fee_amount), 0) AS remaining_fee
        FROM advance_records ar
        JOIN cash_schedules cs ON cs.cash_schedule_id = ar.cash_schedule_id AND cs.status = 'executed'
        LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id = ar.advance_record_id
        WHERE ar.partner_id = ? AND ar.status = 'executed'
-       GROUP BY ar.advance_record_id, ar.advance_amount
-       HAVING remaining_amount > 0 FOR UPDATE`,
+       GROUP BY ar.advance_record_id, ar.advance_amount, ar.transfer_fee_amount
+       HAVING remaining_amount > 0 OR remaining_fee > 0 FOR UPDATE`,
       [partnerId]
     );
     const advanceDeduction = advanceRows.reduce((sum, row) => sum + Number(row.remaining_amount || 0), 0);
-    const transferFee = 0;
+    const transferFee = advanceRows.reduce((sum, row) => sum + Number(row.remaining_fee || 0), 0);
     const finalAmount = gross - advanceDeduction - transferFee - OFFICE_FEE - SAFETY_FEE + otherAdj;
 
     const [payResult] = await conn.query(
@@ -310,8 +316,8 @@ router.post('/close', async (req, res) => {
 
     for (const advance of advanceRows) {
       await conn.query(
-        'INSERT INTO advance_payment_allocations (advance_record_id, payment_id, amount) VALUES (?, ?, ?)',
-        [advance.advance_record_id, paymentId, Number(advance.remaining_amount)]
+        'INSERT INTO advance_payment_allocations (advance_record_id, payment_id, amount, transfer_fee_amount) VALUES (?, ?, ?, ?)',
+        [advance.advance_record_id, paymentId, Number(advance.remaining_amount), Number(advance.remaining_fee)]
       );
     }
 

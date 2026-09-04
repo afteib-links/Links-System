@@ -5,6 +5,8 @@
       this.ctx = ctx;
       this.listState = { q: '', partner_category_code: '', employment_type_code: '', sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
+      const fees = await this.ctx.api('/api/lookups/transfer-fees');
+      this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
       const saved = await this.kit.loadLayout('partners');
       this.layout = saved?.columns_json || null;
       await this.showList();
@@ -243,6 +245,7 @@
             <div class="form-grid">
               <div><label>名称（必須）</label><input name="partner_name" required value="${this.ctx.escapeHtml(partner.partner_name || '')}" /></div>
               <div><label>カナ</label><input name="partner_name_kana" value="${this.ctx.escapeHtml(partner.partner_name_kana || '')}" /></div>
+              <div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">未設定（0円）</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(partner.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${Number(fee.amount).toLocaleString('ja-JP')}円）</option>`).join('')}</select></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(partner.zip_code || '')}" /></div>
               <div class="full"><label>住所</label><input name="address" value="${this.ctx.escapeHtml(partner.address || '')}" /></div>
               <div><label>電話</label><input name="contact_phone" value="${this.ctx.escapeHtml(partner.contact_phone || '')}" /></div>
@@ -346,6 +349,7 @@
       const payload = {
         partner_name: form.partner_name.value.trim(),
         partner_name_kana: form.partner_name_kana.value,
+        transfer_fee_pattern_id: form.transfer_fee_pattern_id.value || null,
         zip_code: form.zip_code.value,
         address: form.address.value,
         contact_phone: form.contact_phone.value,

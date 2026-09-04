@@ -7,12 +7,14 @@
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
       this.codes = await this.kit.loadCodes();
-      const [companies, partners] = await Promise.all([
+      const [companies, partners, fees] = await Promise.all([
         this.ctx.api('/api/lookups/companies'),
         this.ctx.api('/api/lookups/partners'),
+        this.ctx.api('/api/lookups/transfer-fees'),
       ]);
       this.companies = companies.data?.companies || [];
       this.partners = partners.data?.partners || [];
+      this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },
@@ -40,6 +42,7 @@
           </select>
         </div>
         <div><label>分割単価</label><input name="installment_amount" type="number" step="0.01" value="${this.ctx.escapeHtml(row.installment_amount ?? '')}" /></div>
+        ${isBase ? '' : `<div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">パートナー設定を使用</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(row.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${Number(fee.amount).toLocaleString('ja-JP')}円）</option>`).join('')}</select></div>`}
         <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_start_date))}" /></div>
         <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, row.closing_date)}</select></div>
         ${isBase ? '' : ''}
@@ -57,6 +60,7 @@
         break_time: form.break_time?.value || null,
         payment_type: form.payment_type?.value || 'normal',
         installment_amount: form.installment_amount?.value || null,
+        ...(form.transfer_fee_pattern_id ? { transfer_fee_pattern_id: form.transfer_fee_pattern_id.value || null } : {}),
         operation_start_date: form.operation_start_date?.value || null,
         closing_date: form.closing_date?.value || null,
       };
