@@ -19,9 +19,8 @@ const {
 } = require('../services/daily_report_import');
 
 const router = express.Router();
-const IMPORT_DIR = process.env.DAILY_REPORT_IMPORT_DIR || (process.platform === 'win32'
-  ? path.resolve(__dirname, '../../../data/uploads/daily-report-imports')
-  : '/app/uploads/daily-report-imports');
+const IMPORT_DIR = process.env.DAILY_REPORT_IMPORT_DIR
+  || path.resolve(__dirname, '../../../data/uploads/daily-report-imports');
 const MAX_FILE_SIZE = Number(process.env.DAILY_REPORT_IMPORT_MAX_FILE_SIZE || 50 * 1024 * 1024);
 const MAX_ROWS = Number(process.env.DAILY_REPORT_IMPORT_MAX_ROWS || 10000);
 const MAX_COLUMNS = Number(process.env.DAILY_REPORT_IMPORT_MAX_COLUMNS || 200);
