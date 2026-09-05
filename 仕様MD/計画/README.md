@@ -24,6 +24,7 @@
 | [08_Asustor更新・DB手順.md](08_Asustor更新・DB手順.md) | ソース更新・マイグレーション・バックアップ／リストア | 適用中 |
 | [09_Cursor_Antigravity_開発運用.md](09_Cursor_Antigravity_開発運用.md) | Cursor/Antigravity/Cloud 運用要約 | 適用中 |
 | [10_詳細仕様書との差分整理_日報請求支払.md](10_詳細仕様書との差分整理_日報請求支払.md) | 詳細仕様書×計画06×現行×プロト（日報・請求・支払）の整理・矛盾洗い出し | 整理中（合意待ち） |
+| [17_日報データ取り込み.md](17_日報データ取り込み.md) | メール・FAX・Excelから日報候補を取り込み、原本確認後に反映する共通基盤 | Draft PR #59でPhase 1検証中 |
 | [reviews/](reviews/) | PR レビュー記録（Antigravity ↔ Cursor） | 適用中 |
 
 ## 関連仕様
@@ -39,3 +40,4 @@
 | 06 機能追加仕様 | `05_画面差分_要不要チェック.md` / `画面一覧/` |
 | 07 Asustor配備 | `06_development_environment.md` |
 | 08 Asustor更新 | `06_development_environment.md` / `backend/src/migrate.js` |
+| 17 日報データ取り込み | `09_日報・精算・帳票_業務要件.md` / `個別機能仕様書：2-1. 日報登録・一覧管理画面.md` / `05_decision_log.md` |

@@ -14,6 +14,7 @@
     "preview:settlement-pdfs": "node scripts/generate_settlement_pdf_previews.js",
     "test:settlement-access": "node test-integration/settlement_access_api.js",
     "test:settlement-workflow": "node test-integration/settlement_workflow_api.js",
+    "test:daily-import": "node test-integration/daily_report_import_api.js",
     "test:verification-reset": "node test-integration/verification_seed_reset.js",
     "preview": "node src/preview-static.js",
     "test": "node --test test/*.test.js",
@@ -29,8 +30,10 @@
     "express": "^4.21.2",
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.18.1",
+    "multer": "^2.3.0",
     "mysql2": "^3.12.0",
-    "playwright": "^1.62.1"
-  },
-  "devDependencies": {}
+    "playwright": "^1.62.1",
+    "read-excel-file": "^6.0.3",
+    "unzipper": "^0.12.5"
+  }
 }
