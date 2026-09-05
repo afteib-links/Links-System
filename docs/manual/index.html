@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Links-System 画面俯瞰マニュアル</title>
+  <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>Links-System</h1>
+      <p class="meta">画面俯瞰マニュアル<br>2026-09-05 / 全体像確認用</p>
+      <ol>
+        <li><a href="#ch-overview">このマニュアルの見方</a></li>
+        <li><a href="#ch-login">ログインと画面の骨格</a></li>
+        <li><a href="#ch-home">ホーム（ダッシュボード）</a></li>
+        <li><a href="#ch-companies">企業マスタ</a></li>
+        <li><a href="#ch-partners">パートナーマスタ</a></li>
+        <li><a href="#ch-base">基本案件</a></li>
+        <li><a href="#ch-projects">個別案件</a></li>
+        <li><a href="#ch-prices">金額データ</a></li>
+        <li><a href="#ch-daily">日報</a></li>
+        <li><a href="#ch-advances">先払い</a></li>
+        <li><a href="#ch-invoices">請求</a></li>
+        <li><a href="#ch-payments">支払</a></li>
+        <li><a href="#ch-cash">入出金管理・CSV</a></li>
+        <li><a href="#ch-master">マスター設定</a></li>
+        <li><a href="#ch-ui">UIビルダー</a></li>
+        <li><a href="#ch-users">ユーザー管理</a></li>
+        <li><a href="#ch-roles">権限早見表</a></li>
+        <li><a href="#ch-later">メニューに無い画面</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">A4で印刷</button>
+      </div>
+    </nav>
+
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">運送業務基幹システム</p>
+        <h1>Links-System<br>画面俯瞰マニュアル</h1>
+        <p>すべての機能について、「どこにあるか」「何をすると何が起きるか」を一冊で確認するための資料です。</p>
+        <p>詳細な締め手順・例外処理・計算根拠は書いていません。それらは仕様書（日報・精算・帳票、入出金管理）を参照してください。</p>
+        <p>対象版: 現行SPA（左サイドバー方式） / 作成日: 2026-09-05</p>
+      </header>
+
+      <section id="ch-overview">
+        <h2 class="chapter first">1. このマニュアルの見方</h2>
+        <p>システムはブラウザ1画面の SPA です。URL はほぼ <code>/</code> のみで、左メニューの機能キーで画面が切り替わります。社内LANでは通常 <code>http://&lt;NASのIP&gt;:8080</code> です。</p>
+        <div class="flow">マスタ整備（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）
+    → 日報入力 または Excel/CSV取込 → 日次確認 → 月次承認
+    →（分割案件なら）先払の予定作成
+    → 請求下書き / 支払下書き → 営業確認 → 最終確定・PDF
+    → 入出金の管理回に予定が乗る → 実績入力 / 出金CSV</div>
+        <div class="note">
+          <strong>画面画像について。</strong> 掲載画像は <code>仕様MD/画面一覧/</code> とログインモックです。見た目の差分洗い出し用のため、現行画面とボタン配置が違うことがあります。本文の「するとどうなる」は現行の <code>frontend/js/</code> に合わせています。キャプションに <span class="badge old">参考画像</span> とあるものは旧UIです。
+        </div>
+        <p>各章の表は次の読み方です。</p>
+        <table>
+          <thead><tr><th>列</th><th>意味</th></tr></thead>
+          <tbody>
+            <tr><td>すると</td><td>画面上で行う操作（クリック・保存・選択）</td></tr>
+            <tr><td>どうなる</td><td>データや次画面に起きる結果。計算の中身は省略</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ch-login">
+        <h2 class="chapter">2. ログインと画面の骨格</h2>
+        <h3>ログイン</h3>
+        <p>ログインIDとパスワードで入ります。無効ユーザーは入れません。成功するとセッションに権限が載り、左メニューには使える機能だけが出ます。</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>正しいID/パスワードでログイン</td><td>ホーム（業務ダッシュボード）が開く。権限のない機能はメニューに出ない</td></tr>
+            <tr><td>IDまたはパスワードを間違える</td><td>同じ画面にエラーが出て、入れない</td></tr>
+            <tr><td>パスワードの表示切替</td><td>入力中の文字の見せ方だけ変わる。ログイン自体は変わらない</td></tr>
+            <tr><td>ログアウト</td><td>セッションが終わり、ログイン画面に戻る</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../mockups/mock-login.png" alt="ログイン画面のモック">
+          <figcaption>ログイン画面 <span class="badge old">モック</span> ブランド名 Links-System。機能ボタンはログイン前には出ません。</figcaption>
+        </figure>
+
+        <h3>ログイン後の骨格</h3>
+        <p>左が機能メニュー（マスタ / 日々の運用 / 精算 / 設定）、上がユーザー名と権限、右下が本文です。☰ でメニューを折り畳めます。狭い画面ではメニューがオーバーレイになります。</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>左の機能名をクリック</td><td>その機能の一覧（またはハブ）が本文に出る。URLは変わらない</td></tr>
+            <tr><td>ブランド「Links-System」またはホーム</td><td>ダッシュボードに戻る</td></tr>
+            <tr><td>年月ナビ（各業務画面）</td><td>表示対象月が変わり、一覧・集計がその月になる</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ch-home">
+        <h2 class="chapter">3. ホーム（業務ダッシュボード）</h2>
+        <p>当月の進捗カードと、「次に処理する項目」です。カードをクリックすると対応する機能へ進みます。</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>進捗カードをクリック</td><td>その機能（日報・請求など）が開く</td></tr>
+            <tr><td>「次に処理する項目」をクリック</td><td>未完了や要対応がある機能へ飛ぶ</td></tr>
+            <tr><td>権限のない機能のカード</td><td>集計対象に含まれない（見えない）</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/01_ダッシュボード.png" alt="ダッシュボード">
+          <figcaption>ダッシュボード <span class="badge old">参考画像</span> 現行はカード＋進捗バー＋次アクションです。タイル型ランチャーではありません。</figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-companies">
+        <h2 class="chapter">4. 企業マスタ</h2>
+        <p>メニュー「マスタ → 企業マスタ」。請求先となる企業の台帳です。車両・担当履歴もここで持ちます。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>一覧で行または詳細を開く</td><td>その企業の編集画面になる</td></tr>
+            <tr><td>新規企業登録 → 保存</td><td>企業が追加され、以降の案件・請求の候補になる</td></tr>
+            <tr><td>項目を直して保存</td><td>台帳が更新される（請求書の宛名などに使われる）</td></tr>
+            <tr><td>車両や担当を追加</td><td>その企業に紐づく車両・担当が増える。案件の車両選択の候補になる</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/02_企業管理_一覧.png" alt="企業一覧">
+            <figcaption>企業 一覧 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/02_企業管理_詳細.png" alt="企業詳細">
+            <figcaption>企業 詳細 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="ch-partners">
+        <h2 class="chapter">5. パートナーマスタ</h2>
+        <p>メニュー「マスタ → パートナーマスタ」。ドライバー・外注先の台帳、口座、車両です。支払・先払・日報の相手先になります。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>新規 → 保存</td><td>パートナーが増え、案件の割当候補になる</td></tr>
+            <tr><td>口座・確定申告区分を保存</td><td>支払・振込まわりの表示・控除の前提データになる</td></tr>
+            <tr><td>車両を追加</td><td>所有がパートナー側の案件で、その車両を選べるようになる</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/03_パートナー管理_一覧.png" alt="パートナー一覧">
+            <figcaption>パートナー 一覧 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/03_パートナー管理_詳細.png" alt="パートナー詳細">
+            <figcaption>パートナー 詳細 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="ch-base">
+        <h2 class="chapter">6. 基本案件</h2>
+        <p>メニュー「マスタ → 基本案件」。繰り返し契約のひな形（勤務時間・休憩・締日・既定の金額データの型）です。実稼働の契約そのものではありません。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務 / 営業</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>基本案件を新規保存</td><td>ひな形が増える。まだ日報や請求の対象にはならない</td></tr>
+            <tr><td>ひな形に金額データ（PriceSet）を付ける</td><td>個別案件へコピーするときの料金の元になる</td></tr>
+            <tr><td>個別案件側で「基本から複製」</td><td>属性と金額データがディープコピーされ、実行用の個別案件ができる</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/04_基本案件管理_一覧.png" alt="基本案件一覧">
+          <figcaption>基本案件 一覧 <span class="badge old">参考画像</span></figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-projects">
+        <h2 class="chapter">7. 個別案件</h2>
+        <p>メニュー「マスタ → 個別案件」。企業・パートナー・期間が載った実行契約です。日報・先払・請求・支払はすべてここにぶら下がります。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務 / 営業</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>個別案件を保存（企業・パートナー・期間）</td><td>その月から日報の対象行に出せる</td></tr>
+            <tr><td>支払区分を「分割」にする</td><td>先払画面のマトリクスに、稼働0日でも載る</td></tr>
+            <tr><td>金額データを期間付きで紐付ける</td><td>日報入力時、その日の日付に合う単価が自動で選ばれる</td></tr>
+            <tr><td>車両の所有元（企業/パートナー）と車両を保存</td><td>所属と矛盾する車両は選べない</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/05_案件管理_一覧.png" alt="個別案件一覧">
+            <figcaption>個別案件 一覧 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/05_案件管理_詳細.png" alt="個別案件詳細">
+            <figcaption>個別案件 詳細 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="ch-prices">
+        <h2 class="chapter">8. 金額データ管理</h2>
+        <p>メニュー「マスタ → 金額データ管理」。適用期間付きの料金セット（PriceSet）と、曜日・計算区分ごとの請求／支払単価行です。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務 / 営業</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>金額データを新規し期間を入れる</td><td>その期間の日報にこのセットが候補になる</td></tr>
+            <tr><td>料金行（基本・残業・深夜など）を保存</td><td>日報の自動計算がこの単価を使う</td></tr>
+            <tr><td>日報側で一時的に単価を上書き</td><td>その日だけ手入力が勝ち、セット本体は変わらない</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/06_金額データ管理_詳細.png" alt="金額データ詳細">
+          <figcaption>金額データ 詳細 <span class="badge old">参考画像</span></figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-daily">
+        <h2 class="chapter">9. 日報</h2>
+        <p>メニュー「日々の運用 → 日報」。月次の案件一覧から、案件ごとの日別グリッドへ入ります。金額は画面の外の計算ロジックで再計算されます（取込ファイル内の請求額・支払額は使いません）。</p>
+        <p>使える権限: 管理者 / システム担当者 / 経営者 / 総務 / 営業 / パートナー（企業権限では開けない）</p>
+
+        <h3>月次一覧</h3>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>対象月を変える</td><td>その月の案件と入力進捗が出る</td></tr>
+            <tr><td>案件の「入力」などを開く</td><td>その案件の日別グリッドになる</td></tr>
+            <tr><td>絞り込み（締日・状態）</td><td>一覧の行が減る。データは消えない</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/07_日報管理_一覧.png" alt="日報一覧">
+          <figcaption>日報 月次一覧 <span class="badge old">参考画像</span></figcaption>
+        </figure>
+
+        <h3>日報入力グリッド</h3>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>開始・終了・休憩・距離・経費を入れて保存</td><td>その日の下書きが残り、残業・深夜などが再計算される</td></tr>
+            <tr><td>「この日を確認」</td><td>その日が確認済みになる。警告があっても続行確認できる</td></tr>
+            <tr><td>「この日の確認解除」</td><td>確認済みが下書きに戻り、また直せる</td></tr>
+            <tr><td>「月次承認依頼」</td><td>未確認日があると警告。続行すると承認待ちになる</td></tr>
+            <tr><td>「月次承認」 / 「差戻し」</td><td>承認済みになる、または差戻し理由付きで入力側に戻る</td></tr>
+            <tr><td>金額確認</td><td>計算結果の点検用表示。確定そのものではない</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/07_日報管理_日報入力.png" alt="日報入力">
+          <figcaption>日報入力グリッド <span class="badge old">参考画像</span></figcaption>
+        </figure>
+
+        <h3>Excel / CSV 取込</h3>
+        <p>日報画面内。管理者・総務だけが取込操作できます。経営者は原本の閲覧側です。</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>ファイルをアップロード</td><td>原本が保存され、解析バッチができる。同一内容なら二重取込警告</td></tr>
+            <tr><td>列マッピングを決める</td><td>Excel列と日報項目の対応がバッチに載る（保存済み対応の再利用可）</td></tr>
+            <tr><td>「選択行を日報へ反映」</td><td>下書き日報に値が入り、金額はシステムの計算で付け直される</td></tr>
+            <tr><td>反映済み・取消済みの適用ボタン</td><td>押せない（再適用しない）</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/17_Excel取り込み.png" alt="Excel取込">
+          <figcaption>Excel取り込み <span class="badge old">参考画像</span></figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-advances">
+        <h2 class="chapter">10. 先払い</h2>
+        <p>メニュー「精算 → 先払い」。支払区分が分割の個別案件を、月3サイクル（上旬・中旬・下旬）×案件のマトリクスで見ます。稼働0日の案件も出ます。</p>
+        <p>使える権限: 管理者 / 経営者 / 総務</p>
+        <div class="warn">参考画像の「先払 一覧／新規／詳細」や「分割支払管理」は旧UIです。現行は1枚のマトリクスです。</div>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>セルの金額を変えて理由を入れる</td><td>そのサイクルの先払額が更新される（履歴・楽観ロックあり）</td></tr>
+            <tr><td>先払ON/OFF</td><td>その回を対象にする／しないが切り替わる</td></tr>
+            <tr><td>案件を選択し「選択分を予定作成」</td><td>入出金側に出金予定が作られ、状態が「予定作成済み」になる。手数料も載る</td></tr>
+            <tr><td>「作成取消」＋理由</td><td>予定が消え、同じ回を再作成できる状態に戻る</td></tr>
+            <tr><td>実行済みの「返金・訂正」</td><td>実行後の訂正ルートに入る（予定の単純キャンセルではない）</td></tr>
+            <tr><td>サイクルの「CSV出力」</td><td>その回の出金確認用CSVが落ち、状態がCSV出力済み側へ進む</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/10_先払管理_一覧.png" alt="先払（旧一覧）">
+          <figcaption>先払（旧一覧） <span class="badge old">参考画像</span> 現行は3サイクル列のマトリクスです。</figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-invoices">
+        <h2 class="chapter">11. 請求</h2>
+        <p>メニュー「精算 → 請求」。対象月の請求可能案件から下書きを作り、明細を直してから確定・PDFします。金額は日別ではなく月額集計です。</p>
+        <p>使える権限: 管理者 / 経営者 / 総務 / 営業 / 企業（企業は自社の請求寄り）</p>
+        <p>状態の流れ: 下書き → 営業確認済み → 最終確定（PDF発行） → 取消済み。確定後は未実行取消か実行済み訂正。</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>同じ請求先・取纏番号の案件を選び「請求書を作成」</td><td>下書き請求が開き、日報から月額明細が載る。条件が違う案件は同時作成できない</td></tr>
+            <tr><td>下書きで明細を保存（理由必須）</td><td>帳票の行が変わる。単価×数量は自動、金額の手入力は上書き扱い</td></tr>
+            <tr><td>「日報から再反映」</td><td>承認済み日報との差分を選べる。手動編集行は明示選択しないと上書きされない</td></tr>
+            <tr><td>「営業確認」</td><td>状態が営業確認済みになり、明細の通常編集が止まる</td></tr>
+            <tr><td>管理回を選んで「最終確定・PDF発行」</td><td>金額が固定され、請求書PDF（および関連帳票）が発行され、入出金に入金予定が乗る</td></tr>
+            <tr><td>PDFリンク</td><td>発行済み版をダウンロード。取消済み版はリンクしない</td></tr>
+            <tr><td>未実行取消 / 実行済み訂正</td><td>取消は確定を取り消す。訂正は新しい下書き系統を切る</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/08_請求管理_一覧.png" alt="請求一覧">
+            <figcaption>請求 一覧 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/08_請求管理_詳細.png" alt="請求詳細">
+            <figcaption>請求 詳細 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="ch-payments">
+        <h2 class="chapter">12. 支払</h2>
+        <p>メニュー「精算 → 支払」。パートナー単位の月次支払です。支給は月額集計、最終確定時に先払控除・手数料・会費などが乗って最終振込額になります。</p>
+        <p>使える権限: 管理者 / 経営者 / 総務 / 営業 / パートナー（パートナーは自社支払寄り）</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>対象行の「下書き作成」</td><td>支払明細が開く。確認ダイアログで給与明細書も出すかを選ぶ</td></tr>
+            <tr><td>下書きで支給明細を直す</td><td>請求と同じく理由付きで行が変わる。控除ブロックは確定時に埋まる</td></tr>
+            <tr><td>営業確認 → 管理回を選んで最終確定</td><td>PDF（支払明細、必要なら給与明細・送付状）が発行され、入出金に出金予定が乗る</td></tr>
+            <tr><td>取消 / 訂正</td><td>請求と同じ考え方（未実行取消 / 実行済み訂正）</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/09_支払管理_一覧.png" alt="支払一覧">
+            <figcaption>支払 一覧 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/09_支払管理_詳細.png" alt="支払詳細">
+            <figcaption>支払 詳細 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+        <h3>確定後に出るPDFの種類</h3>
+        <table>
+          <thead><tr><th>種別</th><th>いつ出るか</th></tr></thead>
+          <tbody>
+            <tr><td>ご請求書 / 請求合計</td><td>請求の最終確定</td></tr>
+            <tr><td>支払明細書</td><td>支払の最終確定（上が支給、下が控除と振込額）</td></tr>
+            <tr><td>給与明細書</td><td>下書き作成時に発行すると選んだ場合</td></tr>
+            <tr><td>送付状</td><td>確定時の帳票セットに含まれる</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ch-cash">
+        <h2 class="chapter">13. 入出金管理・CSV</h2>
+        <p>メニュー「精算 → 入出金管理・CSV」。月6回（5/10/15/20/25/末日）の管理回ごとに、予定と実績を分けて見ます。正式な全銀FBファイルはまだ出ません。確認用の出金CSVです。</p>
+        <p>使える権限: 管理者 / 経営者 / 総務</p>
+        <div class="warn">画面一覧の「収支管理」「総振FB」「入金消込」は現行メニューではありません。この章の画面が現行の入出金です。</div>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>先払予定作成・請求/支払の最終確定</td><td>対応する管理回に予定行が自動で増える</td></tr>
+            <tr><td>「手動予定」を登録</td><td>入金または出金の予定が1行増える（個別予定日も可）</td></tr>
+            <tr><td>予定の「変更」（理由必須）</td><td>管理回や予定日が例外として書き換わる</td></tr>
+            <tr><td>「実績」で 1=実行</td><td>実行日・実行額が残り、完了扱い。予定額との差額が見える</td></tr>
+            <tr><td>実績で 2=保留 / 3=取消</td><td>理由付きで保留または取消。要対応にカウントされる</td></tr>
+            <tr><td>管理回を選んで「出金CSVを作成」</td><td>CSVがダウンロードされ、対象予定はCSV出力済みになる</td></tr>
+            <tr><td>出力履歴の「取消」</td><td>そのCSVバッチが取り消され、未実行予定は出力前に戻る</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/12_収支管理.png" alt="収支（旧）">
+          <figcaption>旧・収支管理 <span class="badge old">参考画像</span> 現行は予定一覧＋CSV履歴です。</figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-master">
+        <h2 class="chapter">14. マスター設定</h2>
+        <p>メニュー「設定 → マスター設定」。小口マスタのハブです。カードを開くと各一覧になります。</p>
+        <p>使える権限: 管理者 / システム担当者 / 総務</p>
+        <table>
+          <thead><tr><th>カード</th><th>すると</th><th>どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>営業担当者マスタ</td><td>担当者を保存</td><td>案件などの担当候補が増える</td></tr>
+            <tr><td>事業所マスタ</td><td>事業所Noを保存</td><td>帳票・所属の参照先になる</td></tr>
+            <tr><td>採番ルール</td><td>ルールを保存</td><td>自動番号の切り方が変わる</td></tr>
+            <tr><td>区分マスタ</td><td>料金種別・残業計算・料金計算区分を保存</td><td>金額データや日報の選択肢が変わる</td></tr>
+            <tr><td>システム設定</td><td>倍率・日報の色/刻み・ロゴを保存</td><td>日報UIと金額マトリクス警告、PDFロゴが変わる</td></tr>
+            <tr><td>祝日・案件休日</td><td>日付を休日登録</td><td>日報の休日判定と背景色、料金自動選択に効く</td></tr>
+            <tr><td>振込手数料マスター</td><td>固定額パターンを保存</td><td>先払予定作成時の手数料候補になる</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/16_マスター設定_メイン.png" alt="マスター設定ハブ">
+            <figcaption>マスター設定ハブ <span class="badge old">参考画像</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/16_マスター設定_システム設定.png" alt="システム設定">
+            <figcaption>システム設定 <span class="badge old">参考画像</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="ch-ui">
+        <h2 class="chapter">15. UIビルダー</h2>
+        <p>メニュー「設定 → UIビルダー」。一覧の列の表示・順序を仮組で編集します。業務データは変わりません。</p>
+        <p>使える権限: 管理者 / システム担当者</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>列の表示/順序を保存</td><td>対象一覧の見え方が変わる（データ内容は同じ）</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="../../仕様MD/画面一覧/16_マスター設定_UIビルダー.png" alt="UIビルダー">
+          <figcaption>UIビルダー <span class="badge old">参考画像</span></figcaption>
+        </figure>
+      </section>
+
+      <section id="ch-users">
+        <h2 class="chapter">16. ユーザー管理</h2>
+        <p>メニュー「設定 → ユーザー管理」。ログインアカウントと権限のCRUDです。</p>
+        <p>使える権限: 管理者 / システム担当者</p>
+        <table>
+          <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
+          <tbody>
+            <tr><td>新規ユーザー（権限を1つ以上）</td><td>その人のログインができ、メニューがその権限の和集合になる</td></tr>
+            <tr><td>権限・部署・エリアを編集して保存</td><td>次回以降のメニューとAPIの見える範囲が変わる</td></tr>
+            <tr><td>無効にする</td><td>そのIDではログインできない</td></tr>
+            <tr><td>削除</td><td>論理削除。自分自身は削除ボタンが押せない</td></tr>
+            <tr><td>企業ID / パートナーIDを紐付ける</td><td>企業・パートナー権限のとき、自社の請求・支払・日報に絞られる</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ch-roles">
+        <h2 class="chapter">17. 権限早見表</h2>
+        <p>1人に複数権限を付けられます。管理者（admin）が1つでもあれば全機能です。表の ● はメニューに出る機能です（実装の <code>permissions.js</code>）。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>機能</th>
+              <th>管理者</th>
+              <th>システム</th>
+              <th>経営者</th>
+              <th>総務</th>
+              <th>営業</th>
+              <th>パートナー</th>
+              <th>企業</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>企業マスタ</td><td>●</td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>パートナーマスタ</td><td>●</td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>基本・個別案件 / 金額データ</td><td>●</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td></tr>
+            <tr><td>日報</td><td>●</td><td>●</td><td>●</td><td>●</td><td>●</td><td>●</td><td></td></tr>
+            <tr><td>先払い</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>請求</td><td>●</td><td></td><td>●</td><td>●</td><td>●</td><td></td><td>●</td></tr>
+            <tr><td>支払</td><td>●</td><td></td><td>●</td><td>●</td><td>●</td><td>●</td><td></td></tr>
+            <tr><td>入出金管理・CSV</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>マスター設定</td><td>●</td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>UIビルダー / ユーザー管理</td><td>●</td><td>●</td><td></td><td></td><td></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+        <p>日報の Excel/CSV 取込ボタンは、管理者と総務だけです。</p>
+      </section>
+
+      <section id="ch-later">
+        <h2 class="chapter">18. いまメニューに無い画面</h2>
+        <p><code>仕様MD/画面一覧/</code> や HTML プロトタイプにはあるが、現行サイドバーには出てこないものです。全体像の欠けを知るための章です。操作してもシステム上は開けません。</p>
+        <table>
+          <thead><tr><th>画面一覧の名前</th><th>状態</th><th>代わりに使う現行機能</th></tr></thead>
+          <tbody>
+            <tr><td>11 分割支払管理</td><td><span class="badge off">専用画面なし</span></td><td>分割案件の先払は「先払い」マトリクス。分割返済の債権画面は未提供</td></tr>
+            <tr><td>12 収支管理</td><td><span class="badge off">未提供</span></td><td>入出金管理・CSV</td></tr>
+            <tr><td>13 総振管理・FB出力</td><td><span class="badge off">正式FBは後続</span></td><td>入出金の出金CSV（確認用）</td></tr>
+            <tr><td>14 入金消込</td><td><span class="badge off">未提供</span></td><td>入出金の入金予定・実績</td></tr>
+            <tr><td>15 収支分析</td><td><span class="badge off">未提供</span></td><td>なし（ダッシュボードの進捗のみ）</td></tr>
+          </tbody>
+        </table>
+        <div class="two-col">
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/13_総振管理_FB出力.png" alt="総振FB（未提供）">
+            <figcaption>総振FB <span class="badge off">現行メニューに無い</span></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../../仕様MD/画面一覧/14_入金消込_メイン.png" alt="入金消込（未提供）">
+            <figcaption>入金消込 <span class="badge off">現行メニューに無い</span></figcaption>
+          </figure>
+        </div>
+        <div class="later">
+          詳細な締め手順・差戻しの8手順・休日計算・NAS起動は、このマニュアルの対象外です。必要になったら <code>仕様MD/09_日報・精算・帳票_業務要件.md</code>、<code>仕様MD/10_入出金管理・FB_業務要件.md</code>、<code>docs/NAS_Docker導入・運用手順.md</code> を開いてください。
+        </div>
+      </section>
+
+      <footer class="colophon">
+        <p>Links-System 画面俯瞰マニュアル / 印刷時は A4・章先頭で改ページ / 画像パスはリポジトリ相対です。</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
