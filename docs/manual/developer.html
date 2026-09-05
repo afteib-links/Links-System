@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Links-System 開発者マニュアル</title>
+  <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>Links-System</h1>
+      <p class="meta">開発者マニュアル<br>2026-09-05 / 設定と記入例</p>
+      <ol>
+        <li><a href="#d-read">この資料の対象</a></li>
+        <li><a href="#d-arch">構成とディレクトリ</a></li>
+        <li><a href="#d-run">起動と環境変数</a></li>
+        <li><a href="#d-git">Git・Issue・PR</a></li>
+        <li><a href="#d-spec">仕様の正本</a></li>
+        <li><a href="#d-auth">認証・ユーザー</a></li>
+        <li><a href="#d-company">企業マスタ</a></li>
+        <li><a href="#d-partner">パートナーマスタ</a></li>
+        <li><a href="#d-project">案件と金額データ</a></li>
+        <li><a href="#d-daily">日報</a></li>
+        <li><a href="#d-settle">精算・入出金</a></li>
+        <li><a href="#d-master">マスター設定</a></li>
+        <li><a href="#d-db">マイグレーション</a></li>
+        <li><a href="#d-test">テスト・検証データ</a></li>
+        <li><a href="#d-dont">禁止事項</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">A4で印刷</button>
+        <a class="cross-link" href="index.html">利用者向け画面俯瞰へ</a>
+      </div>
+    </nav>
+
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">運送業務基幹システム</p>
+        <h1>Links-System<br>開発者マニュアル</h1>
+        <p>機能の役割、設定の入れ方、匿名の記入例を3件以上ずつ載せた開発者向け資料です。画面の見た目は <a href="index.html">画面俯瞰マニュアル</a> を併用してください。</p>
+        <p>記入例はすべて架空です（<code>【検証】</code> 接頭辞のイメージ）。実在の顧客名・口座は使わないでください。</p>
+        <p>対象版: 現行SPA + Express + MariaDB / 作成日: 2026-09-05</p>
+      </header>
+
+      <section id="d-read">
+        <h2 class="chapter first">1. この資料の対象</h2>
+        <p>リポジトリを触る開発者・実装AI向けです。入口はリポジトリ直下の <code>AGENTS.md</code> です。作業開始時は <code>仕様MD/00_現状スナップショット.md</code> と <code>仕様MD/00_AI共通_開発ガイド.md</code> を先に読みます。</p>
+        <table>
+          <thead><tr><th>読み手</th><th>この資料でやること</th><th>やらないこと</th></tr></thead>
+          <tbody>
+            <tr><td>機能追加する人</td><td>画面の必須項目、APIの置き場、記入例</td><td>NAS実機の障害対応の全手順</td></tr>
+            <tr><td>設定を初期投入する人</td><td>マスタとシステム設定の入れ方</td><td>本番の実データ移行判断</td></tr>
+            <tr><td>実装AI</td><td>ブランチ・migration・テストの約束</td><td>仕様が矛盾している論点の独断確定</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-arch">
+        <h2 class="chapter">2. 構成とディレクトリ</h2>
+        <p>ブラウザは vanilla JS の単一SPAです。React Router はありません。機能切替は <code>frontend/js/app.js</code> の <code>openFeature(featureKey)</code> です。データは MariaDB、APIは Express です。</p>
+        <div class="flow">ブラウザ → http://&lt;host&gt;:8080（Docker）または :3000（Cloud直接起動）
+  frontend/ （静的SPA）
+  backend/src/server.js （REST + セッション + PDF）
+  MariaDB （db/migrations を起動時適用）</div>
+        <table>
+          <thead><tr><th>パス</th><th>役割</th></tr></thead>
+          <tbody>
+            <tr><td><code>frontend/js/</code></td><td>画面。機能キーごとに1ファイルが目安</td></tr>
+            <tr><td><code>backend/src/routes/</code></td><td>HTTP API</td></tr>
+            <tr><td><code>backend/src/permissions.js</code></td><td>権限キーと機能の対応（実装の正）</td></tr>
+            <tr><td><code>db/migrations/</code></td><td>連番SQL。既適用ファイルは書き換えない</td></tr>
+            <tr><td><code>仕様MD/</code></td><td>業務仕様の正本</td></tr>
+            <tr><td><code>docs/manual/</code></td><td>利用者／開発者向けHTMLマニュアル</td></tr>
+          </tbody>
+        </table>
+        <figure class="shot">
+          <img src="screenshots/02_home.png" alt="現行ダッシュボード">
+          <figcaption>ログイン後の骨格（サイドバー＋ダッシュボード）。開発時の画面確認の基準。</figcaption>
+        </figure>
+      </section>
+
+      <section id="d-run">
+        <h2 class="chapter">3. 起動と環境変数</h2>
+        <h3>入力方法</h3>
+        <p><code>.env.example</code> をコピーしてリポジトリ直下に <code>.env</code> を作ります。<code>.env</code> はコミットしません。Docker ではホスト <code>8080</code> がコンテナ <code>3000</code> です。</p>
+        <div class="flow">cp .env.example .env
+docker compose up --build -d
+curl http://127.0.0.1:8080/api/health</div>
+        <p>Cloud Agent では Docker を使わず、ホストの MariaDB + <code>cd backend &amp;&amp; node src/server.js</code>（ポート 3000）です。<code>DB_HOST=127.0.0.1</code> にします。</p>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 ローカルDocker</th><th>例2 Cloud/直接起動</th><th>例3 NASテスト（方針）</th></tr></thead>
+          <tbody>
+            <tr><td><code>DB_HOST</code></td><td><code>db</code>（compose内。上書きされる場合あり）</td><td><code>127.0.0.1</code></td><td>NAS上のDBサービス名または内部IP</td></tr>
+            <tr><td><code>DB_NAME</code></td><td><code>links_system</code></td><td><code>links_system</code></td><td>テスト用DB名（本番と分ける）</td></tr>
+            <tr><td><code>ADMIN_LOGIN_ID</code></td><td><code>admin</code></td><td><code>admin</code></td><td>検証用ID（実運用担当者名は使わない）</td></tr>
+            <tr><td><code>ADMIN_PASSWORD</code></td><td><code>admin1234</code>（初期のみ）</td><td>同じ（空users時だけ作成）</td><td>必ず別値。リポジトリに書かない</td></tr>
+            <tr><td><code>SESSION_SECRET</code></td><td>exampleの仮値</td><td>仮値可</td><td>長いランダム文字列</td></tr>
+            <tr><td><code>PDF_DIR</code></td><td>コンテナ内 <code>/app/pdf</code></td><td><code>/workspace/data/pdf</code> など書き込み可能パス</td><td>volume 上の永続パス</td></tr>
+          </tbody>
+        </table>
+        <div class="warn">初期管理者は <code>users</code> が空のときだけ作られます。パスワードをissueやPRに貼らないでください。</div>
+      </section>
+
+      <section id="d-git">
+        <h2 class="chapter">4. Git・Issue・PR</h2>
+        <p>1作業 = 1 Issue（または合意した作業ID）= 1ブランチ = 1 Draft PR。<code>main</code> へ直接pushしません。</p>
+        <h3>入力方法</h3>
+        <div class="flow">git checkout main &amp;&amp; git pull origin main
+git checkout -b cursor/&lt;英語短名&gt;-148a
+# 実装後
+git push -u origin cursor/&lt;英語短名&gt;-148a
+# → Draft PR to main</div>
+        <p>Cloud Agent のブランチ接尾辞は環境指定（例 <code>-bf29</code>）に従います。歴史的接頭辞 <code>cursor/</code> はCursor専用ではありません。</p>
+        <h3>記入例（ブランチ名 3件以上）</h3>
+        <table>
+          <thead><tr><th>作業</th><th>ブランチ例</th><th>主に触るもの</th></tr></thead>
+          <tbody>
+            <tr><td>画面俯瞰マニュアル</td><td><code>cursor/user-overview-manual-bf29</code></td><td><code>docs/manual/</code></td></tr>
+            <tr><td>日報の距離超過</td><td><code>cursor/daily-distance-148a</code></td><td>計算サービス + migration + 仕様09</td></tr>
+            <tr><td>企業マスタの項目追加</td><td><code>cursor/company-fields-148a</code></td><td><code>companies.js</code> + API + 新規SQL</td></tr>
+            <tr><td>先払マトリクス修正</td><td><code>cursor/advance-matrix-148a</code></td><td><code>advances_matrix.js</code> と advances API</td></tr>
+          </tbody>
+        </table>
+        <p>同じ機能ブランチを複数AIが同時編集しない。PR本文は <code>.github/PULL_REQUEST_TEMPLATE.md</code> に沿って、触らない範囲と検証欄を残します。</p>
+      </section>
+
+      <section id="d-spec">
+        <h2 class="chapter">5. 仕様の正本</h2>
+        <p>コードと仕様がずれたら、先に <code>仕様MD/</code> を直してから実装を合わせます。日報・精算・入出金は <code>09</code> と <code>10</code> が業務の正です。個別仕様書の IndexedDB 記述は古いので無視します。</p>
+        <table>
+          <thead><tr><th>論点</th><th>先に開くファイル</th></tr></thead>
+          <tbody>
+            <tr><td>権限・ログインID規則</td><td><code>仕様MD/Login.md</code>（実装照合は <code>permissions.js</code>）</td></tr>
+            <tr><td>基本案件 / 個別 / PriceSet</td><td><code>仕様MD/05_project_price_relationship.md</code></td></tr>
+            <tr><td>日報計算・承認</td><td><code>仕様MD/09_日報・精算・帳票_業務要件.md</code>、<code>04_calculation_logic.md</code></td></tr>
+            <tr><td>管理回・CSV・FB</td><td><code>仕様MD/10_入出金管理・FB_業務要件.md</code></td></tr>
+            <tr><td>決めたこと・未確定</td><td><code>仕様MD/05_decision_log.md</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-auth">
+        <h2 class="chapter">6. 認証・ユーザー</h2>
+        <p>機能キーは <code>backend/src/permissions.js</code> の <code>FEATURE_ROLE_MAP</code> がメニューとAPIの正です。<code>admin</code> が1つでもあれば全機能です。複数ロールは和集合です。</p>
+        <h3>入力方法</h3>
+        <p>設定 → ユーザー管理 → 新規ユーザー。IDは半角英数字と <code>._-</code>。権限はチェックボックス（1つ以上）。部署・エリアは読点区切り。企業／パートナー権限では <code>company_id</code> / <code>partner_id</code> を紐付けてデータ範囲を絞ります。</p>
+        <figure class="shot">
+          <img src="screenshots/25_users.png" alt="ユーザー管理">
+          <figcaption>ユーザー一覧。自分自身は削除できません。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 管理者</th><th>例2 総務</th><th>例3 パートナー閲覧</th><th>例4 企業請求のみ</th></tr></thead>
+          <tbody>
+            <tr><td>ID</td><td><code>admin</code></td><td><code>soumu01</code></td><td><code>partner.yamada</code></td><td><code>company.toto</code></td></tr>
+            <tr><td>名</td><td>管理者</td><td>検証 総務</td><td>【検証】山田 恒一</td><td>【検証】東都ロジ担当</td></tr>
+            <tr><td>権限</td><td><code>admin</code></td><td><code>soumu</code></td><td><code>partner</code></td><td><code>company</code></td></tr>
+            <tr><td>部署</td><td>（空）</td><td>総務、経理</td><td>（空）</td><td>（空）</td></tr>
+            <tr><td>紐付け</td><td>なし</td><td>なし</td><td>partner_id = 対象パートナー</td><td>company_id = 対象企業</td></tr>
+            <tr><td>有効</td><td>オン</td><td>オン</td><td>オン</td><td>オフにするとログイン不可</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-company">
+        <h2 class="chapter">7. 企業マスタ</h2>
+        <p>請求先台帳です。保存後に案件・請求の候補になります。事業所Noは保存時に自動採番（画面では無効）です。</p>
+        <h3>入力方法</h3>
+        <p>マスタ → 企業マスタ → 新規企業登録。必須は企業名。請求先・車両・担当履歴は詳細画面の「追加」モーダルで行を足してから本体を保存します。</p>
+        <figure class="shot">
+          <img src="screenshots/04_companies_detail.png" alt="企業編集">
+          <figcaption>企業編集。セクションは基本・銀行・請求先・車両・担当履歴。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 配送（締日20日）</th><th>例2 倉庫（末日締め）</th><th>例3 調査業務</th></tr></thead>
+          <tbody>
+            <tr><td>企業名</td><td>【検証】東都ロジスティクス株式会社</td><td>【検証】京浜倉庫サービス株式会社</td><td>【検証】北辰ネットワーク便株式会社</td></tr>
+            <tr><td>企業名カナ</td><td>トウトロジスティクス</td><td>ケイヒンソウコサービス</td><td>ホクシンネットワークビン</td></tr>
+            <tr><td>郵便番号 / 住所</td><td>100-0001 東京都千代田区検証1-1-1</td><td>230-0001 横浜市鶴見区検証2-2-2</td><td>330-0001 さいたま市検証3-3-3</td></tr>
+            <tr><td>基本締日</td><td>20日</td><td>末日</td><td>15日</td></tr>
+            <tr><td>請求書送付</td><td>メール（区分マスタの値）</td><td>郵送</td><td>持参</td></tr>
+            <tr><td>請求先印字名称</td><td>東都ロジスティクス株式会社 御中</td><td>京浜倉庫 経理課 御中</td><td>北辰ネットワーク便 現場事務所</td></tr>
+            <tr><td>取り纏めNo</td><td><code>BILL-TO-01</code></td><td><code>BILL-KH-02</code></td><td>空（企業単位で1請求）</td></tr>
+            <tr><td>口座（検証用）</td><td>検証銀行 本店 普通 1234567</td><td>検証銀行 横浜 普通 2345678</td><td>検証信用金庫 普通 3456789</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-partner">
+        <h2 class="chapter">8. パートナーマスタ</h2>
+        <p>支払・先払・日報の相手先です。振込手数料パターンをここで選ぶと、先払予定作成時の初期手数料になります。</p>
+        <h3>入力方法</h3>
+        <p>マスタ → パートナーマスタ → 新規。必須は名称。「先払い対象」チェックは分割案件と併用します。車両はモーダルで追加します。</p>
+        <figure class="shot">
+          <img src="screenshots/06_partners_detail.png" alt="パートナー編集">
+          <figcaption>パートナー編集。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 個人（先払あり）</th><th>例2 個人（先払なし）</th><th>例3 外注会社イメージ</th></tr></thead>
+          <tbody>
+            <tr><td>名称</td><td>【検証】山田 恒一</td><td>【検証】佐藤 拓也</td><td>【検証】みなと流通パートナー</td></tr>
+            <tr><td>カナ</td><td>ヤマダ コウイチ</td><td>サトウ タクヤ</td><td>ミナトリュウツウパートナー</td></tr>
+            <tr><td>先払い対象</td><td>オン</td><td>オフ</td><td>オン</td></tr>
+            <tr><td>振込手数料</td><td>固定330円パターン</td><td>未設定（0円）</td><td>固定550円パターン</td></tr>
+            <tr><td>インボイス番号</td><td>T1234567890123（架空）</td><td>（空）</td><td>T9876543210987（架空）</td></tr>
+            <tr><td>稼働開始日</td><td>2026-04-01</td><td>2025-10-01</td><td>2026-01-15</td></tr>
+            <tr><td>口座名義</td><td>ヤマダコウイチ</td><td>サトウタクヤ</td><td>ミナトリュウツウ</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-project">
+        <h2 class="chapter">9. 案件と金額データ</h2>
+        <p>基本案件はひな形、個別案件は実行契約、金額データ（PriceSet）は適用期間付き単価です。日報は個別案件にぶら下がります。支払区分「分割」の個別案件だけが先払マトリクスに出ます（稼働0日でも表示）。</p>
+        <h3>入力方法</h3>
+        <ol>
+          <li>基本案件で企業・テンプレ名・勤務時間・締日を保存する</li>
+          <li>金額データで基本案件または個別案件に期間付きPriceSetを付ける</li>
+          <li>個別案件で企業・パートナーを選び、必要なら「テンプレ反映」でディープコピーする</li>
+          <li>車両は所有元（企業／パートナー）を先に選び、その所属の車両だけを選ぶ</li>
+        </ol>
+        <figure class="shot">
+          <img src="screenshots/10_projects_detail.png" alt="個別案件編集">
+          <figcaption>個別案件編集。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="screenshots/12_price_sets_detail.png" alt="金額データ編集">
+          <figcaption>金額データ編集。適用開始日のコピー時はプロンプトで日付を入れる。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 平日配送・通常払</th><th>例2 分割先払</th><th>例3 調査助手・休日多め</th></tr></thead>
+          <tbody>
+            <tr><td>テンプレ名 / 案件名</td><td>企業車両による食肉の配送業務</td><td>倉庫内商品検品、棚卸し及び付帯業務</td><td>道路施設点検助手</td></tr>
+            <tr><td>開始〜終了</td><td>08:00〜17:00</td><td>09:00〜18:00</td><td>07:30〜16:30</td></tr>
+            <tr><td>拘束 / 休憩（時間）</td><td>9 / 1</td><td>9 / 1</td><td>9 / 0.75</td></tr>
+            <tr><td>支払区分</td><td>通常（一括）</td><td>分割</td><td>通常</td></tr>
+            <tr><td>分割単価</td><td>（空）</td><td>7000</td><td>（空）</td></tr>
+            <tr><td>締日</td><td>20日</td><td>末日</td><td>15日</td></tr>
+            <tr><td>運用開始日</td><td>2026-01-01</td><td>2026-04-01</td><td>2026-02-01</td></tr>
+            <tr><td>PriceSet適用開始</td><td>2026-01-01</td><td>2026-04-01</td><td>2026-02-01</td></tr>
+            <tr><td>請求／支払 基本単価例</td><td>18000 / 14000</td><td>16000 / 12000</td><td>20000 / 15500</td></tr>
+            <tr><td>車両所有元</td><td>企業</td><td>パートナー</td><td>企業</td></tr>
+          </tbody>
+        </table>
+        <div class="note">金額データのコピーでは「新しい適用開始日」が必須です。空でキャンセルするとコピーしません。</div>
+      </section>
+
+      <section id="d-daily">
+        <h2 class="chapter">10. 日報</h2>
+        <p>月次一覧から案件の日別グリッドへ入ります。保存のたびにサーバ側で再計算します。Excel/CSV取込のファイル内金額は使いません。取込操作は管理者・総務のみです。</p>
+        <h3>入力方法</h3>
+        <p>対象月を選ぶ → 案件の入力を開く → 開始・終了・休憩・距離・経費を入れて保存 → 日次確認 → 月次承認依頼 → 承認または差戻し。時間は <code>H:MM</code>（例 <code>8:30</code>）。警告があっても確認ダイアログで続行できます。</p>
+        <figure class="shot">
+          <img src="screenshots/14_daily_grid.png" alt="日報グリッド">
+          <figcaption>日報入力グリッド（現行SPA）。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>項目</th><th>例1 通常稼働</th><th>例2 残業＋通行料</th><th>例3 研修日</th><th>例4 未出勤で空</th></tr></thead>
+          <tbody>
+            <tr><td>勤務日</td><td>2026-08-03（月）</td><td>2026-08-07（金）</td><td>2026-08-12（水）</td><td>2026-08-16（日）行を触らない</td></tr>
+            <tr><td>開始 / 終了</td><td>08:00 / 17:00</td><td>08:00 / 20:00</td><td>09:00 / 16:00</td><td>（空）</td></tr>
+            <tr><td>休憩</td><td>1:00</td><td>1:00</td><td>0:45</td><td>（空）</td></tr>
+            <tr><td>距離</td><td>80</td><td>140</td><td>0</td><td>（空）</td></tr>
+            <tr><td>通行料など</td><td>0</td><td>2500</td><td>0</td><td>（空）</td></tr>
+            <tr><td>研修フラグ</td><td>オフ</td><td>オフ</td><td>オン（研修料金が選ばれる想定）</td><td>オフ</td></tr>
+            <tr><td>単価手修正</td><td>しない</td><td>理由付きで支払だけ変更可</td><td>しない</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p>取込: アップロード → 列マッピング（保存済み対応を選べる）→ 選択行を日報へ反映。同一ファイルは二重取込警告が出ます。</p>
+      </section>
+
+      <section id="d-settle">
+        <h2 class="chapter">11. 精算・入出金</h2>
+        <p>状態はおおむね 下書き → 営業確認済み → 最終確定（PDF＋入出金予定）→ 取消／訂正。請求は同じ請求先・取纏番号の案件だけ同時作成できます。支払の控除は最終確定時に載ります。</p>
+        <h3>入力方法</h3>
+        <ul>
+          <li>先払: 分割案件のセル金額を理由付きで変更 → 選択して予定作成。CSVはサイクル単位。</li>
+          <li>請求/支払: 対象月一覧から下書き → 明細は理由必須 → 営業確認 → 管理回を選んで最終確定。</li>
+          <li>入出金: 手動予定は管理回・入金/出金・相手先・件名・金額。実績は 1=実行 2=保留 3=取消。</li>
+        </ul>
+        <figure class="shot">
+          <img src="screenshots/16_advances.png" alt="先払">
+          <figcaption>先払マトリクス。分割案件が無い月は空表になります。</figcaption>
+        </figure>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>操作</th><th>例1</th><th>例2</th><th>例3</th></tr></thead>
+          <tbody>
+            <tr><td>先払セル金額＋理由</td><td>21000 / 稼働3日分の先払</td><td>0 / 今月は対象外</td><td>14000 / 半額のみ先行</td></tr>
+            <tr><td>請求明細の変更理由</td><td>通行料の請求漏れを追加</td><td>単価を日報再計算に合わせて戻す</td><td>値引き（税区分は課税のまま）</td></tr>
+            <tr><td>最終確定の管理回</td><td>20日回</td><td>末日回</td><td>15日回</td></tr>
+            <tr><td>入出金 手動予定</td><td>出金 検証銀行手数料 330円 20日回</td><td>入金 東都ロジ 請求入金 末日回</td><td>出金 安全大会費 5000円 個別予定日 2026-08-18</td></tr>
+            <tr><td>実績プロンプト</td><td>1 → 実行日 2026-08-20 → 実行額=予定額</td><td>2 → 保留理由 資金繰り確認中</td><td>3 → 取消理由 誤登録</td></tr>
+            <tr><td>訂正理由（確定後）</td><td>請求先印字名の誤記</td><td>先払控除の付け忘れ</td><td>税率区分の誤り</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-master">
+        <h2 class="chapter">12. マスター設定</h2>
+        <p>設定 → マスター設定のハブです。料金自動計算と日報UI色はシステム設定画面にまとまっています。キー名は英語のままで、画面ラベルは日本語です。</p>
+        <figure class="shot">
+          <img src="screenshots/22_master_settings_hub.png" alt="マスター設定ハブ">
+          <figcaption>マスター設定ハブ。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="screenshots/23_master_settings_system.png" alt="システム設定">
+          <figcaption>システム設定（料金自動計算・日報UI・PDFロゴ）。</figcaption>
+        </figure>
+        <h3>入力方法</h3>
+        <p>カードを開く → 行を編集して保存。システム設定の色はカラーピッカーか <code>#RRGGBB</code>。ロゴは PNG/JPEG/WebP の選択・ドロップ・貼り付け後に「会社ロゴを保存」。</p>
+        <h3>記入例（3件以上）</h3>
+        <table>
+          <thead><tr><th>設定</th><th>例1 初期値寄り</th><th>例2 見やすく</th><th>例3 厳しい警告</th></tr></thead>
+          <tbody>
+            <tr><td>利益率警告（%）</td><td>10</td><td>10</td><td>5</td></tr>
+            <tr><td>時間外倍率</td><td>1.25</td><td>1.25</td><td>1.25</td></tr>
+            <tr><td>深夜倍率</td><td>1.35</td><td>1.35</td><td>1.35</td></tr>
+            <tr><td>深夜超過倍率</td><td>1.6</td><td>1.6</td><td>1.6</td></tr>
+            <tr><td>日報文字サイズ(px)</td><td>16</td><td>18</td><td>14</td></tr>
+            <tr><td>未入力欄の文字色</td><td><code>#A7B0BE</code></td><td><code>#64748B</code></td><td><code>#94A3B8</code></td></tr>
+            <tr><td>土曜背景 / 文字</td><td><code>#EAF4FF</code> / <code>#1D4ED8</code></td><td><code>#DBEAFE</code> / <code>#1E3A8A</code></td><td>初期のまま</td></tr>
+            <tr><td>日祝背景 / 文字</td><td><code>#FDECEC</code> / <code>#B42318</code></td><td><code>#FEE2E2</code> / <code>#991B1B</code></td><td>初期のまま</td></tr>
+            <tr><td>時間の代替刻み（分）</td><td>5</td><td>15</td><td>1</td></tr>
+            <tr><td>距離の増減単位</td><td>1</td><td>5</td><td>1</td></tr>
+            <tr><td>経費の増減単位</td><td>100</td><td>50</td><td>10</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>その他マスタ</th><th>例1</th><th>例2</th><th>例3</th></tr></thead>
+          <tbody>
+            <tr><td>営業担当者</td><td>検証 太郎 / 総務</td><td>検証 花子 / 営業</td><td>検証 次郎 / 現場</td></tr>
+            <tr><td>祝日・案件休日</td><td>2026-01-01 元日（祝日）</td><td>2026-08-13 案件独自休業</td><td>2026-11-23 勤労感謝（祝日）</td></tr>
+            <tr><td>振込手数料パターン</td><td>他行330 / 330円</td><td>他行550 / 550円</td><td>無料 / 0円</td></tr>
+            <tr><td>区分マスタ（料金種別）</td><td>basic 基本</td><td>overtime 残業</td><td>night 深夜</td></tr>
+            <tr><td>UIビルダー</td><td>企業一覧で FAX列を非表示</td><td>パートナー一覧で血液型を非表示</td><td>列順を企業名→締日に変更</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-db">
+        <h2 class="chapter">13. マイグレーション</h2>
+        <p>起動時に <code>backend/src/migrate.js</code> が <code>schema_migrations</code> を見て未適用SQLを流します。ファイルは <code>db/migrations/001_…</code> からの連番です。既に適用したSQLは書き換えず、次番号の新規ファイルを足します（<code>016</code> は用途違いで2ファイルあるので、追加時は既存番号を確認）。</p>
+        <h3>記入例（新規ファイル名 3件以上・架空）</h3>
+        <table>
+          <thead><tr><th>変更</th><th>ファイル名の例</th><th>やってはいけないこと</th></tr></thead>
+          <tbody>
+            <tr><td>企業にメモ列</td><td><code>024_company_internal_note.sql</code></td><td><code>002_master_tables.sql</code> を編集して列追加</td></tr>
+            <tr><td>日報の新フラグ</td><td><code>025_daily_report_flag.sql</code></td><td>本番DBを手で ALTER して終わりにする</td></tr>
+            <tr><td>設定キー初期行</td><td><code>026_system_setting_seed.sql</code></td><td>実口座データをINSERTする</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="d-test">
+        <h2 class="chapter">14. テスト・検証データ</h2>
+        <p>匿名検証データは <code>backend/scripts/seed_verification_data.js</code> です。アプリ起動（マイグレーション完了）後、コンテナまたは <code>PDF_DIR</code> が書ける環境で実行します。本番 <code>NODE_ENV=production</code> ではリセットできません。</p>
+        <div class="flow"># Docker
+docker compose exec -T app npm run seed:verification
+docker compose exec -T app npm run verify:verification-data
+
+# 画面キャプチャ（マニュアル用）
+cd backend
+UI_BASE_URL=http://127.0.0.1:8080 npm run capture:manual</div>
+        <table>
+          <thead><tr><th>コマンド</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td><code>npm test --prefix backend</code></td><td>単体</td></tr>
+            <tr><td><code>npm run test:e2e-ui --prefix backend</code></td><td>画面シェルのE2E</td></tr>
+            <tr><td><code>npm run test:e2e-advance --prefix backend</code></td><td>先払マトリクスE2E</td></tr>
+            <tr><td><code>curl …/api/health</code></td><td>起動確認。DBが down なら失敗</td></tr>
+          </tbody>
+        </table>
+        <div class="warn">検証リセットは <code>VERIFICATION_RESET_CONFIRM=DELETE_VERIFICATION_DATA</code> が必要です。seed_key 付きの匿名行だけが対象でも、確認なしでは流しません。</div>
+      </section>
+
+      <section id="d-dont">
+        <h2 class="chapter">15. 禁止事項</h2>
+        <table>
+          <thead><tr><th>禁止</th><th>代わり</th></tr></thead>
+          <tbody>
+            <tr><td><code>main</code> 直push、既存migrationの改変</td><td>featureブランチ + 新規連番SQL</td></tr>
+            <tr><td>実顧客・口座・実Excel/PDF/FBをリポジトリへ</td><td>匿名の最小データ。<code>docs/development/TEST_DATA_AND_SECRETS.md</code></td></tr>
+            <tr><td>仕様が矛盾したまま推測実装</td><td><code>05_decision_log.md</code> に論点を残して確認</td></tr>
+            <tr><td>同じブランチを複数AIが同時編集</td><td>Issueと編集範囲を分ける</td></tr>
+            <tr><td>金額・権限・NASをPRに検証欄なしで出す</td><td>影響・復旧・検証結果をPRに書く</td></tr>
+          </tbody>
+        </table>
+        <div class="later">インフラのNAS手順は <code>docs/NAS_Docker導入・運用手順.md</code>。画面の「するとどうなる」は <a href="index.html">画面俯瞰マニュアル</a> です。</div>
+      </section>
+
+      <footer class="colophon">
+        <p>Links-System 開発者マニュアル / A4印刷時は章先頭で改ページ / 記入例は架空です。</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
