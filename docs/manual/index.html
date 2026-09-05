@@ -55,7 +55,7 @@
     → 請求下書き / 支払下書き → 営業確認 → 最終確定・PDF
     → 入出金の管理回に予定が乗る → 実績入力 / 出金CSV</div>
         <div class="note">
-          <strong>画面画像について。</strong> 掲載画像は <code>仕様MD/画面一覧/</code> とログインモックです。見た目の差分洗い出し用のため、現行画面とボタン配置が違うことがあります。本文の「するとどうなる」は現行の <code>frontend/js/</code> に合わせています。キャプションに <span class="badge old">参考画像</span> とあるものは旧UIです。
+          <strong>画面画像について。</strong> 掲載画像は現行SPA（左サイドバー）をブラウザで開いて撮影したものです。再撮影: <code>UI_BASE_URL=http://127.0.0.1:8080 npm run capture:manual --prefix backend</code>（このCloud環境では <code>:3000</code>）。データは匿名の検証用です。第18章だけ旧キャプチャを「メニューに無い画面」として残しています。
         </div>
         <p>各章の表は次の読み方です。</p>
         <table>
@@ -81,8 +81,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../mockups/mock-login.png" alt="ログイン画面のモック">
-          <figcaption>ログイン画面 <span class="badge old">モック</span> ブランド名 Links-System。機能ボタンはログイン前には出ません。</figcaption>
+          <img src="screenshots/01_login.png" alt="ログイン画面">
+          <figcaption>ログイン画面（現行SPA）</figcaption>
         </figure>
 
         <h3>ログイン後の骨格</h3>
@@ -109,8 +109,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/01_ダッシュボード.png" alt="ダッシュボード">
-          <figcaption>ダッシュボード <span class="badge old">参考画像</span> 現行はカード＋進捗バー＋次アクションです。タイル型ランチャーではありません。</figcaption>
+          <img src="screenshots/02_home.png" alt="業務ダッシュボード">
+          <figcaption>業務ダッシュボード（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -129,12 +129,12 @@
         </table>
         <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/02_企業管理_一覧.png" alt="企業一覧">
-            <figcaption>企業 一覧 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/03_companies_list.png" alt="企業マスタ一覧">
+            <figcaption>企業マスタ 一覧（現行SPA）</figcaption>
           </figure>
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/02_企業管理_詳細.png" alt="企業詳細">
-            <figcaption>企業 詳細 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/04_companies_detail.png" alt="企業編集">
+            <figcaption>企業編集（現行SPA）</figcaption>
           </figure>
         </div>
       </section>
@@ -153,12 +153,12 @@
         </table>
         <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/03_パートナー管理_一覧.png" alt="パートナー一覧">
-            <figcaption>パートナー 一覧 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/05_partners_list.png" alt="パートナーマスタ一覧">
+            <figcaption>パートナーマスタ 一覧（現行SPA）</figcaption>
           </figure>
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/03_パートナー管理_詳細.png" alt="パートナー詳細">
-            <figcaption>パートナー 詳細 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/06_partners_detail.png" alt="パートナー編集">
+            <figcaption>パートナー編集（現行SPA）</figcaption>
           </figure>
         </div>
       </section>
@@ -176,8 +176,12 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/04_基本案件管理_一覧.png" alt="基本案件一覧">
-          <figcaption>基本案件 一覧 <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/07_base_projects_list.png" alt="基本案件一覧">
+          <figcaption>基本案件 一覧（現行SPA）</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="screenshots/08_base_projects_detail.png" alt="基本案件編集">
+          <figcaption>基本案件 編集（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -196,12 +200,12 @@
         </table>
         <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/05_案件管理_一覧.png" alt="個別案件一覧">
-            <figcaption>個別案件 一覧 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/09_projects_list.png" alt="個別案件一覧">
+            <figcaption>個別案件 一覧（現行SPA）</figcaption>
           </figure>
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/05_案件管理_詳細.png" alt="個別案件詳細">
-            <figcaption>個別案件 詳細 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/10_projects_detail.png" alt="個別案件編集">
+            <figcaption>個別案件 編集（現行SPA）</figcaption>
           </figure>
         </div>
       </section>
@@ -219,8 +223,12 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/06_金額データ管理_詳細.png" alt="金額データ詳細">
-          <figcaption>金額データ 詳細 <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/11_price_sets_list.png" alt="金額データ一覧">
+          <figcaption>金額データ 一覧（現行SPA）</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="screenshots/12_price_sets_detail.png" alt="金額データ編集">
+          <figcaption>金額データ 編集（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -239,8 +247,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/07_日報管理_一覧.png" alt="日報一覧">
-          <figcaption>日報 月次一覧 <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/13_daily_list.png" alt="日報月次一覧">
+          <figcaption>日報 月次一覧（現行SPA）</figcaption>
         </figure>
 
         <h3>日報入力グリッド</h3>
@@ -256,8 +264,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/07_日報管理_日報入力.png" alt="日報入力">
-          <figcaption>日報入力グリッド <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/14_daily_grid.png" alt="日報入力グリッド">
+          <figcaption>日報入力グリッド（現行SPA）</figcaption>
         </figure>
 
         <h3>Excel / CSV 取込</h3>
@@ -272,8 +280,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/17_Excel取り込み.png" alt="Excel取込">
-          <figcaption>Excel取り込み <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/15_daily_import.png" alt="日報Excel CSV取込">
+          <figcaption>日報 Excel／CSV 取込（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -281,7 +289,7 @@
         <h2 class="chapter">10. 先払い</h2>
         <p>メニュー「精算 → 先払い」。支払区分が分割の個別案件を、月3サイクル（上旬・中旬・下旬）×案件のマトリクスで見ます。稼働0日の案件も出ます。</p>
         <p>使える権限: 管理者 / 経営者 / 総務</p>
-        <div class="warn">参考画像の「先払 一覧／新規／詳細」や「分割支払管理」は旧UIです。現行は1枚のマトリクスです。</div>
+        <div class="note">分割案件が無い月は空表になります。マトリクスの列（上旬・中旬・下旬）は現行画面のままです。</div>
         <table>
           <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
           <tbody>
@@ -294,8 +302,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/10_先払管理_一覧.png" alt="先払（旧一覧）">
-          <figcaption>先払（旧一覧） <span class="badge old">参考画像</span> 現行は3サイクル列のマトリクスです。</figcaption>
+          <img src="screenshots/16_advances.png" alt="先払マトリクス">
+          <figcaption>先払管理マトリクス（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -316,16 +324,10 @@
             <tr><td>未実行取消 / 実行済み訂正</td><td>取消は確定を取り消す。訂正は新しい下書き系統を切る</td></tr>
           </tbody>
         </table>
-        <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/08_請求管理_一覧.png" alt="請求一覧">
-            <figcaption>請求 一覧 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/17_invoices_list.png" alt="請求一覧">
+            <figcaption>請求管理 一覧（現行SPA）</figcaption>
           </figure>
-          <figure class="shot">
-            <img src="../../仕様MD/画面一覧/08_請求管理_詳細.png" alt="請求詳細">
-            <figcaption>請求 詳細 <span class="badge old">参考画像</span></figcaption>
-          </figure>
-        </div>
       </section>
 
       <section id="ch-payments">
@@ -341,16 +343,10 @@
             <tr><td>取消 / 訂正</td><td>請求と同じ考え方（未実行取消 / 実行済み訂正）</td></tr>
           </tbody>
         </table>
-        <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/09_支払管理_一覧.png" alt="支払一覧">
-            <figcaption>支払 一覧 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/19_payments_list.png" alt="支払一覧">
+            <figcaption>支払管理 一覧（現行SPA）</figcaption>
           </figure>
-          <figure class="shot">
-            <img src="../../仕様MD/画面一覧/09_支払管理_詳細.png" alt="支払詳細">
-            <figcaption>支払 詳細 <span class="badge old">参考画像</span></figcaption>
-          </figure>
-        </div>
         <h3>確定後に出るPDFの種類</h3>
         <table>
           <thead><tr><th>種別</th><th>いつ出るか</th></tr></thead>
@@ -367,7 +363,7 @@
         <h2 class="chapter">13. 入出金管理・CSV</h2>
         <p>メニュー「精算 → 入出金管理・CSV」。月6回（5/10/15/20/25/末日）の管理回ごとに、予定と実績を分けて見ます。正式な全銀FBファイルはまだ出ません。確認用の出金CSVです。</p>
         <p>使える権限: 管理者 / 経営者 / 総務</p>
-        <div class="warn">画面一覧の「収支管理」「総振FB」「入金消込」は現行メニューではありません。この章の画面が現行の入出金です。</div>
+        <div class="note">正式FB・入金消込画面は未提供です。現行はこの入出金管理・CSVです。</div>
         <table>
           <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
           <tbody>
@@ -381,8 +377,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/12_収支管理.png" alt="収支（旧）">
-          <figcaption>旧・収支管理 <span class="badge old">参考画像</span> 現行は予定一覧＋CSV履歴です。</figcaption>
+          <img src="screenshots/21_cash_management.png" alt="入出金管理・CSV">
+          <figcaption>入出金管理・CSV（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -404,12 +400,12 @@
         </table>
         <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/16_マスター設定_メイン.png" alt="マスター設定ハブ">
-            <figcaption>マスター設定ハブ <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/22_master_settings_hub.png" alt="マスター設定ハブ">
+            <figcaption>マスター設定ハブ（現行SPA）</figcaption>
           </figure>
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/16_マスター設定_システム設定.png" alt="システム設定">
-            <figcaption>システム設定 <span class="badge old">参考画像</span></figcaption>
+            <img src="screenshots/23_master_settings_system.png" alt="システム設定">
+            <figcaption>システム設定（現行SPA）</figcaption>
           </figure>
         </div>
       </section>
@@ -425,8 +421,8 @@
           </tbody>
         </table>
         <figure class="shot">
-          <img src="../../仕様MD/画面一覧/16_マスター設定_UIビルダー.png" alt="UIビルダー">
-          <figcaption>UIビルダー <span class="badge old">参考画像</span></figcaption>
+          <img src="screenshots/24_ui_builder.png" alt="UIビルダー">
+          <figcaption>UIビルダー（現行SPA）</figcaption>
         </figure>
       </section>
 
@@ -434,6 +430,10 @@
         <h2 class="chapter">16. ユーザー管理</h2>
         <p>メニュー「設定 → ユーザー管理」。ログインアカウントと権限のCRUDです。</p>
         <p>使える権限: 管理者 / システム担当者</p>
+        <figure class="shot">
+          <img src="screenshots/25_users.png" alt="ユーザー管理">
+          <figcaption>ユーザー管理（現行SPA）</figcaption>
+        </figure>
         <table>
           <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
           <tbody>
