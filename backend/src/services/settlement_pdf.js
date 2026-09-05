@@ -417,7 +417,10 @@ function renderHtml(document, lines = []) {
   else if (document.document_type === 'salary_statement') body = renderSalary(document, lines);
   else if (document.document_type === 'cover_letter') body = renderCoverLetter(document);
   else throw new Error(`未対応の帳票種別です: ${document.document_type}`);
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>${commonCss()}${layoutCorrectionsCss()}</style></head><body>${body}</body></html>`;
+  const previewCss = document.preview
+    ? `.sheet:before{content:"見本・未発行";position:fixed;z-index:20;left:18%;top:42%;transform:rotate(-24deg);font-size:46pt;font-weight:700;color:rgba(180,35,24,.18);border:4px solid rgba(180,35,24,.18);padding:4mm 10mm;pointer-events:none}.sheet:after{content:"この画面は確認用です。正式な請求書・支払明細書ではありません。";position:fixed;left:14mm;right:14mm;top:2mm;text-align:center;color:#b42318;font-weight:700}`
+    : '';
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>${commonCss()}${layoutCorrectionsCss()}${previewCss}</style></head><body>${body}</body></html>`;
 }
 
 async function writePdf(document, lines) {

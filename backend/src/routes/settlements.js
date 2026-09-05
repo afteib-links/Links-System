@@ -3,7 +3,7 @@ const fs = require('fs');
 const { getPool, query } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { ensureCycles } = require('./cash_management');
-const { PDF_DIR, writePdf } = require('../services/settlement_pdf');
+const { PDF_DIR, renderHtml, writePdf } = require('../services/settlement_pdf');
 const { buildAggregatedLines } = require('../services/settlement_line_builder');
 
 const router = express.Router();
@@ -15,6 +15,27 @@ const asMoney = (value) => Math.round(Number(value || 0) * 100) / 100;
 const effective = (row, kind) => Number(kind === 'invoice' ? (row.override_billing_amount ?? row.calculated_billing_amount ?? 0) : (row.override_payment_amount ?? row.calculated_payment_amount ?? 0));
 const tableFor = (kind) => kind === 'invoice' ? 'invoices' : 'payments';
 const idFor = (kind) => kind === 'invoice' ? 'invoice_id' : 'payment_id';
+const SETTLEMENT_LINE_CODES = ['basic','overtime','night','night_overtime','distance','shortage'];
+const DEFAULT_SETTLEMENT_LINE_LABELS = ['基本料金','時間超過','深夜料金','深夜時間外','その他','不足時間'];
+
+function normalizeSettlementLineConfig(values = {}) {
+  const allowed = new Set(SETTLEMENT_LINE_CODES);
+  const requested = String(values.settlement_line_display_order || SETTLEMENT_LINE_CODES.join(','))
+    .split(',').map((value) => value.trim()).filter((value) => allowed.has(value));
+  const order = [...new Set(requested), ...SETTLEMENT_LINE_CODES.filter((value) => !requested.includes(value))];
+  const labelValues = String(values.settlement_line_display_labels || DEFAULT_SETTLEMENT_LINE_LABELS.join(','))
+    .split(',').map((value) => value.trim());
+  return {
+    order,
+    // 表示名はマスター画面に表示されている並び順と同じ位置の区分へ割り当てる。
+    labels: Object.fromEntries(order.map((code, index) => [code, labelValues[index] || code])),
+  };
+}
+
+async function settlementLineConfig(conn) {
+  const [rows] = await conn.query("SELECT setting_key,setting_value FROM system_settings WHERE setting_key IN ('settlement_line_display_order','settlement_line_display_labels') AND is_deleted=0");
+  return normalizeSettlementLineConfig(Object.fromEntries(rows.map((row) => [row.setting_key,row.setting_value])));
+}
 
 function validKind(kind) { return ['invoice', 'payment'].includes(kind); }
 function rounding(amount, mode) { return mode === 'ceil' ? Math.ceil(amount) : mode === 'round' ? Math.round(amount) : Math.floor(amount); }
@@ -53,7 +74,7 @@ async function approvedSnapshotReports(conn, reports, ym) {
   const selected = reports.map((current) => {
     const snapshot = byId.get(Number(current.daily_report_id));
     if (!snapshot) throw new Error('選択した日報が最新の月次承認スナップショットに含まれていません');
-    return { ...snapshot, project_name: current.project_name || snapshot.project_name };
+    return { ...snapshot, project_name: current.project_name || snapshot.project_name, company_name:current.company_name||snapshot.company_name, partner_name:current.partner_name||snapshot.partner_name };
   });
   return selected;
 }
@@ -167,6 +188,88 @@ async function applicableRules(conn, partnerId, ym) {
   return rows.filter((r) => !used.has(r.rule_code) && used.add(r.rule_code));
 }
 
+function invoiceDisplayLines(lines, displayMode) {
+  if (displayMode !== 'project_aggregated') return lines;
+  const grouped = new Map();
+  for (const line of lines) {
+    const key = line.project_id || `other:${line.line_type}`;
+    const previous = grouped.get(key) || {
+      ...line,
+      item_name:line.project_id ? `案件 #${line.project_id}` : line.item_name,
+      quantity:0,
+      unit_price:0,
+      amount:0,
+    };
+    previous.quantity += Number(line.quantity || 1);
+    previous.amount += Number(line.amount || 0);
+    grouped.set(key, previous);
+  }
+  return [...grouped.values()];
+}
+
+async function paymentDeductionCandidates(conn, header, lock = false) {
+  const rules = await applicableRules(conn, header.partner_id, header.target_year_month);
+  const lockClause = lock ? ' FOR UPDATE' : '';
+  const [carries] = await conn.query(
+    `SELECT * FROM settlement_carry_forwards WHERE partner_id=? AND status='open'${lockClause}`,
+    [header.partner_id]
+  );
+  const [advances] = await conn.query(
+    `SELECT ar.advance_record_id,
+            ar.advance_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.amount ELSE 0 END),0) remaining,
+            ar.transfer_fee_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.transfer_fee_amount ELSE 0 END),0) fee_remaining
+     FROM advance_records ar
+     JOIN cash_schedules cs ON cs.cash_schedule_id=ar.cash_schedule_id AND cs.status='executed'
+     LEFT JOIN advance_payment_allocations a ON a.advance_record_id=ar.advance_record_id
+     WHERE ar.partner_id=? AND ar.status='executed'
+     GROUP BY ar.advance_record_id,ar.advance_amount,ar.transfer_fee_amount
+     HAVING remaining>0 OR fee_remaining>0${lockClause}`,
+    [header.partner_id]
+  );
+  return [
+    ...carries.map((row) => ({type:'carry',row,name:row.item_name,amount:Number(row.remaining_amount),tax:row.tax_category})),
+    ...advances.flatMap((row) => [
+      ...(Number(row.remaining)>0 ? [{type:'advance',row,name:'前払控除',amount:Number(row.remaining),tax:'non_taxable'}] : []),
+      ...(Number(row.fee_remaining)>0 ? [{type:'advance_fee',row,name:'前払手数料',amount:Number(row.fee_remaining),tax:'non_taxable'}] : []),
+    ]),
+    ...rules.map((row) => ({type:'rule',row,name:row.display_name,amount:Number(row.amount),tax:row.tax_category})),
+  ];
+}
+
+function applyPaymentDeductions(gross, candidates) {
+  let available = Math.max(0, asMoney(gross));
+  const applications = [];
+  const lines = [];
+  for (const candidate of candidates) {
+    const requested = Math.max(0, asMoney(candidate.amount));
+    const applied = Math.min(available, requested);
+    const remainder = asMoney(requested - applied);
+    let line = null;
+    if (applied > 0) {
+      const sourceId = candidate.type === 'rule'
+        ? candidate.row.settlement_deduction_rule_id
+        : (candidate.type === 'advance' || candidate.type === 'advance_fee')
+          ? candidate.row.advance_record_id
+          : candidate.row.settlement_carry_forward_id;
+      line = {
+        line_type:candidate.type === 'advance' ? 'advance' : candidate.type === 'carry' ? 'carry_forward' : 'deduction',
+        source_type:candidate.type,
+        source_id:sourceId,
+        item_name:candidate.name,
+        quantity:1,
+        unit_price:-applied,
+        amount:-applied,
+        tax_category:candidate.tax,
+        snapshot:candidate.row,
+      };
+      lines.push(line);
+    }
+    applications.push({...candidate, applied, remainder, line});
+    available = asMoney(available - applied);
+  }
+  return {lines, applications, finalAmount:available};
+}
+
 router.get('/settings/deduction-rules', requireRole('admin','soumu'), async (_req,res) => {
   try { return res.json({ok:true,rules:await query(`SELECT r.*,p.partner_name FROM settlement_deduction_rules r LEFT JOIN partners p ON p.partner_id=r.partner_id ORDER BY r.rule_code,r.valid_from DESC`)}); }
   catch (_err) { return res.status(500).json({ok:false,message:'控除ルールの取得に失敗しました'}); }
@@ -189,11 +292,20 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
   const pool=getPool(); const conn=await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [reports] = await conn.query(`SELECT d.*,bp.template_name AS project_name,pr.company_id AS project_company_id FROM daily_reports d LEFT JOIN projects pr ON pr.project_id=d.project_id LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id WHERE d.daily_report_id IN (${ids.map(()=>'?').join(',')}) AND d.is_deleted=0 AND d.target_year_month=? AND d.status='approved' AND ${kind === 'invoice' ? 'd.company_id=? AND d.billing_status=\'none\'' : 'd.partner_id=? AND d.payment_status=\'none\''} FOR UPDATE`, [...ids, ym, entityId]);
+    const [reports] = await conn.query(`SELECT d.*,bp.template_name AS project_name,pr.company_id AS project_company_id,c.company_name,p.partner_name FROM daily_reports d LEFT JOIN projects pr ON pr.project_id=d.project_id LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id LEFT JOIN companies c ON c.company_id=d.company_id LEFT JOIN partners p ON p.partner_id=d.partner_id WHERE d.daily_report_id IN (${ids.map(()=>'?').join(',')}) AND d.is_deleted=0 AND d.target_year_month=? AND d.status='approved' AND ${kind === 'invoice' ? 'd.company_id=? AND d.billing_status=\'none\'' : 'd.partner_id=? AND d.payment_status=\'none\''} FOR UPDATE`, [...ids, ym, entityId]);
     if (reports.length !== ids.length) throw new Error('対象日報には承認済みでない、または既に確定対象となったものが含まれます');
     await checkMonthlyApprovals(conn, reports, ym);
     const approvedReports = await approvedSnapshotReports(conn, reports, ym);
-    const workLines = buildAggregatedLines(approvedReports, kind);
+    const workLines = buildAggregatedLines(approvedReports, kind, await settlementLineConfig(conn));
+    const projectIds=[...new Set(reports.map((row)=>Number(row.project_id)).filter(Boolean))];
+    const [closingRows]=await conn.query(
+      `SELECT pr.project_id,COALESCE(NULLIF(pr.closing_date,''),NULLIF(c.closing_date_code,''),'end') closing_date
+       FROM projects pr LEFT JOIN companies c ON c.company_id=pr.company_id
+       WHERE pr.project_id IN (${projectIds.map(()=>'?').join(',')})`, projectIds
+    );
+    const closingDates=[...new Set(closingRows.map((row)=>String(row.closing_date||'end')))];
+    if(closingDates.length!==1)throw new Error('締日が異なる案件は同じ請求書・支払明細にまとめられません');
+    const resolvedClosingDate=closingDates[0];
     const manual = Array.isArray(b.adjustments) ? b.adjustments.map((x,index) => ({
       line_type:'adjustment', source_type:'manual_adjustment', item_name:String(x.item_name || '調整'),
       quantity:Number(x.quantity ?? 1), unit_price:asMoney(x.unit_price ?? x.amount), amount:asMoney(x.amount),
@@ -207,10 +319,10 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
       const [company] = await conn.query('SELECT company_name FROM companies WHERE company_id=? AND is_deleted=0',[entityId]); if (!company.length) throw new Error('企業が見つかりません');
       let billingId=null,billingSummaryNo=null,billingPrintName=company[0].company_name;
       if(b.billing_id){const [billings]=await conn.query('SELECT billing_id,billing_summary_no,billing_print_name FROM company_billings WHERE billing_id=? AND company_id=? AND is_deleted=0',[Number(b.billing_id),entityId]);if(!billings.length)throw new Error('選択した請求先は対象企業に属していません');billingId=Number(billings[0].billing_id);billingSummaryNo=billings[0].billing_summary_no||null;billingPrintName=billings[0].billing_print_name||billingPrintName;if(String(b.billing_summary_no||'')!==String(billingSummaryNo||''))throw new Error('請求取纏番号が請求先設定と一致しません');}
-      const [result] = await conn.query(`INSERT INTO invoices (company_id,billing_id,billing_summary_no,billing_print_name,target_year_month,closing_date,invoice_status,settlement_status,subtotal_amount,adjustment_amount,taxable_amount,tax_amount,total_amount,extra_data) VALUES (?,?,?,?,?,?,'draft','draft',0,0,0,0,0,?)`,[entityId,billingId,billingSummaryNo,billingPrintName,ym,String(b.closing_date || 'end'),JSON.stringify({ draft_source:'settlement',selected_project_ids:[...new Set(reports.map((row)=>Number(row.project_id)))] })]); settlementId=result.insertId;
+      const [result] = await conn.query(`INSERT INTO invoices (company_id,billing_id,billing_summary_no,billing_print_name,target_year_month,closing_date,invoice_status,settlement_status,subtotal_amount,adjustment_amount,taxable_amount,tax_amount,total_amount,extra_data) VALUES (?,?,?,?,?,?,'draft','draft',0,0,0,0,0,?)`,[entityId,billingId,billingSummaryNo,billingPrintName,ym,resolvedClosingDate,JSON.stringify({ draft_source:'settlement',selected_project_ids:projectIds })]); settlementId=result.insertId;
     } else {
       const [partner] = await conn.query('SELECT partner_name,payment_output_code FROM partners WHERE partner_id=? AND is_deleted=0',[entityId]); if (!partner.length) throw new Error('パートナーが見つかりません');
-      const [result] = await conn.query(`INSERT INTO payments (partner_id,target_year_month,closing_date,payment_status,settlement_status,gross_amount,final_transfer_amount,payment_output_code,extra_data) VALUES (?,?,?,'draft','draft',0,0,?,?)`,[entityId,ym,String(b.closing_date || 'end'),partner[0].payment_output_code || null,JSON.stringify({ draft_source:'settlement', issue_salary_statement: Boolean(b.issue_salary_statement) })]); settlementId=result.insertId;
+      const [result] = await conn.query(`INSERT INTO payments (partner_id,target_year_month,closing_date,payment_status,settlement_status,gross_amount,final_transfer_amount,payment_output_code,extra_data) VALUES (?,?,?,'draft','draft',0,0,?,?)`,[entityId,ym,resolvedClosingDate,partner[0].payment_output_code || null,JSON.stringify({ draft_source:'settlement',selected_project_ids:projectIds,issue_salary_statement: Boolean(b.issue_salary_statement) })]); settlementId=result.insertId;
     }
     await insertLines(conn,kind,settlementId,lines,req.session.user.user_id,'月次承認済み日報から下書きを作成');
     for (const r of reports) await conn.query(kind === 'invoice' ? 'INSERT INTO invoice_daily_reports (invoice_id,daily_report_id) VALUES (?,?)' : 'INSERT INTO payment_daily_reports (payment_id,daily_report_id) VALUES (?,?)',[settlementId,r.daily_report_id]);
@@ -240,7 +352,7 @@ router.post('/:kind/:id/lines', requireRole('admin','soumu'), async(req,res)=>{
 router.put('/:kind/:id/lines/:lineId', requireRole('admin','soumu'), async(req,res)=>{
   const kind=req.params.kind,id=Number(req.params.id),lineId=Number(req.params.lineId),b=req.body||{};
   if(!validKind(kind))return res.status(404).end();
-  const reason=String(b.reason||'').trim();if(!reason)return res.status(400).json({ok:false,message:'変更理由は必須です'});
+  const reason=String(b.reason||'').trim();
   const conn=await getPool().getConnection();
   try{await conn.beginTransaction();await assertEditable(conn,kind,id);
     const [rows]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_line_id=? AND settlement_type=? AND settlement_id=? AND status='active' FOR UPDATE`,[lineId,kind,id]);
@@ -248,6 +360,7 @@ router.put('/:kind/:id/lines/:lineId', requireRole('admin','soumu'), async(req,r
     const quantity=Number(b.quantity),unitPrice=asMoney(b.unit_price),formulaAmount=asMoney(quantity*unitPrice);
     const amount=b.amount==null||b.amount===''?formulaAmount:asMoney(b.amount);
     if(!String(b.item_name||'').trim()||!Number.isFinite(quantity)||!Number.isFinite(unitPrice)||!Number.isFinite(amount))throw new Error('摘要、単価、数量、金額を正しく入力してください');
+    if(asMoney(before.amount)!==amount&&!reason)throw new Error('金額を変更する場合は変更理由が必須です');
     const after={item_name:String(b.item_name).trim(),quantity,unit_price:unitPrice,amount,tax_category:['taxable','non_taxable','tax_exempt'].includes(b.tax_category)?b.tax_category:'taxable',amount_overridden:Math.abs(amount-formulaAmount)>0.009};
     await conn.query(`UPDATE settlement_lines SET item_name=?,quantity=?,unit_price=?,amount=?,tax_category=?,reason=?,is_manually_edited=1,amount_overridden=?,version=version+1 WHERE settlement_line_id=?`,[after.item_name,after.quantity,after.unit_price,after.amount,after.tax_category,reason,after.amount_overridden?1:0,lineId]);
     await conn.query(`INSERT INTO settlement_line_audit_logs (settlement_line_id,action_code,before_data,after_data,reason,actor_user_id) VALUES (?,'update',?,?,?,?)`,[lineId,JSON.stringify(before),JSON.stringify(after),reason,req.session.user.user_id]);
@@ -278,7 +391,7 @@ router.post('/:kind/:id/lines/reorder', requireRole('admin','soumu'), async(req,
 async function currentAggregateForSettlement(conn,kind,id,ym){
   const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';const key=idFor(kind);
   const [reports]=await conn.query(`SELECT d.*,bp.template_name project_name FROM ${linkTable} l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id LEFT JOIN projects p ON p.project_id=d.project_id LEFT JOIN base_projects bp ON bp.base_project_id=p.base_project_id WHERE l.${key}=? AND d.is_deleted=0 ORDER BY d.daily_report_id`,[id]);
-  const approved=await approvedSnapshotReports(conn,reports,ym);return buildAggregatedLines(approved,kind);
+  const approved=await approvedSnapshotReports(conn,reports,ym);return buildAggregatedLines(approved,kind,await settlementLineConfig(conn));
 }
 
 router.get('/:kind/:id/source-diff', requireRole('admin','soumu'), async(req,res)=>{
@@ -420,7 +533,7 @@ async function documentRecipient(conn, kind, header) {
   if (kind === 'invoice') {
     const [rows] = await conn.query(
       `SELECT c.company_name,c.zip_code,c.address,c.contact,c.fax,
-              cb.billing_print_name,cb.billing_address,cb.billing_phone,cb.billing_fax
+              cb.billing_print_name,cb.billing_zip_code,cb.billing_address,cb.billing_phone,cb.billing_fax,cb.billing_email
        FROM companies c
        LEFT JOIN company_billings cb ON cb.billing_id=? AND cb.company_id=c.company_id AND cb.is_deleted=0
        WHERE c.company_id=? LIMIT 1`,
@@ -429,7 +542,7 @@ async function documentRecipient(conn, kind, header) {
     const row=rows[0] || {};
     return {
       name:header.billing_print_name || row.billing_print_name || row.company_name || header.company_name || '',
-      zip_code:row.zip_code || '',
+      zip_code:row.billing_zip_code || row.zip_code || '',
       address:row.billing_address || row.address || '',
       tel:row.billing_phone || row.contact || '',
       fax:row.billing_fax || row.fax || '',
@@ -532,15 +645,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
       const taxable=finalLines.filter(x=>x.tax_category==='taxable').reduce((n,x)=>n+x.amount,0);
       const tax=rounding(taxable*taxRate,taxMode);
       const total=asMoney(finalLines.reduce((n,x)=>n+x.amount,0)+tax);
-      if(setting[0]?.display_mode === 'project_aggregated'){
-        const grouped=new Map();
-        for(const line of finalLines){
-          const key=line.project_id||`other:${line.line_type}`;
-          const old=grouped.get(key)||{...line,item_name:line.project_id?`案件 #${line.project_id}`:line.item_name,quantity:0,unit_price:0,amount:0};
-          old.quantity+=Number(line.quantity||1); old.amount+=Number(line.amount); grouped.set(key,old);
-        }
-        pdfLines=[...grouped.values()];
-      }
+      pdfLines=invoiceDisplayLines(finalLines,invoiceDisplayMode);
       await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[finalLines.filter(x=>x.line_type==='work').reduce((n,x)=>n+x.amount,0),finalLines.filter(x=>x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode}),id]);
       invoiceTaxRate=taxRate;
       invoiceTaxAmount=tax;
@@ -552,48 +657,27 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
       if (wf[0].correction_of_settlement_id) {
         final = Math.max(0, asMoney(finalLines.reduce((n,x)=>n+x.amount,0)));
       } else {
-        const rules=await applicableRules(conn,header.partner_id,header.target_year_month);
-        const [carries]=await conn.query(`SELECT * FROM settlement_carry_forwards WHERE partner_id=? AND status='open' FOR UPDATE`,[header.partner_id]);
-        const [advances]=await conn.query(
-          `SELECT ar.advance_record_id,
-                  ar.advance_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.amount ELSE 0 END),0) remaining,
-                  ar.transfer_fee_amount-COALESCE(SUM(CASE WHEN a.status='active' THEN a.transfer_fee_amount ELSE 0 END),0) fee_remaining
-           FROM advance_records ar
-           JOIN cash_schedules cs ON cs.cash_schedule_id=ar.cash_schedule_id AND cs.status='executed'
-           LEFT JOIN advance_payment_allocations a ON a.advance_record_id=ar.advance_record_id
-           WHERE ar.partner_id=? AND ar.status='executed'
-           GROUP BY ar.advance_record_id,ar.advance_amount,ar.transfer_fee_amount HAVING remaining>0 OR fee_remaining>0 FOR UPDATE`,[header.partner_id]
-        );
-        const candidates=[
-          ...carries.map(x=>({type:'carry',row:x,name:x.item_name,amount:Number(x.remaining_amount),tax:x.tax_category})),
-          ...advances.flatMap(x=>[
-            ...(Number(x.remaining)>0?[{type:'advance',row:x,name:'前払控除',amount:Number(x.remaining),tax:'non_taxable'}]:[]),
-            ...(Number(x.fee_remaining)>0?[{type:'advance_fee',row:x,name:'前払手数料',amount:Number(x.fee_remaining),tax:'non_taxable'}]:[]),
-          ]),
-          ...rules.map(x=>({type:'rule',row:x,name:x.display_name,amount:Number(x.amount),tax:x.tax_category})),
-        ];
-        let available=Math.max(0,gross);
-        for(const c of candidates){
-          const applied=Math.min(available,c.amount);
-          if(applied>0){
-            const line={line_type:c.type==='advance'?'advance':c.type==='carry'?'carry_forward':'deduction',source_type:c.type,source_id:c.type==='rule'?c.row.settlement_deduction_rule_id:(c.type==='advance'||c.type==='advance_fee')?c.row.advance_record_id:c.row.settlement_carry_forward_id,item_name:c.name,quantity:1,unit_price:-applied,amount:-applied,tax_category:c.tax,snapshot:c.row};
+        const candidates=await paymentDeductionCandidates(conn,header,true);
+        const appliedDeductions=applyPaymentDeductions(gross,candidates);
+        for(const application of appliedDeductions.applications){
+          const c=application;
+          if(c.applied>0){
+            const line=c.line;
             finalLines.push(line);
             await insertLines(conn,kind,id,[line]);
             await addCompatibilityLines(conn,kind,id,[line]);
             if(c.type==='carry'){
-              await conn.query(`UPDATE settlement_carry_forwards SET remaining_amount=remaining_amount-?,status=IF(remaining_amount-?<=0,'settled','open') WHERE settlement_carry_forward_id=?`,[applied,applied,c.row.settlement_carry_forward_id]);
-              await conn.query('INSERT INTO settlement_carry_forward_allocations (settlement_carry_forward_id,payment_id,amount) VALUES (?,?,?)',[c.row.settlement_carry_forward_id,id,applied]);
+              await conn.query(`UPDATE settlement_carry_forwards SET remaining_amount=remaining_amount-?,status=IF(remaining_amount-?<=0,'settled','open') WHERE settlement_carry_forward_id=?`,[c.applied,c.applied,c.row.settlement_carry_forward_id]);
+              await conn.query('INSERT INTO settlement_carry_forward_allocations (settlement_carry_forward_id,payment_id,amount) VALUES (?,?,?)',[c.row.settlement_carry_forward_id,id,c.applied]);
             }
-            if(c.type==='advance') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE amount=amount+VALUES(amount)`,[c.row.advance_record_id,id,applied]);
-            if(c.type==='advance_fee') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,0,?) ON DUPLICATE KEY UPDATE transfer_fee_amount=transfer_fee_amount+VALUES(transfer_fee_amount)`,[c.row.advance_record_id,id,applied]);
+            if(c.type==='advance') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE amount=amount+VALUES(amount)`,[c.row.advance_record_id,id,c.applied]);
+            if(c.type==='advance_fee') await conn.query(`INSERT INTO advance_payment_allocations (advance_record_id,payment_id,amount,transfer_fee_amount) VALUES (?,?,0,?) ON DUPLICATE KEY UPDATE transfer_fee_amount=transfer_fee_amount+VALUES(transfer_fee_amount)`,[c.row.advance_record_id,id,c.applied]);
           }
-          const remainder=c.amount-applied;
-          if(remainder>0 && c.type==='rule'){
-            await conn.query(`INSERT INTO settlement_carry_forwards (partner_id,source_payment_id,source_line_id,item_name,original_amount,remaining_amount,tax_category) VALUES (?,?,?,?,?,?,?)`,[header.partner_id,id,null,c.name,remainder,remainder,c.tax]);
+          if(c.remainder>0 && c.type==='rule'){
+            await conn.query(`INSERT INTO settlement_carry_forwards (partner_id,source_payment_id,source_line_id,item_name,original_amount,remaining_amount,tax_category) VALUES (?,?,?,?,?,?,?)`,[header.partner_id,id,null,c.name,c.remainder,c.remainder,c.tax]);
           }
-          available-=applied;
         }
-        final=asMoney(available);
+        final=appliedDeductions.finalAmount;
       }
       await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,transfer_fee_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.source_type==='advance_fee').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='安全協力会費').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines}),id]);
       header.gross_amount=gross;
@@ -651,7 +735,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
   } catch(err){await conn.rollback();for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}return res.status(400).json({ok:false,message:err.message});} finally {conn.release();}
 });
 
-router.post('/:kind/:id/cancel', requireRole('admin','executive'), async(req,res)=>{
+router.post('/:kind/:id/cancel', requireRole('admin','soumu','executive'), async(req,res)=>{
   const kind=req.params.kind,id=Number(req.params.id),reason=String(req.body?.reason||'').trim();
   if(!validKind(kind))return res.status(404).end();
   if(!reason)return res.status(400).json({ok:false,message:'取消理由は必須です'});
@@ -660,6 +744,7 @@ router.post('/:kind/:id/cancel', requireRole('admin','executive'), async(req,res
     await conn.beginTransaction();
     const [wf]=await conn.query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE',[kind,id]);
     if(!wf.length||wf[0].status==='cancelled')throw new Error('取消可能な精算が見つかりません');
+    if(wf[0].status==='finalized'&&!has(req,['admin','executive']))throw new Error('最終確定後の取消は管理者または経営者だけが実行できます');
     const [executed]=await conn.query(
       `SELECT COUNT(*) cnt FROM cash_schedules s JOIN cash_transactions t ON t.cash_schedule_id=s.cash_schedule_id AND t.status='executed'
        WHERE s.source_id=? AND (s.source_type=? OR (s.source_type='adjustment' AND JSON_UNQUOTE(JSON_EXTRACT(s.snapshot_json,'$.settlement_type'))=?))`,[id,kind,kind]
@@ -741,6 +826,42 @@ router.get('/documents/:id/download', async(req,res)=>{
   }catch(_err){return res.status(500).json({ok:false,message:'帳票の取得に失敗しました'});}
 });
 
+router.get('/:kind/:id/preview', async(req,res)=>{
+  const kind=req.params.kind,id=Number(req.params.id);if(!validKind(kind))return res.status(404).end();
+  try{
+    if(!(await canAccessSettlement(req,kind,id)))return res.status(403).send('この精算は閲覧できません');
+    const [header]=await query(`SELECT * FROM ${tableFor(kind)} WHERE ${idFor(kind)}=? AND is_deleted=0`,[id]);
+    if(!header)return res.status(404).send('対象が見つかりません');
+    let lines=await query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]);
+    const [workflow]=await query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=?',[kind,id]);
+    let documentType=kind==='invoice'?'invoice':'payment_statement';
+    let previewTotal=kind==='invoice'?Number(header.total_amount):Number(header.final_transfer_amount);
+    let previewTaxRate=SYSTEM_TAX_RATE;
+    if(kind==='invoice'){
+      const [companySetting]=await query('SELECT display_mode FROM company_invoice_settings WHERE company_id=?',[header.company_id]);
+      const displayMode=companySetting?.display_mode||'detailed';
+      const projectIds=[...new Set(lines.map((line)=>Number(line.project_id)).filter(Boolean))];
+      previewTaxRate=(await resolveInvoiceTax(getPool(),header.company_id,projectIds)).rate;
+      documentType=displayMode==='project_aggregated'?'invoice_summary':'invoice';
+    } else if(!workflow?.correction_of_settlement_id && ['draft','sales_reviewed'].includes(workflow?.status)){
+      const gross=lines.filter((line)=>['work','adjustment'].includes(line.line_type)).reduce((sum,line)=>sum+Number(line.amount||0),0);
+      const candidates=await paymentDeductionCandidates(getPool(),header,false);
+      const applied=applyPaymentDeductions(gross,candidates);
+      lines=[...lines,...applied.lines];
+      previewTotal=applied.finalAmount;
+    }
+    const settings=await documentSettings(getPool());
+    const recipient=await documentRecipient(getPool(),kind,header);
+    const document={...header,...settings,recipient,settlement_type:kind,
+      document_type:documentType,document_number:'見本（未発行）',
+      issued_date:new Date(),due_date:null,payment_date:null,
+      total_amount:previewTotal,
+      tax_rate:previewTaxRate,
+      preview:true};
+    return res.type('html').send(renderHtml(document,lines));
+  }catch(err){return res.status(400).send(err.message||'プレビューを作成できません');}
+});
+
 router.get('/:kind/:id', async(req,res)=>{
   const kind=req.params.kind,id=Number(req.params.id);if(!validKind(kind))return res.status(404).end();
   try{
@@ -755,4 +876,7 @@ router.get('/:kind/:id', async(req,res)=>{
   }catch(_err){return res.status(500).json({ok:false,message:'取得に失敗しました'});}
 });
 
+router.normalizeSettlementLineConfig = normalizeSettlementLineConfig;
+router.invoiceDisplayLines = invoiceDisplayLines;
+router.applyPaymentDeductions = applyPaymentDeductions;
 module.exports = router;

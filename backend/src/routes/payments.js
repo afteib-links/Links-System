@@ -11,6 +11,48 @@ function effectivePayment(row) {
   return Number(row.calculated_payment_amount || 0);
 }
 
+function allocateTargetGroupDeductions(targets) {
+  const groups = new Map();
+  for (const target of targets) {
+    const key = `${target.partner_id}:${target.closing_date}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(target);
+  }
+  for (const rows of groups.values()) {
+    const source = rows[0] || {};
+    let remainingAdvance = Math.max(0, Number(source.advance_deduction_amount || 0));
+    let remainingFee = Math.max(0, Number(source.transfer_fee_deduction_amount || 0));
+    const remainingRules = (source.deduction_rules || []).map((rule) => ({
+      rule,
+      remaining:Math.max(0, Number(rule.amount || 0)),
+    }));
+    for (const target of rows) {
+      let available = Math.max(0, Number(target.gross_amount || 0));
+      const advance = Math.min(available, remainingAdvance);
+      available -= advance;
+      remainingAdvance -= advance;
+      const fee = Math.min(available, remainingFee);
+      available -= fee;
+      remainingFee -= fee;
+      const appliedRules = [];
+      let ruleAmount = 0;
+      for (const entry of remainingRules) {
+        const applied = Math.min(available, entry.remaining);
+        if (applied > 0) appliedRules.push({...entry.rule,amount:applied});
+        available -= applied;
+        entry.remaining -= applied;
+        ruleAmount += applied;
+      }
+      target.advance_deduction_amount = advance;
+      target.transfer_fee_deduction_amount = fee;
+      target.deduction_rules = appliedRules;
+      target.rule_deduction_amount = ruleAmount;
+      target.final_transfer_amount = Math.max(0, available);
+    }
+  }
+  return targets;
+}
+
 function roleSet(req) { return new Set(req.session.user?.roles || []); }
 function restrictPaymentRead(req, where, params, paymentAlias = 'pay') {
   const roles = roleSet(req);
@@ -31,44 +73,33 @@ function restrictPaymentRead(req, where, params, paymentAlias = 'pay') {
 router.get('/targets', async (req, res) => {
   try {
     const ym = String(req.query.target_year_month || '').trim();
-    const closing = String(req.query.closing_date || '').trim();
     if (!ym) {
       return res.status(400).json({ ok: false, message: '対象年月は必須です' });
     }
-
-    const where = [
-      `d.is_deleted = 0`,
-      `d.target_year_month = ?`,
-      `d.status = 'approved'`,
-      `d.payment_status = 'none'`,
-      `d.partner_id IS NOT NULL`,
-    ];
-    const params = [ym];
+    const projectWhere = ['pr.is_deleted=0', 'pr.partner_id IS NOT NULL'];
+    const projectParams = [];
     const targetRoles = new Set(req.session.user?.roles || []);
     if (targetRoles.has('partner')) {
-      where.push('d.partner_id = ?');
-      params.push(req.session.user.partner_id);
+      projectWhere.push('pr.partner_id=?'); projectParams.push(req.session.user.partner_id);
     } else if (targetRoles.has('sales')) {
-      where.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=d.project_id AND psr.user_id=?)');
-      params.push(req.session.user.user_id);
+      projectWhere.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=pr.project_id AND psr.user_id=?)');
+      projectParams.push(req.session.user.user_id);
     } else if (!(targetRoles.has('admin') || targetRoles.has('soumu') || targetRoles.has('executive'))) {
-      where.push('1=0');
+      projectWhere.push('1=0');
     }
-    if (closing) {
-      where.push(`(pr.closing_date = ? OR c.closing_date_code = ?)`);
-      params.push(closing, closing);
-    }
-
+    const projects = await query(
+      `SELECT pr.project_id,pr.partner_id,pr.closing_date AS project_closing_date,
+              bp.template_name AS project_name,p.partner_name,p.partner_category_code,p.payment_output_code,
+              c.closing_date_code
+       FROM projects pr JOIN partners p ON p.partner_id=pr.partner_id AND p.is_deleted=0
+       LEFT JOIN companies c ON c.company_id=pr.company_id
+       LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id
+       WHERE ${projectWhere.join(' AND ')} ORDER BY p.partner_name,pr.project_id`, projectParams
+    );
     const reports = await query(
-      `SELECT d.*, p.partner_name, p.partner_category_code, p.payment_output_code,
-              pr.closing_date AS project_closing_date, c.closing_date_code
-       FROM daily_reports d
-       JOIN partners p ON p.partner_id = d.partner_id
-       LEFT JOIN projects pr ON pr.project_id = d.project_id
-       LEFT JOIN companies c ON c.company_id = d.company_id
-       WHERE ${where.join(' AND ')}
-       ORDER BY d.partner_id, d.work_date`,
-      params
+      `SELECT d.* FROM daily_reports d WHERE d.is_deleted=0 AND d.target_year_month=?
+       AND d.project_id IN (${projects.length ? projects.map(()=>'?').join(',') : 'NULL'})
+       ORDER BY d.project_id,d.work_date`, [ym,...projects.map((p)=>Number(p.project_id))]
     );
 
     const advances = await query(
@@ -88,43 +119,22 @@ router.get('/targets', async (req, res) => {
     );
     const advMap = new Map(advances.map((a) => [Number(a.partner_id), { amount:Number(a.advance_sum || 0), fee:Number(a.transfer_fee_sum || 0) }]));
 
-    const groups = new Map();
-    for (const r of reports) {
-      const pid = Number(r.partner_id);
-      if (!groups.has(pid)) {
-        groups.set(pid, {
-          partner_id: pid,
-          partner_name: r.partner_name,
-          partner_category_code: r.partner_category_code,
-          payment_output_code: r.payment_output_code,
-          closing_date: closing || r.project_closing_date || r.closing_date_code || '',
-          report_ids: [],
-          projects: new Map(),
-          gross_amount: 0,
-        });
-      }
-      const g = groups.get(pid);
-      if (!g.report_ids.includes(r.daily_report_id)) {
-        g.report_ids.push(r.daily_report_id);
-        g.gross_amount += effectivePayment(r);
-      }
-      if (!g.projects.has(Number(r.project_id))) {
-        g.projects.set(Number(r.project_id), {
-          project_id:Number(r.project_id),
-          closing_date:r.project_closing_date || r.closing_date_code || '',
-          report_ids:[],
-          gross_amount:0,
-        });
-      }
-      const project=g.projects.get(Number(r.project_id));
-      if (!project.report_ids.includes(Number(r.daily_report_id))) {
-        project.report_ids.push(Number(r.daily_report_id));
-        project.gross_amount += effectivePayment(r);
-      }
-    }
-
+    const approvals=await query(`SELECT project_id FROM daily_report_monthly_approvals WHERE target_year_month=? AND status='approved'`,[ym]);
+    const approvedProjects=new Set(approvals.map((row)=>Number(row.project_id)));
+    const linked=await query(
+      `SELECT d.project_id,pay.payment_id,w.status FROM payment_daily_reports l
+       JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
+       JOIN payments pay ON pay.payment_id=l.payment_id AND pay.is_deleted=0 AND pay.target_year_month=?
+       JOIN settlement_workflows w ON w.settlement_type='payment' AND w.settlement_id=pay.payment_id
+       WHERE w.status<>'cancelled' ORDER BY pay.payment_id DESC`,[ym]
+    );
+    const linkByProject=new Map();for(const row of linked)if(!linkByProject.has(Number(row.project_id)))linkByProject.set(Number(row.project_id),row);
+    const reportsByProject=new Map();for(const report of reports){const id=Number(report.project_id);if(!reportsByProject.has(id))reportsByProject.set(id,[]);reportsByProject.get(id).push(report);}
     const targets = [];
-    for (const g of groups.values()) {
+    for (const project of projects) {
+      const projectId=Number(project.project_id),projectReports=reportsByProject.get(projectId)||[];
+      const eligible=approvedProjects.has(projectId)?projectReports.filter((row)=>row.status==='approved'&&row.payment_status==='none'):[];
+      const gross=eligible.reduce((sum,row)=>sum+effectivePayment(row),0);
       const ruleRows = await query(
         `SELECT rule_code, scope, display_name, amount
          FROM settlement_deduction_rules
@@ -133,7 +143,7 @@ router.get('/targets', async (req, res) => {
            AND (valid_to IS NULL OR valid_to >= ?)
            AND (scope = 'common' OR partner_id = ?)
          ORDER BY rule_code, CASE WHEN scope = 'partner' THEN 0 ELSE 1 END, valid_from DESC`,
-        [`${ym}-01`, `${ym}-01`, g.partner_id]
+        [`${ym}-01`, `${ym}-01`, project.partner_id]
       );
       const selectedRules = [];
       const seenRuleCodes = new Set();
@@ -142,25 +152,35 @@ router.get('/targets', async (req, res) => {
         seenRuleCodes.add(rule.rule_code);
         selectedRules.push(rule);
       }
-      const advance = advMap.get(g.partner_id) || { amount:0, fee:0 };
+      const advance = advMap.get(Number(project.partner_id)) || { amount:0, fee:0 };
       const advanceDeduction = Math.max(0, advance.amount);
       const transferFeeDeduction = Math.max(0, advance.fee);
       const ruleDeduction = selectedRules.reduce((sum, rule) => sum + Number(rule.amount || 0), 0);
-      const finalAmount = Math.max(0, g.gross_amount - advanceDeduction - transferFeeDeduction - ruleDeduction);
+      const finalAmount = Math.max(0, gross - advanceDeduction - transferFeeDeduction - ruleDeduction);
+      const active=linkByProject.get(projectId);
+      let targetStatus='no_reports';
+      if(active)targetStatus=active.status;
+      else if(eligible.length)targetStatus='available';
+      else if(projectReports.length)targetStatus=approvedProjects.has(projectId)?'not_available':'awaiting_approval';
       const target = {
-        ...g,
-        projects:[...g.projects.values()],
+        partner_id:Number(project.partner_id),partner_name:project.partner_name,
+        partner_category_code:project.partner_category_code,payment_output_code:project.payment_output_code,
+        project_id:projectId,project_name:project.project_name||`案件 #${projectId}`,
+        closing_date:project.project_closing_date||project.closing_date_code||'end',
+        report_ids:eligible.map((row)=>Number(row.daily_report_id)),projects:[{project_id:projectId}],gross_amount:gross,
         advance_deduction_amount: advanceDeduction,
         transfer_fee_deduction_amount: transferFeeDeduction,
         deduction_rules: selectedRules,
         rule_deduction_amount: ruleDeduction,
         other_adjustment_amount: 0,
         final_transfer_amount: finalAmount,
-        report_count: g.report_ids.length,
+        report_count: eligible.length,target_status:targetStatus,
+        settlement_id:active?Number(active.payment_id):null,
       };
       targets.push(target);
     }
 
+    allocateTargetGroupDeductions(targets);
     return res.json({ ok: true, target_year_month: ym, targets });
   } catch (err) {
     console.error('[payments/targets]', err);
@@ -457,4 +477,5 @@ router.post('/:id/print', requireRole('admin','soumu','executive'), async (req, 
 });
 
 router.ACTIVE_ADVANCE_ALLOCATION_JOIN = ACTIVE_ADVANCE_ALLOCATION_JOIN;
+router.allocateTargetGroupDeductions = allocateTargetGroupDeductions;
 module.exports = router;
