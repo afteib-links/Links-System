@@ -40,7 +40,7 @@
       `;
     },
 
-    settlementFieldsHtml(row) {
+    settlementFieldsHtml(row, isBase = false) {
       return `
         <div><label>支払区分</label>
           <select name="payment_type">
@@ -325,7 +325,7 @@
                 <div class="field-sm"><label>時間種別</label><select name="work_time_type">${this.kit.codeOptions(this.codes.work_time_type, row.work_time_type)}</select></div>
                 ${this.workFieldsHtml(row)}
               </div></section>
-              <section class="form-section-card"><h3>支払・締め条件</h3><div class="form-grid form-grid-compact">${this.settlementFieldsHtml(row)}</div></section>
+              <section class="form-section-card"><h3>支払・締め条件</h3><div class="form-grid form-grid-compact">${this.settlementFieldsHtml(row, true)}</div></section>
             </div>
             <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
