@@ -61,6 +61,23 @@ jobs:
             expected=$((expected + 1))
           done < <(find db/migrations -maxdepth 1 -type f -name '*.sql' | sort)
 
+  docker-updater-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild with the project Docker updater
+        run: bash scripts/docker-update.sh --timeout 240
+
+      - name: Show Docker diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail 150
+
+      - name: Stop test containers
+        if: always()
+        run: docker compose down
+
   mariadb-migration-and-health:
     runs-on: ubuntu-latest
     timeout-minutes: 10
