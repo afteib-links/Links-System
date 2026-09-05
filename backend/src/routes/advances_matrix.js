@@ -159,6 +159,45 @@ function summarize(projects) {
   });
   return { project_count: projects.length, cycles, advance_count: cycles.reduce((n,c) => n + c.advance_count, 0), advance_amount: cycles.reduce((n,c) => n + c.advance_amount, 0), transfer_fee_amount: cycles.reduce((n,c) => n + c.transfer_fee_amount, 0) };
 }
+function advanceProjectStatus(project) {
+  const active = (project.cycles || []).filter((cycle) => cycle.is_target && Number(cycle.advance_amount) > 0);
+  if (!active.length) return null;
+  const states = active.map((cycle) => cycle.cash_status || cycle.status);
+  if (states.every((status) => status === 'executed')) return 'completed';
+  if (states.some((status) => ['planned','exported','held'].includes(status))) return 'waiting';
+  if (states.some((status) => status === 'executed')) return 'in_progress';
+  return 'not_started';
+}
+function assertCycleVersion(setting, suppliedVersion, projectId) {
+  const expected = Number(suppliedVersion);
+  const current = setting ? Number(setting.version) : 0;
+  if (!Number.isInteger(expected) || expected < 0 || expected !== current) {
+    const error = new Error(`案件 #${projectId} は他の利用者が更新しました。再読み込みしてください`);
+    error.statusCode = 409;
+    throw error;
+  }
+}
+async function cancelScheduleExports(conn, scheduleId, reason) {
+  const [batchRows] = await conn.query(
+    `SELECT cash_export_batch_id FROM cash_export_batch_items
+     WHERE cash_schedule_id=? AND status='active' FOR UPDATE`, [scheduleId]
+  );
+  if (!batchRows.length) return;
+  await conn.query(
+    `UPDATE cash_export_batch_items
+     SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP,cancellation_reason=?
+     WHERE cash_schedule_id=? AND status='active'`, [reason,scheduleId]
+  );
+  for (const batchId of new Set(batchRows.map((row) => Number(row.cash_export_batch_id)))) {
+    await conn.query(
+      `UPDATE cash_export_batches SET status=
+       CASE
+         WHEN NOT EXISTS (SELECT 1 FROM cash_export_batch_items WHERE cash_export_batch_id=? AND status='active') THEN 'cancelled'
+         ELSE 'partially_cancelled'
+       END WHERE cash_export_batch_id=?`, [batchId,batchId]
+    );
+  }
+}
 async function sendMatrix(req, res) {
   const ym = String(req.query.target_year_month || '').trim();
   if (!/^\d{4}-\d{2}$/.test(ym)) return res.status(400).json({ ok:false, message:'対象年月は必須です' });
@@ -233,7 +272,8 @@ router.post('/groups/:groupCode/records', async (req, res) => {
     await conn.beginTransaction(); const created = [];
     for (const item of items) {
       const project = await loadEligibleProject(conn, Number(item.project_id), true); const cell = await calculatedCell(conn, project, ym, groupCode);
-      const [settingRows] = await conn.query('SELECT is_target FROM advance_cycle_settings WHERE target_year_month=? AND project_id=? AND group_code=? FOR UPDATE', [ym,project.project_id,groupCode]);
+      const [settingRows] = await conn.query('SELECT is_target,version FROM advance_cycle_settings WHERE target_year_month=? AND project_id=? AND group_code=? FOR UPDATE', [ym,project.project_id,groupCode]);
+      assertCycleVersion(settingRows[0] || null, item.version, project.project_id);
       if (settingRows[0] && !Number(settingRows[0].is_target)) throw new Error(`案件 #${project.project_id} の当該サイクルは先払OFFです`);
       const requested = Number(item.advance_amount ?? cell.calculated); const fee = Number(item.transfer_fee_amount ?? cell.feePattern.amount); const reason = String(item.adjustment_reason || '').trim();
       if (!(requested > 0)) throw new Error(`案件 #${project.project_id} の支払額は1円以上にしてください`);
@@ -273,7 +313,7 @@ router.post('/groups/:groupCode/records', async (req, res) => {
       ); created.push(recordId);
     }
     await conn.commit(); return res.status(201).json({ ok:true, advance_record_ids:created, payment_date:meta.payment_date });
-  } catch (err) { await conn.rollback(); return res.status(400).json({ ok:false, message:err.message }); } finally { conn.release(); }
+  } catch (err) { await conn.rollback(); return res.status(err.statusCode || 400).json({ ok:false, message:err.message }); } finally { conn.release(); }
 });
 
 router.post('/records/:id/cancel', async (req, res) => {
@@ -286,6 +326,7 @@ router.post('/records/:id/cancel', async (req, res) => {
     if (before.cash_schedule_id) {
       const [schedules] = await conn.query('SELECT * FROM cash_schedules WHERE cash_schedule_id=? FOR UPDATE', [before.cash_schedule_id]);
       if (schedules[0] && !['planned','held','exported'].includes(schedules[0].status)) throw new Error('実行済み前払は作成取消できません。返金調整を使用してください');
+      await cancelScheduleExports(conn, before.cash_schedule_id, reason);
       await conn.query("UPDATE cash_schedules SET status='cancelled',version=version+1 WHERE cash_schedule_id=?", [before.cash_schedule_id]);
     }
     await conn.query("UPDATE advance_records SET status='unplanned',cash_schedule_id=NULL,version=version+1 WHERE advance_record_id=?", [id]);
@@ -324,4 +365,5 @@ router.get('/', (_req,res) => res.status(410).json({ ok:false, message:'先払�
 router.put('/upsert', (_req,res) => res.status(410).json({ ok:false, message:'先払マトリクスAPIを使用してください' }));
 
 router.GROUPS = GROUPS; router.shiftMonth = shiftMonth; router.periodFor = periodFor; router.periodForCycle = periodForCycle; router.summarize = summarize;
+router.matrixData = matrixData; router.advanceProjectStatus = advanceProjectStatus; router.assertCycleVersion = assertCycleVersion; router.cancelScheduleExports = cancelScheduleExports;
 module.exports = router;

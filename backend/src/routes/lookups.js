@@ -8,7 +8,7 @@ router.use(requireAuth);
 router.get('/transfer-fees', async (_req, res) => {
   try {
     const rows = await query(
-      `SELECT transfer_fee_pattern_id, pattern_name, amount
+      `SELECT transfer_fee_pattern_id, pattern_name, amount, is_active
        FROM transfer_fee_patterns WHERE is_deleted = 0 AND is_active = 1
        ORDER BY sort_order ASC, transfer_fee_pattern_id ASC`
     );

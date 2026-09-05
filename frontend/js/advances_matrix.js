@@ -135,7 +135,7 @@
       const items = [];
       this.selected.forEach((projectId) => {
         const cycle = this.findCycle(projectId, code);
-        if (cycle?.is_target && Number(cycle.advance_amount) > 0 && cycle.status === 'unplanned') items.push({ project_id:projectId, advance_amount:Number(cycle.advance_amount), transfer_fee_amount:Number(cycle.transfer_fee_amount), adjustment_reason:cycle.adjustment_reason || '' });
+        if (cycle?.is_target && Number(cycle.advance_amount) > 0 && cycle.status === 'unplanned') items.push({ project_id:projectId, advance_amount:Number(cycle.advance_amount), transfer_fee_amount:Number(cycle.transfer_fee_amount), adjustment_reason:cycle.adjustment_reason || '', version:Number(cycle.version || 0) });
       });
       if (!items.length) return window.alert('選択案件に、先払ON・支払額1円以上の未作成セルがありません');
       const result = await this.ctx.api(`/api/advances/groups/${code}/records`, { method:'POST', body:JSON.stringify({ target_year_month:this.ym, items }) });

@@ -46,3 +46,34 @@ test('先払ONかつ1円以上だけを合計する', () => {
   assert.equal(summary.advance_amount, 100);
   assert.equal(summary.transfer_fee_amount, 550);
 });
+
+test('先払対象サイクルだけで案件進捗を判定する', () => {
+  const project = { cycles:[
+    { is_target:true, advance_amount:100, status:'executed' },
+    { is_target:false, advance_amount:200, status:'unplanned' },
+    { is_target:true, advance_amount:0, status:'unplanned' },
+  ] };
+  assert.equal(advancesRouter.advanceProjectStatus(project), 'completed');
+  assert.equal(advancesRouter.advanceProjectStatus({ cycles:[{ is_target:false,advance_amount:100,status:'unplanned' }] }), null);
+  assert.equal(advancesRouter.advanceProjectStatus({ cycles:[{ is_target:true,advance_amount:100,status:'planned' }] }), 'waiting');
+});
+
+test('一括予定作成はセル設定の版不一致を拒否する', () => {
+  assert.doesNotThrow(() => advancesRouter.assertCycleVersion(null, 0, 10));
+  assert.doesNotThrow(() => advancesRouter.assertCycleVersion({ version:3 }, 3, 10));
+  assert.throws(() => advancesRouter.assertCycleVersion({ version:4 }, 3, 10), (error) => error.statusCode === 409 && /再読み込み/.test(error.message));
+});
+
+test('作成取消はCSV明細とバッチ状態も取消更新する', async () => {
+  const calls = [];
+  const conn = { query:async (sql, params) => {
+    calls.push({ sql,params });
+    if (/SELECT cash_export_batch_id/.test(sql)) return [[{ cash_export_batch_id:7 },{ cash_export_batch_id:8 }]];
+    return [{}];
+  } };
+  await advancesRouter.cancelScheduleExports(conn, 25, '誤作成');
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls[1].params, ['誤作成',25]);
+  assert.deepEqual(calls[2].params, [7,7]);
+  assert.deepEqual(calls[3].params, [8,8]);
+});
