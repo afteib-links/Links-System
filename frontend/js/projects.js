@@ -49,7 +49,7 @@
           </select>
         </div>
         <div><label>分割単価</label><input name="installment_amount" type="number" step="0.01" value="${this.ctx.escapeHtml(row.installment_amount ?? '')}" /></div>
-        ${isBase ? '' : `<div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">パートナー設定を使用</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(row.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${Number(fee.amount).toLocaleString('ja-JP')}円）</option>`).join('')}</select></div>`}
+        ${isBase ? '' : `<div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">パートナー設定を使用</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(row.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${this.kit.money(fee.amount)}）</option>`).join('')}</select></div>`}
         <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_start_date))}" /></div>
         <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, row.closing_date)}</select></div>
       `;
@@ -105,6 +105,28 @@
             <tbody>${rows || '<tr><td colspan="6">金額データがありません</td></tr>'}</tbody>
           </table>
         </div>`;
+    },
+
+    linkedProjectsSectionHtml(projects) {
+      const rows = (projects || []).map((project) => `<tr>
+        <td>#${this.ctx.escapeHtml(project.project_id)}</td>
+        <td>${this.ctx.escapeHtml(project.partner_name || '-')}</td>
+        <td>${this.ctx.escapeHtml(project.manager_name || '-')}</td>
+        <td>${this.ctx.escapeHtml(project.business_type || '-')}</td>
+        <td>${project.payment_type === 'installment' ? '分割' : '通常'}</td>
+        <td>${this.ctx.escapeHtml(this.kit.codeLabel(this.codes.closing_date, project.closing_date))}</td>
+        <td>${this.ctx.escapeHtml(this.kit.dateValue(project.operation_start_date) || '-')}</td>
+        <td><button type="button" class="btn btn-ghost btn-small" data-open-linked-project="${project.project_id}">編集</button></td>
+      </tr>`).join('');
+      return `<section class="linked-projects-section">
+        <h3 class="section-title">紐づく個別案件</h3>
+        <div class="table-wrap">
+          <table class="data-table data-table-compact" data-no-list-enhance>
+            <thead><tr><th>案件No</th><th>パートナー</th><th>担当</th><th>業種</th><th>支払区分</th><th>締日</th><th>運用開始日</th><th>操作</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="8">紐づく個別案件はありません</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>`;
     },
 
     bindPriceSetsSection(ownerKind, ownerId, companyId, refreshFn) {
@@ -333,6 +355,7 @@
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
             </div>
           </form>
+          ${id ? this.linkedProjectsSectionHtml(row.linked_projects) : ''}
           ${id ? this.priceSetsSectionHtml(row.price_sets, 'base', id, row.company_id) : ''}
         </section>`,
         { onBack: () => this.showBaseList() }
@@ -378,6 +401,11 @@
         await this.showBaseList(id ? '更新しました' : '登録しました');
       });
       if (id) {
+        document.querySelectorAll('[data-open-linked-project]').forEach((button) => button.addEventListener('click', () => {
+          this.tab = 'projects';
+          this.kit.pushNav(() => this.showBaseDetail(id));
+          this.showProjectDetail(Number(button.getAttribute('data-open-linked-project')));
+        }));
         this.bindPriceSetsSection('base', id, row.company_id, () => this.showBaseDetail(id));
       }
     },

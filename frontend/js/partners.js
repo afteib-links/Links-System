@@ -251,7 +251,7 @@
             <div class="form-grid form-grid-compact">
               <div><label>名称（必須）</label><input name="partner_name" required value="${this.ctx.escapeHtml(partner.partner_name || '')}" /></div>
               <div><label>カナ</label><input name="partner_name_kana" value="${this.ctx.escapeHtml(partner.partner_name_kana || '')}" /></div>
-              <div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">未設定（0円）</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(partner.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${Number(fee.amount).toLocaleString('ja-JP')}円）</option>`).join('')}</select></div>
+              <div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">未設定（￥0）</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(partner.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${this.kit.money(fee.amount)}）</option>`).join('')}</select></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(partner.zip_code || '')}" /></div>
               <div class="full"><label>住所</label><input name="address" value="${this.ctx.escapeHtml(partner.address || '')}" /></div>
               <div><label>電話</label><input name="contact_phone" value="${this.ctx.escapeHtml(partner.contact_phone || '')}" /></div>

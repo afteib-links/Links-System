@@ -154,8 +154,19 @@ async function fetchBase(id) {
   );
   const base = rows[0] || null;
   if (!base) return null;
-  const price_sets = await listPriceSetsForBase(id);
-  return { ...base, price_sets };
+  const [price_sets, linked_projects] = await Promise.all([
+    listPriceSetsForBase(id),
+    query(
+      `SELECT p.project_id, p.partner_id, p.manager_name, p.business_type,
+              p.payment_type, p.closing_date, p.operation_start_date, pt.partner_name
+       FROM projects p
+       LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       WHERE p.base_project_id = ? AND p.is_deleted = 0
+       ORDER BY p.project_id ASC`,
+      [id]
+    ),
+  ]);
+  return { ...base, price_sets, linked_projects };
 }
 
 async function fetchProject(id) {

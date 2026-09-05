@@ -209,8 +209,10 @@ async function main() {
       /自動: E2E通常料金/,
       '自動選択された料金名を料金名欄に表示すること'
     );
-    await detail.getByText(/不足 5:00 \/ ¥-6,000/).waitFor();
-    await detail.getByText(/不足 6:00 \/ ¥-5,400/).waitFor();
+    await detail.getByText(/不足 5:00 \/ ￥-6,000/).waitFor();
+    await detail.getByText(/不足 6:00 \/ ￥-5,400/).waitFor();
+    assert.equal(await detail.locator('.dr-rate-table .dt-filter-row').count(), 0, '契約料金表へ一覧検索行を追加しないこと');
+    assert.equal(await page.locator('.app-shell-scroll-body').count(), 1, '日報詳細ではページ本体を固定すること');
     const previewResponse = page.waitForResponse(
       (response) => response.url().includes('/api/daily-reports/preview') && response.status() === 200
     );

@@ -482,12 +482,7 @@
       <div class="app-shell">
         ${sidebarHtml('users')}<div class="app-frame">${headerHtml()}
         <main class="app-main">
-          <div class="page-header-row">
-            <div class="back-row">
-              <button type="button" class="btn btn-ghost" id="back-home">← 機能一覧へ戻る</button>
-            </div>
-            <h2 class="page-title">ユーザー管理</h2>
-          </div>
+          <div class="page-header-row"><h2 class="page-title">ユーザー管理</h2></div>
           <section class="panel">
             ${message ? `<p class="flash">${escapeHtml(message)}</p>` : ''}
             <div class="section-head">
@@ -517,7 +512,6 @@
       </div></div>`;
 
     bindChrome();
-    document.getElementById('back-home')?.addEventListener('click', () => showHome());
     document.getElementById('new-user-btn')?.addEventListener('click', () => openUserEditor(null));
 
     document.querySelectorAll('[data-edit-user]').forEach((btn) => {

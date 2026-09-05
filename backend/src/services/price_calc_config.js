@@ -34,7 +34,7 @@ function dayTypesForWorkDate(workDate, isHoliday = false) {
 }
 
 function feeItemMatchesDate(item, workDate, isHoliday = false) {
-  if (!item || item.mode === 'distance') return false;
+  if (!feeItemHasSupportedCalc(item)) return false;
   if (isHoliday) return Boolean(item.weekdays?.holiday || item.weekdays?.all);
   const weekday = jsWeekdayCode(workDate);
   return Boolean(
@@ -44,17 +44,27 @@ function feeItemMatchesDate(item, workDate, isHoliday = false) {
   );
 }
 
+function feeItemHasSupportedCalc(item) {
+  if (!item || item.mode === 'distance') return false;
+  const calcTypes = Array.isArray(item.calc_types) && item.calc_types.length
+    ? item.calc_types
+    : Object.keys(item.matrix || {}).length
+      ? Object.keys(item.matrix)
+      : ['daily', 'hourly'];
+  return calcTypes.some((type) => type === 'daily' || type === 'hourly');
+}
+
 function resolveFeeItem(items, workDate, selectedId, isTraining = false, isHoliday = false) {
   if (selectedId) {
-    const selected = items.find((item) => String(item.id) === String(selectedId));
+    const selected = items.find((item) => String(item.id) === String(selectedId) && feeItemHasSupportedCalc(item));
     if (selected) return { item: selected, source: 'manual' };
   }
   if (isTraining) {
-    const training = items.find((item) => String(item.name || '').includes('研修'));
+    const training = items.find((item) => feeItemHasSupportedCalc(item) && String(item.name || '').includes('研修'));
     if (training) return { item: training, source: 'auto' };
   }
   const matched = items.find((item) => feeItemMatchesDate(item, workDate, isHoliday));
-  return { item: matched || items.find((item) => item.mode !== 'distance') || null, source: 'auto' };
+  return { item: matched || items.find((item) => feeItemHasSupportedCalc(item)) || null, source: 'auto' };
 }
 
 function normalizeConfig(extraData) {
@@ -104,6 +114,7 @@ module.exports = {
   jsWeekdayCode,
   dayTypesForWorkDate,
   feeItemMatchesDate,
+  feeItemHasSupportedCalc,
   resolveFeeItem,
   normalizeConfig,
   nightInputMode,

@@ -13,6 +13,7 @@ const {
   jsWeekdayCode,
   dayTypesForWorkDate,
   resolveFeeItem,
+  feeItemHasSupportedCalc,
   normalizeConfig,
   nightInputMode,
 } = require('./price_calc_config');
@@ -148,7 +149,7 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
         }
       : null,
     fee_items: context.items
-      .filter((item) => item.mode !== 'distance')
+      .filter((item) => feeItemHasSupportedCalc(item))
       .map((item) => ({ id: item.id, name: item.name || '料金項目' })),
     ...context.config,
   };

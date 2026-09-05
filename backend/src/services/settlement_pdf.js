@@ -32,7 +32,15 @@ function number(value) {
 }
 
 function yen(value, suffix = '') {
-  return `¥${Math.round(number(value)).toLocaleString('ja-JP')}${suffix}`;
+  return `￥${Math.round(number(value)).toLocaleString('ja-JP')}${suffix}`;
+}
+
+function yenUnit(value) {
+  const amount = number(value);
+  return `￥${amount.toLocaleString('ja-JP', {
+    minimumFractionDigits:Number.isInteger(amount) ? 0 : 1,
+    maximumFractionDigits:2,
+  })}`;
 }
 
 function quantity(value) {
@@ -256,7 +264,7 @@ function bankBlock(document, owner = 'issuer') {
 
 function invoiceRowsHtml(rows, minimumRows = 7) {
   const body = rows.map((row, index) => `<tr class="${number(row.amount) < 0 ? 'negative' : ''}">
-    <td class="center">${index + 1}</td><td>${escape(row.itemName)}</td><td class="money">${yen(row.unitPrice)}</td>
+    <td class="center">${index + 1}</td><td>${escape(row.itemName)}</td><td class="money">${yenUnit(row.unitPrice)}</td>
     <td class="num">${quantity(row.quantity)}</td><td class="money">${yen(row.amount)}</td></tr>`).join('');
   const blanks = Array.from(
     { length:Math.max(0, minimumRows - rows.length) },
@@ -268,7 +276,7 @@ function invoiceRowsHtml(rows, minimumRows = 7) {
 function paymentRowsHtml(rows, minimumRows = 5) {
   const body = rows.map((row, index) => `<tr class="${number(row.amount) < 0 ? 'negative' : ''}">
     <td class="center">${index + 1}</td><td>${escape(row.itemName)}</td><td class="num">${quantity(row.quantity)}</td>
-    <td class="money">${yen(row.unitPrice)}</td><td class="money">${yen(row.amount)}</td></tr>`).join('');
+    <td class="money">${yenUnit(row.unitPrice)}</td><td class="money">${yen(row.amount)}</td></tr>`).join('');
   const blanks = Array.from(
     { length:Math.max(0, minimumRows - rows.length) },
     () => '<tr class="blank"><td></td><td></td><td></td><td></td><td></td></tr>'

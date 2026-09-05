@@ -14,7 +14,21 @@
       this.partners = partners.data?.partners || [];
       await this.show();
     },
-    money(value) { return Math.round(Number(value || 0)).toLocaleString('ja-JP'); },
+    number(value) { return Math.round(Number(value || 0)).toLocaleString('ja-JP'); },
+    amount(value) { return this.kit.money(value); },
+    unit(value) { return this.kit.unitPrice(value); },
+    periodHtml(start, end) {
+      const parts = (value) => {
+        const match = String(value || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? { year:Number(match[1]), month:Number(match[2]), day:Number(match[3]) } : null;
+      };
+      const from = parts(start); const to = parts(end);
+      if (!from || !to) return `<strong>${this.ctx.escapeHtml(start || '-')}〜${this.ctx.escapeHtml(end || '-')}</strong>`;
+      const range = from.year === to.year
+        ? `${from.month}月${from.day}日～${to.month}月${to.day}日`
+        : `${from.month}月${from.day}日～${to.year}年${to.month}月${to.day}日`;
+      return `<small>${from.year}年</small><strong>${range}</strong>`;
+    },
     status(value) { return STATUS_LABELS[value] || value || '-'; },
     queryString() {
       const params = new URLSearchParams({ target_year_month: this.ym });
@@ -37,7 +51,7 @@
       }).join('');
       const footers = GROUP_ORDER.map((code) => {
         const total = (data.summary?.cycles || []).find((row) => row.group_code === code) || {};
-        return `<td class="advance-cycle-total"><span>${this.money(total.advance_amount)}円</span><small>${this.money(total.advance_count)}件／手数料 ${this.money(total.transfer_fee_amount)}円</small><div class="advance-total-actions"><button class="btn btn-small" data-create-group="${code}">選択分を予定作成</button><button class="btn btn-ghost btn-small" data-export-group="${code}" data-cycle="${groups[code]?.cash_cycle_id || ''}">CSV出力</button></div></td>`;
+        return `<td class="advance-cycle-total"><span>${this.amount(total.advance_amount)}</span><small>${this.number(total.advance_count)}件／手数料 ${this.amount(total.transfer_fee_amount)}</small><div class="advance-total-actions"><button class="btn btn-small" data-create-group="${code}">選択分を予定作成</button><button class="btn btn-ghost btn-small" data-export-group="${code}" data-cycle="${groups[code]?.cash_cycle_id || ''}">CSV出力</button></div></td>`;
       }).join('');
       this.ctx.app.innerHTML = this.kit.shell(
         '先払管理',
@@ -45,7 +59,7 @@
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="advance-topbar">
             ${this.kit.monthNavigatorHtml(this.ym, 'advance-month')}
-            <div class="advance-summary"><span>対象月全体 <strong>${this.money(data.summary?.project_count)}案件</strong></span><span>先払 <strong>${this.money(data.summary?.advance_count)}回</strong></span><span>合計 <strong>${this.money(data.summary?.advance_amount)}円</strong></span><span>手数料 <strong>${this.money(data.summary?.transfer_fee_amount)}円</strong></span></div>
+            <div class="advance-summary"><span>対象月全体 <strong>${this.number(data.summary?.project_count)}案件</strong></span><span>先払 <strong>${this.number(data.summary?.advance_count)}回</strong></span><span>合計 <strong>${this.amount(data.summary?.advance_amount)}</strong></span><span>手数料 <strong>${this.amount(data.summary?.transfer_fee_amount)}</strong></span></div>
           </div>
           <form id="advance-filters" class="advance-filterbar">
             <input name="q" value="${this.ctx.escapeHtml(this.filters.q)}" placeholder="案件・企業・パートナーを検索">
@@ -54,14 +68,14 @@
             <select name="closing_date"><option value="">全締日</option>${['5','10','15','20','25','end'].map((v) => `<option value="${v}" ${this.filters.closing_date === v ? 'selected' : ''}>${v === 'end' ? '末日' : `${v}日`}</option>`).join('')}</select>
             <select name="status"><option value="">全状態</option>${Object.entries(STATUS_LABELS).filter(([v]) => v !== 'cancelled').map(([v,l]) => `<option value="${v}" ${this.filters.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <button class="btn btn-secondary btn-small">絞り込み</button><button type="button" id="advance-clear" class="btn btn-ghost btn-small">クリア</button>
-            <span class="muted">表示 ${this.money(data.visible_project_count)}／全 ${this.money(data.summary?.project_count)}案件</span>
+            <span class="muted">表示 ${this.number(data.visible_project_count)}／全 ${this.number(data.summary?.project_count)}案件</span>
           </form>
           <p class="advance-help">支払区分が「分割」の個別案件を、稼働0日を含めて表示します。金額変更時は理由を記録します。</p>
           <div class="advance-matrix-wrap">
             <table class="advance-matrix">
               <thead><tr><th class="advance-project-heading">案件情報</th>${cycleHeaders}<th class="advance-project-total-heading">案件別合計</th></tr></thead>
               <tbody>${rows || '<tr><td colspan="5" class="advance-empty">条件に一致する分割案件はありません</td></tr>'}</tbody>
-              <tfoot><tr><td class="advance-project-footer">対象月全体の合計</td>${footers}<td class="advance-grand-total"><strong>${this.money(data.summary?.advance_amount)}円</strong><small>先払 ${this.money(data.summary?.advance_count)}回</small><small>手数料 ${this.money(data.summary?.transfer_fee_amount)}円</small></td></tr></tfoot>
+              <tfoot><tr><td class="advance-project-footer">対象月全体の合計</td>${footers}<td class="advance-grand-total"><strong>${this.amount(data.summary?.advance_amount)}</strong><small>先払 ${this.number(data.summary?.advance_count)}回</small><small>手数料 ${this.amount(data.summary?.transfer_fee_amount)}</small></td></tr></tfoot>
             </table>
           </div>
         </section>`,
@@ -79,7 +93,7 @@
       return `<tr data-project-id="${project.project_id}">
         <td class="advance-project-cell"><label class="advance-project-select"><input type="checkbox" data-select-project ${checked}><span>#${project.project_id}</span></label><strong class="advance-project-name">${this.ctx.escapeHtml(project.project_name)}</strong><span>${this.ctx.escapeHtml(project.company_name || '-')}</span><span>${this.ctx.escapeHtml(project.partner_name || '-')}</span><small>締日 ${project.closing_date === 'end' ? '末日' : `${project.closing_date}日`}</small></td>
         ${cycles}
-        <td class="advance-project-total"><span>先払回数 <strong>${this.money(project.totals.advance_count)}回</strong></span><span>先払合計額 <strong>${this.money(project.totals.advance_amount)}円</strong></span><span>手数料 <strong>${this.money(project.totals.transfer_fee_amount)}円</strong></span></td>
+        <td class="advance-project-total"><span>先払回数 <strong>${this.number(project.totals.advance_count)}回</strong></span><span>先払合計額 <strong>${this.amount(project.totals.advance_amount)}</strong></span><span>手数料 <strong>${this.amount(project.totals.transfer_fee_amount)}</strong></span></td>
       </tr>`;
     },
     cycleCell(project, cycle) {
@@ -89,12 +103,9 @@
       const changedFee = Number(cycle.transfer_fee_amount) !== Number(cycle.transfer_fee_base_amount);
       const state = cycle.cash_status || cycle.status;
       return `<td class="advance-cycle-cell" data-cycle="${cycle.group_code}" data-version="${cycle.version}">
-        <div class="advance-cycle-line"><label class="advance-switch"><input type="checkbox" data-target ${cycle.is_target ? 'checked' : ''} ${locked ? 'disabled' : ''}><span>先払</span></label>${this.kit.statusBadge(state, this.status(state))}</div>
-        <label class="advance-inline-field"><span>支払額</span><input type="number" inputmode="numeric" min="0" max="99999999" data-amount value="${Number(cycle.advance_amount)}" ${locked || !cycle.is_target ? 'disabled' : ''}></label>
-        <small class="advance-origin ${changedAmount ? 'is-changed' : ''}">元：${this.money(cycle.calculated_amount)}円（${this.money(cycle.unit_price)}円 × ${cycle.work_days}日）${changedAmount ? '・変更あり' : ''}</small>
-        <label class="advance-inline-field"><span>手数料</span><input type="number" inputmode="numeric" min="0" max="99999999" data-fee value="${Number(cycle.transfer_fee_amount)}" ${locked || !cycle.is_target ? 'disabled' : ''}></label>
-        <small class="advance-origin ${changedFee ? 'is-changed' : ''}">自動：${this.money(cycle.transfer_fee_base_amount)}円${cycle.transfer_fee_pattern_name ? `（${this.ctx.escapeHtml(cycle.transfer_fee_pattern_name)}）` : ''}${changedFee ? '・変更あり' : ''}</small>
-        <small class="advance-period">${cycle.period_start}〜${cycle.period_end}</small>
+        <div class="advance-cycle-head"><div class="advance-period">${this.periodHtml(cycle.period_start, cycle.period_end)}</div><div class="advance-cycle-line"><label class="advance-switch"><input type="checkbox" data-target ${cycle.is_target ? 'checked' : ''} ${locked ? 'disabled' : ''}><span>先払</span></label>${this.kit.statusBadge(state, this.status(state))}</div></div>
+        <div class="advance-value-row"><label class="advance-inline-field"><span>支払額</span><span class="money-input-wrap"><span>￥</span><input class="advance-amount-input" type="number" inputmode="numeric" min="0" max="99999999" data-amount value="${Number(cycle.advance_amount)}" ${locked || !cycle.is_target ? 'disabled' : ''}></span></label><span class="advance-origin ${changedAmount ? 'is-changed' : ''}"><span>元：${this.amount(cycle.calculated_amount)}</span><span>${this.unit(cycle.unit_price)} × ${cycle.work_days}日</span>${changedAmount ? '<em>変更あり</em>' : ''}</span></div>
+        <div class="advance-value-row"><label class="advance-inline-field"><span>手数料</span><span class="money-input-wrap"><span>￥</span><input class="advance-fee-input" type="number" inputmode="numeric" min="0" max="99999999" data-fee value="${Number(cycle.transfer_fee_amount)}" ${locked || !cycle.is_target ? 'disabled' : ''}></span></label><span class="advance-origin ${changedFee ? 'is-changed' : ''}"><span>元：${this.amount(cycle.transfer_fee_base_amount)}</span>${cycle.transfer_fee_pattern_name ? `<span>${this.ctx.escapeHtml(cycle.transfer_fee_pattern_name)}</span>` : ''}${changedFee ? '<em>変更あり</em>' : ''}</span></div>
         <div class="advance-cell-actions">${cycle.status === 'planned' ? `<button class="btn btn-ghost btn-small" data-cancel="${cycle.advance_record_id}">作成取消</button>` : ''}${cycle.status === 'executed' ? `<button class="btn btn-ghost btn-small" data-reverse="${cycle.advance_record_id}">返金・訂正</button>` : ''}</div>
       </td>`;
     },

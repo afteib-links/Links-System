@@ -1,4 +1,19 @@
 (() => {
+  function numeric(value) {
+    const parsed = Number(String(value ?? 0).replace(/[￥¥,，\s]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const moneyFormat = {
+    amount(value) {
+      return `￥${Math.round(numeric(value)).toLocaleString('ja-JP')}`;
+    },
+    unit(value) {
+      const number = numeric(value);
+      return `￥${number.toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    },
+  };
+
   function createFeatureKit(ctx) {
     const navStack = [];
 
@@ -14,11 +29,11 @@
         const s = String(value);
         return s.length >= 5 ? s.slice(0, 5) : s;
       },
-      /** A-10 / A-11: launcher + previous-screen back */
+      /** 共通画面シェル。詳細画面だけ前画面へ戻る導線を表示する。 */
       shell(title, bodyHtml, options = {}) {
         const showHistoryBack = options.showHistoryBack !== false && (options.onBack || navStack.length);
-        const mainClass = options.wide ? 'app-main app-main-wide' : 'app-main';
-        const shellClass = options.wide ? 'app-shell app-shell-wide' : 'app-shell';
+        const mainClass = `${options.wide ? 'app-main app-main-wide' : 'app-main'}${options.scrollBodyOnly ? ' app-main-scroll-body' : ''}`;
+        const shellClass = `${options.wide ? 'app-shell app-shell-wide' : 'app-shell'}${options.scrollBodyOnly ? ' app-shell-scroll-body' : ''}`;
         return `
           <div class="${shellClass}">
             ${ctx.sidebarHtml?.() || ''}
@@ -26,14 +41,7 @@
             ${ctx.headerHtml()}
             <main class="${mainClass}">
               <div class="page-header-row">
-                <div class="back-row">
-                  <button type="button" class="btn btn-ghost" id="back-launcher">← 機能一覧へ</button>
-                  ${
-                    showHistoryBack
-                      ? '<button type="button" class="btn btn-ghost" id="back-history">← 戻る</button>'
-                      : ''
-                  }
-                </div>
+                ${showHistoryBack ? '<div class="back-row"><button type="button" class="btn btn-ghost" id="back-history">← 戻る</button></div>' : ''}
                 <h2 class="page-title">${ctx.escapeHtml(title)}</h2>
               </div>
               ${bodyHtml}
@@ -44,10 +52,6 @@
       bindShell(options = {}) {
         if (ctx.bindChrome) ctx.bindChrome();
         else ctx.bindLogout();
-        document.getElementById('back-launcher')?.addEventListener('click', () => {
-          navStack.length = 0;
-          ctx.showHome();
-        });
         document.getElementById('back-history')?.addEventListener('click', () => {
           if (typeof options.onBack === 'function') {
             options.onBack();
@@ -211,8 +215,20 @@
         const meta = this.statusMeta(code, label);
         return `<span class="status-badge tone-${meta.tone}" data-status="${ctx.escapeHtml(meta.code)}" aria-label="${ctx.escapeHtml(meta.label)}">${ctx.escapeHtml(meta.label)}</span>`;
       },
+      money(value) {
+        return moneyFormat.amount(value);
+      },
+      unitPrice(value) {
+        return moneyFormat.unit(value);
+      },
       summaryCardsHtml(items = []) {
-        return `<div class="summary-cards">${items.map((item) => `<div class="summary-card tone-${ctx.escapeHtml(item.tone || 'neutral')}"><span>${ctx.escapeHtml(item.label)}</span><strong>${ctx.escapeHtml(item.value ?? 0)}</strong></div>`).join('')}</div>`;
+        return `<div class="summary-cards">${items.map((item) => {
+          const tag = item.filter != null ? 'button' : 'div';
+          const attrs = item.filter != null
+            ? ` type="button" data-summary-filter="${ctx.escapeHtml(item.filter)}" aria-pressed="${item.active ? 'true' : 'false'}"`
+            : '';
+          return `<${tag}${attrs} class="summary-card tone-${ctx.escapeHtml(item.tone || 'neutral')} ${item.active ? 'is-active' : ''}"><span>${ctx.escapeHtml(item.label)}</span><strong>${ctx.escapeHtml(item.value ?? 0)}</strong></${tag}>`;
+        }).join('')}</div>`;
       },
       shiftYearMonth(value, delta) {
         const [year, month] = String(value || this.currentYearMonth()).split('-').map(Number);
@@ -272,4 +288,5 @@
   }
 
   window.LinksFeatureKit = { createFeatureKit };
+  window.LinksMoney = moneyFormat;
 })();

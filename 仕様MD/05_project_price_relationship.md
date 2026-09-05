@@ -41,7 +41,7 @@ erDiagram
 | `validFrom` / `validTo` | `apply_start_date` / `apply_end_date`（`validTo` NULL＝無期限） |
 | `priceSetNo` | `price_sets.price_set_no`（例 `PS-20260801-001`） |
 | `dayType` | `price_set_lines.weekday_code`（`day_type` マスタ: weekday=平日, half=半日, sat=土曜…） |
-| `calcType` | `price_set_lines.calc_type_code`（`daily` / `hourly`） |
+| `calcType` | `price_set_lines.calc_type_code`（`daily` / `hourly` / `distance` / 料金計算区分マスターの追加値） |
 | `billingPrice1` | `billing_unit_price`（将来 `billing_price_2`〜4 は次段） |
 | `paymentPrice1` | `payment_unit_price` |
 
@@ -149,13 +149,21 @@ flowchart TD
 
 ## 9. 料金行 UI モデル（曜日ブロック × マトリクス）
 
+### 9.1 計算種別の複数選択と表示（2026-09-06確定）
+
+- 料金項目ごとに料金計算区分マスターから1件以上の計算種別を複数選択できる。
+- `daily`、`hourly`およびそれ以外の距離以外の計算種別は、選択した曜日ごとに`price_set_lines`へ展開する。`distance`だけは曜日に依存せず`weekday_code=all`で保存する。
+- 既存の`mode=weekdays`は日極＋時間、`mode=distance`は距離として読み替え、`extra_data.fee_items[].calc_types`がないデータもそのまま表示できるようにする。
+- 日極・時間・距離以外の計算種別は単価の設定・保存・再表示までを許可するが、計算方法が未定義のため日報自動計算へは使用せず、画面へ「計算未対応」と表示する。
+- 金額表示は通常金額を整数円、単価を既存値に小数がある場合だけ小数付きとし、いずれも`￥`を付ける。入力・保存・計算の整数円ルールは変更しない。
+
 金額データ **詳細画面** の編集単位は平坦な `price_set_lines` 行ではなく、**料金項目**（業務上のまとまり）とする。
 
 | 画面概念 | 保存先 |
 |----------|--------|
 | 料金項目名（平日・休日・距離超過など） | `price_sets.extra_data.fee_items[].name` |
 | 適用曜日（月火水木金土日祝） | 項目ごとチェック → 保存時に **曜日ごと 1 行** へ展開（`weekday_code`） |
-| 日極／時間 × 料金種別マトリクス | セルごとに請求／支払単価（整数円、3桁区切り表示）→ 展開後の各行に `calc_type_code`・`price_type_code` |
+| 選択した計算種別 × 料金種別マトリクス | セルごとに請求／支払単価（整数円、3桁区切り表示）→ 展開後の各行に `calc_type_code`・`price_type_code`。日極・時間・距離以外は設定保存のみ |
 | 距離超過項目 | 曜日 UI なし。`calc_type_code=distance`・`weekday_code=all` の 1 行（種別は基本等） |
 
 **正規形（API・計算）**: 既存どおり `price_set_lines` の 1 行 1 曜日 × 計算 × 種別。UI は `frontend/js/price_set_fee_model.js` で `lines[]` と往復する。
