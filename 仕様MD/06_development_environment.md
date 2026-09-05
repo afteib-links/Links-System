@@ -305,3 +305,19 @@ services:
 * 帳票は **PDF優先**、ブラウザ印刷も可  
 * 同時更新は楽観的ロック + 締め処理のトランザクションで担保する  
 * ローカル開発も最初から API + DB 構成で行う（後から載せ替えない）
+
+---
+
+## 11. Docker更新の標準ツール
+
+Docker Composeの通常更新は、リポジトリ管理の次のツールを正とする。個別に `docker compose` コマンドを組み立てず、検証を含む同一手順を毎回実行する。
+
+| 対象 | コマンド | 動作 |
+|------|----------|------|
+| Windows開発環境 | `pwsh -File scripts/docker-update.ps1` | 現在のチェックアウトを設定検証、再ビルド、起動、ヘルス確認 |
+| Linux/macOS開発環境 | `bash scripts/docker-update.sh` | 同上 |
+| NAS（ASUSTOR/QNAP） | `bash scripts/docker-update.sh --nas --backup` | バックアップ、`main` のfast-forward同期、再ビルド、起動、ヘルス確認 |
+
+共通の成功条件は、`docker compose config --quiet` が成功し、コンテナ起動後に `/api/health` が応答して `db: "up"` となることである。失敗時はアプリログを表示して非0終了し、途中まで動いたコンテナを隠して成功扱いにしない。`--dry-run` ではDockerやGitを変更せず、実行予定を確認できる。
+
+環境を指定しない「Docker更新」は現在の作業環境だけを対象とする。NASへの同期は、NAS、ASUSTOR、QNAP等が明示された場合に限る。通常更新では `docker compose down -v`、DBボリューム削除、`data/mysql` 削除を行わない。

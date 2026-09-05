@@ -45,9 +45,12 @@ SSH で Asustor に入り、リポジトリへ移動する。
 
 ```bash
 cd /volume1/docker/Links-System
-./scripts/nas-sync.sh --backup   # バックアップしてから同期
-# またはバックアップ省略: ./scripts/nas-sync.sh
+bash ./scripts/docker-update.sh --nas --backup
 ```
+
+このコマンドは、バックアップ、作業ツリー確認、`main` のfast-forward同期、Compose設定検証、再ビルド・起動、`/api/health` のDB接続確認を順番に実行する。ヘルス確認が通らない場合はアプリログを表示して非0終了する。既存の `./scripts/nas-sync.sh --backup` は互換入口として同じツールへ委譲する。
+
+実行内容だけを確認する場合は `bash ./scripts/docker-update.sh --nas --backup --dry-run` を使用する。
 
 手動で行う場合:
 
@@ -240,7 +243,7 @@ Asustor 作業ではないが、流れの理解用。
 
 ## 決定メモ
 
-* テストNASの通常更新は **git pull + compose up --build**  
+* テストNASの通常更新は **`scripts/docker-update.sh --nas --backup`** を使用し、バックアップ、fast-forward同期、Compose再構築、DBヘルス確認までを一括実行する
 * DB変更は **migrations 自動適用**（手打ちSQLは常用しない）  
 * `data/mysql` 削除は初期化時のみ  
 * 重要更新の前は **mysqldump バックアップ** を推奨  
