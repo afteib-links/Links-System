@@ -29,6 +29,14 @@ jobs:
           find backend/src frontend/js scripts -type f -name '*.js' -print0 \
             | xargs -0 -r -n1 node --check
 
+      - name: Verify Docker updater scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/docker-update.sh scripts/nas-sync.sh scripts/nas-backup.sh
+          bash scripts/docker-update.sh --dry-run
+          bash scripts/docker-update.sh --nas --backup --dry-run
+
       - name: Run backend unit tests
         run: npm test --prefix backend
 
