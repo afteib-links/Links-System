@@ -66,9 +66,12 @@ function normalizeBillings(list) {
   return list.map((row) => ({
     billing_id: row.billing_id ? Number(row.billing_id) : null,
     billing_print_name: row.billing_print_name || null,
+    billing_zip_code: row.billing_zip_code || null,
     billing_address: row.billing_address || null,
     billing_phone: row.billing_phone || null,
     billing_fax: row.billing_fax || null,
+    billing_email: row.billing_email || null,
+    invoice_send_method: row.invoice_send_method || null,
     billing_manager: row.billing_manager || null,
     billing_summary_no: row.billing_summary_no || null,
   }));
@@ -198,6 +201,12 @@ async function syncManagerPeriods(conn, companyId, periods) {
       );
     } else {
       await conn.query(
+        `UPDATE company_manager_periods
+         SET end_date=DATE_SUB(?,INTERVAL 1 DAY),version=version+1,updated_at=CURRENT_TIMESTAMP
+         WHERE company_id=? AND role_type=? AND end_date IS NULL AND is_deleted=0 AND start_date<?`,
+        [p.start_date,companyId,p.role_type,p.start_date]
+      );
+      await conn.query(
         `INSERT INTO company_manager_periods
           (company_id, role_type, name_or_user, staff_master_id, start_date, end_date)
          VALUES (?, ?, ?, ?, ?, ?)`,
@@ -231,15 +240,18 @@ async function syncBillings(conn, companyId, billings) {
     if (b.billing_id) {
       await conn.query(
         `UPDATE company_billings
-         SET billing_print_name = ?, billing_address = ?, billing_phone = ?,
-             billing_fax = ?, billing_manager = ?, billing_summary_no = ?,
+         SET billing_print_name = ?, billing_zip_code = ?, billing_address = ?, billing_phone = ?,
+             billing_fax = ?, billing_email = ?, invoice_send_method = ?, billing_manager = ?, billing_summary_no = ?,
              version = version + 1, updated_at = CURRENT_TIMESTAMP
          WHERE billing_id = ? AND company_id = ? AND is_deleted = 0`,
         [
           b.billing_print_name,
+          b.billing_zip_code,
           b.billing_address,
           b.billing_phone,
           b.billing_fax,
+          b.billing_email,
+          b.invoice_send_method,
           b.billing_manager,
           b.billing_summary_no,
           b.billing_id,
@@ -249,15 +261,18 @@ async function syncBillings(conn, companyId, billings) {
     } else {
       await conn.query(
         `INSERT INTO company_billings
-          (company_id, billing_print_name, billing_address, billing_phone,
-           billing_fax, billing_manager, billing_summary_no)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (company_id, billing_print_name, billing_zip_code, billing_address, billing_phone,
+           billing_fax, billing_email, invoice_send_method, billing_manager, billing_summary_no)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           companyId,
           b.billing_print_name,
+          b.billing_zip_code,
           b.billing_address,
           b.billing_phone,
           b.billing_fax,
+          b.billing_email,
+          b.invoice_send_method,
           b.billing_manager,
           b.billing_summary_no,
         ]
@@ -348,7 +363,8 @@ router.get('/', async (req, res) => {
 
     const rows = await query(
       `SELECT c.company_id, c.office_no, c.office_name, c.company_name, c.company_name_kana,
-              c.closing_date_code, c.payment_date_code, c.invoice_send_method,
+              c.closing_date_code, c.payment_date_code,
+              COALESCE((SELECT cb.invoice_send_method FROM company_billings cb WHERE cb.company_id=c.company_id AND cb.is_deleted=0 ORDER BY cb.billing_id LIMIT 1),c.invoice_send_method) AS invoice_send_method,
               c.work_mode_code, c.our_manager, c.fax, c.invoice_send_address,
               c.version, c.updated_at,
               (SELECT COUNT(*) FROM base_projects b

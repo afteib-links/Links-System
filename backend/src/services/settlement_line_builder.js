@@ -1,11 +1,12 @@
 const PRICE_LABELS = {
   basic: '基本料金',
-  shortage: '不足時間控除',
   overtime: '時間超過',
-  night: '深夜割増',
-  night_overtime: '深夜超過',
-  distance: '距離超過',
+  night: '深夜料金',
+  night_overtime: '深夜時間外',
+  distance: 'その他',
+  shortage: '不足時間',
 };
+const COMPONENT_ORDER = ['basic','overtime','night','night_overtime','distance','shortage'];
 
 function parseJson(value, fallback = {}) {
   if (!value) return fallback;
@@ -28,11 +29,15 @@ function sourceKey(projectId, component, calcType, unitPrice, taxCategory, itemN
   return [projectId || 0, component, calcType, money(unitPrice), taxCategory, itemName].join('|');
 }
 
-function buildAggregatedLines(reports, kind) {
+function buildAggregatedLines(reports, kind, config = COMPONENT_ORDER) {
+  const configuredOrder=Array.isArray(config)?config:(config.order||COMPONENT_ORDER);
+  const priceLabels={...PRICE_LABELS,...(!Array.isArray(config)?config.labels||{}:{})};
+  const componentOrder=[...configuredOrder,...COMPONENT_ORDER.filter((value)=>!configuredOrder.includes(value))];
   const side = kind === 'invoice' ? 'billing' : 'payment';
   const grouped = new Map();
 
-  function add(report, component, calcType, unitPrice, quantity, amount, itemName, taxCategory = 'taxable') {
+  function add(report, component, calcType, unitPrice, quantity, amount, groupName, label, taxCategory = 'taxable') {
+    const itemName=`${groupName} ${label}`.trim();
     const key = sourceKey(report.project_id, component, calcType, unitPrice, taxCategory, itemName);
     const previous = grouped.get(key) || {
       line_type: 'work',
@@ -41,6 +46,9 @@ function buildAggregatedLines(reports, kind) {
       project_id: report.project_id,
       daily_report_id: null,
       item_name: itemName,
+      group_name:groupName,
+      component_label:label,
+      component_order:componentOrder.indexOf(component),
       quantity: 0,
       unit_price: money(unitPrice),
       amount: 0,
@@ -67,6 +75,13 @@ function buildAggregatedLines(reports, kind) {
     const components = detail?.[side]?.amounts?.details || {};
     const projectName = report.project_name || `案件 #${report.project_id}`;
     const feeName = report.selected_fee_item_name || detail?.fee_item?.name || '';
+    const template=kind==='invoice'?(detail?.fee_item?.billing_summary_template||'{企業名} {料金名}'):(detail?.fee_item?.payment_summary_template||'{パートナー名} {料金名}');
+    const groupName=template
+      .replaceAll('{企業名}',report.company_name||'')
+      .replaceAll('{パートナー名}',report.partner_name||'')
+      .replaceAll('{案件名}',projectName)
+      .replaceAll('{料金名}',feeName)
+      .replace(/\s+/g,' ').trim();
     const total = effective(report, kind);
     const hasOverride = kind === 'invoice'
       ? report.override_billing_amount != null
@@ -74,15 +89,14 @@ function buildAggregatedLines(reports, kind) {
     const collected = [];
 
     if (!hasOverride) {
-      for (const [component, label] of Object.entries(PRICE_LABELS)) {
+      for (const [component, label] of Object.entries(priceLabels)) {
         if (component === 'distance') continue;
         const row = components[component];
         const amount = money(row?.amount);
         if (!row || amount === 0) continue;
         const calcType = row.calc_type || (component === 'basic' ? 'daily' : 'hourly');
         const quantity = calcType === 'hourly' ? Number(row.minutes || 0) / 60 : 1;
-        const itemName = `${projectName}${feeName ? ` ${feeName}` : ''} ${label}`.trim();
-        collected.push({ component, calcType, rate: money(row.rate), quantity, amount, itemName });
+        collected.push({ component, calcType, rate: money(row.rate), quantity, amount, label });
       }
       const distance = detail?.distance?.[side];
       const distanceAmount = money(distance?.amount ?? report[`distance_amount_${side}`]);
@@ -91,22 +105,25 @@ function buildAggregatedLines(reports, kind) {
           component: 'distance', calcType: 'distance',
           rate: money(distance?.unit_price || distanceAmount),
           quantity: Number(distance?.units || 1), amount: distanceAmount,
-          itemName: `${projectName} ${PRICE_LABELS.distance}`,
+          label: priceLabels.distance,
         });
       }
     }
 
     const componentTotal = money(collected.reduce((sum, row) => sum + row.amount, 0));
     if (!collected.length || Math.abs(componentTotal - total) > 1) {
-      const itemName = `${projectName}${feeName ? ` ${feeName}` : ''} ${hasOverride ? '金額調整後料金' : '基本料金'}`.trim();
-      add(report, hasOverride ? 'override' : 'fallback', 'daily', total, 1, total, itemName);
+      add(report, hasOverride ? 'override' : 'fallback', 'daily', total, 1, total, groupName||projectName, hasOverride ? '金額調整後料金' : '基本料金');
       continue;
     }
-    for (const row of collected) add(report, row.component, row.calcType, row.rate, row.quantity, row.amount, row.itemName);
+    for (const row of collected) add(report, row.component, row.calcType, row.rate, row.quantity, row.amount, groupName||projectName, row.label);
   }
 
-  return [...grouped.values()].map((line, index) => ({
+  let previousGroup='';
+  return [...grouped.values()].sort((a,b)=>String(a.group_name).localeCompare(String(b.group_name),'ja')||(['daily','hourly','distance'].indexOf(a.source_key.split('|')[2])-['daily','hourly','distance'].indexOf(b.source_key.split('|')[2]))||a.component_order-b.component_order).map((line, index) => {
+    const showGroup=line.group_name!==previousGroup;previousGroup=line.group_name;
+    return ({
     ...line,
+    item_name:`${showGroup?`${line.group_name} `:''}${line.component_label}`.trim(),
     quantity: Math.round(line.quantity * 10000) / 10000,
     display_order: (index + 1) * 10,
     snapshot: {
@@ -115,7 +132,7 @@ function buildAggregatedLines(reports, kind) {
       project_name: line.sources[0]?.snapshot?.project_name || null,
       calc_type: line.source_key.split('|')[2] || 'monthly',
     },
-  }));
+  });});
 }
 
 module.exports = { PRICE_LABELS, buildAggregatedLines, effective, parseJson, sourceKey };

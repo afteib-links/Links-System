@@ -677,6 +677,13 @@
             <div class="form-grid form-grid-compact">${dailyReportFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-daily-report-settings">日報入力画面設定を保存</button></div>
           </section>
+          <section class="panel">
+            <h3>請求・支払摘要の表示順</h3>
+            <p class="muted">日付料金、時間料金の各まとまりで使用する順番です。カンマ区切りで basic,overtime,night,night_overtime,distance,shortage を並べます。</p>
+            <input id="settlement-line-order" class="full" value="${this.ctx.escapeHtml(values.get('settlement_line_display_order')||'basic,overtime,night,night_overtime,distance,shortage')}">
+            <label>表示名（同じ順のカンマ区切り）<input id="settlement-line-labels" class="full" value="${this.ctx.escapeHtml(values.get('settlement_line_display_labels')||'基本料金,時間超過,深夜料金,深夜時間外,その他,不足時間')}"></label>
+            <div class="btn-row"><button type="button" class="btn" id="save-settlement-line-order">摘要表示順を保存</button></div>
+          </section>
           <section class="panel document-logo-settings-panel">
             <h3>PDF帳票の会社ロゴ</h3>
             <p class="muted">PNG・JPEG・WebP画像を選択するか、下の枠を選んでクリップボードから貼り付けてください。帳票内では縦横比を維持して表示します。</p>
@@ -849,6 +856,15 @@
           return;
         }
         this.ctx.showToast('日報入力画面設定を保存しました');
+      });
+      document.getElementById('save-settlement-line-order')?.addEventListener('click',async()=>{
+        const value=document.getElementById('settlement-line-order').value.trim(),labels=document.getElementById('settlement-line-labels').value.trim();
+        const allowed=['basic','overtime','night','night_overtime','distance','shortage'];
+        const parts=value.split(',').map(x=>x.trim());
+        if(parts.length!==allowed.length||new Set(parts).size!==allowed.length||parts.some(x=>!allowed.includes(x)))return window.alert('6項目を重複なく指定してください');
+        const labelParts=labels.split(',').map(x=>x.trim());if(labelParts.length!==6||labelParts.some(x=>!x))return window.alert('表示名を6項目入力してください');
+        const results=await Promise.all([this.ctx.api('/api/master-settings/settings/settlement_line_display_order',{method:'PUT',body:JSON.stringify({setting_value:parts.join(','),setting_label:'請求・支払摘要の表示順'})}),this.ctx.api('/api/master-settings/settings/settlement_line_display_labels',{method:'PUT',body:JSON.stringify({setting_value:labelParts.join(','),setting_label:'請求・支払摘要の表示名'})})]);
+        if(results.some(x=>!x.res.ok))return window.alert('保存に失敗しました');this.ctx.showToast('摘要表示順と表示名を保存しました');
       });
       document.getElementById('add-setting')?.addEventListener('click', async () => {
         const key = document.getElementById('new-key').value.trim();

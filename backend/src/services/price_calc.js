@@ -135,6 +135,8 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
     price_set_name: context.priceSet.price_set_name,
     selected_fee_item_id: resolved.item?.id || null,
     selected_fee_item_name: resolved.item?.name || null,
+    billing_summary_template: resolved.item?.billing_summary_template || '{企業名} {料金名}',
+    payment_summary_template: resolved.item?.payment_summary_template || '{パートナー名} {料金名}',
     fee_item_selection_source: resolved.source,
     fee_item: resolved.item,
     day_type: context.holiday ? 'holiday' : jsWeekdayCode(workDate),
@@ -256,6 +258,8 @@ async function applyDailyPriceCalc(data) {
     fee_item: {
       id: context.selected_fee_item_id,
       name: context.selected_fee_item_name,
+      billing_summary_template: context.billing_summary_template,
+      payment_summary_template: context.payment_summary_template,
       selection_source: data.fee_item_selection_source,
     },
     day_type: context.day_type,

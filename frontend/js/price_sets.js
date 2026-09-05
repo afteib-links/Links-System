@@ -499,6 +499,10 @@
               <button type="button" class="btn btn-danger btn-small" data-del-item="${itemIdx}">削除</button>
             </div>
           </div>
+          <div class="form-grid form-grid-compact fee-summary-names">
+            <div><label>請求摘要グループ名</label><input data-summary="billing" value="${this.ctx.escapeHtml(item.billing_summary_template||'{企業名} {料金名}')}" placeholder="例: {企業名} 平日料金"></div>
+            <div><label>支払摘要グループ名</label><input data-summary="payment" value="${this.ctx.escapeHtml(item.payment_summary_template||'{パートナー名} {料金名}')}" placeholder="例: {パートナー名} 平日料金"></div>
+          </div>
           <div class="fee-weekdays">${weekdayChecks}${quick}</div>
           <p class="error fee-auto-error">${this.ctx.escapeHtml(this.detailState.autoErrors?.[itemIdx] || '')}</p>
           <div class="fee-matrix-wrap" data-matrix-for="${itemIdx}">${this.feeItemMatrixHtml(item, itemIdx)}</div>
@@ -542,6 +546,8 @@
         if (!card) return;
         const nameInp = card.querySelector('.fee-item-name');
         if (nameInp) item.name = nameInp.value.trim();
+        item.billing_summary_template=card.querySelector('[data-summary="billing"]')?.value.trim()||'{企業名} {料金名}';
+        item.payment_summary_template=card.querySelector('[data-summary="payment"]')?.value.trim()||'{パートナー名} {料金名}';
         if (item.mode !== 'distance') {
           Fee().WEEKDAY_CODES.forEach((wd) => {
             const cb = card.querySelector(`input[data-wd="${wd}"]`);

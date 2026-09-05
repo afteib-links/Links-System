@@ -1893,3 +1893,7 @@ label, .field-label { color: #344054; font-weight: 700; }
   .advance-matrix-wrap { max-width: 100%; max-height: calc(100vh - 330px); }
   .advance-project-heading, .advance-project-cell, .advance-project-footer { width: 190px; min-width: 190px; }
 }
+.fee-summary-names { margin: .5rem 0 .75rem; }
+.fee-summary-names input { width: 100%; }
+.fee-matrix-wide { table-layout: fixed; }
+.fee-matrix-wide thead th { text-align: center; }

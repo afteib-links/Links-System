@@ -16,9 +16,8 @@
     listColumns() {
       return [
         { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所No' },
-        { key: 'office_name', label: '事業所名' },
         { key: 'company_name', label: '企業名' },
+        { key: 'office_name', label: '事業所名' },
         {
           key: 'work_mode_code',
           label: '稼働形態',
@@ -137,9 +136,12 @@
       return {
         billing_id: null,
         billing_print_name: '',
+        billing_zip_code: '',
         billing_address: '',
         billing_phone: '',
         billing_fax: '',
+        billing_email: '',
+        invoice_send_method: '',
         billing_manager: '',
         billing_summary_no: '',
       };
@@ -227,26 +229,17 @@
             <div class="form-sections">
             <section class="form-section-card"><h3>基本・契約情報</h3>
             <div class="form-grid form-grid-compact">
-              <div><label>事業所No</label><input name="office_no" value="${this.ctx.escapeHtml(
-                company.office_no || ''
-              )}" disabled placeholder="保存時に自動採番" /></div>
-              <div><label>事業所名</label><input name="office_name" value="${this.ctx.escapeHtml(
-                company.office_name || ''
-              )}" placeholder="任意（入力なし可）" /></div>
-              <div><label>企業名（必須）</label><input name="company_name" required value="${this.ctx.escapeHtml(company.company_name || '')}" /></div>
               <div><label>企業名カナ</label><input name="company_name_kana" value="${this.ctx.escapeHtml(company.company_name_kana || '')}" /></div>
+              <div><label>事業所名</label><input name="office_name" value="${this.ctx.escapeHtml(company.office_name || '')}" placeholder="任意（入力なし可）" /></div>
+              <div class="full"><label>企業名（必須）</label><input name="company_name" required value="${this.ctx.escapeHtml(company.company_name || '')}" /></div>
               <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(company.zip_code || '')}" /></div>
               <div class="full"><label>住所</label><input name="address" value="${this.ctx.escapeHtml(company.address || '')}" /></div>
               <div><label>連絡先</label><input name="contact" value="${this.ctx.escapeHtml(company.contact || '')}" /></div>
               <div><label>FAX</label><input name="fax" value="${this.ctx.escapeHtml(company.fax || '')}" /></div>
               <div><label>契約担当者</label><input name="contract_manager" value="${this.ctx.escapeHtml(company.contract_manager || '')}" /></div>
-              <div><label>弊社担当者</label>${this.kit.comboHtml('our_manager', this.staff, 'staff_master_id', 'staff_name', company.our_manager, 'staff-mgr')}</div>
-              <div><label>弊社契約担当者</label>${this.kit.comboHtml('our_contract_manager', this.staff, 'staff_master_id', 'staff_name', company.our_contract_manager, 'staff-cmgr')}</div>
               <div><label>稼働形態</label><select name="work_mode_code">${this.kit.codeOptions(this.codes.work_mode, company.work_mode_code)}</select></div>
               <div><label>基本締日</label><select name="closing_date_code">${this.kit.codeOptions(this.codes.closing_date, company.closing_date_code)}</select></div>
               <div><label>基本支払日</label><select name="payment_date_code">${this.kit.codeOptions(this.codes.payment_date, company.payment_date_code)}</select></div>
-              <div><label>請求書送付方法</label><select name="invoice_send_method">${this.kit.codeOptions(this.codes.invoice_send_method, company.invoice_send_method)}</select></div>
-              <div class="full"><label>請求書送付先住所</label><input name="invoice_send_address" value="${this.ctx.escapeHtml(company.invoice_send_address || '')}" /></div>
               <div><label>基本契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(company.contract_date))}" /></div>
               <div class="full"><label>業務内容および付帯作業</label><textarea name="business_content" rows="3">${this.ctx.escapeHtml(company.business_content || '')}</textarea></div>
             </div></section>
@@ -311,8 +304,9 @@
           (b, idx) => `
           <tr>
             <td>${this.ctx.escapeHtml(b.billing_print_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(b.billing_address || '-')}</td>
-            <td>${this.ctx.escapeHtml(b.billing_phone || '-')}</td>
+            <td>${this.ctx.escapeHtml(`${b.billing_zip_code?`〒${b.billing_zip_code} `:''}${b.billing_address||''}`||'-')}</td>
+            <td>${this.ctx.escapeHtml(b.billing_email || '-')}</td>
+            <td>${this.ctx.escapeHtml(this.kit.codeLabel(this.codes.invoice_send_method,b.invoice_send_method)||'-')}</td>
             <td>${this.ctx.escapeHtml(b.billing_summary_no || '-')}</td>
             <td>
               <button type="button" class="btn btn-ghost btn-small" data-edit-billing="${idx}">編集</button>
@@ -321,8 +315,8 @@
           </tr>`
         )
         .join('');
-      return `<table class="data-table data-table-compact"><thead><tr><th>印字名称</th><th>住所</th><th>電話</th><th>取り纏めNo</th><th>操作</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5">請求先はまだありません</td></tr>'}</tbody></table>`;
+      return `<table class="data-table data-table-compact"><thead><tr><th>印字名称</th><th>送付先</th><th>メール</th><th>送付方法</th><th>取り纏めNo</th><th>操作</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6">請求先はまだありません</td></tr>'}</tbody></table>`;
     },
 
     vehiclesTableHtml() {
@@ -414,9 +408,12 @@
         isNew ? '請求先追加' : '請求先編集',
         `<div class="form-grid">
           <div class="full"><label>請求先印字名称</label><input id="m_billing_print_name" value="${this.ctx.escapeHtml(b.billing_print_name || '')}" /></div>
-          <div class="full"><label>請求先住所</label><input id="m_billing_address" value="${this.ctx.escapeHtml(b.billing_address || '')}" /></div>
+          <div><label>請求先郵便番号</label><input id="m_billing_zip_code" value="${this.ctx.escapeHtml(b.billing_zip_code || '')}" /></div>
+          <div><label>請求書送付方法</label><select id="m_invoice_send_method">${this.kit.codeOptions(this.codes.invoice_send_method,b.invoice_send_method)}</select></div>
+          <div class="full"><label>請求書送付先住所</label><input id="m_billing_address" value="${this.ctx.escapeHtml(b.billing_address || '')}" /></div>
           <div><label>電話</label><input id="m_billing_phone" value="${this.ctx.escapeHtml(b.billing_phone || '')}" /></div>
           <div><label>FAX</label><input id="m_billing_fax" value="${this.ctx.escapeHtml(b.billing_fax || '')}" /></div>
+          <div><label>メールアドレス</label><input type="email" id="m_billing_email" value="${this.ctx.escapeHtml(b.billing_email || '')}" /></div>
           <div><label>担当者</label><input id="m_billing_manager" value="${this.ctx.escapeHtml(b.billing_manager || '')}" /></div>
           <div><label>取り纏めNo</label><input id="m_billing_summary_no" value="${this.ctx.escapeHtml(b.billing_summary_no || '')}" /></div>
         </div>`,
@@ -427,9 +424,12 @@
         const row = {
           billing_id: b.billing_id,
           billing_print_name: document.getElementById('m_billing_print_name').value,
+          billing_zip_code: document.getElementById('m_billing_zip_code').value,
           billing_address: document.getElementById('m_billing_address').value,
           billing_phone: document.getElementById('m_billing_phone').value,
           billing_fax: document.getElementById('m_billing_fax').value,
+          billing_email: document.getElementById('m_billing_email').value,
+          invoice_send_method: document.getElementById('m_invoice_send_method').value,
           billing_manager: document.getElementById('m_billing_manager').value,
           billing_summary_no: document.getElementById('m_billing_summary_no').value,
         };
@@ -485,7 +485,7 @@
           </div>
           <div><label>氏名</label>${this.kit.comboHtml('m_name_or_user', this.staff, 'staff_master_id', 'staff_name', p.name_or_user, 'period-staff')}</div>
           <div><label>開始日</label><input type="date" id="m_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(p.start_date))}" /></div>
-          <div><label>終了日</label><input type="date" id="m_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(p.end_date))}" /></div>
+          ${isNew?'<div><label>終了日</label><input value="担当変更時に自動設定" disabled /></div>':`<div><label>終了日</label><input type="date" id="m_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(p.end_date))}" /></div>`}
         </div>`,
         `<button type="button" class="btn" id="modal-save">保存</button>`
       );
@@ -504,7 +504,7 @@
           name_or_user: name,
           staff_master_id: staffHit?.staff_master_id || null,
           start_date: start,
-          end_date: document.getElementById('m_end_date').value || null,
+          end_date: document.getElementById('m_end_date')?.value || null,
         };
         if (isNew) this.detailState.manager_periods.push(row);
         else this.detailState.manager_periods[idx] = row;
@@ -525,8 +525,6 @@
         contact: form.contact.value,
         fax: form.fax.value,
         contract_manager: form.contract_manager.value,
-        our_manager: document.getElementById('our_manager')?.value || '',
-        our_contract_manager: document.getElementById('our_contract_manager')?.value || '',
         closing_date_code: form.closing_date_code.value,
         payment_date_code: form.payment_date_code.value,
         contract_date: form.contract_date.value || null,
@@ -536,8 +534,6 @@
         account_number: form.account_number.value,
         deposit_type: form.deposit_type.value,
         account_name: form.account_name.value,
-        invoice_send_method: form.invoice_send_method.value,
-        invoice_send_address: form.invoice_send_address.value,
         work_mode_code: form.work_mode_code.value,
         billings: this.detailState.billings,
         vehicles: this.detailState.vehicles,

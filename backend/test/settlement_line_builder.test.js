@@ -65,9 +65,20 @@ test('異なる単価と料金項目は別の月額明細として保持する',
   assert.equal(lines.length, 3);
   assert.deepEqual(lines.map((line) => [line.item_name, line.unit_price, line.quantity, line.amount]), [
     ['検証案件 基本料金', 20000, 1, 20000],
-    ['検証案件 時間超過', 2000, 2, 4000],
-    ['検証案件 基本料金', 21000, 1, 21000],
+    ['基本料金', 21000, 1, 21000],
+    ['時間超過', 2000, 2, 4000],
   ]);
+});
+
+test('摘要テンプレートを展開し同じグループ名は先頭行だけ表示する',()=>{
+  const row=report({id:1,basic:20000,overtime:2000});
+  row.company_name='株式会社サンプル';
+  row.selected_fee_item_name='平日料金';
+  const detail=JSON.parse(row.calculation_detail);
+  detail.fee_item={name:'平日料金',billing_summary_template:'{企業名} {料金名}'};
+  row.calculation_detail=JSON.stringify(detail);
+  const lines=buildAggregatedLines([row],'invoice');
+  assert.deepEqual(lines.map((line)=>line.item_name),['株式会社サンプル 平日料金 基本料金','時間超過']);
 });
 
 test('日報で金額上書きされた場合は調整後料金として集約する', () => {
