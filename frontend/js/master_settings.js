@@ -177,13 +177,13 @@
       const isNew = !row;
       document.getElementById('modal-host').innerHTML = this.kit.modalHtml(
         isNew ? '担当者追加' : '担当者編集',
-        `<div class="form-grid">
+        `<section class="form-section-card"><div class="form-grid form-grid-compact">
           <div><label>氏名</label><input id="m_name" value="${this.ctx.escapeHtml(row?.staff_name || '')}" /></div>
           <div><label>カナ</label><input id="m_kana" value="${this.ctx.escapeHtml(row?.staff_name_kana || '')}" /></div>
           <div><label>役割</label><input id="m_role" value="${this.ctx.escapeHtml(row?.role_label || '')}" /></div>
           <div><label>並び順</label><input type="number" id="m_sort" value="${this.ctx.escapeHtml(row?.sort_order ?? 0)}" /></div>
           <div class="full"><label class="check-item"><input type="checkbox" id="m_active" ${row?.is_active !== 0 ? 'checked' : ''} /><span>有効</span></label></div>
-        </div>`,
+        </div></section>`,
         `<button type="button" class="btn" id="modal-save">保存</button>`
       );
       this.kit.bindModal();
@@ -281,7 +281,7 @@
       const isNew = !row;
       document.getElementById('modal-host').innerHTML = this.kit.modalHtml(
         isNew ? '事業所追加' : '事業所編集',
-        `<div class="form-grid">
+        `<section class="form-section-card"><div class="form-grid form-grid-compact">
           ${
             isNew
               ? `<div class="full"><p class="muted">事業所Noは保存時に自動採番されます。事業所名は任意です。</p></div>`
@@ -296,7 +296,7 @@
           <div class="full"><label class="check-item"><input type="checkbox" id="m_active" ${
             row?.is_active !== 0 ? 'checked' : ''
           } /><span>有効</span></label></div>
-        </div>`,
+        </div></section>`,
         `<button type="button" class="btn" id="modal-save">保存</button>`
       );
       this.kit.bindModal();
@@ -564,26 +564,30 @@
 
     openHolidayModal(row) {
       const isNew = !row;
-      const projectOptions = this._holidayProjects.map((project) => {
-        const label = [project.company_name, project.manager_name || project.business_type, project.partner_name]
-          .filter(Boolean).join(' / ');
-        return `<option value="${project.project_id}" ${Number(row?.project_id) === Number(project.project_id) ? 'selected' : ''}>${this.ctx.escapeHtml(label || `案件#${project.project_id}`)}</option>`;
-      }).join('');
       document.getElementById('modal-host').innerHTML = this.kit.modalHtml(
         isNew ? '休日追加' : '休日編集',
-        `<div class="form-grid">
+        `<section class="form-section-card"><div class="form-grid form-grid-compact">
           <div><label>日付</label><input type="date" id="holiday-date" value="${this.ctx.escapeHtml(String(row?.holiday_date || '').slice(0, 10))}" /></div>
           <div><label>休日名</label><input id="holiday-name" value="${this.ctx.escapeHtml(row?.holiday_name || '')}" /></div>
           <div><label>適用範囲</label><select id="holiday-scope"><option value="global" ${row?.project_id == null ? 'selected' : ''}>全案件共通</option><option value="project" ${row?.project_id != null ? 'selected' : ''}>案件独自</option></select></div>
-          <div><label>案件</label><select id="holiday-project"><option value="">選択してください</option>${projectOptions}</select></div>
+          <div class="field-md"><label>案件</label><div id="holiday-project-picker">${this.kit.searchSelectHtml('holiday_project_id', this._holidayProjects, 'project_id', 'company_name', row?.project_id, {
+            formatLabel: (project) => [project.company_name, project.manager_name || project.business_type, project.partner_name].filter(Boolean).join(' / ') || `案件#${project.project_id}`,
+            aliasKeys: ['manager_name', 'business_type', 'partner_name'],
+          })}</div></div>
           <div class="full"><label class="check-item"><input type="checkbox" id="holiday-active" ${row?.is_active !== 0 ? 'checked' : ''} /><span>有効</span></label></div>
-        </div>`,
+        </div></section>`,
         '<button type="button" class="btn" id="holiday-save">保存</button>'
       );
       this.kit.bindModal();
+      this.kit.bindSearchSelects(document.getElementById('modal-host'));
       const scope = document.getElementById('holiday-scope');
-      const project = document.getElementById('holiday-project');
-      const syncScope = () => { project.disabled = scope.value !== 'project'; };
+      const project = document.querySelector('[name="holiday_project_id"]');
+      const projectSearch = document.querySelector('#holiday-project-picker .search-select-input');
+      const syncScope = () => {
+        const disabled = scope.value !== 'project';
+        project.disabled = disabled;
+        projectSearch.disabled = disabled;
+      };
       scope.addEventListener('change', syncScope);
       syncScope();
       document.getElementById('holiday-save')?.addEventListener('click', async () => {
@@ -664,13 +668,13 @@
           <section class="panel price-matrix-settings-panel">
             <h3>料金自動計算</h3>
             <p class="muted">金額データの自動計算と利益率警告に共通で使用します。</p>
-            <div class="form-grid">${priceMatrixFields}</div>
+            <div class="form-grid form-grid-compact">${priceMatrixFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-price-matrix-settings">料金自動計算設定を保存</button></div>
           </section>
           <section class="panel daily-report-settings-panel">
             <h3>日報入力画面</h3>
             <p class="muted">入力文字、元単価表示、曜日色、入力欄の増減単位に共通で使用します。祝日・案件休日の日付は「祝日・案件休日」で登録します。</p>
-            <div class="form-grid">${dailyReportFields}</div>
+            <div class="form-grid form-grid-compact">${dailyReportFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-daily-report-settings">日報入力画面設定を保存</button></div>
           </section>
           <section class="panel document-logo-settings-panel">

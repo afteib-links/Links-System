@@ -43,6 +43,8 @@ erDiagram
 | `billingPrice1` | `billing_unit_price`（将来 `billing_price_2`〜4 は次段） |
 | `paymentPrice1` | `payment_unit_price` |
 
+個別案件の車両は `projects.vehicle_owner_type`（`company` / `partner`）と `projects.vehicle_id` の組で識別する。所有元が企業の場合は案件の `company_id`、パートナーの場合は案件の `partner_id` に属する有効車両だけを選択・保存できる。既存データは所属が片側だけに一意一致する場合だけ所有元を補完し、曖昧な場合は未確定として再選択する。
+
 `PriceCategory` は現行 `price_type_code`（基本・残業・深夜等）で代替。
 
 ---

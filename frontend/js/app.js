@@ -43,10 +43,11 @@
   let shellControlsCleanup = null;
 
   async function api(path, options = {}) {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const res = await fetch(path, {
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(options.headers || {}),
       },
       ...options,
@@ -220,6 +221,7 @@
       media.removeEventListener('change', applyViewportState);
     };
     applyViewportState();
+    queueMicrotask(() => window.LinksDataTable?.enhancePlainTables(document));
   }
 
   function bindLogout() {
@@ -305,6 +307,7 @@
       showToast,
       can,
       openFeature,
+      currentUser,
     };
   }
 
@@ -553,7 +556,7 @@
         <h2>${isNew ? '新規ユーザー作成' : 'ユーザー編集'}</h2>
         <p class="error" id="user-edit-error"></p>
         <form id="user-edit-form">
-          <div class="form-grid">
+          <div class="form-sections"><section class="form-section-card"><h3>アカウント情報</h3><div class="form-grid form-grid-compact">
             <div>
               <label for="edit_login_id">ID</label>
               <input id="edit_login_id" ${isNew ? 'required' : 'disabled'}
@@ -573,6 +576,7 @@
                 <span>ログインを許可する（有効）</span>
               </label>
             </div>
+          </div></section><section class="form-section-card"><h3>権限・所属</h3><div class="form-grid form-grid-compact">
             <div class="full">
               <p class="field-label">権限（複数可）</p>
               <div class="check-grid">${roleCheckboxes(user?.roles || [])}</div>
@@ -585,8 +589,8 @@
               <label for="edit_areas">所属エリア（複数可・読点区切り）</label>
               <input id="edit_areas" value="${escapeHtml(listToText(user?.areas))}" placeholder="例: 東京、大阪" />
             </div>
-          </div>
-          <div class="btn-row">
+          </div></section></div>
+          <div class="btn-row form-actions-sticky">
             <button class="btn" type="submit">${isNew ? '作成' : '保存'}</button>
             <button class="btn btn-ghost" type="button" id="cancel-edit">キャンセル</button>
           </div>

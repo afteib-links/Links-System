@@ -103,4 +103,33 @@ router.get('/base-projects', async (req, res) => {
   }
 });
 
+router.get('/vehicles', async (req, res) => {
+  try {
+    const ownerType = String(req.query.owner_type || '');
+    const ownerId = Number(req.query.owner_id || 0);
+    if (!['company', 'partner'].includes(ownerType) || ownerId <= 0) {
+      return res.status(400).json({ ok: false, message: '車両所有元の区分とIDを指定してください' });
+    }
+    const isCompany = ownerType === 'company';
+    const table = isCompany ? 'company_vehicles' : 'partner_vehicles';
+    const ownerColumn = isCompany ? 'company_id' : 'partner_id';
+    const rows = await query(
+      `SELECT vehicle_id, vehicle_name, vehicle_number
+       FROM ${table}
+       WHERE ${ownerColumn} = ? AND is_deleted = 0
+       ORDER BY vehicle_id ASC`,
+      [ownerId]
+    );
+    return res.json({
+      ok: true,
+      owner_type: ownerType,
+      owner_id: ownerId,
+      vehicles: rows.map((row) => ({ ...row, owner_type: ownerType, owner_id: ownerId })),
+    });
+  } catch (err) {
+    console.error('[lookups/vehicles]', err);
+    return res.status(500).json({ ok: false, message: '車両一覧の取得に失敗しました' });
+  }
+});
+
 module.exports = router;

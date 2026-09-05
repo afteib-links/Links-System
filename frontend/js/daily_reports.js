@@ -9,6 +9,29 @@
       await this.showMonthList();
     },
 
+    canImport() {
+      const roles = this.ctx.currentUser?.roles || [];
+      return roles.includes('admin') || roles.includes('soumu');
+    },
+
+    canViewImportSource() {
+      const roles = this.ctx.currentUser?.roles || [];
+      return this.canImport() || roles.includes('executive');
+    },
+
+    openImports(options = {}) {
+      if (!window.LinksDailyReportImports) {
+        window.alert('日報取り込み画面を読み込めませんでした');
+        return;
+      }
+      const back = options.back || (() => this.showMonthList());
+      window.LinksDailyReportImports.open(this.ctx, {
+        targetYearMonth: this.ym,
+        projectId: options.projectId || null,
+        onBack: back,
+      });
+    },
+
     shiftMonth(delta) {
       const [y, m] = this.ym.split('-').map(Number);
       const d = new Date(y, m - 1 + delta, 1);
@@ -286,6 +309,7 @@
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           ${this.kit.monthNavigatorHtml(this.ym,'daily-month')}
+          ${this.canImport() ? '<div class="btn-row dr-import-entry"><button type="button" class="btn" id="open-daily-import">データ取り込み</button></div>' : ''}
           <div class="settlement-filters">
             <input id="daily-q" placeholder="案件・会社・パートナーを検索" value="${this.ctx.escapeHtml(this.listFilters.q)}">
             <select id="daily-closing"><option value="">全締日</option>${['5','10','15','20','25','end'].map(v=>`<option value="${v}" ${this.listFilters.closing_date===v?'selected':''}>${v==='end'?'末日':`${v}日`}</option>`).join('')}</select>
@@ -310,6 +334,7 @@
         </section>`
       );
       this.kit.bindShell();
+      document.getElementById('open-daily-import')?.addEventListener('click', () => this.openImports());
       this.kit.bindMonthNavigator('daily-month',()=>this.ym,(value)=>{this.ym=value;},()=>this.showMonthList());
       document.getElementById('daily-filter')?.addEventListener('click',()=>{this.listFilters={q:document.getElementById('daily-q').value.trim(),closing_date:document.getElementById('daily-closing').value,workflow_status:document.getElementById('daily-status').value,input_progress:document.getElementById('daily-progress').value};this.showMonthList();});
       document.querySelectorAll('[data-input]').forEach((btn) =>
@@ -588,7 +613,7 @@
           const main = `
             <tr class="dr-main ${this.dayRowClass(date)}" data-idx="${idx}" data-work-date="${this.ctx.escapeHtml(date)}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
-              <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}</td>
+              <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}${r.input_source_type && r.input_source_type !== 'manual' ? `<small class="dr-source-mark">${this.ctx.escapeHtml({excel:'Excel',email:'メール',fax:'FAX'}[r.input_source_type] || r.input_source_type)}${this.canViewImportSource() && r.source_file_id ? ` <a href="/api/daily-report-imports/files/${Number(r.source_file_id)}" target="_blank" rel="noopener">原本</a>` : ''}</small>` : ''}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td>${this.timeInputHtml(r, idx, 'start_time', locked)}</td>
@@ -657,6 +682,7 @@
             <div class="btn-row">
               ${this.monthlyButtonsHtml()}
               <button type="button" class="btn" id="save-all">一括保存</button>
+              ${this.canImport() ? '<button type="button" class="btn btn-secondary" id="open-daily-import">データ取り込み</button>' : ''}
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
               <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
               <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
@@ -885,6 +911,10 @@
       });
       document.getElementById('back-month')?.addEventListener('click', () => this.showMonthList());
       document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
+      document.getElementById('open-daily-import')?.addEventListener('click', () => this.openImports({
+        projectId: this.gridMeta.project_id,
+        back: () => this.showInputGrid(this.gridMeta),
+      }));
       document.querySelectorAll('[data-month-action]').forEach((btn) =>
         btn.addEventListener('click', () => this.handleMonthlyAction(btn.getAttribute('data-month-action')))
       );
