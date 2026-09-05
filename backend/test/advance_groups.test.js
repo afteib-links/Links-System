@@ -64,6 +64,13 @@ test('一括予定作成はセル設定の版不一致を拒否する', () => {
   assert.throws(() => advancesRouter.assertCycleVersion({ version:4 }, 3, 10), (error) => error.statusCode === 409 && /再読み込み/.test(error.message));
 });
 
+test('CSV出力済みまたは実行済みの予定は再更新を拒否する', () => {
+  assert.doesNotThrow(() => advancesRouter.assertMutableSchedule({ status:'planned' }, 10));
+  assert.doesNotThrow(() => advancesRouter.assertMutableSchedule({ status:'held' }, 10));
+  assert.throws(() => advancesRouter.assertMutableSchedule({ status:'exported' }, 10), (error) => error.statusCode === 409 && /CSV出力済み/.test(error.message));
+  assert.throws(() => advancesRouter.assertMutableSchedule({ status:'executed' }, 10), (error) => error.statusCode === 409);
+});
+
 test('作成取消はCSV明細とバッチ状態も取消更新する', async () => {
   const calls = [];
   const conn = { query:async (sql, params) => {

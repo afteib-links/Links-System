@@ -3,6 +3,7 @@ const { getPool, query } = require('../db');
 const { requireAuth, requirePermission, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
+const ACTIVE_ADVANCE_ALLOCATION_JOIN = "LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id = ar.advance_record_id AND aa.status = 'active'";
 router.use(requireAuth, requirePermission('payments'));
 
 function effectivePayment(row) {
@@ -270,7 +271,7 @@ router.post('/close', async (req, res) => {
               ar.transfer_fee_amount - COALESCE(SUM(aa.transfer_fee_amount), 0) AS remaining_fee
        FROM advance_records ar
        JOIN cash_schedules cs ON cs.cash_schedule_id = ar.cash_schedule_id AND cs.status = 'executed'
-       LEFT JOIN advance_payment_allocations aa ON aa.advance_record_id = ar.advance_record_id
+       ${ACTIVE_ADVANCE_ALLOCATION_JOIN}
        WHERE ar.partner_id = ? AND ar.status = 'executed'
        GROUP BY ar.advance_record_id, ar.advance_amount, ar.transfer_fee_amount
        HAVING remaining_amount > 0 OR remaining_fee > 0 FOR UPDATE`,
@@ -455,4 +456,5 @@ router.post('/:id/print', requireRole('admin','soumu','executive'), async (req, 
   }
 });
 
+router.ACTIVE_ADVANCE_ALLOCATION_JOIN = ACTIVE_ADVANCE_ALLOCATION_JOIN;
 module.exports = router;

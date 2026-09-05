@@ -177,6 +177,13 @@ function assertCycleVersion(setting, suppliedVersion, projectId) {
     throw error;
   }
 }
+function assertMutableSchedule(schedule, projectId) {
+  if (!schedule || !['planned','held'].includes(schedule.status)) {
+    const error = new Error(`案件 #${projectId} はCSV出力済みまたは実行済みのため更新できません`);
+    error.statusCode = 409;
+    throw error;
+  }
+}
 async function cancelScheduleExports(conn, scheduleId, reason) {
   const [batchRows] = await conn.query(
     `SELECT cash_export_batch_id FROM cash_export_batch_items
@@ -292,7 +299,10 @@ router.post('/groups/:groupCode/records', async (req, res) => {
       let scheduleId = existing?.cash_schedule_id ? Number(existing.cash_schedule_id) : null;
       const snapshot = JSON.stringify({ target_year_month:ym,group_code:groupCode,period_start:cell.period.start,period_end:cell.period.end,work_days:cell.workDays,unit_price:cell.unitPrice,transfer_fee_pattern_id:cell.feePattern.patternId,transfer_fee_pattern_name:cell.feePattern.patternName,transfer_fee_base_amount:cell.feePattern.amount,transfer_fee_amount:fee });
       if (existing?.status === 'planned' && scheduleId) {
-        await conn.query(`UPDATE cash_schedules SET cash_cycle_id=?,amount=?,scheduled_date=?,snapshot_json=?,version=version+1 WHERE cash_schedule_id=? AND status IN ('planned','held')`, [meta.cash_cycle_id,requested,meta.payment_date,snapshot,scheduleId]);
+        const [scheduleRows] = await conn.query('SELECT status FROM cash_schedules WHERE cash_schedule_id=? FOR UPDATE', [scheduleId]);
+        assertMutableSchedule(scheduleRows[0] || null, project.project_id);
+        const [scheduleUpdate] = await conn.query(`UPDATE cash_schedules SET cash_cycle_id=?,amount=?,scheduled_date=?,snapshot_json=?,version=version+1 WHERE cash_schedule_id=? AND status IN ('planned','held')`, [meta.cash_cycle_id,requested,meta.payment_date,snapshot,scheduleId]);
+        if (!scheduleUpdate.affectedRows) assertMutableSchedule(null, project.project_id);
       } else {
         const [schedule] = await conn.query(
           `INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,company_id,partner_id,project_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by)
@@ -365,5 +375,5 @@ router.get('/', (_req,res) => res.status(410).json({ ok:false, message:'先払�
 router.put('/upsert', (_req,res) => res.status(410).json({ ok:false, message:'先払マトリクスAPIを使用してください' }));
 
 router.GROUPS = GROUPS; router.shiftMonth = shiftMonth; router.periodFor = periodFor; router.periodForCycle = periodForCycle; router.summarize = summarize;
-router.matrixData = matrixData; router.advanceProjectStatus = advanceProjectStatus; router.assertCycleVersion = assertCycleVersion; router.cancelScheduleExports = cancelScheduleExports;
+router.matrixData = matrixData; router.advanceProjectStatus = advanceProjectStatus; router.assertCycleVersion = assertCycleVersion; router.assertMutableSchedule = assertMutableSchedule; router.cancelScheduleExports = cancelScheduleExports;
 module.exports = router;
