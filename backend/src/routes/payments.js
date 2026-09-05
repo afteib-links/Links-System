@@ -11,6 +11,48 @@ function effectivePayment(row) {
   return Number(row.calculated_payment_amount || 0);
 }
 
+function allocateTargetGroupDeductions(targets) {
+  const groups = new Map();
+  for (const target of targets) {
+    const key = `${target.partner_id}:${target.closing_date}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(target);
+  }
+  for (const rows of groups.values()) {
+    const source = rows[0] || {};
+    let remainingAdvance = Math.max(0, Number(source.advance_deduction_amount || 0));
+    let remainingFee = Math.max(0, Number(source.transfer_fee_deduction_amount || 0));
+    const remainingRules = (source.deduction_rules || []).map((rule) => ({
+      rule,
+      remaining:Math.max(0, Number(rule.amount || 0)),
+    }));
+    for (const target of rows) {
+      let available = Math.max(0, Number(target.gross_amount || 0));
+      const advance = Math.min(available, remainingAdvance);
+      available -= advance;
+      remainingAdvance -= advance;
+      const fee = Math.min(available, remainingFee);
+      available -= fee;
+      remainingFee -= fee;
+      const appliedRules = [];
+      let ruleAmount = 0;
+      for (const entry of remainingRules) {
+        const applied = Math.min(available, entry.remaining);
+        if (applied > 0) appliedRules.push({...entry.rule,amount:applied});
+        available -= applied;
+        entry.remaining -= applied;
+        ruleAmount += applied;
+      }
+      target.advance_deduction_amount = advance;
+      target.transfer_fee_deduction_amount = fee;
+      target.deduction_rules = appliedRules;
+      target.rule_deduction_amount = ruleAmount;
+      target.final_transfer_amount = Math.max(0, available);
+    }
+  }
+  return targets;
+}
+
 function roleSet(req) { return new Set(req.session.user?.roles || []); }
 function restrictPaymentRead(req, where, params, paymentAlias = 'pay') {
   const roles = roleSet(req);
@@ -138,6 +180,7 @@ router.get('/targets', async (req, res) => {
       targets.push(target);
     }
 
+    allocateTargetGroupDeductions(targets);
     return res.json({ ok: true, target_year_month: ym, targets });
   } catch (err) {
     console.error('[payments/targets]', err);
@@ -434,4 +477,5 @@ router.post('/:id/print', requireRole('admin','soumu','executive'), async (req, 
 });
 
 router.ACTIVE_ADVANCE_ALLOCATION_JOIN = ACTIVE_ADVANCE_ALLOCATION_JOIN;
+router.allocateTargetGroupDeductions = allocateTargetGroupDeductions;
 module.exports = router;

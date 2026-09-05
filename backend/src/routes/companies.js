@@ -61,6 +61,10 @@ function pickCompany(body) {
   return out;
 }
 
+function companyUpdateFields(data) {
+  return Object.keys(data).filter((field) => COMPANY_FIELDS.includes(field));
+}
+
 function normalizeBillings(list) {
   if (!Array.isArray(list)) return [];
   return list.map((row) => ({
@@ -520,8 +524,11 @@ router.put('/:id', async (req, res) => {
     }
     data.office_no = currentRows[0].office_no || (await allocateOfficeNo(conn));
 
-    const sets = COMPANY_FIELDS.map((f) => `${f} = ?`);
-    const params = COMPANY_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));
+    // PUT の payload に含まれない旧項目は移行完了まで既存値を維持する。
+    // 全 COMPANY_FIELDS を更新すると、画面から外した請求書送付情報などが NULL になる。
+    const updateFields = companyUpdateFields(data);
+    const sets = updateFields.map((field) => `${field} = ?`);
+    const params = updateFields.map((field) => data[field]);
     let sql = `
       UPDATE companies
       SET ${sets.join(', ')},
@@ -621,4 +628,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.pickCompany = pickCompany;
+router.companyUpdateFields = companyUpdateFields;
 module.exports = router;
