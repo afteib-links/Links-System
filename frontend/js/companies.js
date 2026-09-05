@@ -65,6 +65,7 @@
           <button type="button" class="btn btn-ghost btn-small" data-edit="${c.company_id}">編集</button>
           <button type="button" class="btn btn-danger btn-small" data-del="${c.company_id}">削除</button>
           <button type="button" class="btn btn-ghost btn-small" data-base="${c.company_id}">基本案件</button>`,
+        rowKey: 'company_id',
       });
 
       this.ctx.app.innerHTML = this.kit.shell(
@@ -93,6 +94,10 @@
         onFilter: (filters) => {
           this.listState.filters = filters;
           this.showList(message);
+        },
+        onActivate: (key) => {
+          this.kit.pushNav(() => this.showList());
+          this.showDetail(Number(key));
         },
       });
       document.getElementById('company-search')?.addEventListener('click', () => {
@@ -219,8 +224,9 @@
         `<section class="panel">
           <p class="error" id="company-form-error"></p>
           <form id="company-form">
-            <h3 class="section-title">基本情報・銀行情報</h3>
-            <div class="form-grid">
+            <div class="form-sections">
+            <section class="form-section-card"><h3>基本・契約情報</h3>
+            <div class="form-grid form-grid-compact">
               <div><label>事業所No</label><input name="office_no" value="${this.ctx.escapeHtml(
                 company.office_no || ''
               )}" disabled placeholder="保存時に自動採番" /></div>
@@ -243,32 +249,41 @@
               <div class="full"><label>請求書送付先住所</label><input name="invoice_send_address" value="${this.ctx.escapeHtml(company.invoice_send_address || '')}" /></div>
               <div><label>基本契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(company.contract_date))}" /></div>
               <div class="full"><label>業務内容および付帯作業</label><textarea name="business_content" rows="3">${this.ctx.escapeHtml(company.business_content || '')}</textarea></div>
+            </div></section>
+            <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(company.bank_name || '')}" /></div>
               <div><label>支店名</label><input name="branch_name" value="${this.ctx.escapeHtml(company.branch_name || '')}" /></div>
               <div><label>口座種別</label><select name="deposit_type">${this.kit.codeOptions(this.codes.deposit_type, company.deposit_type)}</select></div>
               <div><label>口座番号</label><input name="account_number" value="${this.ctx.escapeHtml(company.account_number || '')}" /></div>
               <div><label>口座名義</label><input name="account_name" value="${this.ctx.escapeHtml(company.account_name || '')}" /></div>
-            </div>
+            </div></section>
 
+            <section class="form-section-card">
             <div class="section-head">
               <h3 class="section-title">請求先情報</h3>
               <button type="button" class="btn btn-ghost" id="add-billing">＋ 請求先を追加</button>
             </div>
             <div class="table-wrap" id="billings-mini">${this.billingsTableHtml()}</div>
+            </section>
 
+            <section class="form-section-card">
             <div class="section-head">
               <h3 class="section-title">車両情報</h3>
               <button type="button" class="btn btn-ghost" id="add-vehicle">＋ 車両を追加</button>
             </div>
             <div class="table-wrap" id="vehicles-mini">${this.vehiclesTableHtml()}</div>
+            </section>
 
+            <section class="form-section-card">
             <div class="section-head">
               <h3 class="section-title">担当履歴</h3>
               <button type="button" class="btn btn-ghost" id="add-period">＋ 期間追加</button>
             </div>
             <div class="table-wrap" id="periods-mini">${this.periodsTableHtml()}</div>
+            </section>
+            </div>
 
-            <div class="btn-row">
+            <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               <button class="btn btn-ghost" type="button" id="cancel-company">一覧へ戻る</button>
             </div>

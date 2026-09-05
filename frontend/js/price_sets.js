@@ -781,22 +781,26 @@
         `<section class="panel">
           <p class="error" id="form-error"></p>
           <form id="ps-form">
-            <div class="form-grid">
+            <div class="form-sections"><section class="form-section-card"><h3>基本情報・適用期間</h3><div class="form-grid form-grid-compact">
               <div><label>名称（必須）</label><input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></div>
-              <div><label>企業</label><select name="company_id">${this.kit.optionsFromList(this.companies, 'company_id', 'company_name', row.company_id)}</select></div>
+              <div><label>企業</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id)}</div>
               <div><label>適用開始（必須）</label><input type="date" name="apply_start_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></div>
               <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
               <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
-            </div>
+            </div></section>
+            <section class="form-section-card">
             <div class="section-head"><h3 class="section-title">勤務・深夜・丸め条件</h3></div>
             ${this.nightSettingsHtml()}
+            </section>
+            <section class="form-section-card">
             ${id ? this.importBarHtml(id) : ''}
             <div class="section-head">
               <h3 class="section-title">料金項目（曜日 × 計算 × 種別）</h3>
               <button type="button" class="btn btn-ghost" id="add-fee-item">＋ 料金項目</button>
             </div>
             <div id="fee-items-area" class="fee-items-stack">${this.feeItemsAreaHtml()}</div>
-            <div class="btn-row">
+            </section></div>
+            <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
               <button class="btn btn-ghost" type="button" id="cancel">一覧へ</button>
@@ -830,6 +834,7 @@
         { onBack: () => this.showList() }
       );
       this.kit.bindShell({ onBack: () => this.showList() });
+      this.kit.bindSearchSelects(document.getElementById('ps-form'));
       this.bindFeeItemsArea();
 
       document.getElementById('add-fee-item')?.addEventListener('click', () => {
