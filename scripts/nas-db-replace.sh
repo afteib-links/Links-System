@@ -91,7 +91,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "移行先DBの復旧用バックアップを作成します。"
+echo "移行先アプリを停止します。停止中は移行先へ直接書き込まないでください。"
+app_stopped=1
+docker compose stop app
+
+echo "停止状態の移行先DBから復旧用バックアップを作成します。"
 BACKUP_OUTPUT="$(bash ./scripts/nas-db-export.sh backups)"
 printf '%s\n' "$BACKUP_OUTPUT"
 ROLLBACK_MANIFEST="$(printf '%s\n' "$BACKUP_OUTPUT" | sed -n 's/^照合情報: //p' | tail -n 1)"
@@ -100,9 +104,7 @@ if [[ -z "$ROLLBACK_MANIFEST" || ! -f "$ROLLBACK_MANIFEST" ]]; then
   exit 1
 fi
 
-echo "アプリを停止し、DBを再作成して完全置換します。"
-docker compose stop app
-app_stopped=1
+echo "DBを再作成して完全置換します。"
 docker compose exec -T db mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" -e \
   "DROP DATABASE IF EXISTS \`${MYSQL_DATABASE}\`; CREATE DATABASE \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
 docker compose exec -T db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" < "$SOURCE_DUMP_PATH"
