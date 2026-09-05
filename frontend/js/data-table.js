@@ -243,7 +243,7 @@
             candidate.setAttribute('aria-selected', selected ? 'true' : 'false');
           });
         });
-        const activate = () => row.querySelector('[data-open], [data-input], [data-edit], [data-edit-base], [data-edit-user], [data-edit-staff], [data-edit-office], [data-edit-holiday], [data-edit-ps]')?.click();
+        const activate = () => row.querySelector('[data-open], [data-open-import], [data-input], [data-edit], [data-edit-base], [data-edit-user], [data-edit-staff], [data-edit-office], [data-edit-holiday], [data-edit-ps]')?.click();
         row.addEventListener('dblclick', (event) => { if (!interactive(event.target)) activate(); });
         row.addEventListener('keydown', (event) => { if (event.key === 'Enter') activate(); });
       });

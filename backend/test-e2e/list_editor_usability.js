@@ -14,11 +14,12 @@ async function main() {
     const json = (body) => route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify(body) });
     if (url.pathname === '/api/auth/me') return json({
       ok:true,
-      user:{ user_id:1, display_name:'テスト管理者', roles:['admin'], permissions:['projects','base_projects','invoices'] },
+      user:{ user_id:1, display_name:'テスト管理者', roles:['admin'], permissions:['projects','base_projects','invoices','daily_reports'] },
       features:[
         {key:'base_projects',label:'基本案件',group:'master'},
         {key:'projects',label:'個別案件',group:'master'},
         {key:'invoices',label:'請求',group:'billing'},
+        {key:'daily_reports',label:'日報',group:'daily'},
       ],
       roles:[{key:'admin',label:'管理者'}],
     });
@@ -55,6 +56,17 @@ async function main() {
       settlement:{invoice_id:5,company_id:1,billing_print_name:'東都運送',target_year_month:'2026-09',subtotal_amount:110000,tax_amount:10000,total_amount:120000},
       workflow:{status:'finalized'},lines:[],documents:[],
     });
+    if (url.pathname === '/api/daily-report-imports/fields') return json({ok:true,fields:[]});
+    if (url.pathname === '/api/daily-report-imports/mappings') return json({ok:true,mappings:[]});
+    if (url.pathname === '/api/daily-report-imports') return json({ok:true,batches:[{
+      daily_report_import_batch_id:9,original_filename:'日報.xlsx',target_year_month:'2026-09',
+      status:'parsed',row_count:3,applied_count:0,created_by_name:'取込担当',
+    }]});
+    if (url.pathname === '/api/daily-report-imports/9') return json({ok:true,batch:{
+      daily_report_import_batch_id:9,target_year_month:'2026-09',status:'parsed',row_count:3,
+      valid_count:3,warning_count:0,error_count:0,applied_count:0,
+    },files:[{daily_report_import_file_id:1,original_filename:'日報.xlsx'}],rows:[]});
+    if (url.pathname === '/api/daily-reports/month-projects') return json({ok:true,summary:{project_count:0},rows:[]});
     return json({ok:true});
   });
 
@@ -85,6 +97,14 @@ async function main() {
     assert.equal(await invoiceRow.getAttribute('aria-selected'), 'true');
     await invoiceRow.dblclick();
     await page.getByRole('heading', {name:'請求書 #5'}).waitFor();
+
+    await page.locator('[data-nav-feature="daily_reports"]').click();
+    await page.locator('#open-daily-import').click();
+    const importTable = page.locator('table.data-table').last();
+    await importTable.locator('.dt-filter-row').waitFor();
+    const importRow = page.locator('[data-open-import="9"]').locator('xpath=ancestor::tr');
+    await importRow.dblclick();
+    await page.getByRole('heading', {name:'取込確認 #9'}).waitFor();
   } finally {
     await browser.close();
   }
