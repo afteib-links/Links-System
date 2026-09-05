@@ -1838,3 +1838,58 @@ label, .field-label { color: #344054; font-weight: 700; }
   .document-preview .document-lines { width:max-content; min-width:680px; }
   .settlement-edit-actions, .btn-row { max-width:100%; }
 }
+/* 先払3サイクル・マトリクス */
+.advance-panel { padding: 14px; overflow: hidden; }
+.advance-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.advance-summary { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+.advance-summary strong { font-size: 16px; color: var(--primary, #126d7b); }
+.advance-filterbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 6px; }
+.advance-filterbar input { width: min(330px, 100%); }
+.advance-filterbar select { width: auto; min-width: 110px; }
+.advance-help { margin: 4px 0 8px; color: var(--text-muted, #64748b); font-size: 12px; }
+.advance-matrix-wrap { max-height: calc(100vh - 285px); min-height: 300px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border, #d7dee7); border-radius: 8px; background: #fff; }
+.advance-matrix { width: 100%; min-width: 1430px; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+.advance-matrix th, .advance-matrix td { padding: 8px 10px; border-right: 1px solid var(--border, #d7dee7); border-bottom: 1px solid var(--border, #d7dee7); vertical-align: top; background: #fff; }
+.advance-matrix thead th { position: sticky; top: 0; z-index: 4; height: 48px; background: #f7fafc; text-align: center; box-shadow: 0 1px 0 rgba(15,23,42,.08); }
+.advance-matrix tfoot td { position: sticky; bottom: 0; z-index: 3; background: #f8fafc; box-shadow: 0 -1px 0 rgba(15,23,42,.1); }
+.advance-project-heading, .advance-project-cell, .advance-project-footer { position: sticky; left: 0; z-index: 2; width: 250px; min-width: 250px; }
+.advance-matrix thead .advance-project-heading { z-index: 6; }
+.advance-matrix tfoot .advance-project-footer { z-index: 5; }
+.advance-project-total-heading, .advance-project-total, .advance-grand-total { position: sticky; right: 0; z-index: 2; width: 190px; min-width: 190px; border-right: 0 !important; box-shadow: -3px 0 7px rgba(15,23,42,.07); }
+.advance-matrix thead .advance-project-total-heading { z-index: 6; }
+.advance-matrix tfoot .advance-grand-total { z-index: 5; }
+.advance-cycle-heading, .advance-cycle-cell, .advance-cycle-total { width: 330px; min-width: 330px; }
+.advance-cycle-heading strong { display: block; font-size: 15px; }
+.advance-cycle-heading small { display: block; margin-top: 2px; font-weight: 400; }
+.advance-project-cell { display: table-cell; background: #fcfdff !important; }
+.advance-project-cell > span, .advance-project-cell > small { display: block; margin-top: 3px; }
+.advance-project-select { display: inline-flex; gap: 5px; align-items: center; font-weight: 700; }
+.advance-project-name { display: block; margin: 5px 0; font-size: 17px; line-height: 1.3; color: #102a43; }
+.advance-cycle-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }
+.advance-switch { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }
+.advance-inline-field { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 6px; margin-top: 6px; }
+.advance-inline-field > span { font-weight: 700; white-space: nowrap; }
+.advance-inline-field input { width: 100%; min-width: 9ch; height: 30px; padding: 3px 7px; text-align: right; font-size: 14px; font-weight: 700; }
+.advance-origin { display: block; margin: 2px 0 0 64px; color: var(--text-muted, #64748b); line-height: 1.25; }
+.advance-origin.is-changed { color: #a16207; font-weight: 700; }
+.advance-period { display: block; margin-top: 5px; padding-top: 4px; border-top: 1px dashed #d7dee7; color: var(--text-muted, #64748b); }
+.advance-cell-actions { min-height: 26px; margin-top: 5px; text-align: right; }
+.advance-project-total { background: #fcfdff !important; }
+.advance-project-total span, .advance-grand-total small { display: flex; justify-content: space-between; gap: 8px; margin: 5px 0; }
+.advance-project-total strong { font-size: 14px; }
+.advance-cycle-total > span, .advance-grand-total > strong { display: block; text-align: right; font-size: 18px; font-weight: 700; }
+.advance-cycle-total > small { display: block; text-align: right; margin-top: 2px; }
+.advance-total-actions { display: flex; gap: 5px; justify-content: flex-end; margin-top: 5px; }
+.advance-empty { padding: 40px !important; text-align: center; color: var(--text-muted, #64748b); }
+@media (max-width: 1366px) {
+  .advance-matrix-wrap { max-height: calc(100vh - 300px); }
+  .advance-project-heading, .advance-project-cell, .advance-project-footer { width: 225px; min-width: 225px; }
+  .advance-cycle-heading, .advance-cycle-cell, .advance-cycle-total { width: 300px; min-width: 300px; }
+}
+@media (max-width: 600px) {
+  .advance-panel { padding: 8px; }
+  .advance-topbar, .advance-filterbar { align-items: stretch; }
+  .advance-filterbar input { width: 100%; }
+  .advance-matrix-wrap { max-width: 100%; max-height: calc(100vh - 330px); }
+  .advance-project-heading, .advance-project-cell, .advance-project-footer { width: 190px; min-width: 190px; }
+}

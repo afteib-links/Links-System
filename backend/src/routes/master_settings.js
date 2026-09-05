@@ -32,6 +32,9 @@ router.get('/hub', async (_req, res) => {
     const [holidayCnt] = await query(
       `SELECT COUNT(*) AS cnt FROM holidays WHERE is_deleted = 0 AND is_active = 1`
     );
+    const [transferFeeCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM transfer_fee_patterns WHERE is_deleted = 0`
+    );
     return res.json({
       ok: true,
       hub: {
@@ -41,6 +44,7 @@ router.get('/hub', async (_req, res) => {
         office_masters: Number(officeCnt.cnt || 0),
         numbering_rules: Number(ruleCnt.cnt || 0),
         holidays: Number(holidayCnt.cnt || 0),
+        transfer_fee_patterns: Number(transferFeeCnt.cnt || 0),
       },
     });
   } catch (err) {
@@ -548,6 +552,61 @@ router.put('/numbering-rules/:id', async (req, res) => {
   } catch (err) {
     console.error('[master_settings/numbering-rules/update]', err);
     return res.status(500).json({ ok: false, message: '採番ルールの更新に失敗しました' });
+  }
+});
+
+router.get('/transfer-fees', async (_req, res) => {
+  try {
+    const rows = await query(`SELECT * FROM transfer_fee_patterns WHERE is_deleted=0 ORDER BY sort_order,transfer_fee_pattern_id`);
+    return res.json({ ok: true, transfer_fees: rows });
+  } catch (err) {
+    console.error('[master_settings/transfer-fees/list]', err);
+    return res.status(500).json({ ok: false, message: '振込手数料マスターの取得に失敗しました' });
+  }
+});
+
+router.post('/transfer-fees', async (req, res) => {
+  try {
+    const name = String(req.body?.pattern_name || '').trim();
+    const amount = Number(req.body?.amount);
+    if (!name || !Number.isFinite(amount) || amount < 0) return res.status(400).json({ ok: false, message: '名称と0円以上の固定金額は必須です' });
+    const result = await query(
+      `INSERT INTO transfer_fee_patterns (pattern_name,amount,is_active,sort_order) VALUES (?,?,?,?)`,
+      [name,amount,req.body?.is_active === false ? 0 : 1,Number(req.body?.sort_order || 0)]
+    );
+    return res.status(201).json({ ok: true, transfer_fee_pattern_id: result.insertId });
+  } catch (err) {
+    console.error('[master_settings/transfer-fees/create]', err);
+    return res.status(500).json({ ok: false, message: '振込手数料マスターの作成に失敗しました' });
+  }
+});
+
+router.put('/transfer-fees/:id', async (req, res) => {
+  try {
+    const name = String(req.body?.pattern_name || '').trim();
+    const amount = Number(req.body?.amount);
+    if (!name || !Number.isFinite(amount) || amount < 0) return res.status(400).json({ ok: false, message: '名称と0円以上の固定金額は必須です' });
+    const result = await query(
+      `UPDATE transfer_fee_patterns SET pattern_name=?,amount=?,is_active=?,sort_order=?,version=version+1
+       WHERE transfer_fee_pattern_id=? AND is_deleted=0 AND version=?`,
+      [name,amount,req.body?.is_active === false ? 0 : 1,Number(req.body?.sort_order || 0),Number(req.params.id),Number(req.body?.version)]
+    );
+    if (!result?.affectedRows) return res.status(409).json({ ok: false, message: '他の利用者が更新しました。再読み込みしてください' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/transfer-fees/update]', err);
+    return res.status(500).json({ ok: false, message: '振込手数料マスターの更新に失敗しました' });
+  }
+});
+
+router.delete('/transfer-fees/:id', async (req, res) => {
+  try {
+    const result = await query(`UPDATE transfer_fee_patterns SET is_deleted=1,is_active=0,version=version+1 WHERE transfer_fee_pattern_id=? AND is_deleted=0`, [Number(req.params.id)]);
+    if (!result?.affectedRows) return res.status(404).json({ ok: false, message: '振込手数料マスターが見つかりません' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[master_settings/transfer-fees/delete]', err);
+    return res.status(500).json({ ok: false, message: '振込手数料マスターの削除に失敗しました' });
   }
 });
 

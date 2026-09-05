@@ -9,12 +9,14 @@
       this.baseListState = { sortKey: 'base_project_id', sortOrder: 'asc', filters: {} };
       this.projectListState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
-      const [companies, partners] = await Promise.all([
+      const [companies, partners, fees] = await Promise.all([
         this.ctx.api('/api/lookups/companies'),
         this.ctx.api('/api/lookups/partners'),
+        this.ctx.api('/api/lookups/transfer-fees'),
       ]);
       this.companies = companies.data?.companies || [];
       this.partners = partners.data?.partners || [];
+      this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },
@@ -38,7 +40,7 @@
       `;
     },
 
-    settlementFieldsHtml(row) {
+    settlementFieldsHtml(row, isBase = false) {
       return `
         <div><label>支払区分</label>
           <select name="payment_type">
@@ -47,6 +49,7 @@
           </select>
         </div>
         <div><label>分割単価</label><input name="installment_amount" type="number" step="0.01" value="${this.ctx.escapeHtml(row.installment_amount ?? '')}" /></div>
+        ${isBase ? '' : `<div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">パートナー設定を使用</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(row.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${Number(fee.amount).toLocaleString('ja-JP')}円）</option>`).join('')}</select></div>`}
         <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_start_date))}" /></div>
         <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, row.closing_date)}</select></div>
       `;
@@ -63,6 +66,7 @@
         break_time: form.break_time?.value || null,
         payment_type: form.payment_type?.value || 'normal',
         installment_amount: form.installment_amount?.value || null,
+        ...(form.transfer_fee_pattern_id ? { transfer_fee_pattern_id: form.transfer_fee_pattern_id.value || null } : {}),
         operation_start_date: form.operation_start_date?.value || null,
         closing_date: form.closing_date?.value || null,
       };
@@ -321,7 +325,7 @@
                 <div class="field-sm"><label>時間種別</label><select name="work_time_type">${this.kit.codeOptions(this.codes.work_time_type, row.work_time_type)}</select></div>
                 ${this.workFieldsHtml(row)}
               </div></section>
-              <section class="form-section-card"><h3>支払・締め条件</h3><div class="form-grid form-grid-compact">${this.settlementFieldsHtml(row)}</div></section>
+              <section class="form-section-card"><h3>支払・締め条件</h3><div class="form-grid form-grid-compact">${this.settlementFieldsHtml(row, true)}</div></section>
             </div>
             <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>

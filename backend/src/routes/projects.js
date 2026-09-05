@@ -53,6 +53,7 @@ const PROJECT_FIELDS = [
   'payment_type',
   'installment_type',
   'installment_amount',
+  'transfer_fee_pattern_id',
   'operation_start_date',
   'closing_date',
   'execution_time_start',
@@ -335,6 +336,7 @@ router.post('/base/:id/create-project', async (req, res) => {
       payment_type: overrides.payment_type || base.payment_type || 'normal',
       installment_type: overrides.installment_type || base.installment_type,
       installment_amount: overrides.installment_amount != null ? overrides.installment_amount : base.installment_amount,
+      transfer_fee_pattern_id: overrides.transfer_fee_pattern_id != null ? overrides.transfer_fee_pattern_id : null,
       operation_start_date: overrides.operation_start_date || base.operation_start_date,
       closing_date: overrides.closing_date || base.closing_date,
       execution_time_start: overrides.execution_time_start || base.execution_time_start,
@@ -411,6 +413,7 @@ router.get('/', async (req, res) => {
       `SELECT p.project_id, p.base_project_id, p.company_id, p.partner_id, p.vehicle_id,
               p.vehicle_owner_type,
               p.manager_name, p.business_type, p.payment_type, p.installment_amount,
+              p.transfer_fee_pattern_id,
               p.operation_start_date, p.closing_date, p.version,
               c.company_name, pt.partner_name, b.template_name AS base_template_name
        FROM projects p
