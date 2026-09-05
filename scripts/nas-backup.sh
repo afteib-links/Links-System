@@ -18,7 +18,7 @@ OUT="backups/links_${MYSQL_DATABASE}_$(date +%Y%m%d_%H%M%S).sql"
 
 docker compose exec -T db \
   mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" \
-  --single-transaction --routines --triggers \
+  --single-transaction --routines --triggers --events \
   "${MYSQL_DATABASE}" > "$OUT"
 
 ls -lh "$OUT"
