@@ -102,8 +102,8 @@ test('負号付き7桁単価・8桁金額・会社名1行・会社ロゴを帳�
     { line_type:'adjustment', item_name:'単価表示確認', quantity:1, unit_price:-1234567, amount:-1234567 },
     { line_type:'adjustment', item_name:'金額表示確認', quantity:100.01, unit_price:999999, amount:99999999 },
   ]);
-  assert.match(html, /¥-1,234,567/);
-  assert.match(html, /¥99,999,999/);
+  assert.match(html, /￥-1,234,567/);
+  assert.match(html, /￥99,999,999/);
   assert.match(html, /th:nth-child\(3\)\{width:25mm;text-align:center/);
   assert.match(html, /th:nth-child\(5\),\.invoice-sheet \.lines td:nth-child\(5\)\{width:25mm/);
   assert.match(html, /td\.money,.lines td\.num\{padding-left:0/);
@@ -140,9 +140,9 @@ test('作業料金請求書は税込額の税抜換算端数を配賦して小�
     gross_amount:60900, total_amount:60900, tax_rate:0.1, issuer,
     recipient:{ name:'検証パートナー' },
   }, lines);
-  assert.match(html, /¥55,363/);
-  assert.match(html, /¥5,537/);
-  assert.match(html, /¥16,364/);
+  assert.match(html, /￥55,363/);
+  assert.match(html, /￥5,537/);
+  assert.match(html, /￥16,364/);
 });
 
 test('給与明細は勤務・支給・控除・差引支給を分離する', () => {

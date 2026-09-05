@@ -64,6 +64,7 @@
         id: nextItemId(),
         name: '平日',
         mode: 'weekdays',
+        calc_types: ['daily', 'hourly'],
         weekdays: {
           mon: true,
           tue: true,
@@ -80,6 +81,7 @@
         id: nextItemId(),
         name: '休日',
         mode: 'weekdays',
+        calc_types: ['daily', 'hourly'],
         weekdays: {
           mon: false,
           tue: false,
@@ -96,6 +98,7 @@
         id: nextItemId(),
         name: '距離超過',
         mode: 'distance',
+        calc_types: ['distance'],
         weekdays: emptyWeekdays(),
         matrix: buildDistanceMatrix(pts),
       },
@@ -136,33 +139,27 @@
   }
 
   function normalizeItem(item, priceTypeCodes) {
-    const mode = item.mode === 'distance' ? 'distance' : 'weekdays';
+    const inferred = item.mode === 'distance'
+      ? ['distance']
+      : Object.keys(item.matrix || {}).filter(Boolean);
+    const calcTypes = [...new Set((Array.isArray(item.calc_types) && item.calc_types.length ? item.calc_types : inferred.length ? inferred : ['daily', 'hourly']).map(String))];
+    const mode = calcTypes.length === 1 && calcTypes[0] === 'distance' ? 'distance' : 'weekdays';
     const weekdays = { ...emptyWeekdays(), ...(item.weekdays || {}) };
-    let matrix;
-    if (mode === 'distance') {
-      matrix = { distance: {} };
-      const src = item.matrix?.distance || {};
+    const matrix = {};
+    calcTypes.forEach((calc) => {
+      matrix[calc] = {};
+      const src = item.matrix?.[calc] || {};
       priceTypeCodes.forEach((pt) => {
-        matrix.distance[pt] = normalizeCell(src[pt]);
+        matrix[calc][pt] = normalizeCell(src[pt]);
       });
-      if (!Object.keys(matrix.distance).length) {
-        matrix = buildDistanceMatrix(priceTypeCodes);
-      }
-    } else {
-      matrix = buildEmptyMatrix(priceTypeCodes);
-      ['daily', 'hourly'].forEach((calc) => {
-        const src = item.matrix?.[calc] || {};
-        priceTypeCodes.forEach((pt) => {
-          matrix[calc][pt] = normalizeCell(src[pt]);
-        });
-      });
-    }
+    });
     return {
       id: item.id || nextItemId(),
       name: item.name || '',
       billing_summary_template: item.billing_summary_template || '{企業名} {料金名}',
       payment_summary_template: item.payment_summary_template || '{パートナー名} {料金名}',
       mode,
+      calc_types: calcTypes,
       weekdays,
       matrix,
     };
@@ -171,24 +168,24 @@
   function attachLinesToItems(items, lines) {
     const list = lines || [];
     for (const item of items) {
-      if (item.mode === 'distance') {
-        for (const [pt, cell] of Object.entries(item.matrix.distance || {})) {
-          const hit = list.find(
-            (l) =>
-              String(l.calc_type_code) === 'distance' &&
-              String(l.price_type_code || '') === String(pt) &&
-              (String(l.weekday_code) === 'all' || !l.weekday_code)
-          );
-          if (hit) {
-            cell.lineIds = { all: hit.price_set_line_id };
-            cell.billing = hit.billing_unit_price ?? '';
-            cell.payment = hit.payment_unit_price ?? '';
+      for (const calc of item.calc_types || []) {
+        if (calc === 'distance') {
+          for (const [pt, cell] of Object.entries(item.matrix.distance || {})) {
+            const hit = list.find(
+              (l) =>
+                String(l.calc_type_code) === 'distance' &&
+                String(l.price_type_code || '') === String(pt) &&
+                (String(l.weekday_code) === 'all' || !l.weekday_code)
+            );
+            if (hit) {
+              cell.lineIds = { all: hit.price_set_line_id };
+              cell.billing = hit.billing_unit_price ?? '';
+              cell.payment = hit.payment_unit_price ?? '';
+            }
           }
+          continue;
         }
-        continue;
-      }
-      const days = WEEKDAY_CODES.filter((d) => item.weekdays[d]);
-      for (const calc of ['daily', 'hourly']) {
+        const days = WEEKDAY_CODES.filter((d) => item.weekdays[d]);
         for (const [pt, cell] of Object.entries(item.matrix[calc] || {})) {
           const lineIds = {};
           let billing = '';
@@ -233,6 +230,7 @@
         id: nextItemId(),
         name: '距離超過',
         mode: 'distance',
+        calc_types: ['distance'],
         weekdays: emptyWeekdays(),
         matrix,
       });
@@ -297,6 +295,7 @@
         id: nextItemId(),
         name: '料金項目',
         mode: 'weekdays',
+        calc_types: [...new Set(groupList.map((group) => group.calc))],
         weekdays,
         matrix,
       });
@@ -323,28 +322,12 @@
     const lines = [];
     let sort = 0;
     for (const item of items || []) {
-      if (item.mode === 'distance') {
-        for (const [pt, cell] of Object.entries(item.matrix?.distance || {})) {
-          if (!cellHasValue(cell)) continue;
-          const lid = cell.lineIds?.all || cell.lineIds?._single || null;
-          lines.push({
-            price_set_line_id: lid,
-            weekday_code: 'all',
-            calc_type_code: 'distance',
-            price_type_code: pt,
-            billing_unit_price: Number(cell.billing || 0),
-            payment_unit_price: Number(cell.payment || 0),
-            sort_order: sort++,
-          });
-        }
-        continue;
-      }
       const days = WEEKDAY_CODES.filter((d) => item.weekdays?.[d]);
-      if (!days.length) continue;
-      for (const calc of ['daily', 'hourly']) {
+      for (const calc of item.calc_types || []) {
         for (const [pt, cell] of Object.entries(item.matrix?.[calc] || {})) {
           if (!cellHasValue(cell)) continue;
-          for (const wd of days) {
+          const targetDays = calc === 'distance' ? ['all'] : days;
+          for (const wd of targetDays) {
             const lid = cell.lineIds?.[wd] || null;
             lines.push({
               price_set_line_id: lid,
@@ -369,6 +352,7 @@
       billing_summary_template: it.billing_summary_template,
       payment_summary_template: it.payment_summary_template,
       mode: it.mode,
+      calc_types: [...(it.calc_types || [])],
       weekdays: { ...it.weekdays },
       matrix: JSON.parse(JSON.stringify(it.matrix)),
     }));
@@ -422,6 +406,7 @@
     emptyWeekdays,
     emptyCell,
     defaultPriceTypeCodes,
+    normalizeItem,
     defaultFeeItemTemplates,
     hydrateFeeItems,
     itemsToLines,
@@ -429,7 +414,6 @@
     duplicateFeeItem,
     applyWeekdayPreset,
     cellHasValue,
-    normalizeItem,
     nextItemId,
   };
 })();

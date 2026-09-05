@@ -4,7 +4,7 @@
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ym = this.kit.currentYearMonth();
-      this.listFilters = { q:'', closing_date:'', workflow_status:'', input_progress:'' };
+      this.listFilters = { q:'', closing_date:'', workflow_status:'', workflow_statuses:'', input_progress:'' };
       this.saveInFlight = null;
       await this.showMonthList();
     },
@@ -204,7 +204,7 @@
       const totals = this.dayTotals(date);
       ['billing', 'payment'].forEach((side) => {
         document.querySelectorAll(`[data-day-total="${side}"][data-work-date="${date}"]`).forEach((cell) => {
-          cell.textContent = `¥${Math.round(totals[side]).toLocaleString()}`;
+          cell.textContent = this.kit.money(totals[side]);
         });
       });
     },
@@ -308,8 +308,10 @@
         '日報管理',
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          ${this.kit.monthNavigatorHtml(this.ym,'daily-month')}
-          ${this.canImport() ? '<div class="btn-row dr-import-entry"><button type="button" class="btn" id="open-daily-import">データ取り込み</button></div>' : ''}
+          <div class="daily-list-topbar">
+            ${this.kit.monthNavigatorHtml(this.ym,'daily-month')}
+            ${this.canImport() ? '<div class="btn-row dr-import-entry"><button type="button" class="btn" id="open-daily-import">データ取り込み</button></div>' : ''}
+          </div>
           <div class="settlement-filters">
             <input id="daily-q" placeholder="案件・会社・パートナーを検索" value="${this.ctx.escapeHtml(this.listFilters.q)}">
             <select id="daily-closing"><option value="">全締日</option>${['5','10','15','20','25','end'].map(v=>`<option value="${v}" ${this.listFilters.closing_date===v?'selected':''}>${v==='end'?'末日':`${v}日`}</option>`).join('')}</select>
@@ -318,12 +320,12 @@
             <button id="daily-filter" class="btn btn-secondary">絞り込み</button>
           </div>
           ${this.kit.summaryCardsHtml([
-            {label:'対象案件',value:summary.project_count ?? 0},
-            {label:'未入力',value:(data.rows||[]).filter(row=>row.workflow_status==='not_started').length},
-            {label:'作業中',value:(data.rows||[]).filter(row=>['inputting','ready'].includes(row.workflow_status)).length,tone:'working'},
-            {label:'確認待ち',value:(data.rows||[]).filter(row=>row.workflow_status==='submitted').length,tone:'waiting'},
-            {label:'完了',value:(data.rows||[]).filter(row=>row.workflow_status==='approved').length,tone:'complete'},
-            {label:'要対応',value:(data.rows||[]).filter(row=>['rejected','correcting'].includes(row.workflow_status)).length,tone:'attention'},
+            {label:'対象案件',value:summary.project_count ?? 0,filter:'',active:!this.listFilters.workflow_status&&!this.listFilters.workflow_statuses},
+            {label:'未入力',value:summary.workflow_groups?.not_started ?? 0,filter:'not_started',active:this.listFilters.workflow_statuses==='not_started'},
+            {label:'作業中',value:summary.workflow_groups?.working ?? 0,filter:'inputting,ready',active:this.listFilters.workflow_statuses==='inputting,ready',tone:'working'},
+            {label:'確認待ち',value:summary.workflow_groups?.waiting ?? 0,filter:'submitted',active:this.listFilters.workflow_statuses==='submitted',tone:'waiting'},
+            {label:'完了',value:summary.workflow_groups?.complete ?? 0,filter:'approved',active:this.listFilters.workflow_statuses==='approved',tone:'complete'},
+            {label:'要対応',value:summary.workflow_groups?.attention ?? 0,filter:'rejected,correcting',active:this.listFilters.workflow_statuses==='rejected,correcting',tone:'attention'},
           ])}
           <div class="table-wrap table-wrap-sticky">
             <table class="data-table data-table-compact">
@@ -336,7 +338,13 @@
       this.kit.bindShell();
       document.getElementById('open-daily-import')?.addEventListener('click', () => this.openImports());
       this.kit.bindMonthNavigator('daily-month',()=>this.ym,(value)=>{this.ym=value;},()=>this.showMonthList());
-      document.getElementById('daily-filter')?.addEventListener('click',()=>{this.listFilters={q:document.getElementById('daily-q').value.trim(),closing_date:document.getElementById('daily-closing').value,workflow_status:document.getElementById('daily-status').value,input_progress:document.getElementById('daily-progress').value};this.showMonthList();});
+      document.getElementById('daily-filter')?.addEventListener('click',()=>{this.listFilters={q:document.getElementById('daily-q').value.trim(),closing_date:document.getElementById('daily-closing').value,workflow_status:document.getElementById('daily-status').value,workflow_statuses:'',input_progress:document.getElementById('daily-progress').value};this.showMonthList();});
+      document.querySelectorAll('[data-summary-filter]').forEach((card)=>card.addEventListener('click',()=>{
+        const filter=card.getAttribute('data-summary-filter')||'';
+        this.listFilters.workflow_status='';
+        this.listFilters.workflow_statuses=this.listFilters.workflow_statuses===filter?'':filter;
+        this.showMonthList();
+      }));
       document.querySelectorAll('[data-input]').forEach((btn) =>
         btn.addEventListener('click', () => {
           this.kit.pushNav(() => this.showMonthList());
@@ -505,15 +513,15 @@
         const original = Number(info.original_rate ?? info.rate ?? 0);
         const override = overrides?.[side]?.[priceType];
         const value = override !== '' && override != null ? Number(override) : '';
-        const reference = original ? `¥${original.toLocaleString()}` : '-';
-        return `<td><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(info.calc_type)}` : ''}</small></td>`;
+        const reference = original ? this.kit.unitPrice(original) : '-';
+        return `<td><span class="money-input-wrap"><span>￥</span><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /></span><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(info.calc_type)}` : ''}</small></td>`;
       };
       const types = ['basic', 'shortage', 'overtime', 'night', 'night_overtime'];
       const header = types.map((type) => `<th>${labels[type]}</th>`).join('');
       const rows = ['billing', 'payment']
         .map((side) => `<tr><th>${side === 'billing' ? '請求' : '支払'}</th>${types.map((type) => cells(side, type)).join('')}</tr>`)
         .join('');
-      return `<div class="dr-rate-wrap"><table class="data-table data-table-compact dr-rate-table">
+      return `<div class="dr-rate-wrap"><table class="data-table data-table-compact dr-rate-table" data-no-list-enhance>
         <thead><tr><th></th>${header}</tr></thead><tbody>${rows}</tbody>
       </table></div>
       <label>一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(row.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>`;
@@ -574,11 +582,11 @@
         const amount = value.amounts?.total ?? (key === 'billing' ? row.calculated_billing_amount : row.calculated_payment_amount);
         const shortageAmount = value.amounts?.details?.shortage?.amount ?? row[`shortage_amount_${key}`] ?? 0;
         return `<div class="dr-calc-card"><strong>${label}</strong>
-          <span>不足 ${this.formatMinutes(value.shortage_minutes ?? row[`shortage_minutes_${key}`]) || '0:00'} / ¥${Number(shortageAmount || 0).toLocaleString()}</span>
+          <span>不足 ${this.formatMinutes(value.shortage_minutes ?? row[`shortage_minutes_${key}`]) || '0:00'} / ${this.kit.money(shortageAmount)}</span>
           <span>超過 ${this.formatMinutes(value.regular_overtime_minutes ?? row[`regular_overtime_minutes_${key}`]) || '-'}</span>
           <span>深夜 ${this.formatMinutes(value.night_minutes ?? row[`night_minutes_${key}`]) || '対象外'}</span>
           <span>深夜超過 ${this.formatMinutes(value.night_overtime_minutes ?? row[`night_overtime_minutes_${key}`]) || '対象外'}</span>
-          <span>金額 ¥${Number(amount || 0).toLocaleString()}</span></div>`;
+          <span>金額 ${this.kit.money(amount)}</span></div>`;
       };
       return `<div class="dr-calc-summary">${side('billing', '請求計算')}${side('payment', '支払計算')}</div>`;
     },
@@ -631,8 +639,8 @@
                 <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
                 ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
               </td>
-              <td class="dr-day-total-cell" data-day-total="billing" data-work-date="${this.ctx.escapeHtml(date)}">¥${Math.round(totals.billing).toLocaleString()}</td>
-              <td class="dr-day-total-cell" data-day-total="payment" data-work-date="${this.ctx.escapeHtml(date)}">¥${Math.round(totals.payment).toLocaleString()}</td>
+              <td class="dr-day-total-cell" data-day-total="billing" data-work-date="${this.ctx.escapeHtml(date)}">${this.kit.money(totals.billing)}</td>
+              <td class="dr-day-total-cell" data-day-total="payment" data-work-date="${this.ctx.escapeHtml(date)}">${this.kit.money(totals.payment)}</td>
             </tr>`;
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
@@ -676,8 +684,8 @@
               <span>超過合計: <strong>${sum.overtime}</strong></span>
               <span>不足合計（請求）: <strong>${sum.shortage}</strong></span>
               <span>総距離: <strong>${sum.distance}</strong></span>
-              ${this.monthlyDistance?.billing ? `<span>距離超過（請求/月）: <strong>¥${Number(this.monthlyDistance.billing.amount || 0).toLocaleString()}</strong></span>` : ''}
-              ${this.monthlyDistance?.payment ? `<span>距離超過（支払/月）: <strong>¥${Number(this.monthlyDistance.payment.amount || 0).toLocaleString()}</strong></span>` : ''}
+              ${this.monthlyDistance?.billing ? `<span>距離超過（請求/月）: <strong>${this.kit.money(this.monthlyDistance.billing.amount)}</strong></span>` : ''}
+              ${this.monthlyDistance?.payment ? `<span>距離超過（支払/月）: <strong>${this.kit.money(this.monthlyDistance.payment.amount)}</strong></span>` : ''}
             </div>
             <div class="btn-row">
               ${this.monthlyButtonsHtml()}
@@ -702,7 +710,7 @@
             </table>
           </div>
         </section>`,
-        { onBack: () => this.showMonthList(), wide: true }
+        { onBack: () => this.showMonthList(), wide: true, scrollBodyOnly: true }
       );
       this.kit.bindShell({ onBack: () => this.showMonthList() });
       this.bindGrid();

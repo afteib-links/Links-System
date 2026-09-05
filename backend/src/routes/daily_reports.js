@@ -363,26 +363,38 @@ router.get('/month-projects', async (req, res) => {
     const q=String(req.query.q||'').trim().toLocaleLowerCase('ja');
     const closing=String(req.query.closing_date||'').trim();
     const status=String(req.query.workflow_status||'').trim();
+    const statuses=String(req.query.workflow_statuses||'').split(',').map((value)=>value.trim()).filter(Boolean);
     const progress=String(req.query.input_progress||'').trim();
-    const filtered=rows.filter((row)=>{
+    const baseFiltered=rows.filter((row)=>{
       if(q&&!`${row.project_id} ${row.template_name||''} ${row.company_name||''} ${row.partner_name||''}`.toLocaleLowerCase('ja').includes(q))return false;
       if(closing&&String(row.closing_date||'')!==closing)return false;
-      if(status&&row.workflow_status!==status)return false;
       if(progress==='with_input'&&row.input_days===0)return false;
       if(progress==='without_input'&&row.input_days>0)return false;
       return true;
     });
-    const active = rows;
-    const withInput = rows.filter((r) => r.input_days > 0);
+    const filtered=baseFiltered.filter((row)=>{
+      if(status&&row.workflow_status!==status)return false;
+      if(statuses.length&&!statuses.includes(row.workflow_status))return false;
+      return true;
+    });
+    const withInput = baseFiltered.filter((r) => r.input_days > 0);
+    const workflowGroups = {
+      not_started: baseFiltered.filter((row)=>row.workflow_status==='not_started').length,
+      working: baseFiltered.filter((row)=>['inputting','ready'].includes(row.workflow_status)).length,
+      waiting: baseFiltered.filter((row)=>row.workflow_status==='submitted').length,
+      complete: baseFiltered.filter((row)=>row.workflow_status==='approved').length,
+      attention: baseFiltered.filter((row)=>['rejected','correcting'].includes(row.workflow_status)).length,
+    };
     return res.json({
       ok: true,
       target_year_month: ym,
       summary: {
-        project_count: active.length,
+        project_count: baseFiltered.length,
         input_project_count: withInput.length,
+        workflow_groups: workflowGroups,
         avg_completion_rate:
-          active.length
-            ? Math.round((active.reduce((s, r) => s + r.completion_rate, 0) / active.length) * 10) / 10
+          baseFiltered.length
+            ? Math.round((baseFiltered.reduce((s, r) => s + r.completion_rate, 0) / baseFiltered.length) * 10) / 10
             : 0,
       },
       rows:filtered,

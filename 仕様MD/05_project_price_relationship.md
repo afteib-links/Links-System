@@ -41,7 +41,7 @@ erDiagram
 | `validFrom` / `validTo` | `apply_start_date` / `apply_end_date`（`validTo` NULL＝無期限） |
 | `priceSetNo` | `price_sets.price_set_no`（例 `PS-20260801-001`） |
 | `dayType` | `price_set_lines.weekday_code`（`day_type` マスタ: weekday=平日, half=半日, sat=土曜…） |
-| `calcType` | `price_set_lines.calc_type_code`（`daily` / `hourly`） |
+| `calcType` | `price_set_lines.calc_type_code`（`daily` / `hourly` / `distance` / 料金計算区分マスターの追加値） |
 | `billingPrice1` | `billing_unit_price`（将来 `billing_price_2`〜4 は次段） |
 | `paymentPrice1` | `payment_unit_price` |
 
@@ -163,7 +163,7 @@ flowchart TD
 |----------|--------|
 | 料金項目名（平日・休日・距離超過など） | `price_sets.extra_data.fee_items[].name` |
 | 適用曜日（月火水木金土日祝） | 項目ごとチェック → 保存時に **曜日ごと 1 行** へ展開（`weekday_code`） |
-| 日極／時間 × 料金種別マトリクス | セルごとに請求／支払単価（整数円、3桁区切り表示）→ 展開後の各行に `calc_type_code`・`price_type_code` |
+| 選択した計算種別 × 料金種別マトリクス | セルごとに請求／支払単価（整数円、3桁区切り表示）→ 展開後の各行に `calc_type_code`・`price_type_code`。日極・時間・距離以外は設定保存のみ |
 | 距離超過項目 | 曜日 UI なし。`calc_type_code=distance`・`weekday_code=all` の 1 行（種別は基本等） |
 
 **正規形（API・計算）**: 既存どおり `price_set_lines` の 1 行 1 曜日 × 計算 × 種別。UI は `frontend/js/price_set_fee_model.js` で `lines[]` と往復する。

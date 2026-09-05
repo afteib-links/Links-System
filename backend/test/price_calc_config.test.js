@@ -69,3 +69,12 @@ test('請求側と支払側の深夜条件が同一なら共通入力と判定�
   const config = normalizeConfig({});
   assert.equal(nightInputMode(config), 'shared');
 });
+
+test('計算未対応の料金項目は日報計算の自動・手動選択から除外する', () => {
+  const items = [
+    { id:'custom', name:'独自料金', mode:'weekdays', calc_types:['custom'], weekdays:{ mon:true }, matrix:{ custom:{} } },
+    { id:'daily', name:'通常料金', mode:'weekdays', calc_types:['daily'], weekdays:{ mon:true }, matrix:{ daily:{} } },
+  ];
+  assert.equal(resolveFeeItem(items, '2026-08-31', null, false).item.id, 'daily');
+  assert.equal(resolveFeeItem(items, '2026-08-31', 'custom', false).item.id, 'daily');
+});
