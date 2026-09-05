@@ -83,6 +83,7 @@ async function inspectViewport(browser, viewport) {
   const companies = page.locator('[data-nav-feature="companies"]');
   if (!isMobile && await companies.count()) {
     await openFeature(page, 'companies', false);
+    await page.locator('#shared-data-table').waitFor();
     assert.equal(await page.locator('#shared-data-table thead tr').count(), 2, '企業一覧に列別フィルターを表示すること');
     const firstRow = page.locator('#shared-data-table tbody tr[data-row-key]').first();
     if (await firstRow.count()) {
@@ -101,6 +102,7 @@ async function inspectViewport(browser, viewport) {
   const projects = page.locator('[data-nav-feature="projects"]');
   if (!isMobile && await projects.count()) {
     await openFeature(page, 'projects', false);
+    await page.locator('#projects-table').waitFor();
     assert.equal(await page.locator('#projects-table th').filter({hasText:'締日'}).count() > 0, true, '個別案件一覧に締日を表示すること');
     await page.locator('#new-project').click();
     await page.locator('#project-form').waitFor();
