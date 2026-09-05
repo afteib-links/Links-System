@@ -70,6 +70,15 @@ a { color: var(--accent); }
   flex-direction: column;
   gap: 8px;
 }
+<<<<<<< HEAD
+=======
+.toc a.cross-link,
+.toc .cross-link {
+  color: #e2e8f0;
+  font-size: 12.5px;
+  text-decoration: underline;
+}
+>>>>>>> bab91a98b97f02205a7ea4a42a08dcf742e6b41c
 .toc button,
 .no-print.btn {
   appearance: none;
@@ -193,6 +202,26 @@ footer.colophon {
   font-size: 12px;
 }
 
+<<<<<<< HEAD
+=======
+code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: #eef2f7;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+pre.flow {
+  overflow-x: auto;
+}
+
+.cross-link {
+  display: inline-block;
+  margin-top: 8px;
+}
+
+>>>>>>> bab91a98b97f02205a7ea4a42a08dcf742e6b41c
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
   .toc { position: relative; height: auto; }

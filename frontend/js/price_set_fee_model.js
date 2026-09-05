@@ -160,6 +160,8 @@
     return {
       id: item.id || nextItemId(),
       name: item.name || '',
+      billing_summary_template: item.billing_summary_template || '{企業名} {料金名}',
+      payment_summary_template: item.payment_summary_template || '{パートナー名} {料金名}',
       mode,
       weekdays,
       matrix,
@@ -364,6 +366,8 @@
     return (items || []).map((it) => ({
       id: it.id,
       name: it.name,
+      billing_summary_template: it.billing_summary_template,
+      payment_summary_template: it.payment_summary_template,
       mode: it.mode,
       weekdays: { ...it.weekdays },
       matrix: JSON.parse(JSON.stringify(it.matrix)),

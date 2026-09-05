@@ -47,7 +47,10 @@ async function main() {
       vehicle_owner_type:'company',vehicle_id:10,manager_name:'担当A',business_type:'配送',
       payment_type:'normal',closing_date:'20',price_sets:[],revisions:[],
     }});
-    if (url.pathname === '/api/invoices/targets') return json({ok:true,targets:[]});
+    if (url.pathname === '/api/invoices/targets') return json({ok:true,targets:[{
+      project_id:7,project_name:'定期便',company_id:1,company_name:'東都運送',billing_summary_no:'A',
+      closing_date:'20',subtotal_amount:110000,target_status:'available',report_ids:[11],
+    }]});
     if (url.pathname === '/api/invoices') return json({ok:true,invoices:[{
       invoice_id:5,company_id:1,company_name:'東都運送',billing_print_name:'東都運送',
       closing_date:'20',total_amount:120000,settlement_status:'finalized',
@@ -91,12 +94,15 @@ async function main() {
 
     await page.locator('[data-nav-feature="invoices"]').click();
     await page.locator('table.data-table').last().waitFor();
+    assert.equal(await page.locator('[data-single="7"]').count(),1,'単独案件は請求可能ボタンから作成できること');
     assert.equal(await page.locator('table.data-table').last().locator('thead tr').count(), 2, '画面固有一覧にもヘッダーフィルターを追加すること');
     const invoiceRow = page.locator('[data-open="5"]').locator('xpath=ancestor::tr');
     await invoiceRow.click();
     assert.equal(await invoiceRow.getAttribute('aria-selected'), 'true');
     await invoiceRow.dblclick();
     await page.getByRole('heading', {name:'請求書 #5'}).waitFor();
+    assert.equal(await page.locator('a[href="/api/settlements/invoice/5/preview"]').count(),1,'下書き前後で見本帳票を確認できること');
+    assert.equal(await page.locator('#cancel').count(),1,'精算詳細に取消導線があること');
 
     await page.locator('[data-nav-feature="daily_reports"]').click();
     await page.locator('#open-daily-import').click();

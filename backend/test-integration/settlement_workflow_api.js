@@ -53,7 +53,10 @@ async function main() {
     const invoiceTargets = await request('/api/invoices/targets?target_year_month=2026-05');
     assert.equal(invoiceTargets.response.status, 200);
     assert.ok(invoiceTargets.data.targets.length >= 2);
-    const invoiceTarget = invoiceTargets.data.targets[0];
+    const invoiceTarget = invoiceTargets.data.targets.find((target) =>
+      target.target_status === 'available' && target.report_ids.length > 0
+    );
+    assert.ok(invoiceTarget, '請求可能な案件が必要です');
     const setting = await request(`/api/settlements/settings/company/${invoiceTarget.company_id}`, {
       method: 'PUT', body: JSON.stringify({ display_mode: 'project_aggregated', tax_rate: 0.08, tax_rounding: 'ceil' }),
     });
@@ -89,7 +92,10 @@ async function main() {
     const paymentTargets = await request('/api/payments/targets?target_year_month=2026-05');
     assert.equal(paymentTargets.response.status, 200);
     assert.ok(paymentTargets.data.targets.length >= 2);
-    const zeroTarget = paymentTargets.data.targets[0];
+    const zeroTarget = paymentTargets.data.targets.find((target) =>
+      target.target_status === 'available' && target.report_ids.length > 0
+    );
+    assert.ok(zeroTarget, '支払可能な案件が必要です');
     const [rule] = await pool.query(
       `INSERT INTO settlement_deduction_rules
         (rule_code,scope,partner_id,display_name,amount,tax_category,valid_from,valid_to,is_active)
@@ -117,7 +123,11 @@ async function main() {
     await pool.query('UPDATE settlement_deduction_rules SET is_active=0 WHERE settlement_deduction_rule_id=?', [rule.insertId]);
 
     const refreshedTargets = await request('/api/payments/targets?target_year_month=2026-05');
-    const correctionTarget = refreshedTargets.data.targets.find((target) => Number(target.partner_id) !== Number(zeroTarget.partner_id));
+    const correctionTarget = refreshedTargets.data.targets.find((target) =>
+      target.target_status === 'available'
+      && target.report_ids.length > 0
+      && Number(target.partner_id) !== Number(zeroTarget.partner_id)
+    );
     assert.ok(correctionTarget);
     const paymentDraft = await post('/api/settlements/payment/drafts', {
       target_year_month: '2026-05', partner_id: correctionTarget.partner_id,

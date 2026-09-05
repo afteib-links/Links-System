@@ -54,92 +54,87 @@ function restrictInvoiceRead(req, where, params, invoiceAlias='i') {
 router.get('/targets', async (req, res) => {
   try {
     const ym = String(req.query.target_year_month || '').trim();
-    const closing = String(req.query.closing_date || '').trim();
     if (!ym) {
       return res.status(400).json({ ok: false, message: '対象年月は必須です' });
     }
 
-    const where = [
-      `d.is_deleted = 0`,
-      `d.target_year_month = ?`,
-      `d.status = 'approved'`,
-      `d.billing_status = 'none'`,
-    ];
-    const params = [ym];
+    const projectWhere = ['pr.is_deleted = 0', 'pr.company_id IS NOT NULL'];
+    const projectParams = [];
     const targetRoles=roleSet(req);
-    if(targetRoles.has('company')){where.push('d.company_id=?');params.push(req.session.user.company_id);}
-    else if(targetRoles.has('sales')){where.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=d.project_id AND psr.user_id=?)');params.push(req.session.user.user_id);}
-    else if(!(targetRoles.has('admin')||targetRoles.has('soumu')||targetRoles.has('executive'))){where.push('1=0');}
-    if (closing) {
-      where.push(`(pr.closing_date = ? OR c.closing_date_code = ?)`);
-      params.push(closing, closing);
-    }
+    if(targetRoles.has('company')){projectWhere.push('pr.company_id=?');projectParams.push(req.session.user.company_id);}
+    else if(targetRoles.has('sales')){projectWhere.push('EXISTS (SELECT 1 FROM project_settlement_reviewers psr WHERE psr.project_id=pr.project_id AND psr.user_id=?)');projectParams.push(req.session.user.user_id);}
+    else if(!(targetRoles.has('admin')||targetRoles.has('soumu')||targetRoles.has('executive'))){projectWhere.push('1=0');}
 
-    const reports = await query(
-      `SELECT d.*, c.company_name, c.closing_date_code,
-              pr.closing_date AS project_closing_date, bp.template_name AS project_name,
+    const projects = await query(
+      `SELECT pr.project_id, pr.company_id, pr.closing_date AS project_closing_date,
+              bp.template_name AS project_name, c.company_name, c.closing_date_code,
               cb.billing_id, cb.billing_summary_no, cb.billing_print_name
-       FROM daily_reports d
-       JOIN companies c ON c.company_id = d.company_id
-       LEFT JOIN projects pr ON pr.project_id = d.project_id
-       LEFT JOIN base_projects bp ON bp.base_project_id = pr.base_project_id
+       FROM projects pr
+       JOIN companies c ON c.company_id=pr.company_id AND c.is_deleted=0
+       LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id
        LEFT JOIN company_billings cb
-          ON cb.billing_id = (SELECT MIN(cb2.billing_id) FROM company_billings cb2 WHERE cb2.company_id=d.company_id AND cb2.is_deleted=0)
-       WHERE ${where.join(' AND ')}
-         AND EXISTS (SELECT 1 FROM daily_report_monthly_approvals ma WHERE ma.project_id=d.project_id AND ma.target_year_month=d.target_year_month AND ma.status='approved')
-       ORDER BY d.company_id, cb.billing_summary_no, d.work_date`,
-      params
+          ON cb.billing_id=(SELECT MIN(cb2.billing_id) FROM company_billings cb2 WHERE cb2.company_id=pr.company_id AND cb2.is_deleted=0)
+       WHERE ${projectWhere.join(' AND ')}
+       ORDER BY c.company_name, pr.project_id`, projectParams
     );
-
-    // 画面では案件単位で選択し、同じ請求先・請求取纏番号だけをまとめる。
-    const groups = new Map();
-    for (const r of reports) {
-      const key = `${r.company_id}::${r.billing_summary_no || `company-${r.company_id}`}::${r.project_id}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          company_id: r.company_id,
-          company_name: r.company_name,
-          billing_id: r.billing_id || null,
-          billing_summary_no: r.billing_summary_no || null,
-          billing_print_name: r.billing_print_name || r.company_name,
-          project_id: Number(r.project_id),
-          project_name: r.project_name || `案件 #${r.project_id}`,
-          closing_date: closing || r.project_closing_date || r.closing_date_code || '',
-          report_ids: [],
-          project_ids: new Set(),
-          subtotal_amount: 0,
-        });
-      }
-      const g = groups.get(key);
-      if (!g.report_ids.includes(r.daily_report_id)) {
-        g.report_ids.push(r.daily_report_id);
-        g.subtotal_amount += effectiveBilling(r);
-      }
-      g.project_ids.add(r.project_id);
+    const reports = await query(
+      `SELECT d.* FROM daily_reports d WHERE d.is_deleted=0 AND d.target_year_month=?
+       AND d.project_id IN (${projects.length ? projects.map(()=>'?').join(',') : 'NULL'})
+       ORDER BY d.project_id,d.work_date`, [ym,...projects.map((p)=>Number(p.project_id))]
+    );
+    const approvals = await query(
+      `SELECT project_id,status FROM daily_report_monthly_approvals WHERE target_year_month=? AND status='approved'`, [ym]
+    );
+    const approvedProjects = new Set(approvals.map((row)=>Number(row.project_id)));
+    const linked = await query(
+      `SELECT d.project_id,i.invoice_id,w.status
+       FROM invoice_daily_reports l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
+       JOIN invoices i ON i.invoice_id=l.invoice_id AND i.is_deleted=0 AND i.target_year_month=?
+       JOIN settlement_workflows w ON w.settlement_type='invoice' AND w.settlement_id=i.invoice_id
+       WHERE w.status<>'cancelled' ORDER BY i.invoice_id DESC`, [ym]
+    );
+    const linkByProject = new Map();
+    for (const row of linked) if (!linkByProject.has(Number(row.project_id))) linkByProject.set(Number(row.project_id), row);
+    const reportsByProject = new Map();
+    for (const report of reports) {
+      const id=Number(report.project_id);
+      if(!reportsByProject.has(id)) reportsByProject.set(id,[]);
+      reportsByProject.get(id).push(report);
     }
-
     const targets = [];
-    for (const g of groups.values()) {
-      const taxSetting = await resolveTargetTax(g.company_id, g.project_ids);
-      const tax = taxSetting.error ? null : roundTax(g.subtotal_amount * taxSetting.rate, taxSetting.rounding);
+    for (const project of projects) {
+      const projectId=Number(project.project_id);
+      const projectReports=reportsByProject.get(projectId)||[];
+      const eligible=approvedProjects.has(projectId)
+        ? projectReports.filter((row)=>row.status==='approved'&&row.billing_status==='none') : [];
+      const subtotal=eligible.reduce((sum,row)=>sum+effectiveBilling(row),0);
+      const active=linkByProject.get(projectId);
+      const taxSetting = await resolveTargetTax(project.company_id, new Set([projectId]));
+      const tax = taxSetting.error ? null : roundTax(subtotal * taxSetting.rate, taxSetting.rounding);
+      let targetStatus='no_reports';
+      if(active) targetStatus=active.status;
+      else if(eligible.length) targetStatus='available';
+      else if(projectReports.length) targetStatus=approvedProjects.has(projectId)?'not_available':'awaiting_approval';
       targets.push({
-        company_id: g.company_id,
-        company_name: g.company_name,
-        billing_id: g.billing_id,
-        billing_summary_no: g.billing_summary_no,
-        billing_print_name: g.billing_print_name,
-        project_id: g.project_id,
-        project_name: g.project_name,
-        closing_date: g.closing_date,
+        company_id: project.company_id,
+        company_name: project.company_name,
+        billing_id: project.billing_id || null,
+        billing_summary_no: project.billing_summary_no || null,
+        billing_print_name: project.billing_print_name || project.company_name,
+        project_id: projectId,
+        project_name: project.project_name || `案件 #${projectId}`,
+        closing_date: project.project_closing_date || project.closing_date_code || 'end',
         project_count: 1,
-        report_count: g.report_ids.length,
-        report_ids: g.report_ids,
-        subtotal_amount: g.subtotal_amount,
+        report_count: eligible.length,
+        report_ids: eligible.map((row)=>Number(row.daily_report_id)),
+        subtotal_amount: subtotal,
         tax_amount: tax,
-        total_amount: tax == null ? null : g.subtotal_amount + tax,
+        total_amount: tax == null ? null : subtotal + tax,
         tax_rate: taxSetting.rate ?? null,
         tax_rounding: taxSetting.rounding ?? null,
         tax_error: taxSetting.error || null,
+        target_status: targetStatus,
+        settlement_id: active ? Number(active.invoice_id) : null,
       });
     }
 
