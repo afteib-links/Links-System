@@ -38,12 +38,9 @@
           <div class="${shellClass}">
             ${ctx.sidebarHtml?.() || ''}
             <div class="app-frame">
-            ${ctx.headerHtml()}
+            ${ctx.headerHtml(title)}
             <main class="${mainClass}">
-              <div class="page-header-row">
-                ${showHistoryBack ? '<div class="back-row"><button type="button" class="btn btn-ghost" id="back-history">← 戻る</button></div>' : ''}
-                <h2 class="page-title">${ctx.escapeHtml(title)}</h2>
-              </div>
+              ${showHistoryBack ? '<div class="page-header-row page-header-actions-only"><div class="back-row"><button type="button" class="btn btn-ghost" id="back-history">← 戻る</button></div></div>' : ''}
               ${bodyHtml}
             </main>
             </div>
