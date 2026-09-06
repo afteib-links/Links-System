@@ -378,7 +378,7 @@
   async function showHome() {
     currentView = 'home';
     app.innerHTML = `<div class="app-shell">${sidebarHtml('home')}<div class="app-frame">${headerHtml('業務ダッシュボード')}
-      <main class="app-main"><div class="loading-panel">業務状況を読み込み中…</div></main></div></div>`;
+      <main class="app-main dashboard-main"><p class="muted" data-dashboard-loading role="status">業務状況を読み込み中…</p></main></div></div>`;
     bindChrome();
 
     const now = new Date();
@@ -393,20 +393,12 @@
     </button>`).join('');
     const actionCards = cards.filter((item) => item.incomplete || item.attention).map((item) => `<button type="button" class="action-item" data-feature="${escapeHtml(item.feature_key)}"><span class="status-dot tone-${item.attention ? 'attention' : 'waiting'}">${item.attention ? '!' : '◷'}</span><span><strong>${escapeHtml(item.label)}</strong><small>${item.attention ? `要対応 ${escapeHtml(item.attention)}件` : `未完了 ${escapeHtml(item.incomplete)}件`}</small></span><span aria-hidden="true">›</span></button>`).join('');
 
-    app.innerHTML = `
-      <div class="app-shell">
-        ${sidebarHtml('home')}
-        <div class="app-frame">${headerHtml('業務ダッシュボード')}
-          <main class="app-main dashboard-main">
+    document.querySelector('.dashboard-main').innerHTML = `
             <div class="dashboard-title"><div><p class="eyebrow">${escapeHtml(ym)} 業務状況</p><p>未完了と確認待ちを先に確認できます。</p></div></div>
             <section class="dashboard-grid">${!dashboard.res.ok ? `<p class="error">${escapeHtml(dashboard.data?.message || '業務集計を取得できませんでした。ホームを開き直してください。')}</p>` : cardsHtml || '<p class="muted">表示できる業務集計がありません。</p>'}</section>
             <section class="dashboard-section"><div class="section-head"><div><p class="eyebrow">NEXT ACTION</p><h2>次に処理する項目</h2></div></div><div class="action-list">${!dashboard.res.ok ? '<p class="muted">業務集計を取得できないため、対応状況は確認できません。</p>' : actionCards || '<div class="empty-state"><strong>✓ 対応が必要な項目はありません</strong><span>現在表示できる業務は完了しています。</span></div>'}</div></section>
-          </main>
-        </div>
-      </div>
     `;
 
-    bindChrome();
     document.querySelectorAll('[data-feature]').forEach((btn) => {
       btn.addEventListener('click', () => openFeature(btn.getAttribute('data-feature')));
     });

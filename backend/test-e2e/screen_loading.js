@@ -66,7 +66,9 @@ async function main() {
       finishDashboard = () => route.fulfill({ json: { ok: true, cards: [] } });
     });
     await page.locator('[data-nav-home]').first().click();
-    await page.locator('.loading-panel').waitFor();
+    await page.locator('[data-dashboard-loading]').waitFor();
+    const shellWidth = await page.locator('.app-shell').evaluate((el) => el.getBoundingClientRect().width);
+    assert.equal(shellWidth, 1440, '集計待機中も余分な縦スクロールバーを出さない');
     await page.locator('[data-nav-feature="companies"]').click();
     await page.locator('#shared-data-table').waitFor();
     await finishDashboard();
