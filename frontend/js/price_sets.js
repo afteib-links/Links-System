@@ -11,13 +11,14 @@
     async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.codes = await this.kit.loadCodes();
       this.calculationSettings = await this.loadCalculationSettings();
       const companies = await this.ctx.api('/api/lookups/companies');
       this.companies = companies.data?.companies || [];
       this.q = '';
       this.listState = { sortKey: 'price_set_no', sortOrder: 'asc', filters: {} };
-      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('price_sets'), 'list');
+      this.layout = await this.kit.loadAreaLayout('price_sets');
       this.filterBaseProjectId = options.base_project_id ? Number(options.base_project_id) : null;
       this.filterProjectId = options.project_id ? Number(options.project_id) : null;
       this.prefillCompanyId = options.company_id ? Number(options.company_id) : null;

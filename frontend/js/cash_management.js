@@ -7,6 +7,7 @@
     async open(ctx) {
       this.ctx=ctx;
       this.kit=window.LinksFeatureKit.createFeatureKit(ctx);
+      this.ctx.renderLoading();
       this.ym=this.kit.currentYearMonth();
       this.view='calendar';
       this.selected=new Set();
@@ -127,7 +128,7 @@
       if(this.view==='calendar')this.bindCalendar();
       else this.bindList();
       this.bindAside();
-      if(this.view==='list')window.LinksListScreens.applyScreenTable(document.getElementById('cash-schedule-table'),'cash_management','list',this.layoutSaved);
+      if(this.view==='list')window.LinksListScreens?.applyScreenTable(document.getElementById('cash-schedule-table'),'cash_management','list',this.layoutSaved);
     },
     calendarHtml(){
       const[y,m]=this.ym.split('-').map(Number);

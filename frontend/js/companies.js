@@ -3,11 +3,12 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.listState = { q: '', sortKey: 'company_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
       const staffRes = await this.ctx.api('/api/master-settings/staff');
       this.staff = staffRes.data?.staff || [];
-      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('companies'), 'list');
+      this.layout = await this.kit.loadAreaLayout('companies');
       await this.showList();
     },
 

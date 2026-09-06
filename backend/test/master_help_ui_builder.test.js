@@ -196,6 +196,13 @@ test('plain tableは選択・操作を残して列を並べ替え非表示する
   assert.equal(empty.children[0].colSpan, 4);
 });
 
+test('日報openはレイアウト取得より先に読み込み表示する', () => {
+  const src = frontend('js/daily_reports.js');
+  const open = src.match(/async open\(ctx\) \{[\s\S]*?await this\.showMonthList\(\);/);
+  assert.ok(open, 'daily_reports.open が見つかりません');
+  assert.ok(open[0].indexOf('renderLoading') < open[0].indexOf('loadAreaLayout'), 'renderLoading を loadAreaLayout より先に呼ぶこと');
+});
+
 test('index.htmlはlist_screens.jsをdata-tableの直後に読む', () => {
   const html = frontend('index.html');
   const dataTable = html.indexOf('/js/data-table.js');

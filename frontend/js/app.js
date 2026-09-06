@@ -544,7 +544,7 @@
       </div></div>`;
 
     bindChrome();
-    window.LinksListScreens.applyScreenTable(document.getElementById('users-table'), 'users', 'list', userLayout);
+    window.LinksListScreens?.applyScreenTable(document.getElementById('users-table'), 'users', 'list', userLayout);
     document.getElementById('new-user-btn')?.addEventListener('click', () => openUserEditor(null));
 
     document.querySelectorAll('[data-edit-user]').forEach((btn) => {
