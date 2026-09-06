@@ -69,10 +69,10 @@ function resolveFeeItem(items, workDate, selectedId, isTraining = false, holiday
     if (selected) return { item: selected, source: 'manual' };
   }
   if (isTraining) {
-    const training = items.find((item) => feeItemHasSupportedCalc(item) && String(item.name || '').includes('研修'));
+    const training = items.find((item) => String(item.name || '').includes('研修') && feeItemMatchesDate(item, workDate, holidayState));
     if (training) return { item: training, source: 'auto' };
   }
-  const matched = items.find((item) => feeItemMatchesDate(item, workDate, holidayState));
+  const matched = items.find((item) => !String(item.name || '').includes('研修') && feeItemMatchesDate(item, workDate, holidayState));
   return { item: matched || null, source: 'auto' };
 }
 

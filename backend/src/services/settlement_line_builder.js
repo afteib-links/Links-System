@@ -99,7 +99,7 @@ function buildAggregatedLines(reports, kind, config = COMPONENT_ORDER) {
         collected.push({ component, calcType, rate: money(row.rate), quantity, amount, label });
       }
       const distance = detail?.distance?.[side];
-      const distanceAmount = money(distance?.amount ?? report[`distance_amount_${side}`]);
+      const distanceAmount = distance?.mode === 'monthly_excess' ? 0 : money(distance?.amount ?? report[`distance_amount_${side}`]);
       if (distanceAmount !== 0) {
         collected.push({
           component: 'distance', calcType: 'distance',
@@ -116,6 +116,18 @@ function buildAggregatedLines(reports, kind, config = COMPONENT_ORDER) {
       continue;
     }
     for (const row of collected) add(report, row.component, row.calcType, row.rate, row.quantity, row.amount, groupName||projectName, row.label);
+  }
+
+  // Month-level distance is separate from daily amounts. Add once per approved project/month,
+  // using the frozen approval result rather than today's rules or each daily candidate amount.
+  const monthlySeen = new Set();
+  for (const report of reports) {
+    const result = report.monthly_distance_results?.[side]?.result;
+    const key = `${report.project_id}:${report.monthly_approval_id}`;
+    if (!result || result.mode !== 'monthly_excess' || monthlySeen.has(key)) continue;
+    monthlySeen.add(key);
+    if (money(result.amount) !== 0) add(report, 'distance', 'distance', result.unit_price,
+      result.quantity_km, result.amount, report.project_name || `案件 #${report.project_id}`, '月間距離超過');
   }
 
   let previousGroup='';
