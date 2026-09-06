@@ -3,10 +3,11 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.ym = this.kit.currentYearMonth();
       this.listFilters = { q:'', closing_date:'', workflow_status:'', workflow_statuses:'', input_progress:'' };
       this.listState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
-      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('daily_reports'), 'list');
+      this.layout = await this.kit.loadAreaLayout('daily_reports');
       this.saveInFlight = null;
       await this.showMonthList();
     },

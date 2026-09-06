@@ -3,11 +3,12 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.listState = { q: '', partner_category_code: '', employment_type_code: '', sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
       const fees = await this.ctx.api('/api/lookups/transfer-fees');
       this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
-      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('partners'), 'list');
+      this.layout = await this.kit.loadAreaLayout('partners');
       await this.showList();
     },
 

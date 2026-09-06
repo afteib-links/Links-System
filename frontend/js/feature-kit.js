@@ -247,9 +247,17 @@
         document.getElementById(`${prefix}-load`)?.addEventListener('click', () => { setValue(document.getElementById(`${prefix}-value`)?.value || current()); reload(); });
       },
       async loadLayout(screenKey) {
-        const { res, data } = await ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`);
-        if (!res.ok || !data?.ok) return null;
-        return data.layout || null;
+        try {
+          const { res, data } = await ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`);
+          if (!res.ok || !data?.ok) return null;
+          return data.layout || null;
+        } catch (_error) {
+          return null;
+        }
+      },
+      async loadAreaLayout(screenKey, areaKey = 'list') {
+        const saved = await this.loadLayout(screenKey);
+        return window.LinksListScreens?.areaLayout?.(saved, areaKey) || null;
       },
       async saveLayout(screenKey, columnsJson, layoutJson = null) {
         return ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`, {

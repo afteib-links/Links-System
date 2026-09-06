@@ -3,6 +3,7 @@
     async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.companyFilter = options.company_id ? Number(options.company_id) : null;
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
@@ -21,8 +22,8 @@
         this.kit.loadLayout('base_projects'),
         this.kit.loadLayout('projects'),
       ]);
-      this.baseLayout = window.LinksListScreens.areaLayout(baseLayout, 'list');
-      this.projectLayout = window.LinksListScreens.areaLayout(projectLayout, 'list');
+      this.baseLayout = window.LinksListScreens?.areaLayout(baseLayout, 'list') || null;
+      this.projectLayout = window.LinksListScreens?.areaLayout(projectLayout, 'list') || null;
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },
