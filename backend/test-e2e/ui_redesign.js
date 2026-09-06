@@ -94,7 +94,14 @@ async function inspectViewport(browser, viewport) {
     await page.locator('.app-shell.mobile-menu-open').waitFor();
     assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'true', 'メニュー展開状態を通知すること');
     assert.equal(await page.locator('.app-sidebar').getAttribute('inert'), null, '開いたスマホメニューを操作可能にすること');
+    const menuLabels = await page.locator('.app-sidebar .sidebar-text, .app-sidebar .sidebar-group-label').evaluateAll((nodes) => nodes.map((node) => ({
+      text:node.textContent.trim(),
+      display:getComputedStyle(node).display,
+      width:node.getBoundingClientRect().width,
+    })));
+    assert.ok(menuLabels.length > 1 && menuLabels.every((item) => item.text && item.display !== 'none' && item.width > 0), '開いたスマホメニューでシステム名・分類名・全機能名を表示すること');
     await page.waitForFunction(() => document.querySelector('.app-sidebar')?.getBoundingClientRect().left >= -1);
+    await page.screenshot({ path:path.join(outputDir, `menu-open-${suffix}.png`), fullPage:true });
     const sidebarLeft = await page.locator('.app-sidebar').evaluate((node) => node.getBoundingClientRect().left);
     assert.ok(sidebarLeft >= -1, 'スマホメニューが画面内へ表示されること');
     await page.keyboard.press('Escape');

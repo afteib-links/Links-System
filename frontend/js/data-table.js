@@ -36,6 +36,18 @@
     return String(a).localeCompare(String(b), 'ja', { numeric: true, sensitivity: 'base' });
   }
 
+  function isCompactNumberColumn(columnOrLabel) {
+    if (typeof columnOrLabel === 'object' && columnOrLabel?.compactNumber === true) return true;
+    const label = typeof columnOrLabel === 'object' ? columnOrLabel?.label : columnOrLabel;
+    return /^(?:No\.?|企業No|案件No|事業所No)$/.test(String(label || '').trim());
+  }
+
+  function columnClass(column, extra = '') {
+    return [column?.className || '', isCompactNumberColumn(column) ? 'col-record-no' : '', extra]
+      .filter(Boolean)
+      .join(' ');
+  }
+
   function renderTable(options) {
     const {
       screenKey,
@@ -81,31 +93,37 @@
       .map((c) => {
         const arrow =
           sortKey === c.key ? (sortOrder === 'desc' ? ' ▼' : ' ▲') : '';
+        const className = columnClass(c, c.sortable === false ? '' : 'dt-sortable');
         return c.sortable === false
-          ? `<th>${escapeHtml(c.label)}</th>`
-          : `<th class="dt-sortable" data-sort-key="${escapeHtml(c.key)}" title="クリックでソート" aria-sort="${sortKey === c.key ? (sortOrder === 'desc' ? 'descending' : 'ascending') : 'none'}">${escapeHtml(c.label)}${arrow}</th>`;
+          ? `<th class="${escapeHtml(className)}">${escapeHtml(c.label)}</th>`
+          : `<th class="${escapeHtml(className)}" data-sort-key="${escapeHtml(c.key)}" title="クリックでソート" aria-sort="${sortKey === c.key ? (sortOrder === 'desc' ? 'descending' : 'ascending') : 'none'}">${escapeHtml(c.label)}${arrow}</th>`;
       })
       .join('');
 
     const filterRow = visibleCols
       .map((c) => {
-        if (c.filterable === false) return '<th class="dt-filter-cell"></th>';
+        const filterClass = columnClass(c, 'dt-filter-cell');
+        if (c.filterable === false) return `<th class="${escapeHtml(filterClass)}"></th>`;
         if (Array.isArray(c.filterOptions)) {
           const opts = c.filterOptions.map((item) => {
             const value = typeof item === 'string' ? item : item.value;
             const label = typeof item === 'string' ? item : item.label;
             return `<option value="${escapeHtml(value)}" ${String(filterMap[c.key] || '') === String(value) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
           }).join('');
-          return `<th class="dt-filter-cell"><select class="dt-filter" data-filter-key="${escapeHtml(c.key)}" aria-label="${escapeHtml(c.label)}で絞り込み"><option value="">すべて</option>${opts}</select></th>`;
+          return `<th class="${escapeHtml(filterClass)}"><select class="dt-filter" data-filter-key="${escapeHtml(c.key)}" aria-label="${escapeHtml(c.label)}で絞り込み"><option value="">すべて</option>${opts}</select></th>`;
         }
-        return `<th class="dt-filter-cell"><input type="search" class="dt-filter" data-filter-key="${escapeHtml(c.key)}" value="${escapeHtml(filterMap[c.key] || '')}" placeholder="絞込" aria-label="${escapeHtml(c.label)}で絞り込み" /></th>`;
+        return `<th class="${escapeHtml(filterClass)}"><input type="search" class="dt-filter" data-filter-key="${escapeHtml(c.key)}" value="${escapeHtml(filterMap[c.key] || '')}" placeholder="絞込" aria-label="${escapeHtml(c.label)}で絞り込み" /></th>`;
       })
       .join('');
 
     const body = filtered
       .map((row) => {
         const cells = visibleCols
-          .map((c) => `<td class="${escapeHtml(c.className || '')}">${typeof c.renderCell === 'function' ? c.renderCell(row) : escapeHtml(cellText(row, c))}</td>`)
+          .map((c) => {
+            const value = cellText(row, c);
+            const title = isCompactNumberColumn(c) ? ` title="${escapeHtml(value)}"` : '';
+            return `<td class="${escapeHtml(columnClass(c))}"${title}>${typeof c.renderCell === 'function' ? c.renderCell(row) : escapeHtml(value)}</td>`;
+          })
           .join('');
         const actions = typeof renderActions === 'function' ? renderActions(row) : '';
         const key = typeof rowKey === 'function' ? rowKey(row) : row?.[rowKey];
@@ -186,6 +204,21 @@
   }
 
   function enhancePlainTables(root = document) {
+    root.querySelectorAll?.('table.data-table, table.document-lines').forEach((table) => {
+      const headerRow = table.tHead?.rows?.[0];
+      if (!headerRow) return;
+      [...headerRow.cells].forEach((cell, index) => {
+        if (!isCompactNumberColumn(cell.textContent)) return;
+        [...table.rows].forEach((row) => {
+          const target = row.cells?.[index];
+          if (!target) return;
+          target.classList.add('col-record-no');
+          if (row.parentElement?.tagName === 'TBODY' && target.textContent.trim()) {
+            target.title = target.textContent.trim();
+          }
+        });
+      });
+    });
     root.querySelectorAll?.('table.data-table').forEach((table) => {
       if (table.dataset.listEnhanced === '1' || table.querySelector('.dt-filter-row')) return;
       if (table.hasAttribute('data-no-list-enhance') || table.matches('.fee-matrix, .dr-grid-table, .dr-month-table, .dr-import-review-table') || table.closest('form, .document-preview, .panel-sub, [id$="-mini"]')) return;
@@ -250,5 +283,5 @@
     });
   }
 
-  window.LinksDataTable = { renderTable, bindTable, normalizeLayout, compareValues, enhancePlainTables };
+  window.LinksDataTable = { renderTable, bindTable, normalizeLayout, compareValues, isCompactNumberColumn, enhancePlainTables };
 })();

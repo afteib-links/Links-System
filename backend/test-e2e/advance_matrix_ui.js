@@ -42,12 +42,24 @@ async function main() {
       await page.goto(baseUrl, { waitUntil:'networkidle' });
       if (viewport.width <= 760) await page.locator('#sidebar-toggle').click();
       await page.locator('[data-nav-feature="advances"]').click(); await page.locator('.advance-matrix').waitFor();
-      const layout = await page.evaluate(() => ({ doc:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,matrix:document.querySelector('.advance-matrix').scrollWidth,wrap:document.querySelector('.advance-matrix-wrap').clientWidth,rows:document.querySelectorAll('.advance-matrix tbody tr').length,stickyLeft:getComputedStyle(document.querySelector('.advance-project-cell')).position,stickyRight:getComputedStyle(document.querySelector('.advance-project-total')).position,amountWidth:document.querySelector('.advance-amount-input').getBoundingClientRect().width,feeWidth:document.querySelector('.advance-fee-input').getBoundingClientRect().width,periodLines:document.querySelector('.advance-period').children.length,originLines:document.querySelector('.advance-origin').children.length }));
-      assert.ok(layout.doc <= layout.client + 1, `${viewport.width}pxでページ全体を横スクロールさせない`); assert.ok(layout.matrix > layout.wrap || viewport.width === 1920, '狭い画面ではマトリクス内を横スクロールする'); assert.equal(layout.rows, 12); assert.equal(layout.stickyLeft, 'sticky'); assert.equal(layout.stickyRight, 'sticky');
+      const layout = await page.evaluate(() => {
+        const wrap = document.querySelector('.advance-matrix-wrap').getBoundingClientRect();
+        const cycle = document.querySelector('.advance-cycle-cell').getBoundingClientRect();
+        const project = document.querySelector('.advance-project-cell').getBoundingClientRect();
+        return { doc:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,matrix:document.querySelector('.advance-matrix').scrollWidth,wrap:document.querySelector('.advance-matrix-wrap').clientWidth,rows:document.querySelectorAll('.advance-matrix tbody tr').length,stickyLeft:getComputedStyle(document.querySelector('.advance-project-cell')).position,stickyRight:getComputedStyle(document.querySelector('.advance-project-total')).position,projectWidth:project.width,cycleVisibleWidth:Math.max(0,Math.min(cycle.right,wrap.right)-Math.max(cycle.left,wrap.left)),amountWidth:document.querySelector('.advance-amount-input').getBoundingClientRect().width,feeWidth:document.querySelector('.advance-fee-input').getBoundingClientRect().width,periodLines:document.querySelector('.advance-period').children.length,originLines:document.querySelector('.advance-origin').children.length };
+      });
+      assert.ok(layout.doc <= layout.client + 1, `${viewport.width}pxでページ全体を横スクロールさせない`); assert.ok(layout.matrix > layout.wrap || viewport.width === 1920, '狭い画面ではマトリクス内を横スクロールする'); assert.equal(layout.rows, 12); assert.equal(layout.stickyLeft, 'sticky');
+      if (viewport.width <= 760) {
+        assert.equal(layout.stickyRight, 'static', 'スマホでは案件別合計の右固定を解除する');
+        assert.ok(layout.projectWidth <= 141, 'スマホの案件列を約140pxに縮める');
+        assert.ok(layout.cycleVisibleWidth >= 120, 'スマホでサイクル金額を確認できる表示幅を確保する');
+      } else {
+        assert.equal(layout.stickyRight, 'sticky', 'PC・タブレットでは案件別合計を右固定する');
+      }
       assert.ok(layout.amountWidth < 100, '支払額入力は7桁相当の表示幅にする'); assert.ok(layout.feeWidth < 80, '手数料入力は5桁相当の表示幅にする'); assert.equal(layout.periodLines, 2, '年と月日範囲を2行表示する'); assert.ok(layout.originLines >= 2, '元額と計算根拠を2行表示する');
       await page.screenshot({ path:path.join(outputDir, `advance-${viewport.width}x${viewport.height}.png`), fullPage:true }); await page.close();
     }
   } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); }
-  console.log('[advance-matrix-ui] 4画面幅、12案件、固定左右列、ページ横はみ出しなしを確認しました');
+  console.log('[advance-matrix-ui] 4画面幅、12案件、スマホの合計列固定解除、ページ横はみ出しなしを確認しました');
 }
 main().catch((error) => { console.error(error); process.exit(1); });

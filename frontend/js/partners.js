@@ -83,9 +83,12 @@
         filters: this.listState.filters,
         escapeHtml: this.ctx.escapeHtml,
         renderActions: (p) => `
-          <button type="button" class="btn btn-ghost btn-small" data-edit="${p.partner_id}">編集</button>
-          <button type="button" class="btn btn-ghost btn-small" data-projects="${p.partner_id}">案件一覧</button>
-          <button type="button" class="btn btn-danger btn-small" data-del="${p.partner_id}">削除</button>`,
+          <span class="desktop-row-actions">
+            <button type="button" class="btn btn-ghost btn-small" data-edit="${p.partner_id}">編集</button>
+            <button type="button" class="btn btn-ghost btn-small" data-projects="${p.partner_id}">案件一覧</button>
+            <button type="button" class="btn btn-danger btn-small" data-del="${p.partner_id}">削除</button>
+          </span>
+          <button type="button" class="btn btn-ghost btn-small mobile-row-action" data-partner-actions="${p.partner_id}" aria-label="${this.ctx.escapeHtml(p.partner_name || `パートナーNo ${p.partner_id}`)}の操作">操作</button>`,
         rowKey: 'partner_id',
       });
 
@@ -101,6 +104,7 @@
             <button type="button" class="btn" id="new">＋ 新規</button>
           </div>
           ${table.html}
+          <div id="modal-host"></div>
         </section>`
       );
       this.kit.bindShell();
@@ -155,6 +159,31 @@
           await this.showList('削除しました');
         })
       );
+      document.querySelectorAll('[data-partner-actions]').forEach((btn) => {
+        btn.addEventListener('click', () => this.openListActions(Number(btn.getAttribute('data-partner-actions'))));
+      });
+    },
+
+    openListActions(id) {
+      const partner = this.rows.find((row) => Number(row.partner_id) === Number(id));
+      const host = document.getElementById('modal-host');
+      if (!partner || !host) return;
+      host.innerHTML = this.kit.modalHtml(
+        `${partner.partner_name || `パートナーNo ${id}`}の操作`,
+        `<div class="mobile-action-list">
+          <button type="button" class="btn btn-ghost" data-run-partner-action="edit">編集</button>
+          <button type="button" class="btn btn-ghost" data-run-partner-action="projects">案件一覧</button>
+          <button type="button" class="btn btn-danger" data-run-partner-action="del">削除</button>
+        </div>`
+      );
+      const close = this.kit.bindModal();
+      document.querySelectorAll('[data-run-partner-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-run-partner-action');
+          close();
+          document.querySelector(`.desktop-row-actions [data-${action}="${id}"]`)?.click();
+        });
+      });
     },
 
     emptyVehicle() {
