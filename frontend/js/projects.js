@@ -3,6 +3,7 @@
     async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.companyFilter = options.company_id ? Number(options.company_id) : null;
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
@@ -17,6 +18,12 @@
       this.companies = companies.data?.companies || [];
       this.partners = partners.data?.partners || [];
       this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
+      const [baseLayout, projectLayout] = await Promise.all([
+        this.kit.loadLayout('base_projects'),
+        this.kit.loadLayout('projects'),
+      ]);
+      this.baseLayout = window.LinksListScreens?.areaLayout(baseLayout, 'list') || null;
+      this.projectLayout = window.LinksListScreens?.areaLayout(projectLayout, 'list') || null;
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },
@@ -202,6 +209,7 @@
           { key: 'closing_date', label: '締日', getValue: (row) => this.kit.codeLabel(this.codes.closing_date, row.closing_date) },
         ],
         rows: baseRows,
+        layout: this.baseLayout,
         sortKey: this.baseListState.sortKey,
         sortOrder: this.baseListState.sortOrder,
         filters: this.baseListState.filters,
@@ -436,6 +444,7 @@
           { key: 'closing_date', label: '締日', getValue: (row) => this.kit.codeLabel(this.codes.closing_date, row.closing_date) },
         ],
         rows: projectRows,
+        layout: this.projectLayout,
         sortKey: this.projectListState.sortKey,
         sortOrder: this.projectListState.sortOrder,
         filters: this.projectListState.filters,

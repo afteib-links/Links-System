@@ -3,12 +3,12 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.listState = { q: '', partner_category_code: '', employment_type_code: '', sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
       const fees = await this.ctx.api('/api/lookups/transfer-fees');
       this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
-      const saved = await this.kit.loadLayout('partners');
-      this.layout = saved?.columns_json || null;
+      this.layout = await this.kit.loadAreaLayout('partners');
       await this.showList();
     },
 
@@ -370,7 +370,8 @@
           <div><label>車検期限</label><input type="date" id="m_inspection" value="${this.ctx.escapeHtml(this.kit.dateValue(v.inspection_expiry_date))}" /></div>
           <div><label>保険期限</label><input type="date" id="m_insurance" value="${this.ctx.escapeHtml(this.kit.dateValue(v.insurance_expiry_date))}" /></div>
         </div>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', () => {

@@ -59,13 +59,17 @@ async function assertCompactHeader(page, viewport, expectedTitle) {
   assert.equal(Boolean(layout.user), viewport.width > 520, '520px以下では利用者名を省略すること');
 }
 
-async function openFeature(page, featureKey, isMobile) {
+async function openFeature(page, featureKey, isMobile, expectedTitle) {
   if (isMobile) {
     await page.locator('#sidebar-toggle').click();
     await page.locator('.app-shell.mobile-menu-open').waitFor();
   }
   await page.locator(`[data-nav-feature="${featureKey}"]`).click();
-  await page.locator('.app-main').waitFor();
+  if (expectedTitle) {
+    await page.locator('.topbar-page-title').filter({ hasText: expectedTitle }).waitFor();
+  } else {
+    await page.locator('.app-main').waitFor();
+  }
   if (isMobile) {
     assert.equal(await page.locator('.app-shell.mobile-menu-open').count(), 0, '画面遷移後にスマホメニューが閉じること');
   }
@@ -115,7 +119,7 @@ async function inspectViewport(browser, viewport) {
 
   const daily = page.locator('[data-nav-feature="daily_reports"]');
   if (await daily.count()) {
-    await openFeature(page, 'daily_reports', isMobile);
+    await openFeature(page, 'daily_reports', isMobile, '日報管理');
     assert.equal(await page.locator('.app-sidebar').count(), 1, '業務画面でもサイドバーを維持すること');
     await assertCompactHeader(page, viewport, '日報管理');
     await assertNoPageOverflow(page, viewport, '日報画面');
@@ -124,7 +128,7 @@ async function inspectViewport(browser, viewport) {
 
   const companies = page.locator('[data-nav-feature="companies"]');
   if (!isMobile && await companies.count()) {
-    await openFeature(page, 'companies', false);
+    await openFeature(page, 'companies', false, '企業マスタ（仮組）');
     await page.locator('#shared-data-table').waitFor();
     assert.equal(await page.locator('#shared-data-table thead tr').count(), 2, '企業一覧に列別フィルターを表示すること');
     const firstRow = page.locator('#shared-data-table tbody tr[data-row-key]').first();
@@ -143,7 +147,7 @@ async function inspectViewport(browser, viewport) {
 
   const projects = page.locator('[data-nav-feature="projects"]');
   if (!isMobile && await projects.count()) {
-    await openFeature(page, 'projects', false);
+    await openFeature(page, 'projects', false, '個別案件（仮組）');
     await page.locator('#projects-table').waitFor();
     assert.equal(await page.locator('#projects-table th').filter({hasText:'締日'}).count() > 0, true, '個別案件一覧に締日を表示すること');
     await page.locator('#new-project').click();
@@ -154,7 +158,7 @@ async function inspectViewport(browser, viewport) {
   }
 
   if (isMobile && await page.locator('[data-nav-feature="payments"]').count()) {
-    await openFeature(page, 'payments', true);
+    await openFeature(page, 'payments', true, '支払管理');
     await page.locator('.settlement-filters').waitFor();
     const layout = await page.evaluate(() => ({
       mainWidth: document.querySelector('.app-main')?.getBoundingClientRect().width || 0,
@@ -173,7 +177,7 @@ async function inspectViewport(browser, viewport) {
 
   const masterSettings = page.locator('[data-nav-feature="master_settings"]');
   if (!isMobile && await masterSettings.count()) {
-    await openFeature(page, 'master_settings', false);
+    await openFeature(page, 'master_settings', false, 'マスター設定（仮組）');
     await page.locator('[data-hub="settings"]').click();
     await page.locator('#document-logo-uploader').waitFor();
     const transparentPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+XK6mAAAAAElFTkSuQmCC', 'base64');

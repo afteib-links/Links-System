@@ -247,9 +247,17 @@
         document.getElementById(`${prefix}-load`)?.addEventListener('click', () => { setValue(document.getElementById(`${prefix}-value`)?.value || current()); reload(); });
       },
       async loadLayout(screenKey) {
-        const { res, data } = await ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`);
-        if (!res.ok || !data?.ok) return null;
-        return data.layout || null;
+        try {
+          const { res, data } = await ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`);
+          if (!res.ok || !data?.ok) return null;
+          return data.layout || null;
+        } catch (_error) {
+          return null;
+        }
+      },
+      async loadAreaLayout(screenKey, areaKey = 'list') {
+        const saved = await this.loadLayout(screenKey);
+        return window.LinksListScreens?.areaLayout?.(saved, areaKey) || null;
       },
       async saveLayout(screenKey, columnsJson, layoutJson = null) {
         return ctx.api(`/api/layouts/${encodeURIComponent(screenKey)}`, {
@@ -257,10 +265,10 @@
           body: JSON.stringify({ columns_json: columnsJson, layout_json: layoutJson }),
         });
       },
-      modalHtml(title, bodyHtml, footerHtml = '') {
+      modalHtml(title, bodyHtml, footerHtml = '', extraClass = '') {
         return `
           <div class="modal-backdrop" id="modal-backdrop">
-            <div class="modal-panel" role="dialog" aria-modal="true">
+            <div class="modal-panel ${ctx.escapeHtml(extraClass)}" role="dialog" aria-modal="true">
               <div class="modal-head">
                 <h3>${ctx.escapeHtml(title)}</h3>
                 <button type="button" class="btn btn-ghost btn-small" id="modal-close">閉じる</button>

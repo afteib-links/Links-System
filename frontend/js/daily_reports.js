@@ -3,8 +3,11 @@
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
+      this.ctx.renderLoading();
       this.ym = this.kit.currentYearMonth();
       this.listFilters = { q:'', closing_date:'', workflow_status:'', workflow_statuses:'', input_progress:'' };
+      this.listState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
+      this.layout = await this.kit.loadAreaLayout('daily_reports');
       this.saveInFlight = null;
       await this.showMonthList();
     },
@@ -286,24 +289,29 @@
         return;
       }
       const summary = data.summary || {};
-      const rows = (data.rows || [])
-        .map(
-          (r) => `
-          <tr>
-            <td>#${this.ctx.escapeHtml(r.project_id)}</td>
-            <td>${this.ctx.escapeHtml(r.template_name || r.manager_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(r.company_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(r.partner_name || '-')}</td>
-            <td>${r.closing_date === 'end' ? '末日' : `${this.ctx.escapeHtml(r.closing_date || '-')}日`}</td>
-            <td>${this.ctx.escapeHtml(r.input_days)}/${this.ctx.escapeHtml(r.days_in_month)}（${this.ctx.escapeHtml(r.completion_rate)}%）</td>
-            <td>${this.kit.statusBadge(r.workflow_status, r.workflow_status_label || r.input_status)}</td>
-            <td>
-              <button type="button" class="btn btn-small" data-input="${r.project_id}"
-                data-company="${r.company_id || ''}" data-partner="${r.partner_id || ''}">入力</button>
-            </td>
-          </tr>`
-        )
-        .join('');
+      const monthRows = data.rows || [];
+      const table = window.LinksDataTable.renderTable({
+        screenKey: 'daily_reports',
+        columns: [
+          { key: 'project_id', label: '案件No', getValue: (r) => `#${r.project_id}` },
+          { key: 'template_name', label: '案件名', getValue: (r) => r.template_name || r.manager_name || '-' },
+          { key: 'company_name', label: '企業' },
+          { key: 'partner_name', label: 'パートナー' },
+          { key: 'closing_date', label: '締日', getValue: (r) => r.closing_date === 'end' ? '末日' : `${r.closing_date || '-'}日` },
+          { key: 'input_progress', label: '入力進捗', getValue: (r) => `${r.input_days}/${r.days_in_month}（${r.completion_rate}%）` },
+          { key: 'workflow_status', label: '月次承認状態', renderCell: (r) => this.kit.statusBadge(r.workflow_status, r.workflow_status_label || r.input_status) },
+        ],
+        rows: monthRows,
+        layout: this.layout,
+        sortKey: this.listState.sortKey,
+        sortOrder: this.listState.sortOrder,
+        filters: this.listState.filters,
+        escapeHtml: this.ctx.escapeHtml,
+        rowKey: 'project_id',
+        tableId: 'daily-projects-table',
+        renderActions: (r) => `<button type="button" class="btn btn-small" data-input="${r.project_id}"
+                data-company="${r.company_id || ''}" data-partner="${r.partner_id || ''}">入力</button>`,
+      });
       this.ctx.app.innerHTML = this.kit.shell(
         '日報管理',
         `<section class="panel">
@@ -327,15 +335,19 @@
             {label:'完了',value:summary.workflow_groups?.complete ?? 0,filter:'approved',active:this.listFilters.workflow_statuses==='approved',tone:'complete'},
             {label:'要対応',value:summary.workflow_groups?.attention ?? 0,filter:'rejected,correcting',active:this.listFilters.workflow_statuses==='rejected,correcting',tone:'attention'},
           ])}
-          <div class="table-wrap table-wrap-sticky">
-            <table class="data-table data-table-compact">
-              <thead><tr><th>案件No</th><th>案件名</th><th>企業</th><th>パートナー</th><th>締日</th><th>入力進捗</th><th>月次承認状態</th><th>操作</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="8">案件がありません</td></tr>'}</tbody>
-            </table>
-          </div>
+          <div id="daily-list-root">${table.html}</div>
         </section>`
       );
       this.kit.bindShell();
+      window.LinksDataTable.bindTable('#daily-list-root', {
+        onSort: (key) => {
+          this.listState.sortOrder = this.listState.sortKey === key && this.listState.sortOrder === 'asc' ? 'desc' : 'asc';
+          this.listState.sortKey = key;
+          this.showMonthList(message);
+        },
+        onFilter: (filters) => { this.listState.filters = filters; this.showMonthList(message); },
+        onActivate: (key) => document.querySelector(`[data-input="${key}"]`)?.click(),
+      });
       document.getElementById('open-daily-import')?.addEventListener('click', () => this.openImports());
       this.kit.bindMonthNavigator('daily-month',()=>this.ym,(value)=>{this.ym=value;},()=>this.showMonthList());
       document.getElementById('daily-filter')?.addEventListener('click',()=>{this.listFilters={q:document.getElementById('daily-q').value.trim(),closing_date:document.getElementById('daily-closing').value,workflow_status:document.getElementById('daily-status').value,workflow_statuses:'',input_progress:document.getElementById('daily-progress').value};this.showMonthList();});

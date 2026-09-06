@@ -444,6 +444,8 @@
     renderLoading();
 
     const { res, data } = await api('/api/users');
+    const layoutRes = await api('/api/layouts/users');
+    const userLayout = layoutRes.data?.layout || null;
     if (!res.ok || !data?.ok) {
       app.innerHTML = `
         <div class="app-shell">
@@ -464,13 +466,13 @@
         const roles = (user.roles || []).map(roleLabel).join('、');
         return `
           <tr>
-            <td>${escapeHtml(user.user_id)}</td>
-            <td>${escapeHtml(user.login_id)}</td>
-            <td>${escapeHtml(user.display_name)}</td>
-            <td>${escapeHtml(roles)}</td>
-            <td>${escapeHtml((user.departments || []).join('、') || '-')}</td>
-            <td>${escapeHtml((user.areas || []).join('、') || '-')}</td>
-            <td>${user.is_active ? '<span class="status-ok">有効</span>' : '<span class="status-ng">無効</span>'}</td>
+            <td data-col="user_id">${escapeHtml(user.user_id)}</td>
+            <td data-col="login_id">${escapeHtml(user.login_id)}</td>
+            <td data-col="display_name">${escapeHtml(user.display_name)}</td>
+            <td data-col="roles">${escapeHtml(roles)}</td>
+            <td data-col="departments">${escapeHtml((user.departments || []).join('、') || '-')}</td>
+            <td data-col="areas">${escapeHtml((user.areas || []).join('、') || '-')}</td>
+            <td data-col="is_active">${user.is_active ? '<span class="status-ok">有効</span>' : '<span class="status-ng">無効</span>'}</td>
             <td>
               <button type="button" class="btn btn-ghost btn-small" data-edit-user="${user.user_id}">編集</button>
               <button type="button" class="btn btn-danger btn-small" data-delete-user="${user.user_id}"
@@ -491,16 +493,16 @@
               <button type="button" class="btn" id="new-user-btn">＋ 新規ユーザー</button>
             </div>
             <div class="table-wrap">
-              <table class="data-table">
+              <table id="users-table" class="data-table">
                 <thead>
                   <tr>
-                    <th>No</th>
-                    <th>ID</th>
-                    <th>名</th>
-                    <th>権限</th>
-                    <th>所属部署</th>
-                    <th>所属エリア</th>
-                    <th>状態</th>
+                    <th data-col="user_id">No</th>
+                    <th data-col="login_id">ID</th>
+                    <th data-col="display_name">名</th>
+                    <th data-col="roles">権限</th>
+                    <th data-col="departments">所属部署</th>
+                    <th data-col="areas">所属エリア</th>
+                    <th data-col="is_active">状態</th>
                     <th>操作</th>
                   </tr>
                 </thead>
@@ -513,6 +515,7 @@
       </div></div>`;
 
     bindChrome();
+    window.LinksListScreens?.applyScreenTable(document.getElementById('users-table'), 'users', 'list', userLayout);
     document.getElementById('new-user-btn')?.addEventListener('click', () => openUserEditor(null));
 
     document.querySelectorAll('[data-edit-user]').forEach((btn) => {
