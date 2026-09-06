@@ -26,6 +26,39 @@ async function assertNoPageOverflow(page, viewport, label) {
   assert.ok(widths.client <= viewport.width + 1, `${label}で表示領域を超えないこと`);
 }
 
+async function assertCompactHeader(page, viewport, expectedTitle) {
+  const layout = await page.evaluate(() => {
+    const header = document.querySelector('.app-topbar');
+    const visible = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element || getComputedStyle(element).display === 'none') return null;
+      const rect = element.getBoundingClientRect();
+      return { top:rect.top, bottom:rect.bottom };
+    };
+    return {
+      headerHeight:header?.getBoundingClientRect().height || 0,
+      flexWrap:header ? getComputedStyle(header).flexWrap : '',
+      toggle:visible('.sidebar-toggle'),
+      system:visible('.topbar-context'),
+      title:visible('.topbar-page-title'),
+      user:visible('.app-topbar .user-pill'),
+      logout:visible('#logout-btn'),
+      bodyTitles:document.querySelectorAll('.page-header-row .page-title').length,
+    };
+  });
+  const heightLimit = viewport.width <= 760 ? 56.5 : 58.5;
+  assert.ok(layout.headerHeight <= heightLimit, `${viewport.width}pxでヘッダー高を固定すること`);
+  assert.equal(layout.flexWrap, 'nowrap', 'ヘッダーを折り返さないこと');
+  assert.equal(await page.locator('.topbar-page-title').textContent(), expectedTitle);
+  assert.equal(layout.bodyTitles, 0, '本文に画面タイトルを重複表示しないこと');
+  assert.ok(layout.toggle && layout.title && layout.logout, '主要ヘッダー要素を表示すること');
+  for (const item of [layout.toggle, layout.title, layout.logout, layout.system, layout.user].filter(Boolean)) {
+    assert.ok(item.top >= -0.5 && item.bottom <= layout.headerHeight + 0.5, '各要素をヘッダー1行内に収めること');
+  }
+  assert.equal(Boolean(layout.system), viewport.width > 760, 'スマホではシステム名を省略すること');
+  assert.equal(Boolean(layout.user), viewport.width > 520, '520px以下では利用者名を省略すること');
+}
+
 async function openFeature(page, featureKey, isMobile) {
   if (isMobile) {
     await page.locator('#sidebar-toggle').click();
@@ -47,6 +80,7 @@ async function inspectViewport(browser, viewport) {
   assert.ok(shellWidth <= viewport.width && shellWidth >= viewport.width - 2, '共通シェルが画面幅を利用すること');
   assert.equal(await page.locator('.app-sidebar').count(), 1, 'サイドバーを表示すること');
   assert.equal(await page.locator('.dashboard-main').count(), 1, '業務ダッシュボードを表示すること');
+  await assertCompactHeader(page, viewport, '業務ダッシュボード');
   if (!isMobile && viewport.width <= 1366) {
     assert.ok(await page.locator('.app-shell').evaluate((node) => node.classList.contains('sidebar-collapsed')), '1366px以下ではサイドバーを折り畳むこと');
   }
@@ -76,6 +110,7 @@ async function inspectViewport(browser, viewport) {
   if (await daily.count()) {
     await openFeature(page, 'daily_reports', isMobile);
     assert.equal(await page.locator('.app-sidebar').count(), 1, '業務画面でもサイドバーを維持すること');
+    await assertCompactHeader(page, viewport, '日報管理');
     await assertNoPageOverflow(page, viewport, '日報画面');
     await page.screenshot({ path:path.join(outputDir, `daily-reports-${suffix}.png`), fullPage:true });
   }
@@ -157,6 +192,7 @@ async function main() {
   try {
     await inspectViewport(browser, { width:1920, height:1080 });
     await inspectViewport(browser, { width:1366, height:768 });
+    await inspectViewport(browser, { width:1200, height:600 });
     await inspectViewport(browser, { width:430, height:932 });
     await inspectViewport(browser, { width:390, height:844 });
   } finally {
@@ -165,7 +201,7 @@ async function main() {
       await new Promise((resolve) => server.close(resolve));
     }
   }
-  console.log('[ui-redesign] 1920x1080 / 1366x768 / 430x932 / 390x844 の共通シェルを確認しました');
+  console.log('[ui-redesign] 1920x1080 / 1366x768 / 1200x600 / 430x932 / 390x844 の共通シェルを確認しました');
 }
 
 main()
