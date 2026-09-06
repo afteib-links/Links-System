@@ -21,6 +21,7 @@ const lookupsRoutes = require('./routes/lookups');
 const layoutsRoutes = require('./routes/layouts');
 const priceSetsRoutes = require('./routes/price_sets');
 const masterSettingsRoutes = require('./routes/master_settings');
+const bankExportMasterRoutes = require('./routes/bank_export_masters');
 const cashManagementRoutes = require('./routes/cash_management');
 const settlementRoutes = require('./routes/settlements');
 const dashboardRoutes = require('./routes/dashboard');
@@ -103,6 +104,7 @@ async function createApp() {
   app.use('/api/layouts', layoutsRoutes);
   app.use('/api/price-sets', priceSetsRoutes);
   app.use('/api/master-settings', masterSettingsRoutes);
+  app.use('/api/master-settings/bank-export', bankExportMasterRoutes.router);
   app.use('/api/cash-management', cashManagementRoutes.router);
   app.use('/api/settlements', settlementRoutes);
   app.use('/api/dashboard', dashboardRoutes);

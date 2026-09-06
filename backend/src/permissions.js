@@ -24,7 +24,7 @@ const FEATURES = [
   { key: 'advances', label: '先払い', group: 'billing' },
   { key: 'invoices', label: '請求', group: 'billing' },
   { key: 'payments', label: '支払', group: 'billing' },
-  { key: 'cash_management', label: '入出金管理・CSV', group: 'billing' },
+  { key: 'cash_management', label: '入出金管理・FB出力', group: 'billing' },
   { key: 'master_settings', label: 'マスター設定', group: 'settings' },
   { key: 'ui_builder', label: 'UIビルダー', group: 'settings' },
   { key: 'users', label: 'ユーザー管理', group: 'settings' },
