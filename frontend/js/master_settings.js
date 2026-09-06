@@ -8,8 +8,8 @@
   const MASTER_HELP = {
     staff: {
       title: '営業担当者マスタの登録方法',
-      how: ['氏名は必須です。カナと役割は任意です。', '並び順は選択リストの表示順です。', '無効にすると、企業マスタの担当履歴で新規選択できなくなります。既存の履歴は残ります。'],
-      affects: ['企業マスタの担当履歴（営業担当・契約担当）'],
+      how: ['氏名は必須です。カナと役割は任意です。', 'エリアは収支分析の抽出と階層に使います。空欄は「未設定」です。', '並び順は選択リストの表示順です。', '無効にすると、企業マスタの担当履歴で新規選択できなくなります。既存の履歴は残ります。'],
+      affects: ['企業マスタの担当履歴（営業担当・契約担当）', '収支分析のエリア・担当者抽出'],
     },
     offices: {
       title: '事業所マスタの登録方法',
@@ -29,7 +29,7 @@
     settings: {
       title: 'システム設定の記載方法',
       how: ['日報の色は #RRGGBB の6桁で入力します。色見本とカラーコードを両方確認してください。', '料金自動計算の倍率・利益率は0以上の数値です。', '日報提出の猶予日は0〜30の整数です。', '請求・支払摘要の表示順は basic,overtime,night,night_overtime,distance,shortage を重複なく6つ並べます。', 'PDFロゴは PNG・JPEG・WebP です。縦横比を維持して帳票へ出します。'],
-      affects: ['日報入力画面の文字サイズ・曜日色・増減単位', '金額データの自動計算と利益率警告', '日報提出の期限と遅延日数', '請求・支払明細の摘要順', 'PDF帳票の会社ロゴ'],
+      affects: ['日報入力画面の文字サイズ・曜日色・増減単位', '金額データの自動計算と利益率警告', '収支分析の企業別利益率の赤表示', '日報提出の期限と遅延日数', '請求・支払明細の摘要順', 'PDF帳票の会社ロゴ'],
     },
     holidays: {
       title: '祝日・案件休日の登録方法',
@@ -216,6 +216,7 @@
           <tr>
             <td>${this.ctx.escapeHtml(s.staff_master_id)}</td>
             <td>${this.ctx.escapeHtml(s.staff_name)}</td>
+            <td>${this.ctx.escapeHtml(s.area_name || '-')}</td>
             <td>${this.ctx.escapeHtml(s.staff_name_kana || '-')}</td>
             <td>${this.ctx.escapeHtml(s.role_label || '-')}</td>
             <td>${s.is_active ? '有効' : '無効'}</td>
@@ -234,8 +235,8 @@
           <div class="toolbar">${this.helpButtonHtml('staff')}<button type="button" class="btn" id="new-staff">＋ 追加</button></div>
           <div class="table-wrap">
             <table class="data-table data-table-compact">
-              <thead><tr><th>No</th><th>氏名</th><th>カナ</th><th>役割</th><th>状態</th><th>操作</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="6">なし</td></tr>'}</tbody>
+              <thead><tr><th>No</th><th>氏名</th><th>エリア</th><th>カナ</th><th>役割</th><th>状態</th><th>操作</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="7">なし</td></tr>'}</tbody>
             </table>
           </div>
           <div id="modal-host"></div>
@@ -266,6 +267,7 @@
         isNew ? '担当者追加' : '担当者編集',
         `<section class="form-section-card"><div class="form-grid form-grid-compact">
           <div><label>氏名</label><input id="m_name" value="${this.ctx.escapeHtml(row?.staff_name || '')}" /></div>
+          <div><label>エリア</label><input id="m_area" value="${this.ctx.escapeHtml(row?.area_name || '')}" /></div>
           <div><label>カナ</label><input id="m_kana" value="${this.ctx.escapeHtml(row?.staff_name_kana || '')}" /></div>
           <div><label>役割</label><input id="m_role" value="${this.ctx.escapeHtml(row?.role_label || '')}" /></div>
           <div><label>並び順</label><input type="number" id="m_sort" value="${this.ctx.escapeHtml(row?.sort_order ?? 0)}" /></div>
@@ -278,6 +280,7 @@
       document.getElementById('modal-save')?.addEventListener('click', async () => {
         const payload = {
           staff_name: document.getElementById('m_name').value.trim(),
+          area_name: document.getElementById('m_area').value.trim(),
           staff_name_kana: document.getElementById('m_kana').value,
           role_label: document.getElementById('m_role').value,
           sort_order: Number(document.getElementById('m_sort').value || 0),

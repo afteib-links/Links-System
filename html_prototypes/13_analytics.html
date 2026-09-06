@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>収支分析 - Links-System 画面イメージ</title>
+<style>
+:root {
+  --bg: #f4f7fa;
+  --ink: #172033;
+  --muted: #5e6b7a;
+  --line: #d8e0e8;
+  --line-strong: #b8c4d1;
+  --brand: #0f6b78;
+  --brand-dark: #0a4f5a;
+  --sidebar: #17233c;
+  --sidebar-hover: #223250;
+  --ok: #137a52;
+  --danger: #b42318;
+  --font: "Meiryo UI", Meiryo, "BIZ UDPGothic", "Yu Gothic UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: var(--font); color: var(--ink); background: var(--bg); font-size: 14px; }
+.app-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
+.app-sidebar { background: var(--sidebar); color: #e7edf6; padding: 14px 10px 20px; }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 48px; font-weight: 700; color: #fff; }
+.brand-symbol { width: 30px; height: 30px; border-radius: 8px; background: #17a1a9; display: grid; place-items: center; }
+.sidebar-group { margin-top: 15px; }
+.sidebar-group-label { padding: 0 12px 6px; color: #93a4bd; font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.sidebar-link { width: 100%; min-height: 42px; margin: 2px 0; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: #d5dfed; display: flex; align-items: center; gap: 10px; }
+.sidebar-link.is-active { background: #0f6b78; color: #fff; font-weight: 700; box-shadow: inset 3px 0 #5ee0df; }
+.sidebar-icon { width: 28px; height: 28px; border-radius: 7px; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.app-frame { min-width: 0; display: flex; flex-direction: column; }
+.app-header { height: 58px; padding: 8px 24px; border-bottom: 1px solid var(--line); background: #fff; display: flex; align-items: center; gap: 12px; }
+.topbar-page-title { margin: 0; font-size: 22px; font-weight: 700; }
+.user-pill { margin-left: auto; color: var(--muted); font-size: 13px; }
+.app-main { width: min(1800px, 100%); margin: 0 auto; padding: 20px 24px 36px; }
+.panel { background: #fff; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(23,32,51,.05); padding: 18px; margin-bottom: 16px; border-radius: 9px; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; }
+.tab { min-height: 40px; padding: 8px 16px; border: 0; background: transparent; color: var(--muted); font-weight: 700; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: inherit; }
+.tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+.filter-grid { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
+.filter-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
+input, select { min-height: 40px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; font-family: inherit; font-size: 14px; }
+.check-row { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 12px; }
+.check-row label { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); font-size: 13px; }
+.check-row input { min-height: 0; width: 16px; height: 16px; }
+.table-wrap { overflow: auto; max-height: calc(100vh - 280px); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+thead th { position: sticky; top: 0; z-index: 2; background: #eef3f6; font-weight: 700; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.row-area { background: #dfe8ee; font-weight: 700; }
+.row-staff { background: #eef4f6; font-weight: 700; }
+.row-company { background: #fff; font-weight: 700; }
+.row-partner { background: #fff; }
+.row-kubun { background: #f7faf8; font-style: italic; }
+.indent-1 { padding-left: 18px; }
+.indent-2 { padding-left: 36px; }
+.indent-3 { padding-left: 54px; }
+.neg { color: var(--danger); }
+.pos { color: var(--ok); }
+.sticky-left { position: sticky; left: 0; background: inherit; z-index: 1; }
+.month-table thead th.sticky-left { z-index: 3; }
+.diff-note { color: #a15c00; font-size: 12px; font-weight: 600; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="sidebar-brand"><span class="brand-symbol">L</span> Links-System</div>
+    <nav>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">精算</div>
+        <div class="sidebar-link"><span class="sidebar-icon">入</span>入出金管理・FB出力</div>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">分析</div>
+        <div class="sidebar-link is-active"><span class="sidebar-icon">分</span>収支分析</div>
+      </div>
+    </nav>
+  </aside>
+  <div class="app-frame">
+    <header class="app-header">
+      <h1 class="topbar-page-title">収支分析</h1>
+      <div class="user-pill">画面イメージ（計算API未接続）　管理者</div>
+    </header>
+    <main class="app-main">
+      <p class="note">ダミー金額です。企業「株式会社ABCロジスティクス」は請求書合計（税抜￥4,200,000）とパートナー売上累計が異なります。</p>
+      <div class="tabs">
+        <button type="button" class="tab is-active" data-tab="pl">収支分析一覧表</button>
+        <button type="button" class="tab" data-tab="margin">企業別利益率一覧表</button>
+        <button type="button" class="tab" data-tab="days">稼働日一覧表</button>
+      </div>
+
+      <section class="panel" id="filters-pl">
+        <div class="filter-grid">
+          <label>対象月
+            <select id="ym"><option value="2026-08" selected>2026年8月</option><option value="2026-07">2026年7月</option></select>
+          </label>
+          <label>エリア
+            <select id="area"><option value="">すべて</option><option>関東</option><option>関西</option></select>
+          </label>
+          <label>担当者
+            <select id="staff"><option value="">すべて</option><option>佐藤</option><option>鈴木</option><option>田中</option></select>
+          </label>
+        </div>
+        <div class="check-row">
+          <span>折りたたみ</span>
+          <label><input type="checkbox" id="fold-area">エリアで畳む</label>
+          <label><input type="checkbox" id="fold-kubun">区分で畳む（外注／給与）</label>
+          <label><input type="checkbox" id="fold-staff">担当者で畳む</label>
+          <label><input type="checkbox" id="fold-company">企業で畳む</label>
+          <label><input type="checkbox" id="fold-expand" checked>すべて展開</label>
+        </div>
+        <div class="check-row">
+          <span>合計額</span>
+          <label><input type="checkbox" id="sum-area" checked>エリア合計</label>
+          <label><input type="checkbox" id="sum-staff" checked>担当者合計</label>
+          <label><input type="checkbox" id="sum-company" checked>企業合計</label>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="filters-month">
+        <div class="filter-grid">
+          <label>エリア
+            <select id="area2"><option value="">すべて</option><option>関東</option><option>関西</option></select>
+          </label>
+          <label>担当者
+            <select id="staff2"><option value="">すべて</option><option>佐藤</option><option>鈴木</option><option>田中</option></select>
+          </label>
+          <label id="company-filter-wrap" class="hidden">企業
+            <select id="company2"><option value="">すべて</option></select>
+          </label>
+          <label>表示月
+            <select id="range"><option value="12" selected>直近12か月</option><option value="all">全期間</option></select>
+          </label>
+          <label id="warn-filter-wrap" class="hidden">赤表示基準（マスター設定）
+            <select id="warn-pct">
+              <option value="5">5%未満</option>
+              <option value="8">8%未満</option>
+              <option value="10" selected>10%未満</option>
+              <option value="12">12%未満</option>
+              <option value="15">15%未満</option>
+              <option value="20">20%未満</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div class="table-wrap" id="table-host"></div>
+    </main>
+  </div>
+</div>
+<script>
+const MONTHS = ["2026-08","2026-07","2026-06","2026-05","2026-04","2026-03","2026-02","2026-01","2025-12","2025-11","2025-10","2025-09","2025-08"];
+function yen(n) { if (n == null || n === "") return ""; return "￥" + Math.round(n).toLocaleString("ja-JP"); }
+function pct(sales, profit) { if (!sales) return "—"; return (profit / sales * 100).toFixed(1) + "%"; }
+function ymLabel(ym) { const [y,m] = ym.split("-"); return y + "年" + Number(m) + "月"; }
+function sum(arr, key) { return arr.reduce((s, r) => s + (r[key] || 0), 0); }
+function profitOf(r) { return r.sales - r.pay; }
+
+const COMPANIES = [
+  {
+    area: "関東", staff: "佐藤", no: "101", name: "株式会社ABCロジスティクス",
+    invoiceSubtotal: 4200000, invoiceTax: 420000,
+    partners: [
+      { name: "山田運送", kubun: "外注", sales: 2100000, pay: 1540000, payInvoice: 1540000, days: 22 },
+      { name: "鈴木便", kubun: "外注", sales: 980000, pay: 720000, payInvoice: 700000, days: 18 },
+      { name: "高橋", kubun: "給与", sales: 720000, pay: 580000, payInvoice: 580000, days: 20 }
+    ],
+    margin: [27.4, 26.1, 24.8, 25.0, 22.1, 21.4, 23.0, 19.8, 18.2, 20.5, 21.0, 17.4, 16.0],
+    dayRows: true
+  },
+  {
+    area: "関東", staff: "佐藤", no: "102", name: "有限会社ヤマダ物流",
+    invoiceSubtotal: null, invoiceTax: null,
+    partners: [
+      { name: "中村運送", kubun: "外注", sales: 1680000, pay: 1260000, payInvoice: 1260000, days: 21 },
+      { name: "加藤", kubun: "給与", sales: 540000, pay: 430000, payInvoice: 430000, days: 19 }
+    ],
+    margin: [19.5, 18.2, 20.1, 17.0, 16.4, 15.8, 14.2, 15.0, 13.9, 14.8, 15.1, 12.0, 11.5]
+  },
+  {
+    area: "関東", staff: "鈴木", no: "201", name: "グローバルライン株式会社",
+    invoiceSubtotal: 2500000, invoiceTax: 250000,
+    partners: [
+      { name: "大阪急配", kubun: "外注", sales: 1600000, pay: 1280000, payInvoice: 1280000, days: 23 },
+      { name: "井上", kubun: "給与", sales: 900000, pay: 720000, payInvoice: 720000, days: 20 }
+    ],
+    margin: [12.0, 11.2, 10.8, 13.4, 9.5, 8.8, 10.1, 9.0, 8.4, 7.9, 8.2, 6.5, null]
+  },
+  {
+    area: "関西", staff: "田中", no: "301", name: "東西エクスプレス",
+    invoiceSubtotal: null, invoiceTax: null,
+    partners: [
+      { name: "京都便", kubun: "外注", sales: 1320000, pay: 990000, payInvoice: 990000, days: 20 },
+      { name: "森", kubun: "給与", sales: 480000, pay: 360000, payInvoice: 360000, days: 16 },
+      { name: "西村運送", kubun: "外注", sales: 610000, pay: 470000, payInvoice: 470000, days: 14 }
+    ],
+    margin: [24.0, 23.1, 22.5, 21.8, 20.4, 19.9, 18.7, 19.2, 17.5, 16.8, 18.0, 15.2, 14.8]
+  },
+  {
+    area: "関西", staff: "田中", no: "302", name: "スピード配送サービス",
+    invoiceSubtotal: 880000, invoiceTax: 88000,
+    partners: [
+      { name: "川崎", kubun: "給与", sales: 880000, pay: 790000, payInvoice: 790000, days: 22 }
+    ],
+    margin: [10.2, 9.8, 8.4, 7.1, 6.5, 5.9, 6.2, 4.8, 5.1, 4.4, 3.9, 4.0, 3.2]
+  }
+];
+
+function enrich(c) {
+  const partners = c.partners.map((p) => ({
+    ...p,
+    bill: p.sales,
+    tax: null,
+    profit: p.sales - p.pay
+  }));
+  const sales = sum(partners, "sales");
+  const pay = sum(partners, "pay");
+  const days = sum(partners, "days");
+  const bill = c.invoiceSubtotal != null ? c.invoiceSubtotal : sales;
+  const payBill = sum(partners, "payInvoice");
+  return {
+    ...c,
+    partners,
+    sales,
+    pay,
+    days,
+    bill,
+    payBill,
+    tax: c.invoiceTax,
+    profit: sales - pay,
+    invoiceDiff: c.invoiceSubtotal != null && c.invoiceSubtotal !== sales
+  };
+}
+
+function filteredCompanies() {
+  const area = document.getElementById("area").value;
+  const staff = document.getElementById("staff").value;
+  return COMPANIES.map(enrich).filter((c) => (!area || c.area === area) && (!staff || c.staff === staff));
+}
+
+function groupTree(list) {
+  const areas = [];
+  for (const c of list) {
+    let a = areas.find((x) => x.name === c.area);
+    if (!a) { a = { name: c.area, staffs: [] }; areas.push(a); }
+    let s = a.staffs.find((x) => x.name === c.staff);
+    if (!s) { s = { name: c.staff, companies: [] }; a.staffs.push(s); }
+    s.companies.push(c);
+  }
+  const roll = (rows) => ({
+    sales: sum(rows, "sales"), pay: sum(rows, "pay"), bill: sum(rows, "bill"),
+    payBill: sum(rows, "payBill"), tax: rows.reduce((n, r) => n + (r.tax || 0), 0),
+    days: sum(rows, "days"), profit: sum(rows, "profit")
+  });
+  for (const a of areas) {
+    const all = a.staffs.flatMap((s) => s.companies);
+    a.tot = roll(all);
+    for (const s of a.staffs) s.tot = roll(s.companies);
+  }
+  return areas;
+}
+
+function amountCells(tot, show) {
+  if (!show) return '<td class="num"></td>'.repeat(8);
+  const rate = pct(tot.sales, tot.profit);
+  const cls = tot.profit < 0 ? "neg" : "pos";
+  return `<td class="num">${yen(tot.sales)}</td><td class="num">${yen(tot.bill)}</td><td class="num">${yen(tot.pay)}</td><td class="num">${yen(tot.payBill)}</td><td class="num ${cls}">${yen(tot.profit)}</td><td class="num">${rate}</td><td class="num">${tot.tax ? yen(tot.tax) : ""}</td><td class="num">${tot.days}</td>`;
+}
+
+function partnerCells(p) {
+  const cls = p.profit < 0 ? "neg" : "pos";
+  return `<td class="num">${yen(p.sales)}</td><td class="num">${yen(p.bill)}</td><td class="num">${yen(p.pay)}</td><td class="num">${yen(p.payInvoice)}</td><td class="num ${cls}">${yen(p.profit)}</td><td class="num">${pct(p.sales, p.profit)}</td><td class="num"></td><td class="num">${p.days}</td>`;
+}
+
+function renderPl() {
+  const foldArea = document.getElementById("fold-area").checked;
+  const foldStaff = document.getElementById("fold-staff").checked;
+  const foldCompany = document.getElementById("fold-company").checked;
+  const foldKubun = document.getElementById("fold-kubun").checked;
+  const sumA = document.getElementById("sum-area").checked;
+  const sumS = document.getElementById("sum-staff").checked;
+  const sumC = document.getElementById("sum-company").checked;
+  const tree = groupTree(filteredCompanies());
+  let body = "";
+  for (const a of tree) {
+    body += `<tr class="row-area"><td colspan="2">${a.name}</td>${amountCells(a.tot, sumA)}</tr>`;
+    if (foldArea) continue;
+    for (const s of a.staffs) {
+      body += `<tr class="row-staff"><td colspan="2" class="indent-1">${s.name}</td>${amountCells(s.tot, sumS)}</tr>`;
+      if (foldStaff) continue;
+      for (const c of s.companies) {
+        const note = c.invoiceDiff ? `<div class="diff-note">請求書合計を使用（累計 ${yen(c.sales)}）</div>` : "";
+        body += `<tr class="row-company"><td class="indent-2">${c.no}</td><td>${c.name}${note}</td>${amountCells(c, sumC)}</tr>`;
+        if (foldCompany) continue;
+        if (foldKubun) {
+          for (const k of ["外注", "給与"]) {
+            const ps = c.partners.filter((p) => p.kubun === k);
+            if (!ps.length) continue;
+            const tot = {
+              sales: sum(ps, "sales"), pay: sum(ps, "pay"), bill: sum(ps, "bill"),
+              payBill: sum(ps, "payInvoice"), tax: 0, days: sum(ps, "days"), profit: sum(ps, "profit")
+            };
+            body += `<tr class="row-kubun"><td></td><td class="indent-3">${k}（${ps.length}名）</td>${amountCells(tot, true)}</tr>`;
+          }
+        } else {
+          for (const p of c.partners) {
+            body += `<tr class="row-partner"><td></td><td class="indent-3">${p.name}　<span class="diff-note">${p.kubun}</span></td>${partnerCells(p)}</tr>`;
+          }
+        }
+      }
+    }
+  }
+  return `<table class="data-table">
+    <thead>
+      <tr>
+        <th rowspan="2">No</th><th rowspan="2">企業 / パートナー</th>
+        <th colspan="2">売上側</th><th colspan="2">支払側</th>
+        <th rowspan="2" class="num">利益額</th><th rowspan="2" class="num">利益率</th>
+        <th rowspan="2" class="num">消費税</th><th rowspan="2" class="num">稼働日数</th>
+      </tr>
+      <tr>
+        <th class="num">売　上</th><th class="num">請求金額</th>
+        <th class="num">支　払</th><th class="num">請求金額</th>
+      </tr>
+    </thead>
+    <tbody>${body || '<tr><td colspan="10">該当なし</td></tr>'}</tbody>
+  </table>`;
+}
+
+function visibleMonths() {
+  const n = document.getElementById("range").value;
+  return n === "all" ? MONTHS : MONTHS.slice(0, 12);
+}
+
+function monthFiltered() {
+  const area = document.getElementById("area2").value;
+  const staff = document.getElementById("staff2").value;
+  const company = document.getElementById("company2").value;
+  return COMPANIES.filter((c) => (!area || c.area === area) && (!staff || c.staff === staff) && (!company || c.name === company));
+}
+
+function warnThreshold() {
+  return Number(document.getElementById("warn-pct").value);
+}
+
+function renderMargin() {
+  const months = visibleMonths();
+  const list = monthFiltered();
+  const warn = warnThreshold();
+  const heads = months.map((m) => `<th class="num">${ymLabel(m)}</th>`).join("");
+  let body = "";
+  let last = "";
+  for (const c of list) {
+    const key = c.area + "|" + c.staff;
+    if (key !== last) {
+      body += `<tr class="row-area"><td colspan="2">${c.area}　／　${c.staff}</td>${months.map(() => "<td></td>").join("")}</tr>`;
+      last = key;
+    }
+    const cells = months.map((_, i) => {
+      const v = c.margin[i];
+      if (v == null) return '<td class="num">—</td>';
+      const cls = v < warn ? "neg" : "pos";
+      return `<td class="num ${cls}">${v.toFixed(1)}%</td>`;
+    }).join("");
+    body += `<tr class="row-company"><td class="sticky-left">${c.no}</td><td class="sticky-left">${c.name}</td>${cells}</tr>`;
+  }
+  return `<table class="month-table"><thead><tr><th class="sticky-left">No</th><th class="sticky-left">企業</th>${heads}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderDays() {
+  const months = visibleMonths();
+  const list = monthFiltered();
+  const heads = months.map((m) => `<th class="num">${ymLabel(m)}</th>`).join("");
+  let body = "";
+  let lastArea = "";
+  for (const c of list) {
+    if (c.area !== lastArea) {
+      body += `<tr class="row-area"><td colspan="4">${c.area}</td>${months.map(() => "<td></td>").join("")}</tr>`;
+      lastArea = c.area;
+    }
+    c.partners.forEach((p, idx) => {
+      const cells = months.map((_, i) => {
+        const base = p.days - Math.round((i % 5) * 0.6);
+        return `<td class="num">${Math.max(0, base)}日</td>`;
+      }).join("");
+      body += `<tr><td>${c.no}-${idx + 1}</td><td>${c.staff}</td><td>${c.name}</td><td>${p.name}</td>${cells}</tr>`;
+    });
+  }
+  return `<table class="month-table"><thead><tr>
+    <th>No</th><th>担当者</th><th>企業</th><th>パートナー</th>${heads}
+  </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+let currentTab = (location.hash || "#pl").slice(1);
+if (!["pl", "margin", "days"].includes(currentTab)) currentTab = "pl";
+function fillCompanyFilter() {
+  const sel = document.getElementById("company2");
+  const names = [...new Set(COMPANIES.map((c) => c.name))];
+  sel.innerHTML = '<option value="">すべて</option>' + names.map((n) => `<option>${n}</option>`).join("");
+}
+function render() {
+  document.getElementById("filters-pl").classList.toggle("hidden", currentTab !== "pl");
+  document.getElementById("filters-month").classList.toggle("hidden", currentTab === "pl");
+  document.getElementById("company-filter-wrap").classList.toggle("hidden", currentTab !== "days");
+  document.getElementById("warn-filter-wrap").classList.toggle("hidden", currentTab !== "margin");
+  const host = document.getElementById("table-host");
+  if (currentTab === "pl") host.innerHTML = renderPl();
+  else if (currentTab === "margin") host.innerHTML = renderMargin();
+  else host.innerHTML = renderDays();
+}
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    currentTab = btn.dataset.tab;
+    location.hash = currentTab;
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("is-active", t === btn));
+    render();
+  });
+});
+document.getElementById("fold-expand").addEventListener("change", (e) => {
+  if (e.target.checked) {
+    ["fold-area","fold-kubun","fold-staff","fold-company"].forEach((id) => { document.getElementById(id).checked = false; });
+  }
+  render();
+});
+["fold-area","fold-kubun","fold-staff","fold-company"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", () => {
+    const any = ["fold-area","fold-kubun","fold-staff","fold-company"].some((k) => document.getElementById(k).checked);
+    document.getElementById("fold-expand").checked = !any;
+    render();
+  });
+});
+["ym","area","staff","sum-area","sum-staff","sum-company","area2","staff2","company2","range","warn-pct"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", render);
+});
+fillCompanyFilter();
+document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.tab === currentTab));
+render();
+</script>
+</body>
+</html>
