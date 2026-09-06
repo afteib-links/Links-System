@@ -5,10 +5,12 @@
       this.ctx = ctx;
       this.ctx.renderLoading();
       this.listState = { q: '', sortKey: 'company_id', sortOrder: 'asc', filters: {} };
-      this.codes = await this.kit.loadCodes();
-      const staffRes = await this.ctx.api('/api/master-settings/staff');
+      const [codes, staffRes, layout] = await Promise.all([
+        this.kit.loadCodes(), this.ctx.api('/api/master-settings/staff'), this.kit.loadAreaLayout('companies'),
+      ]);
+      this.codes = codes;
       this.staff = staffRes.data?.staff || [];
-      this.layout = await this.kit.loadAreaLayout('companies');
+      this.layout = layout;
       await this.showList();
     },
 

@@ -203,10 +203,8 @@ test('日報openはレイアウト取得より先に読み込み表示する', (
   assert.ok(open[0].indexOf('renderLoading') < open[0].indexOf('loadAreaLayout'), 'renderLoading を loadAreaLayout より先に呼ぶこと');
 });
 
-test('index.htmlはlist_screens.jsをdata-tableの直後に読む', () => {
+test('ログインは機能別スクリプトの取得を待たない', () => {
   const html = frontend('index.html');
-  const dataTable = html.indexOf('/js/data-table.js');
-  const listScreens = html.indexOf('/js/list_screens.js');
-  const companies = html.indexOf('/js/companies.js');
-  assert.ok(dataTable >= 0 && listScreens > dataTable && companies > listScreens);
+  const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1].split('?')[0]);
+  assert.deepEqual(scripts, ['/js/feature-loader.js', '/js/app.js']);
 });
