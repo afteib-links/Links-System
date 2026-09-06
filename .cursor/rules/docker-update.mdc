@@ -1,0 +1,16 @@
+---
+description: Always use the repository Docker updater for Docker update requests
+alwaysApply: true
+---
+
+# Docker update command routing
+
+When the user says「Docker更新」「Dockerを更新」or asks to rebuild, restart, or update this project's Docker environment, use the project skill at `.cursor/skills/docker-update/SKILL.md`.
+
+- With no environment named, update the current workspace only:
+  - Windows: `pwsh -NoProfile -File scripts/docker-update.ps1`
+  - Linux/macOS: `bash scripts/docker-update.sh`
+- Only with explicit NAS, ASUSTOR, or QNAP wording, use `bash scripts/docker-update.sh --nas --backup` on that target.
+- Do not substitute manual Compose commands for the updater.
+- Success requires `/api/health` to return `db: "up"`; otherwise report failure.
+- A normal update must never delete `data/mysql` or Docker volumes.

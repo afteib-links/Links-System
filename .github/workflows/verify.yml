@@ -29,6 +29,14 @@ jobs:
           find backend/src frontend/js scripts -type f -name '*.js' -print0 \
             | xargs -0 -r -n1 node --check
 
+      - name: Verify Docker updater scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/docker-update.sh scripts/nas-sync.sh scripts/nas-backup.sh
+          bash scripts/docker-update.sh --dry-run
+          bash scripts/docker-update.sh --nas --backup --dry-run
+
       - name: Run backend unit tests
         run: npm test --prefix backend
 
@@ -52,6 +60,35 @@ jobs:
             previous="$numeric"
             expected=$((expected + 1))
           done < <(find db/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+
+  docker-updater-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild with the project Docker updater
+        run: bash scripts/docker-update.sh --timeout 240
+
+      - name: Show Docker diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail 150
+
+      - name: Stop test containers
+        if: always()
+        run: docker compose down
+
+  windows-docker-launcher-dry-run:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the no-AI Windows launcher
+        shell: cmd
+        env:
+          LINKS_DOCKER_UPDATE_NO_PAUSE: "1"
+        run: call "Docker更新.cmd" -DryRun
 
   mariadb-migration-and-health:
     runs-on: ubuntu-latest

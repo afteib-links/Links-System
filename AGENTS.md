@@ -57,6 +57,14 @@ git log origin/main -1 --oneline
 
 これらは補助入口であり、業務仕様と開発ルールの正本は上記の `仕様MD/` と本ファイルに置く。内容を複製して別の正本を作らない。
 
+## Docker更新の自動実行
+
+- ユーザーが「Docker更新」「Dockerを更新」等を依頼した場合は、`.cursor/skills/docker-update/SKILL.md` を読み、必ずリポジトリ管理の更新ツールを実行する。手動のComposeコマンドへ置き換えない。
+- 環境指定がなければ現在の作業環境だけを更新する。Windowsは `pwsh -NoProfile -File scripts/docker-update.ps1`、Linux/macOSは `bash scripts/docker-update.sh` を使う。
+- NAS、ASUSTOR、QNAPが明示された場合だけ、対象環境で `bash scripts/docker-update.sh --nas --backup` を使う。
+- `/api/health` が `db: "up"` を返して初めて成功とする。通常更新でDBボリュームや `data/mysql` を削除しない。
+- AIを使わずWindowsから手動更新する場合は、リポジトリ直下の `Docker更新.cmd` をダブルクリックする。同じ更新ツールとヘルスチェックが実行され、結果画面が保持される。
+
 ## 言語
 
 - ユーザー向け返答、コミット、PR、Issue、`仕様MD/`、開発運用文書: 日本語
