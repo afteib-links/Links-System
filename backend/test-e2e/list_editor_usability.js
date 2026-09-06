@@ -102,6 +102,7 @@ async function main() {
     assert.equal(await page.getByText(/機能一覧へ/).count(), 0, '機能一覧へのボタンを表示しないこと');
     assert.equal(await page.locator('#projects-table thead tr').count(), 2);
     assert.equal(await page.locator('#projects-table th').filter({hasText:'締日'}).count() > 0, true);
+    assert.equal(await page.locator('[data-copy-project="7"]').count(), 1, '個別案件一覧にコピーがあること');
     const row = page.locator('#projects-table tbody tr[data-row-key="7"]');
     await row.click();
     assert.equal(await row.getAttribute('aria-selected'), 'true');
@@ -117,6 +118,8 @@ async function main() {
     assert.equal(await page.locator('[name="vehicle_id"]').inputValue(), '20');
 
     await page.locator('[data-nav-feature="base_projects"]').click();
+    await page.locator('[data-copy-base="3"]').waitFor();
+    assert.equal(await page.locator('[data-copy-base="3"]').count(), 1, '基本案件一覧にコピーがあること');
     await page.locator('[data-edit-base="3"]').click();
     const linked = page.locator('.linked-projects-section');
     await linked.waitFor();

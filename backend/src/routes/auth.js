@@ -90,13 +90,70 @@ router.post('/logout', (req, res) => {
   });
 });
 
-router.get('/me', requireAuth, (req, res) => {
-  return res.json({
-    ok: true,
-    user: req.session.user,
-    features: FEATURES,
-    roles: ROLES,
-  });
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const userId = Number(req.session.user?.user_id);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(401).json({
+        ok: false,
+        error: 'unauthorized',
+        message: 'ログインが必要です',
+      });
+    }
+
+    const rows = await query(
+      `SELECT user_id, login_id, password_hash, display_name, role, roles,
+              is_active, permissions, departments, areas, company_id, partner_id
+       FROM users
+       WHERE user_id = ? AND is_deleted = 0
+       LIMIT 1`,
+      [userId]
+    );
+    const row = rows[0];
+    if (!row || !Number(row.is_active)) {
+      return req.session.destroy((err) => {
+        if (err) {
+          console.error('[auth/me]', err);
+          return res.status(500).json({
+            ok: false,
+            error: 'server_error',
+            message: 'ログイン状態の確認に失敗しました',
+          });
+        }
+        res.clearCookie('connect.sid');
+        return res.status(401).json({
+          ok: false,
+          error: 'unauthorized',
+          message: 'ログインが必要です',
+        });
+      });
+    }
+
+    req.session.user = publicUser(row);
+    return req.session.save((err) => {
+      if (err) {
+        console.error('[auth/me]', err);
+        return res.status(500).json({
+          ok: false,
+          error: 'server_error',
+          message: 'ログイン状態の確認に失敗しました',
+        });
+      }
+      return res.json({
+        ok: true,
+        user: req.session.user,
+        features: FEATURES,
+        roles: ROLES,
+      });
+    });
+  } catch (err) {
+    console.error('[auth/me]', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'server_error',
+      message: 'ログイン状態の確認に失敗しました',
+    });
+  }
 });
 
 module.exports = router;

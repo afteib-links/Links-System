@@ -4,13 +4,44 @@ function asDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function addUtcDays(ymd, days) {
+  const date = new Date(`${ymd}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return asDate(date);
+}
+
+function paddedMonthRange(ym, pad = 14) {
+  const [year, month] = String(ym).split('-').map(Number);
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return [addUtcDays(`${ym}-01`, -pad), addUtcDays(`${ym}-${String(last).padStart(2, '0')}`, pad)];
+}
+
+function paddedDateRange(ymd, pad = 14) {
+  return [addUtcDays(ymd, -pad), addUtcDays(ymd, pad)];
+}
+
 function businessDate(base, direction, holidays = new Set()) {
   const date = new Date(`${base}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) throw new Error('日付が不正です');
   const step = direction === 'outgoing' ? -1 : 1;
-  while ([0, 6].includes(date.getUTCDay()) || holidays.has(asDate(date))) {
+  let guard = 0;
+  while (([0, 6].includes(date.getUTCDay()) || holidays.has(asDate(date))) && guard < 31) {
     date.setUTCDate(date.getUTCDate() + step);
+    guard += 1;
   }
   return asDate(date);
+}
+
+function normalizeCashDate(requested, direction, defaultYmd, holidays = new Set()) {
+  const fallback = String(defaultYmd || '').slice(0, 10);
+  const source = /^\d{4}-\d{2}-\d{2}$/.test(String(requested || '')) ? String(requested).slice(0, 10) : fallback;
+  const scheduled = businessDate(source, direction, holidays);
+  return {
+    source,
+    scheduled,
+    overridden: scheduled !== fallback,
+    weekendShifted: scheduled !== source,
+  };
 }
 
 function cycleDefinitions(ym, holidays = new Set()) {
@@ -28,4 +59,13 @@ function cycleDefinitions(ym, holidays = new Set()) {
   });
 }
 
-module.exports = { CYCLE_DAYS, asDate, businessDate, cycleDefinitions };
+module.exports = {
+  CYCLE_DAYS,
+  asDate,
+  addUtcDays,
+  paddedMonthRange,
+  paddedDateRange,
+  businessDate,
+  normalizeCashDate,
+  cycleDefinitions,
+};

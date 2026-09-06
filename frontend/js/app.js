@@ -34,6 +34,22 @@
     { key: 'settings', label: '設定' },
   ];
 
+  const FEATURE_ROLE_MAP = {
+    companies: ['admin', 'system', 'soumu'],
+    partners: ['admin', 'system', 'soumu'],
+    base_projects: ['admin', 'system', 'soumu', 'sales'],
+    projects: ['admin', 'system', 'soumu', 'sales'],
+    price_sets: ['admin', 'system', 'soumu', 'sales'],
+    daily_reports: ['admin', 'system', 'soumu', 'sales', 'partner', 'executive'],
+    advances: ['admin', 'executive', 'soumu'],
+    invoices: ['admin', 'executive', 'soumu', 'sales', 'company'],
+    payments: ['admin', 'executive', 'soumu', 'sales', 'partner'],
+    cash_management: ['admin', 'executive', 'soumu'],
+    master_settings: ['admin', 'system', 'soumu'],
+    ui_builder: ['admin', 'system'],
+    users: ['admin', 'system'],
+  };
+
   let currentUser = null;
   let featureCatalog = FEATURE_FALLBACK;
   let roleCatalog = ROLE_FALLBACK;
@@ -73,7 +89,18 @@
   }
 
   function can(featureKey) {
-    return Boolean(currentUser?.permissions?.includes(featureKey));
+    if (!featureCatalog.some((feature) => feature.key === featureKey)) {
+      return false;
+    }
+    const roles = Array.isArray(currentUser?.roles) ? currentUser.roles : [];
+    if (roles.includes('admin')) {
+      return true;
+    }
+    if (currentUser?.permissions?.includes(featureKey)) {
+      return true;
+    }
+    const allowedRoles = FEATURE_ROLE_MAP[featureKey] || [];
+    return allowedRoles.some((role) => roles.includes(role));
   }
 
   function roleLabel(key) {
@@ -81,17 +108,19 @@
   }
 
   function enrichFeatures(list) {
-    const source = Array.isArray(list) && list.length ? list : FEATURE_FALLBACK;
-    return source.map((f) => {
-      const base = FEATURE_FALLBACK.find((x) => x.key === f.key) || {};
-      return {
+    const byKey = new Map();
+    FEATURE_FALLBACK.forEach((feature) => byKey.set(feature.key, { ...feature }));
+    (Array.isArray(list) ? list : []).forEach((feature) => {
+      const base = byKey.get(feature.key) || {};
+      byKey.set(feature.key, {
         ...base,
-        ...f,
-        label: f.label || base.label || f.key,
-        desc: f.desc || base.desc || '',
-        group: f.group || base.group || 'settings',
-      };
+        ...feature,
+        label: feature.label || base.label || feature.key,
+        desc: feature.desc || base.desc || '',
+        group: feature.group || base.group || 'settings',
+      });
     });
+    return [...byKey.values()];
   }
 
   function showToast(message) {

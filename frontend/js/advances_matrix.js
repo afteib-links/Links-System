@@ -65,7 +65,7 @@
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="advance-topbar">
             ${this.kit.monthNavigatorHtml(this.ym, 'advance-month')}
-            <div class="advance-summary"><span>対象月全体 <strong>${this.number(data.summary?.project_count)}案件</strong></span><span>先払 <strong>${this.number(data.summary?.advance_count)}回</strong></span><span>合計 <strong>${this.amount(data.summary?.advance_amount)}</strong></span><span>手数料 <strong>${this.amount(data.summary?.transfer_fee_amount)}</strong></span></div>
+            <div class="advance-summary"><span>対象月全体 <strong>${this.number(data.summary?.project_count)}案件</strong></span><span>先払 <strong>${this.number(data.summary?.advance_count)}回</strong></span><span>合計 <strong>${this.amount(data.summary?.advance_amount)}</strong></span><span>手数料 <strong>${this.amount(data.summary?.transfer_fee_amount)}</strong></span>${this.ctx.can?.('cash_management') ? '<button type="button" class="btn btn-ghost btn-small" id="open-cash">入出金管理・FB出力を開く</button>' : ''}</div>
           </div>
           <form id="advance-filters" class="advance-filterbar">
             <input name="q" value="${this.ctx.escapeHtml(this.filters.q)}" placeholder="案件・企業・パートナーを検索">
@@ -135,6 +135,7 @@
         this.filters.q = String(form.get('q') || '').trim(); this.filters.company_id = String(form.get('company_id') || ''); this.filters.partner_id = String(form.get('partner_id') || ''); this.filters.closing_date = String(form.get('closing_date') || ''); this.filters.status = String(form.get('status') || ''); this.show();
       });
       document.getElementById('advance-clear')?.addEventListener('click', () => { this.filters = { q:'',company_id:'',partner_id:'',closing_date:'',status:'' }; this.show(); });
+      document.getElementById('open-cash')?.addEventListener('click', () => this.ctx.openFeature('cash_management'));
     },
     findCycle(projectId, code) { return this.data.projects.find((p) => p.project_id === projectId)?.cycles.find((c) => c.group_code === code); },
     async saveCell(row, cell) {

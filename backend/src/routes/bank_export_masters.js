@@ -2,6 +2,7 @@ const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { SOURCE_FIELDS, validateDefinition } = require('../services/bank_csv_export');
+const { yenInteger } = require('../services/source_bank_ledger');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('admin', 'system'));
@@ -250,9 +251,9 @@ router.post('/accounts', async (req, res) => {
     const b = req.body;
     const result = await query(
       `INSERT INTO source_bank_accounts
-        (account_label,bank_export_profile_id,bank_code,bank_name,branch_code,branch_name,deposit_type,account_number,account_name_kana,client_code,is_active)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-      [b.account_label, Number(b.bank_export_profile_id), b.bank_code, b.bank_name, b.branch_code, b.branch_name, b.deposit_type, b.account_number, b.account_name_kana, b.client_code || null, bool(b.is_active)]
+        (account_label,bank_export_profile_id,bank_code,bank_name,branch_code,branch_name,deposit_type,account_number,account_name_kana,client_code,opening_balance,is_active)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [b.account_label, Number(b.bank_export_profile_id), b.bank_code, b.bank_name, b.branch_code, b.branch_name, b.deposit_type, b.account_number, b.account_name_kana, b.client_code || null, yenInteger(b.opening_balance, '期首残高'), bool(b.is_active)]
     );
     return res.status(201).json({ ok: true, source_bank_account_id: result.insertId });
   } catch (error) {
@@ -265,9 +266,9 @@ router.put('/accounts/:id', async (req, res) => {
     validateAccount(req.body || {});
     const b = req.body;
     const result = await query(
-      `UPDATE source_bank_accounts SET account_label=?,bank_export_profile_id=?,bank_code=?,bank_name=?,branch_code=?,branch_name=?,deposit_type=?,account_number=?,account_name_kana=?,client_code=?,is_active=?,version=version+1
+      `UPDATE source_bank_accounts SET account_label=?,bank_export_profile_id=?,bank_code=?,bank_name=?,branch_code=?,branch_name=?,deposit_type=?,account_number=?,account_name_kana=?,client_code=?,opening_balance=?,is_active=?,version=version+1
         WHERE source_bank_account_id=? AND is_deleted=0 AND version=?`,
-      [b.account_label, Number(b.bank_export_profile_id), b.bank_code, b.bank_name, b.branch_code, b.branch_name, b.deposit_type, b.account_number, b.account_name_kana, b.client_code || null, bool(b.is_active), Number(req.params.id), Number(b.version)]
+      [b.account_label, Number(b.bank_export_profile_id), b.bank_code, b.bank_name, b.branch_code, b.branch_name, b.deposit_type, b.account_number, b.account_name_kana, b.client_code || null, yenInteger(b.opening_balance, '期首残高'), bool(b.is_active), Number(req.params.id), Number(b.version)]
     );
     if (!result.affectedRows) return res.status(409).json({ ok: false, message: '他の利用者が更新しました。再読み込みしてください' });
     return res.json({ ok: true });
