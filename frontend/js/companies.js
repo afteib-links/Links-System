@@ -61,9 +61,12 @@
         filters: this.listState.filters,
         escapeHtml: this.ctx.escapeHtml,
         renderActions: (c) => `
-          <button type="button" class="btn btn-ghost btn-small" data-edit="${c.company_id}">編集</button>
-          <button type="button" class="btn btn-danger btn-small" data-del="${c.company_id}">削除</button>
-          <button type="button" class="btn btn-ghost btn-small" data-base="${c.company_id}">基本案件</button>`,
+          <span class="desktop-row-actions">
+            <button type="button" class="btn btn-ghost btn-small" data-edit="${c.company_id}">編集</button>
+            <button type="button" class="btn btn-danger btn-small" data-del="${c.company_id}">削除</button>
+            <button type="button" class="btn btn-ghost btn-small" data-base="${c.company_id}">基本案件</button>
+          </span>
+          <button type="button" class="btn btn-ghost btn-small mobile-row-action" data-company-actions="${c.company_id}" aria-label="${this.ctx.escapeHtml(c.company_name || `企業No ${c.company_id}`)}の操作">操作</button>`,
         rowKey: 'company_id',
       });
 
@@ -77,6 +80,7 @@
             <button type="button" class="btn" id="company-new">＋ 新規企業登録</button>
           </div>
           ${table.html}
+          <div id="modal-host"></div>
         </section>`
       );
       this.kit.bindShell();
@@ -128,6 +132,31 @@
       document.querySelectorAll('[data-base]').forEach((btn) => {
         btn.addEventListener('click', () => {
           this.ctx.openFeature?.('base_projects', { company_id: Number(btn.getAttribute('data-base')) });
+        });
+      });
+      document.querySelectorAll('[data-company-actions]').forEach((btn) => {
+        btn.addEventListener('click', () => this.openListActions(Number(btn.getAttribute('data-company-actions'))));
+      });
+    },
+
+    openListActions(id) {
+      const company = this.rows.find((row) => Number(row.company_id) === Number(id));
+      const host = document.getElementById('modal-host');
+      if (!company || !host) return;
+      host.innerHTML = this.kit.modalHtml(
+        `${company.company_name || `企業No ${id}`}の操作`,
+        `<div class="mobile-action-list">
+          <button type="button" class="btn btn-ghost" data-run-company-action="edit">編集</button>
+          <button type="button" class="btn btn-ghost" data-run-company-action="base">基本案件</button>
+          <button type="button" class="btn btn-danger" data-run-company-action="del">削除</button>
+        </div>`
+      );
+      const close = this.kit.bindModal();
+      document.querySelectorAll('[data-run-company-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-run-company-action');
+          close();
+          document.querySelector(`.desktop-row-actions [data-${action}="${id}"]`)?.click();
         });
       });
     },

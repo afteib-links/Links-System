@@ -21,6 +21,7 @@
     "test:e2e": "node test-e2e/daily_report_ui.js",
     "test:e2e-ui": "node test-e2e/ui_redesign.js",
     "test:e2e-advance": "node test-e2e/advance_matrix_ui.js",
+    "test:e2e-mobile-masters": "node test-e2e/mobile_master_lists.js",
     "test:e2e-usability": "node test-e2e/list_editor_usability.js",
     "test:e2e-bank-export": "node test-e2e/bank_export_ui.js",
     "capture:manual": "node scripts/capture_manual_screens.js"

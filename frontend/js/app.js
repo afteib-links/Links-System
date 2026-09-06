@@ -107,12 +107,14 @@
     app.innerHTML = '<div class="loading-panel">読み込み中…</div>';
   }
 
-  function headerHtml() {
+  function headerHtml(pageTitle = '') {
     const rolesText = (currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし';
+    const escapedTitle = escapeHtml(pageTitle);
     return `
       <header class="app-header app-topbar">
         <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true" aria-controls="app-sidebar">☰</button>
         <div class="topbar-context"><span>運送業務基幹システム</span></div>
+        <h1 class="topbar-page-title" title="${escapedTitle}">${escapedTitle}</h1>
         <div class="header-actions">
           <div class="user-pill">
             <strong>${escapeHtml(currentUser.display_name)}</strong>
@@ -388,9 +390,9 @@
     app.innerHTML = `
       <div class="app-shell">
         ${sidebarHtml('home')}
-        <div class="app-frame">${headerHtml()}
+        <div class="app-frame">${headerHtml('業務ダッシュボード')}
           <main class="app-main dashboard-main">
-            <div class="dashboard-title"><div><p class="eyebrow">${escapeHtml(ym)} 業務状況</p><h1>業務ダッシュボード</h1><p>未完了と確認待ちを先に確認できます。</p></div></div>
+            <div class="dashboard-title"><div><p class="eyebrow">${escapeHtml(ym)} 業務状況</p><p>未完了と確認待ちを先に確認できます。</p></div></div>
             <section class="dashboard-grid">${cardsHtml || '<p class="muted">表示できる業務集計がありません。</p>'}</section>
             <section class="dashboard-section"><div class="section-head"><div><p class="eyebrow">NEXT ACTION</p><h2>次に処理する項目</h2></div></div><div class="action-list">${actionCards || '<div class="empty-state"><strong>✓ 対応が必要な項目はありません</strong><span>現在表示できる業務は完了しています。</span></div>'}</div></section>
           </main>
@@ -445,7 +447,7 @@
     if (!res.ok || !data?.ok) {
       app.innerHTML = `
         <div class="app-shell">
-          ${sidebarHtml('users')}<div class="app-frame">${headerHtml()}
+          ${sidebarHtml('users')}<div class="app-frame">${headerHtml('ユーザー管理')}
           <main class="app-main">
             <section class="panel"><p class="error">${escapeHtml(data?.message || '一覧を取得できませんでした')}</p></section>
           </main>
@@ -480,9 +482,8 @@
 
     app.innerHTML = `
       <div class="app-shell">
-        ${sidebarHtml('users')}<div class="app-frame">${headerHtml()}
+        ${sidebarHtml('users')}<div class="app-frame">${headerHtml('ユーザー管理')}
         <main class="app-main">
-          <div class="page-header-row"><h2 class="page-title">ユーザー管理</h2></div>
           <section class="panel">
             ${message ? `<p class="flash">${escapeHtml(message)}</p>` : ''}
             <div class="section-head">
