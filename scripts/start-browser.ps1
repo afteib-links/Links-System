@@ -4,7 +4,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 $Port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }
-$Url = "http://localhost:$Port"
+$Url = "http://127.0.0.1:$Port"
 
 function Resolve-Docker {
   $cmd = Get-Command docker -ErrorAction SilentlyContinue

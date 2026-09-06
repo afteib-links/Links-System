@@ -60,23 +60,31 @@
 
   async function api(path, options = {}) {
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
-    const res = await fetch(path, {
-      credentials: 'include',
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(options.headers || {}),
-      },
-      ...options,
-    });
-
-    let data = null;
     try {
-      data = await res.json();
-    } catch (_err) {
-      data = null;
-    }
+      const res = await fetch(path, {
+        credentials: 'include',
+        headers: {
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+          ...(options.headers || {}),
+        },
+        ...options,
+        signal: options.signal || ((options.method || 'GET').toUpperCase() === 'GET' ? AbortSignal.timeout(10000) : undefined),
+      });
 
-    return { res, data };
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_err) {
+        return { res: { ok: false, status: res.status }, data: { ok: false, message: 'サーバーの応答を読み取れませんでした。更新操作の場合は処理結果を一覧で確認してください。' } };
+      }
+
+      return { res, data };
+    } catch (error) {
+      const isRead = (options.method || 'GET').toUpperCase() === 'GET';
+      return { res: { ok: false, status: 0 }, data: { ok: false, message: isRead
+        ? '通信に失敗したか応答がタイムアウトしました。接続を確認して再試行してください。'
+        : '通信が切断されました。処理結果を一覧で確認してから再操作してください。' } };
+    }
   }
 
   function escapeHtml(value) {
@@ -342,72 +350,41 @@
     };
   }
 
-  function openFeature(featureKey, options = {}) {
+  async function openFeature(featureKey, options = {}) {
+    if (!can(featureKey)) return showToast('この機能を利用する権限がありません');
     currentView = featureKey;
-    const ctx = featureContext();
-    if (featureKey === 'companies' && window.LinksCompanies) {
-      window.LinksCompanies.open(ctx);
-      return;
+    renderLoading();
+    try {
+      const module = await window.LinksFeatureLoader.openModule(featureKey);
+      if (currentView !== featureKey || !currentUser) return;
+      if (featureKey === 'users') return await showUsers();
+      const featureOptions = featureKey === 'base_projects'
+        ? { ...options, tab: 'base', featureKey }
+        : featureKey === 'projects' ? { ...options, tab: options.tab || 'projects', featureKey } : options;
+      await module.open(featureContext(), featureOptions);
+    } catch (error) {
+      console.error('[feature/load]', error);
+      if (currentView !== featureKey || !currentUser) return;
+      const label = featureCatalog.find((f) => f.key === featureKey)?.label || featureKey;
+      app.innerHTML = `<div class="app-shell">${sidebarHtml(featureKey)}<div class="app-frame">${headerHtml(label)}
+        <main class="app-main"><section class="panel" role="alert"><h2>画面を表示できませんでした</h2>
+        <p>${escapeHtml(error.message || '読み込みに失敗しました。')}</p>
+        <button type="button" class="btn" id="retry-feature">再試行</button></section></main></div></div>`;
+      bindChrome();
+      document.getElementById('retry-feature').addEventListener('click', () => openFeature(featureKey, options));
     }
-    if (featureKey === 'partners' && window.LinksPartners) {
-      window.LinksPartners.open(ctx);
-      return;
-    }
-    if (featureKey === 'base_projects' && window.LinksProjects) {
-      window.LinksProjects.open(ctx, { ...options, tab: 'base', featureKey: 'base_projects' });
-      return;
-    }
-    if (featureKey === 'projects' && window.LinksProjects) {
-      window.LinksProjects.open(ctx, { ...options, tab: options.tab || 'projects', featureKey: 'projects' });
-      return;
-    }
-    if (featureKey === 'price_sets' && window.LinksPriceSets) {
-      window.LinksPriceSets.open(ctx, options);
-      return;
-    }
-    if (featureKey === 'daily_reports' && window.LinksDailyReports) {
-      window.LinksDailyReports.open(ctx);
-      return;
-    }
-    if (featureKey === 'advances' && window.LinksAdvances) {
-      window.LinksAdvances.open(ctx);
-      return;
-    }
-    if (featureKey === 'invoices' && window.LinksInvoices) {
-      window.LinksInvoices.open(ctx);
-      return;
-    }
-    if (featureKey === 'payments' && window.LinksPayments) {
-      window.LinksPayments.open(ctx);
-      return;
-    }
-    if (featureKey === 'cash_management' && window.LinksCashManagement) {
-      window.LinksCashManagement.open(ctx);
-      return;
-    }
-    if (featureKey === 'master_settings' && window.LinksMasterSettings) {
-      window.LinksMasterSettings.open(ctx);
-      return;
-    }
-    if (featureKey === 'ui_builder' && window.LinksUiBuilder) {
-      window.LinksUiBuilder.open(ctx, options);
-      return;
-    }
-    if (featureKey === 'users') {
-      showUsers();
-      return;
-    }
-    const label = featureCatalog.find((f) => f.key === featureKey)?.label || featureKey;
-    showToast(`「${label}」は準備中です`);
   }
 
   async function showHome() {
     currentView = 'home';
-    renderLoading();
+    app.innerHTML = `<div class="app-shell">${sidebarHtml('home')}<div class="app-frame">${headerHtml('業務ダッシュボード')}
+      <main class="app-main dashboard-main"><p class="muted" data-dashboard-loading role="status">業務状況を読み込み中…</p></main></div></div>`;
+    bindChrome();
 
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const dashboard = await api(`/api/dashboard/summary?target_year_month=${encodeURIComponent(ym)}`);
+    if (currentView !== 'home' || !currentUser) return;
     const cards = dashboard.res.ok && dashboard.data?.ok ? dashboard.data.cards || [] : [];
     const cardsHtml = cards.map((item) => `<button type="button" class="dashboard-card" data-feature="${escapeHtml(item.feature_key)}">
       <div class="dashboard-card-head"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.progress_percent)}%</strong></div>
@@ -416,20 +393,12 @@
     </button>`).join('');
     const actionCards = cards.filter((item) => item.incomplete || item.attention).map((item) => `<button type="button" class="action-item" data-feature="${escapeHtml(item.feature_key)}"><span class="status-dot tone-${item.attention ? 'attention' : 'waiting'}">${item.attention ? '!' : '◷'}</span><span><strong>${escapeHtml(item.label)}</strong><small>${item.attention ? `要対応 ${escapeHtml(item.attention)}件` : `未完了 ${escapeHtml(item.incomplete)}件`}</small></span><span aria-hidden="true">›</span></button>`).join('');
 
-    app.innerHTML = `
-      <div class="app-shell">
-        ${sidebarHtml('home')}
-        <div class="app-frame">${headerHtml('業務ダッシュボード')}
-          <main class="app-main dashboard-main">
+    document.querySelector('.dashboard-main').innerHTML = `
             <div class="dashboard-title"><div><p class="eyebrow">${escapeHtml(ym)} 業務状況</p><p>未完了と確認待ちを先に確認できます。</p></div></div>
-            <section class="dashboard-grid">${cardsHtml || '<p class="muted">表示できる業務集計がありません。</p>'}</section>
-            <section class="dashboard-section"><div class="section-head"><div><p class="eyebrow">NEXT ACTION</p><h2>次に処理する項目</h2></div></div><div class="action-list">${actionCards || '<div class="empty-state"><strong>✓ 対応が必要な項目はありません</strong><span>現在表示できる業務は完了しています。</span></div>'}</div></section>
-          </main>
-        </div>
-      </div>
+            <section class="dashboard-grid">${!dashboard.res.ok ? `<p class="error">${escapeHtml(dashboard.data?.message || '業務集計を取得できませんでした。ホームを開き直してください。')}</p>` : cardsHtml || '<p class="muted">表示できる業務集計がありません。</p>'}</section>
+            <section class="dashboard-section"><div class="section-head"><div><p class="eyebrow">NEXT ACTION</p><h2>次に処理する項目</h2></div></div><div class="action-list">${!dashboard.res.ok ? '<p class="muted">業務集計を取得できないため、対応状況は確認できません。</p>' : actionCards || '<div class="empty-state"><strong>✓ 対応が必要な項目はありません</strong><span>現在表示できる業務は完了しています。</span></div>'}</div></section>
     `;
 
-    bindChrome();
     document.querySelectorAll('[data-feature]').forEach((btn) => {
       btn.addEventListener('click', () => openFeature(btn.getAttribute('data-feature')));
     });
@@ -689,7 +658,7 @@
       await showHome();
       return;
     }
-    renderLogin();
+    renderLogin(res.status === 401 ? '' : data?.message || 'ログイン状態を確認できませんでした。');
   }
 
   boot().catch((err) => {

@@ -5,10 +5,12 @@
       this.ctx = ctx;
       this.ctx.renderLoading();
       this.listState = { q: '', partner_category_code: '', employment_type_code: '', sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
-      this.codes = await this.kit.loadCodes();
-      const fees = await this.ctx.api('/api/lookups/transfer-fees');
+      const [codes, fees, layout] = await Promise.all([
+        this.kit.loadCodes(), this.ctx.api('/api/lookups/transfer-fees'), this.kit.loadAreaLayout('partners'),
+      ]);
+      this.codes = codes;
       this.transferFees = (fees.data?.transfer_fees || []).filter((row) => row.is_active);
-      this.layout = await this.kit.loadAreaLayout('partners');
+      this.layout = layout;
       await this.showList();
     },
 

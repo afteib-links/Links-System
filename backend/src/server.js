@@ -6,6 +6,7 @@ const { config } = require('./config');
 const { getPool, ping } = require('./db');
 const { runMigrationsAndSeed } = require('./migrate');
 const { requireAuth, requireRole } = require('./middleware/auth');
+const { localUrl } = require('./middleware/local_url');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const mastersRoutes = require('./routes/masters');
@@ -32,6 +33,7 @@ async function createApp() {
   const MySQLStore = MySQLStoreFactory(session);
 
   app.set('trust proxy', 1);
+  app.use(localUrl);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false }));
 
@@ -53,7 +55,7 @@ async function createApp() {
     getPool()
   );
 
-  app.use(
+  app.use('/api',
     session({
       name: 'connect.sid',
       secret: config.sessionSecret,
@@ -159,6 +161,9 @@ async function createApp() {
       },
     })
   );
+
+  // 欠落したスクリプトにHTMLを返して初期化失敗を隠さない。
+  app.use(['/js', '/css'], (_req, res) => res.sendStatus(404));
 
   // SPAフォールバック（API以外のGET）
   app.use((req, res, next) => {
