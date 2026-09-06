@@ -7,9 +7,7 @@
       this.codes = await this.kit.loadCodes();
       const staffRes = await this.ctx.api('/api/master-settings/staff');
       this.staff = staffRes.data?.staff || [];
-      this.layout = null;
-      const saved = await this.kit.loadLayout('companies');
-      this.layout = saved?.columns_json || null;
+      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('companies'), 'list');
       await this.showList();
     },
 
@@ -452,7 +450,8 @@
           <div><label>担当者</label><input id="m_billing_manager" value="${this.ctx.escapeHtml(b.billing_manager || '')}" /></div>
           <div><label>取り纏めNo</label><input id="m_billing_summary_no" value="${this.ctx.escapeHtml(b.billing_summary_no || '')}" /></div>
         </div>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', () => {
@@ -487,7 +486,8 @@
           <div><label>車検証有効期限</label><input type="date" id="m_inspection" value="${this.ctx.escapeHtml(this.kit.dateValue(v.inspection_expiry_date))}" /></div>
           <div><label>任意保険有効期限</label><input type="date" id="m_insurance" value="${this.ctx.escapeHtml(this.kit.dateValue(v.insurance_expiry_date))}" /></div>
         </div>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', () => {
@@ -522,7 +522,8 @@
           <div><label>開始日</label><input type="date" id="m_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(p.start_date))}" /></div>
           ${isNew?'<div><label>終了日</label><input value="担当変更時に自動設定" disabled /></div>':`<div><label>終了日</label><input type="date" id="m_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(p.end_date))}" /></div>`}
         </div>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', () => {

@@ -16,6 +16,8 @@
       const companies = await this.ctx.api('/api/lookups/companies');
       this.companies = companies.data?.companies || [];
       this.q = '';
+      this.listState = { sortKey: 'price_set_no', sortOrder: 'asc', filters: {} };
+      this.layout = window.LinksListScreens.areaLayout(await this.kit.loadLayout('price_sets'), 'list');
       this.filterBaseProjectId = options.base_project_id ? Number(options.base_project_id) : null;
       this.filterProjectId = options.project_id ? Number(options.project_id) : null;
       this.prefillCompanyId = options.company_id ? Number(options.company_id) : null;
@@ -353,25 +355,32 @@
         this.kit.bindShell();
         return;
       }
-      const rows = (data.price_sets || [])
-        .map(
-          (ps) => `
-          <tr>
-            <td>${this.ctx.escapeHtml(ps.price_set_no || ps.price_set_id)}</td>
-            <td>${this.ctx.escapeHtml(ps.price_set_name)}</td>
-            <td>${this.ctx.escapeHtml(ps.company_name || '-')}</td>
-            <td>${this.ctx.escapeHtml(this.linkLabel(ps))}</td>
-            <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_start_date) || '-')}</td>
-            <td>${this.ctx.escapeHtml(this.kit.dateValue(ps.apply_end_date) || '〜')}</td>
-            <td>${this.ctx.escapeHtml(ps.line_count ?? 0)}</td>
-            <td><div class="table-action-row">
+      this.priceSets = data.price_sets || [];
+      const table = window.LinksDataTable.renderTable({
+        screenKey: 'price_sets',
+        columns: [
+          { key: 'price_set_no', label: 'No', getValue: (ps) => ps.price_set_no || ps.price_set_id },
+          { key: 'price_set_name', label: '名称' },
+          { key: 'company_name', label: '企業' },
+          { key: 'link', label: '連携先', getValue: (ps) => this.linkLabel(ps) },
+          { key: 'apply_start_date', label: '適用開始', getValue: (ps) => this.kit.dateValue(ps.apply_start_date) || '-' },
+          { key: 'apply_end_date', label: '適用終了', getValue: (ps) => this.kit.dateValue(ps.apply_end_date) || '〜' },
+          { key: 'line_count', label: '行数' },
+        ],
+        rows: this.priceSets,
+        layout: this.layout,
+        sortKey: this.listState.sortKey,
+        sortOrder: this.listState.sortOrder,
+        filters: this.listState.filters,
+        escapeHtml: this.ctx.escapeHtml,
+        rowKey: 'price_set_id',
+        tableId: 'price-sets-table',
+        renderActions: (ps) => `<div class="table-action-row">
               <button type="button" class="btn btn-ghost btn-small" data-edit="${ps.price_set_id}">編集</button>
               <button type="button" class="btn btn-ghost btn-small" data-copy="${ps.price_set_id}">コピー</button>
               <button type="button" class="btn btn-danger btn-small" data-del="${ps.price_set_id}">削除</button>
-            </div></td>
-          </tr>`
-        )
-        .join('');
+            </div>`,
+      });
       this.ctx.app.innerHTML = this.kit.shell(
         '金額データ管理（仮組）',
         `<section class="panel">
@@ -381,15 +390,19 @@
             <button type="button" class="btn" id="search">検索</button>
             <button type="button" class="btn" id="new">＋ 新規</button>
           </div>
-          <div class="table-wrap table-wrap-sticky">
-            <table class="data-table data-table-compact">
-              <thead><tr><th>No</th><th>名称</th><th>企業</th><th>連携先</th><th>適用開始</th><th>適用終了</th><th>行数</th><th>操作</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="8">データがありません</td></tr>'}</tbody>
-            </table>
-          </div>
+          <div id="price-sets-list-root">${table.html}</div>
         </section>`
       );
       this.kit.bindShell();
+      window.LinksDataTable.bindTable('#price-sets-list-root', {
+        onSort: (key) => {
+          this.listState.sortOrder = this.listState.sortKey === key && this.listState.sortOrder === 'asc' ? 'desc' : 'asc';
+          this.listState.sortKey = key;
+          this.showList(message);
+        },
+        onFilter: (filters) => { this.listState.filters = filters; this.showList(message); },
+        onActivate: (key) => { this.kit.pushNav(() => this.showList()); this.showDetail(Number(key)); },
+      });
       document.getElementById('search')?.addEventListener('click', () => {
         this.q = document.getElementById('q').value.trim();
         this.showList();

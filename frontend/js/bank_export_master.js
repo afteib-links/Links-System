@@ -33,11 +33,14 @@
       </tr>`).join('');
       this.ctx.app.innerHTML = this.kit.shell('銀行CSVフォーマットマスター', `<section class="panel">
         ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-        <div class="section-title-row"><div><h2>出力プロファイル</h2><p class="muted">公開済み版は変更せず、新しい下書き版を作成して改定します。</p></div><button class="btn" id="add-bank-profile">＋ プロファイル</button></div>
+        <div class="section-title-row"><div><h2>出力プロファイル</h2><p class="muted">公開済み版は変更せず、新しい下書き版を作成して改定します。</p></div><div class="btn-row"><button type="button" class="btn btn-ghost" data-master-help="bank-profiles">ヘルプ</button><button class="btn" id="add-bank-profile">＋ プロファイル</button></div></div>
         <div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>銀行系列</th><th>名称</th><th>最新の版</th><th>出力中の版</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="5">プロファイルがありません</td></tr>'}</tbody></table></div>
         <div id="modal-host"></div>
       </section>`, { onBack:this.onBack });
       this.kit.bindShell({ onBack:this.onBack });
+      window.LinksMasterSettings.ctx = this.ctx;
+      window.LinksMasterSettings.kit = this.kit;
+      window.LinksMasterSettings.bindHelp();
       document.getElementById('add-bank-profile').onclick = () => this.profileModal();
       document.querySelectorAll('[data-edit-version]').forEach((button) => button.onclick = () => this.openVersion(Number(button.dataset.editVersion)));
       document.querySelectorAll('[data-new-version]').forEach((button) => button.onclick = async () => {
@@ -52,7 +55,7 @@
         <div><label>プロファイルコード</label><input id="bp-code" placeholder="bank_service_csv"></div>
         <div><label>銀行系列</label><select id="bp-family"><option value="other">その他</option><option value="resona">りそなグループ</option><option value="mizuho">みずほ</option><option value="smbc">三井住友</option></select></div>
         <div class="full"><label>名称</label><input id="bp-name"></div><div class="full"><label>説明</label><input id="bp-description"></div>
-      </div>`, '<button class="btn" id="bp-save">追加</button>');
+      </div>`, '<button class="btn" id="bp-save">追加</button>', 'modal-wide');
       this.kit.bindModal();
       document.getElementById('bp-save').onclick = async () => {
         const payload = { profile_code:document.getElementById('bp-code').value.trim(), profile_name:document.getElementById('bp-name').value.trim(), bank_family:document.getElementById('bp-family').value, description:document.getElementById('bp-description').value };
@@ -151,8 +154,11 @@
       this.ctx.renderLoading();
       try { await this.catalog(); } catch (error) { window.alert(error.message); return onBack(); }
       const rows = (this.data.accounts || []).map((account) => `<tr><td>${this.ctx.escapeHtml(account.account_label)}</td><td>${this.ctx.escapeHtml(account.bank_name)} ${this.ctx.escapeHtml(account.branch_name)}</td><td>${this.ctx.escapeHtml(account.deposit_type)} ***${this.ctx.escapeHtml(String(account.account_number).slice(-4))}</td><td>${this.ctx.escapeHtml(account.profile_name)}</td><td>${account.is_active ? '有効' : '無効'}</td><td class="table-action-row"><button class="btn btn-ghost btn-small" data-edit-account="${account.source_bank_account_id}">編集</button><button class="btn btn-danger btn-small" data-delete-account="${account.source_bank_account_id}">削除</button></td></tr>`).join('');
-      this.ctx.app.innerHTML = this.kit.shell('振込元口座マスター', `<section class="panel">${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}<div class="section-title-row"><div><h2>自社の振込元口座</h2><p class="muted">銀行CSVの契約口座と委託者コードを管理します。</p></div><button class="btn" id="add-source-account">＋ 口座を追加</button></div><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>表示名</th><th>銀行・支店</th><th>口座</th><th>CSV形式</th><th>状態</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="6">振込元口座がありません</td></tr>'}</tbody></table></div><div id="modal-host"></div></section>`, { onBack:this.onBack });
+      this.ctx.app.innerHTML = this.kit.shell('振込元口座マスター', `<section class="panel">${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}<div class="section-title-row"><div><h2>自社の振込元口座</h2><p class="muted">銀行CSVの契約口座と委託者コードを管理します。</p></div><div class="btn-row"><button type="button" class="btn btn-ghost" data-master-help="source-accounts">ヘルプ</button><button class="btn" id="add-source-account">＋ 口座を追加</button></div></div><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>表示名</th><th>銀行・支店</th><th>口座</th><th>CSV形式</th><th>状態</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="6">振込元口座がありません</td></tr>'}</tbody></table></div><div id="modal-host"></div></section>`, { onBack:this.onBack });
       this.kit.bindShell({ onBack:this.onBack });
+      window.LinksMasterSettings.ctx = this.ctx;
+      window.LinksMasterSettings.kit = this.kit;
+      window.LinksMasterSettings.bindHelp();
       document.getElementById('add-source-account').onclick = () => this.accountModal(null);
       document.querySelectorAll('[data-edit-account]').forEach((button) => button.onclick = () => this.accountModal(this.data.accounts.find((row) => Number(row.source_bank_account_id) === Number(button.dataset.editAccount))));
       document.querySelectorAll('[data-delete-account]').forEach((button) => button.onclick = async () => { if(!window.confirm('この振込元口座を削除しますか？'))return; const result=await this.ctx.api(`${API}/accounts/${button.dataset.deleteAccount}`,{method:'DELETE'}); if(!result.res.ok)return window.alert(result.data?.message||'削除できませんでした'); this.openAccounts(this.ctx,this.onBack,'削除しました'); });
@@ -162,7 +168,7 @@
       const profiles = (this.data.profiles || []).map((profile) => `<option value="${profile.bank_export_profile_id}" ${Number(account?.bank_export_profile_id) === Number(profile.bank_export_profile_id) ? 'selected' : ''}>${this.ctx.escapeHtml(profile.profile_name)}</option>`).join('');
       document.getElementById('modal-host').innerHTML = this.kit.modalHtml(account ? '振込元口座編集' : '振込元口座追加', `<div class="form-grid">
         <div class="full"><label>表示名</label><input id="sa-label" value="${this.ctx.escapeHtml(account?.account_label || '')}"></div><div><label>CSVプロファイル</label><select id="sa-profile">${profiles}</select></div><div><label>銀行コード</label><input id="sa-bank-code" maxlength="4" inputmode="numeric" value="${this.ctx.escapeHtml(account?.bank_code || '')}"></div><div><label>銀行名</label><input id="sa-bank-name" value="${this.ctx.escapeHtml(account?.bank_name || '')}"></div><div><label>支店コード</label><input id="sa-branch-code" maxlength="3" inputmode="numeric" value="${this.ctx.escapeHtml(account?.branch_code || '')}"></div><div><label>支店名</label><input id="sa-branch-name" value="${this.ctx.escapeHtml(account?.branch_name || '')}"></div><div><label>口座種別</label><input id="sa-type" value="${this.ctx.escapeHtml(account?.deposit_type || 'ordinary')}"></div><div><label>口座番号</label><input id="sa-number" inputmode="numeric" value="${this.ctx.escapeHtml(account?.account_number || '')}"></div><div><label>口座名義カナ</label><input id="sa-name" value="${this.ctx.escapeHtml(account?.account_name_kana || '')}"></div><div><label>委託者コード</label><input id="sa-client" value="${this.ctx.escapeHtml(account?.client_code || '')}"></div><div class="full"><label class="check-item"><input id="sa-active" type="checkbox" ${account?.is_active !== 0 ? 'checked' : ''}><span>有効</span></label></div>
-      </div>`, '<button class="btn" id="sa-save">保存</button>');
+      </div>`, '<button class="btn" id="sa-save">保存</button>', 'modal-wide');
       this.kit.bindModal();
       document.getElementById('sa-save').onclick = async () => {
         const get = (id) => document.getElementById(id).value.trim();

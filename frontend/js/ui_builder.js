@@ -1,47 +1,9 @@
 /**
- * UIビルダー（仮組）
- * Step1: 機能画面 → Step2: エリア → Step3: 項目の表示／順序 → layouts API 保存
+ * UIビルダー
+ * Step1: 機能画面 → Step2: エリア → Step3: 項目の表示／順序 → 会社共通 layouts API 保存
  */
 (function (global) {
   'use strict';
-
-  /** 企業／パートナーの listColumns() と同キー（仮組カタログ） */
-  const SCREENS = [
-    {
-      key: 'companies',
-      label: '企業マスタ',
-      columns: [
-        { key: 'company_id', label: '企業No' },
-        { key: 'office_no', label: '事業所No' },
-        { key: 'office_name', label: '事業所名' },
-        { key: 'company_name', label: '企業名' },
-        { key: 'work_mode_code', label: '稼働形態' },
-        { key: 'our_manager', label: '営業担当' },
-        { key: 'base_project_count', label: '基本案件数' },
-        { key: 'closing_date', label: '締日' },
-        { key: 'invoice_send_method', label: '請求書送付' }
-      ]
-    },
-    {
-      key: 'partners',
-      label: 'パートナーマスタ',
-      columns: [
-        { key: 'partner_id', label: 'No' },
-        { key: 'partner_name', label: '名称' },
-        { key: 'bank', label: '銀行' },
-        { key: 'work_start_date', label: '稼働開始' },
-        { key: 'continuity_years', label: '継続年数' },
-        { key: 'license_expiry', label: '免許期限' },
-        { key: 'insurance_badges', label: '保険' },
-        { key: 'project_count', label: '案件数' }
-      ]
-    }
-  ];
-
-  const AREAS = [
-    { key: 'list', label: 'リストエリア', supported: true },
-    { key: 'header', label: 'ヘッダーエリア', supported: false }
-  ];
 
   let ctx = null;
   let kit = null;
@@ -49,16 +11,19 @@
     step: 1,
     screenKey: null,
     areaKey: null,
-    /** @type {{key:string,label:string,visible:boolean}[]} */
-    items: []
+    items: [],
   };
 
-  function screenByKey(key) {
-    return SCREENS.find((s) => s.key === key) || null;
+  function screens() {
+    return global.LinksListScreens?.SCREENS || [];
   }
 
-  function areaByKey(key) {
-    return AREAS.find((a) => a.key === key) || null;
+  function screenByKey(key) {
+    return global.LinksListScreens?.screenByKey(key) || null;
+  }
+
+  function areaByKey(screen, key) {
+    return global.LinksListScreens?.areaByKey(screen, key) || null;
   }
 
   function open(appCtx) {
@@ -76,7 +41,7 @@
       <section class="panel ui-builder">
         <div class="panel-header">
           <h2>UIビルダー</h2>
-          <p class="muted">機能画面 → エリア → 項目の表示／順序を設定します（仮組）</p>
+          <p class="muted">機能画面 → エリア → 項目の表示／順序を設定します。保存内容は全利用者の一覧に反映されます。</p>
         </div>
         ${renderStepper()}
         <div class="ui-builder-body">
@@ -94,7 +59,7 @@
     const steps = [
       { n: 1, label: '機能画面' },
       { n: 2, label: 'エリア' },
-      { n: 3, label: '項目設定' }
+      { n: 3, label: '項目設定' },
     ];
     return `
       <ol class="ui-builder-steps" style="display:flex;gap:0.75rem;list-style:none;padding:0;margin:0.75rem 0 0;flex-wrap:wrap">
@@ -118,30 +83,35 @@
     return `
       <h3>Step1. 機能画面を選択</h3>
       <div class="ui-builder-cards">
-        ${SCREENS.map(
-          (s) => `
+        ${screens()
+          .map(
+            (s) => `
           <button type="button" class="ui-builder-card ui-builder-screen" data-screen="${s.key}">
             <strong>${escapeHtml(s.label)}</strong>
             <span class="ui-builder-card-key">${escapeHtml(s.key)}</span>
           </button>`
-        ).join('')}
+          )
+          .join('')}
       </div>
     `;
   }
 
   function renderStep2() {
     const screen = screenByKey(state.screenKey);
+    const areas = screen?.areas || [];
     return `
       <h3>Step2. エリアを選択</h3>
       <p class="muted">対象: <strong>${escapeHtml(screen ? screen.label : state.screenKey)}</strong></p>
       <div class="ui-builder-cards">
-        ${AREAS.map(
-          (a) => `
+        ${areas
+          .map(
+            (a) => `
           <button type="button" class="ui-builder-card ui-builder-area" data-area="${a.key}">
             <strong>${escapeHtml(a.label)}</strong>
-            <span class="ui-builder-card-key">${a.supported ? '項目設定可' : '未対応（選択可）'}</span>
+            <span class="ui-builder-card-key">項目設定可</span>
           </button>`
-        ).join('')}
+          )
+          .join('')}
       </div>
       <div class="ui-builder-actions">
         <button type="button" class="btn btn-ghost" id="ui-builder-back">戻る</button>
@@ -151,12 +121,11 @@
 
   function renderStep3() {
     const screen = screenByKey(state.screenKey);
-    const area = areaByKey(state.areaKey);
-    if (!area || !area.supported) {
+    const area = areaByKey(screen, state.areaKey);
+    if (!area) {
       return `
         <h3>Step3. 項目設定</h3>
-        <p class="muted">対象: ${escapeHtml(screen ? screen.label : '')} / ${escapeHtml(area ? area.label : state.areaKey)}</p>
-        <p class="alert" style="margin-top:1rem">このエリアの項目設定は未対応です（仮組）。リストエリアを選択してください。</p>
+        <p class="alert" style="margin-top:1rem">このエリアの項目設定は未対応です。一覧エリアを選択してください。</p>
         <div class="ui-builder-actions">
           <button type="button" class="btn btn-ghost" id="ui-builder-back">戻る</button>
         </div>
@@ -180,7 +149,7 @@
 
     return `
       <h3>Step3. 表示／非表示と順序</h3>
-      <p class="muted">対象: <strong>${escapeHtml(screen ? screen.label : '')}</strong> / ${escapeHtml(area.label)}</p>
+      <p class="muted">対象: <strong>${escapeHtml(screen ? screen.label : '')}</strong> / ${escapeHtml(area.label)}。操作列と選択チェックは変更できません。</p>
       <div class="table-wrap" style="margin-top:0.75rem">
         <table class="data-table">
           <thead>
@@ -212,12 +181,7 @@
       btn.addEventListener('click', async () => {
         state.areaKey = btn.getAttribute('data-area');
         state.step = 3;
-        const area = areaByKey(state.areaKey);
-        if (area && area.supported) {
-          await loadItemsForList();
-        } else {
-          state.items = [];
-        }
+        await loadItemsForList();
         render();
       });
     });
@@ -279,29 +243,23 @@
 
   async function loadItemsForList() {
     const screen = screenByKey(state.screenKey);
-    if (!screen) {
+    const area = areaByKey(screen, state.areaKey);
+    if (!area) {
       state.items = [];
       return;
     }
 
-    const catalog = screen.columns.map((c) => ({ ...c, visible: true }));
+    const catalog = area.columns.map((c) => ({ ...c, visible: true }));
     let layout = null;
     try {
-      layout = await kit.loadLayout(state.screenKey);
+      const saved = await kit.loadLayout(state.screenKey);
+      layout = global.LinksListScreens.areaLayout(saved, state.areaKey);
     } catch (_) {
       layout = null;
     }
 
-    const cols =
-      layout && layout.columns_json && Array.isArray(layout.columns_json.columns)
-        ? layout.columns_json.columns
-        : catalog.map((c) => c.key);
-    const hidden = new Set(
-      layout && layout.columns_json && Array.isArray(layout.columns_json.hidden)
-        ? layout.columns_json.hidden
-        : []
-    );
-
+    const cols = layout && Array.isArray(layout.columns) ? layout.columns : catalog.map((c) => c.key);
+    const hidden = new Set(layout && Array.isArray(layout.hidden) ? layout.hidden : []);
     const byKey = Object.fromEntries(catalog.map((c) => [c.key, c]));
     const ordered = [];
     const seen = new Set();
@@ -323,27 +281,28 @@
 
   async function persistLayout() {
     const msg = document.getElementById('ui-builder-msg');
-    if (!state.screenKey || state.areaKey !== 'list') {
-      if (msg) msg.textContent = 'リストエリアのみ保存できます';
+    const screen = screenByKey(state.screenKey);
+    const area = areaByKey(screen, state.areaKey);
+    if (!screen || !area) {
+      if (msg) msg.textContent = '一覧エリアのみ保存できます';
       return;
     }
 
     const columns = state.items.map((i) => i.key);
     const hidden = state.items.filter((i) => !i.visible).map((i) => i.key);
-    const columnsJson = { columns, hidden };
-    const layoutJson = {
-      areas: {
-        list: { columns, hidden },
-        header: {}
-      },
-      updated_via: 'ui_builder'
-    };
+    const areaPayload = { columns, hidden };
+    const current = await kit.loadLayout(state.screenKey);
+    const areas = { ...(current?.layout_json?.areas || {}) };
+    areas[state.areaKey] = areaPayload;
+    const primaryKey = screen.areas[0]?.key;
+    const columnsJson = state.areaKey === primaryKey ? areaPayload : current?.columns_json || areaPayload;
+    const layoutJson = { areas, updated_via: 'ui_builder' };
 
     const { res, data } = await kit.saveLayout(state.screenKey, columnsJson, layoutJson);
     if (!res.ok || !data?.ok) {
       throw new Error(data?.message || '保存に失敗しました');
     }
-    if (msg) msg.textContent = '保存しました。一覧を開き直すと反映されます。';
+    if (msg) msg.textContent = '保存しました。一覧を開き直すと全利用者へ反映されます。';
   }
 
   function escapeHtml(value) {

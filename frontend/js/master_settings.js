@@ -5,6 +5,64 @@
     { key: 'price_calc_type', label: '料金計算区分' },
   ];
 
+  const MASTER_HELP = {
+    staff: {
+      title: '営業担当者マスタの登録方法',
+      how: ['氏名は必須です。カナと役割は任意です。', '並び順は選択リストの表示順です。', '無効にすると、企業マスタの担当履歴で新規選択できなくなります。既存の履歴は残ります。'],
+      affects: ['企業マスタの担当履歴（営業担当・契約担当）'],
+    },
+    offices: {
+      title: '事業所マスタの登録方法',
+      how: ['事業所Noは採番ルールに従い保存時に自動採番されます。手入力できません。', '事業所名は任意です。空欄のまま登録できます。'],
+      affects: ['事業所Noの採番', '企業マスタの事業所名は企業画面の入力が正です'],
+    },
+    numbering: {
+      title: '採番ルールの記載方法',
+      how: ['キーは追加後に変更できません。', '次番号は「接頭辞＋ゼロ埋め桁」で組み立てます。例: 桁4・次12 → 0012。', '無効にすると、そのキーの新規採番を停止します。'],
+      affects: ['当面は事業所Noの自動採番'],
+    },
+    codes: {
+      title: '区分マスタの記載方法',
+      how: ['値は保存キー、表示名が画面の表示です。値は追加後に変えません。', '無効化しても、すでに保存されたデータはその値のまま残ります。', '料金計算区分の未知の値は金額データに保存できますが、日報の自動計算には使いません。'],
+      affects: ['料金種別 → 金額データの料金項目', '残業計算区分 → 基本案件・個別案件の残業計算', '料金計算区分 → 金額データの計算種別と日報自動計算'],
+    },
+    settings: {
+      title: 'システム設定の記載方法',
+      how: ['日報の色は #RRGGBB の6桁で入力します。色見本とカラーコードを両方確認してください。', '料金自動計算の倍率・利益率は0以上の数値です。', '請求・支払摘要の表示順は basic,overtime,night,night_overtime,distance,shortage を重複なく6つ並べます。', 'PDFロゴは PNG・JPEG・WebP です。縦横比を維持して帳票へ出します。'],
+      affects: ['日報入力画面の文字サイズ・曜日色・増減単位', '金額データの自動計算と利益率警告', '請求・支払明細の摘要順', 'PDF帳票の会社ロゴ'],
+    },
+    holidays: {
+      title: '祝日・案件休日の登録方法',
+      how: ['日付と休日名は必須です。', '適用範囲は全案件共通、または案件独自です。案件独自では案件を選択してください。', '登録日は実際の曜日より休日判定を優先します。同じ日に両方があれば案件独自を判定根拠として残し、休日料金は1つだけ適用します。'],
+      affects: ['日報の休日判定と料金区分の自動候補', '入出金の予定日・振込指定日の営業日シフト'],
+    },
+    'transfer-fees': {
+      title: '振込手数料マスターの登録方法',
+      how: ['名称と0円以上の整数円は必須です。', '無効にすると、新規の先払・支払では選べません。すでに作成した予定のスナップショットは変わりません。'],
+      affects: ['先払の手数料初期値（案件 → パートナー → 0円の順）', '支払明細の手数料控除'],
+    },
+    'bank-profiles': {
+      title: '銀行CSVフォーマットの登録方法',
+      how: ['公開済み版は上書きしません。改定するときは新しい下書き版を作り、確認記録を書いてから公開します。', '列キー、参照項目、文字コード、区切り、ファイル名規則を版ごとに保存します。', '過去の出力バッチは、当時の列定義のまま再生成します。'],
+      affects: ['入出金管理の銀行CSVプレビューと生成'],
+    },
+    'source-accounts': {
+      title: '振込元口座マスターの登録方法',
+      how: ['表示名、CSVプロファイル、銀行コード4桁、支店コード3桁、口座番号、口座名義カナは必須です。', '期首預金残高は0円以上の整数円です。', '口座番号は画面では末尾以外を伏せて表示します。', '有効な口座だけがCSV出力と預金残高の対象になります。'],
+      affects: ['入出金管理の振込元口座選択と銀行CSV出力'],
+    },
+  };
+
+  function hubCardHtml(ctx, key, title, count) {
+    return `<div class="hub-card-wrap">
+      <button type="button" class="hub-card" data-hub="${key}">
+        <strong>${title}</strong>
+        <span>${ctx.escapeHtml(count ?? 0)} 件</span>
+      </button>
+      <button type="button" class="hub-help" data-master-help="${key}" aria-label="${title}のヘルプ">?</button>
+    </div>`;
+  }
+
   const PRICE_MATRIX_SETTINGS = [
     { key: 'price_matrix_profit_warning_percent', label: '利益率警告基準（%）', defaultValue: '10', step: '0.1' },
     { key: 'price_matrix_overtime_multiplier', label: '時間外倍率', defaultValue: '1.25', step: '0.01' },
@@ -31,6 +89,44 @@
       await this.showHub();
     },
 
+    helpButtonHtml(key) {
+      return `<button type="button" class="btn btn-ghost" data-master-help="${key}">ヘルプ</button>`;
+    },
+
+    bindHelp(root = document) {
+      root.querySelectorAll('[data-master-help]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.openHelp(button.getAttribute('data-master-help'));
+        });
+      });
+    },
+
+    ensureModalHost() {
+      let host = document.getElementById('modal-host');
+      if (host) return host;
+      host = document.createElement('div');
+      host.id = 'modal-host';
+      document.querySelector('main .panel')?.appendChild(host);
+      return host;
+    },
+
+    openHelp(key) {
+      const help = MASTER_HELP[key];
+      if (!help || !this.kit) return;
+      const host = this.ensureModalHost();
+      const how = help.how.map((line) => `<li>${this.ctx.escapeHtml(line)}</li>`).join('');
+      const affects = help.affects.map((line) => `<li>${this.ctx.escapeHtml(line)}</li>`).join('');
+      host.innerHTML = this.kit.modalHtml(
+        help.title,
+        `<div class="master-help-body"><h4>記載方法</h4><ul>${how}</ul><h4>影響する画面</h4><ul>${affects}</ul></div>`,
+        '',
+        'modal-wide'
+      );
+      this.kit.bindModal();
+    },
+
     async showHub() {
       this.ctx.renderLoading();
       const { res, data } = await this.ctx.api('/api/master-settings/hub');
@@ -39,48 +135,22 @@
       this.ctx.app.innerHTML = this.kit.shell(
         'マスター設定（仮組）',
         `<section class="panel">
-          <p class="muted">共通小口マスタへの入口です。</p>
+          <p class="muted">共通小口マスタへの入口です。各カードの「？」で登録方法と影響画面を確認できます。</p>
           <div class="hub-grid">
-            <button type="button" class="hub-card" data-hub="staff">
-              <strong>営業担当者マスタ</strong>
-              <span>${this.ctx.escapeHtml(hub.staff_masters ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="offices">
-              <strong>事業所マスタ</strong>
-              <span>${this.ctx.escapeHtml(hub.office_masters ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="numbering">
-              <strong>採番ルール</strong>
-              <span>${this.ctx.escapeHtml(hub.numbering_rules ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="codes">
-              <strong>区分マスタ</strong>
-              <span>${this.ctx.escapeHtml(hub.code_masters ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="settings">
-              <strong>システム設定</strong>
-              <span>${this.ctx.escapeHtml(hub.system_settings ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="holidays">
-              <strong>祝日・案件休日</strong>
-              <span>${this.ctx.escapeHtml(hub.holidays ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="transfer-fees">
-              <strong>振込手数料マスター</strong>
-              <span>${this.ctx.escapeHtml(hub.transfer_fee_patterns ?? 0)} 件</span>
-            </button>
-            ${canEditBankExport ? `<button type="button" class="hub-card" data-hub="bank-profiles">
-              <strong>銀行CSVフォーマット</strong>
-              <span>${this.ctx.escapeHtml(hub.bank_export_profiles ?? 0)} 件</span>
-            </button>
-            <button type="button" class="hub-card" data-hub="source-accounts">
-              <strong>振込元口座マスター</strong>
-              <span>${this.ctx.escapeHtml(hub.source_bank_accounts ?? 0)} 件</span>
-            </button>` : ''}
+            ${hubCardHtml(this.ctx, 'staff', '営業担当者マスタ', hub.staff_masters)}
+            ${hubCardHtml(this.ctx, 'offices', '事業所マスタ', hub.office_masters)}
+            ${hubCardHtml(this.ctx, 'numbering', '採番ルール', hub.numbering_rules)}
+            ${hubCardHtml(this.ctx, 'codes', '区分マスタ', hub.code_masters)}
+            ${hubCardHtml(this.ctx, 'settings', 'システム設定', hub.system_settings)}
+            ${hubCardHtml(this.ctx, 'holidays', '祝日・案件休日', hub.holidays)}
+            ${hubCardHtml(this.ctx, 'transfer-fees', '振込手数料マスター', hub.transfer_fee_patterns)}
+            ${canEditBankExport ? `${hubCardHtml(this.ctx, 'bank-profiles', '銀行CSVフォーマット', hub.bank_export_profiles)}${hubCardHtml(this.ctx, 'source-accounts', '振込元口座マスター', hub.source_bank_accounts)}` : ''}
           </div>
+          <div id="modal-host"></div>
         </section>`
       );
       this.kit.bindShell();
+      this.bindHelp();
       document.querySelectorAll('[data-hub]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-hub');
@@ -104,8 +174,9 @@
       if (!res.ok || !data?.ok) return window.alert(data?.message || '振込手数料マスターを取得できませんでした');
       this._transferFees = data.transfer_fees || [];
       const rows = this._transferFees.map((row) => `<tr><td>${this.ctx.escapeHtml(row.pattern_name)}</td><td class="num">${this.kit.money(row.amount)}</td><td>${row.is_active ? '有効' : '無効'}</td><td>${row.sort_order}</td><td><button class="btn btn-ghost btn-small" data-fee-edit="${row.transfer_fee_pattern_id}">編集</button> <button class="btn btn-danger btn-small" data-fee-delete="${row.transfer_fee_pattern_id}">削除</button></td></tr>`).join('');
-      this.ctx.app.innerHTML = this.kit.shell('振込手数料マスター', `<section class="panel">${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}<p class="muted">先払・支払処理で共通利用する固定手数料パターンです。</p><div class="toolbar"><button class="btn" id="new-transfer-fee">＋ 追加</button></div><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>名称</th><th>固定金額</th><th>状態</th><th>並び順</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="5">登録がありません</td></tr>'}</tbody></table></div><div id="modal-host"></div></section>`, { onBack:() => this.showHub() });
+      this.ctx.app.innerHTML = this.kit.shell('振込手数料マスター', `<section class="panel">${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}<p class="muted">先払・支払処理で共通利用する固定手数料パターンです。</p><div class="toolbar">${this.helpButtonHtml('transfer-fees')}<button class="btn" id="new-transfer-fee">＋ 追加</button></div><div class="table-wrap"><table class="data-table data-table-compact"><thead><tr><th>名称</th><th>固定金額</th><th>状態</th><th>並び順</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="5">登録がありません</td></tr>'}</tbody></table></div><div id="modal-host"></div></section>`, { onBack:() => this.showHub() });
       this.kit.bindShell({ onBack:() => this.showHub() });
+      this.bindHelp();
       document.getElementById('new-transfer-fee')?.addEventListener('click', () => this.openTransferFeeModal(null));
       document.querySelectorAll('[data-fee-edit]').forEach((button) => button.addEventListener('click', () => this.openTransferFeeModal(this._transferFees.find((row) => Number(row.transfer_fee_pattern_id) === Number(button.dataset.feeEdit)))));
       document.querySelectorAll('[data-fee-delete]').forEach((button) => button.addEventListener('click', async () => { if (!window.confirm('この手数料パターンを削除しますか？')) return; const result = await this.ctx.api(`/api/master-settings/transfer-fees/${button.dataset.feeDelete}`, { method:'DELETE' }); if (!result.res.ok) return window.alert(result.data?.message || '削除失敗'); this.showTransferFees('削除しました'); }));
@@ -113,7 +184,7 @@
 
     openTransferFeeModal(row) {
       const isNew = !row;
-      document.getElementById('modal-host').innerHTML = this.kit.modalHtml(isNew ? '振込手数料追加' : '振込手数料編集', `<div class="form-grid"><div class="full"><label>名称</label><input id="fee-name" value="${this.ctx.escapeHtml(row?.pattern_name || '')}"></div><div><label>固定金額</label><input id="fee-amount" type="number" min="0" value="${Number(row?.amount || 0)}"></div><div><label>並び順</label><input id="fee-sort" type="number" value="${Number(row?.sort_order || 0)}"></div><div class="full"><label class="check-item"><input id="fee-active" type="checkbox" ${row?.is_active !== 0 ? 'checked' : ''}><span>有効</span></label></div></div>`, '<button class="btn" id="fee-save">保存</button>');
+      document.getElementById('modal-host').innerHTML = this.kit.modalHtml(isNew ? '振込手数料追加' : '振込手数料編集', `<div class="form-grid"><div class="full"><label>名称</label><input id="fee-name" value="${this.ctx.escapeHtml(row?.pattern_name || '')}"></div><div><label>固定金額</label><input id="fee-amount" type="number" min="0" value="${Number(row?.amount || 0)}"></div><div><label>並び順</label><input id="fee-sort" type="number" value="${Number(row?.sort_order || 0)}"></div><div class="full"><label class="check-item"><input id="fee-active" type="checkbox" ${row?.is_active !== 0 ? 'checked' : ''}><span>有効</span></label></div></div>`, '<button class="btn" id="fee-save">保存</button>', 'modal-wide');
       this.kit.bindModal();
       document.getElementById('fee-save')?.addEventListener('click', async () => {
         const payload = { pattern_name:document.getElementById('fee-name').value.trim(), amount:Number(document.getElementById('fee-amount').value), sort_order:Number(document.getElementById('fee-sort').value || 0), is_active:document.getElementById('fee-active').checked, version:Number(row?.version || 0) };
@@ -156,7 +227,7 @@
         '営業担当者マスタ',
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
-          <div class="toolbar"><button type="button" class="btn" id="new-staff">＋ 追加</button></div>
+          <div class="toolbar">${this.helpButtonHtml('staff')}<button type="button" class="btn" id="new-staff">＋ 追加</button></div>
           <div class="table-wrap">
             <table class="data-table data-table-compact">
               <thead><tr><th>No</th><th>氏名</th><th>カナ</th><th>役割</th><th>状態</th><th>操作</th></tr></thead>
@@ -168,6 +239,7 @@
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       document.getElementById('new-staff')?.addEventListener('click', () => this.openStaffModal(null));
       document.querySelectorAll('[data-edit]').forEach((btn) =>
         btn.addEventListener('click', () => {
@@ -195,7 +267,8 @@
           <div><label>並び順</label><input type="number" id="m_sort" value="${this.ctx.escapeHtml(row?.sort_order ?? 0)}" /></div>
           <div class="full"><label class="check-item"><input type="checkbox" id="m_active" ${row?.is_active !== 0 ? 'checked' : ''} /><span>有効</span></label></div>
         </div></section>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', async () => {
@@ -258,7 +331,7 @@
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <p class="muted">事業所Noは採番ルールに従い自動採番されます。事業所名は任意です。</p>
-          <div class="toolbar"><button type="button" class="btn" id="new-office">＋ 追加</button></div>
+          <div class="toolbar">${this.helpButtonHtml('offices')}<button type="button" class="btn" id="new-office">＋ 追加</button></div>
           <div class="table-wrap">
             <table class="data-table data-table-compact">
               <thead><tr><th>事業所No</th><th>事業所名</th><th>状態</th><th>並び</th><th>操作</th></tr></thead>
@@ -270,6 +343,7 @@
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       document.getElementById('new-office')?.addEventListener('click', () => this.openOfficeModal(null));
       document.querySelectorAll('[data-edit]').forEach((btn) =>
         btn.addEventListener('click', () => {
@@ -308,7 +382,8 @@
             row?.is_active !== 0 ? 'checked' : ''
           } /><span>有効</span></label></div>
         </div></section>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`
+        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        'modal-wide'
       );
       this.kit.bindModal();
       document.getElementById('modal-save')?.addEventListener('click', async () => {
@@ -382,6 +457,7 @@
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <p class="muted">接頭辞＋ゼロ埋め桁で次番号を組み立てます（例: 桁4・次12 → 0012）。キーは変更できません。</p>
           <div class="toolbar">
+            ${this.helpButtonHtml('numbering')}
             <input id="new-rule-key" placeholder="キー（例: office）" />
             <input id="new-rule-label" placeholder="表示名" />
             <input id="new-rule-prefix" placeholder="接頭辞" style="width:5rem" />
@@ -395,10 +471,12 @@
               <tbody>${rows || '<tr><td colspan="7">なし</td></tr>'}</tbody>
             </table>
           </div>
+          <div id="modal-host"></div>
         </section>`,
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       document.getElementById('add-rule')?.addEventListener('click', async () => {
         const result = await this.ctx.api('/api/master-settings/numbering-rules', {
           method: 'POST',
@@ -456,6 +534,7 @@
         '区分マスタ',
         `<section class="panel">
           <div class="toolbar">
+            ${this.helpButtonHtml('codes')}
             ${CODE_CATEGORIES.map(
               (c) =>
                 `<button type="button" class="btn ${this.codeCategory === c.key ? '' : 'btn-ghost'} btn-small" data-cat="${c.key}">${this.ctx.escapeHtml(c.label)}</button>`
@@ -472,10 +551,12 @@
               <tbody>${rows || '<tr><td colspan="5">なし</td></tr>'}</tbody>
             </table>
           </div>
+          <div id="modal-host"></div>
         </section>`,
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       document.querySelectorAll('[data-cat]').forEach((btn) =>
         btn.addEventListener('click', () => {
           this.codeCategory = btn.getAttribute('data-cat');
@@ -548,7 +629,7 @@
         `<section class="panel">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <p class="muted">全案件共通の祝日、または特定案件だけの休日を登録します。登録日は曜日より休日設定を優先します。</p>
-          <div class="toolbar"><button type="button" class="btn" id="new-holiday">＋ 追加</button></div>
+          <div class="toolbar">${this.helpButtonHtml('holidays')}<button type="button" class="btn" id="new-holiday">＋ 追加</button></div>
           <div class="table-wrap">
             <table class="data-table data-table-compact">
               <thead><tr><th>日付</th><th>休日名</th><th>適用範囲</th><th>状態</th><th>操作</th></tr></thead>
@@ -560,6 +641,7 @@
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       document.getElementById('new-holiday')?.addEventListener('click', () => this.openHolidayModal(null));
       document.querySelectorAll('[data-edit-holiday]').forEach((button) => button.addEventListener('click', () => {
         const row = this._holidays.find((item) => Number(item.holiday_id) === Number(button.getAttribute('data-edit-holiday')));
@@ -587,7 +669,8 @@
           })}</div></div>
           <div class="full"><label class="check-item"><input type="checkbox" id="holiday-active" ${row?.is_active !== 0 ? 'checked' : ''} /><span>有効</span></label></div>
         </div></section>`,
-        '<button type="button" class="btn" id="holiday-save">保存</button>'
+        '<button type="button" class="btn" id="holiday-save">保存</button>',
+        'modal-wide'
       );
       this.kit.bindModal();
       this.kit.bindSearchSelects(document.getElementById('modal-host'));
@@ -676,6 +759,7 @@
       this.ctx.app.innerHTML = this.kit.shell(
         'システム設定',
         `<section class="panel">
+          <div class="toolbar">${this.helpButtonHtml('settings')}</div>
           <section class="panel price-matrix-settings-panel">
             <h3>料金自動計算</h3>
             <p class="muted">金額データの自動計算と利益率警告に共通で使用します。</p>
@@ -721,10 +805,12 @@
               <tbody>${rows || '<tr><td colspan="4">なし</td></tr>'}</tbody>
             </table>
           </div>
+          <div id="modal-host"></div>
         </section>`,
         { onBack: () => this.showHub() }
       );
       this.kit.bindShell({ onBack: () => this.showHub() });
+      this.bindHelp();
       const logoUploader = document.getElementById('document-logo-uploader');
       const logoInput = document.getElementById('document-logo-file');
       const logoPreview = document.getElementById('document-logo-preview');
@@ -904,5 +990,6 @@
     },
   };
 
+  LinksMasterSettings.HELP = MASTER_HELP;
   window.LinksMasterSettings = LinksMasterSettings;
 })();

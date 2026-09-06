@@ -257,10 +257,10 @@
           body: JSON.stringify({ columns_json: columnsJson, layout_json: layoutJson }),
         });
       },
-      modalHtml(title, bodyHtml, footerHtml = '') {
+      modalHtml(title, bodyHtml, footerHtml = '', extraClass = '') {
         return `
           <div class="modal-backdrop" id="modal-backdrop">
-            <div class="modal-panel" role="dialog" aria-modal="true">
+            <div class="modal-panel ${ctx.escapeHtml(extraClass)}" role="dialog" aria-modal="true">
               <div class="modal-head">
                 <h3>${ctx.escapeHtml(title)}</h3>
                 <button type="button" class="btn btn-ghost btn-small" id="modal-close">閉じる</button>

@@ -865,10 +865,16 @@ select {
 .modal-panel {
   background: #fff;
   border-radius: 12px;
-  width: min(640px, 100%);
-  max-height: min(88vh, 720px);
-  overflow: auto;
+  width: min(1080px, calc(100vw - 2rem));
+  max-width: 100%;
+  max-height: min(92vh, 960px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+.modal-panel.modal-wide {
+  width: min(1080px, calc(100vw - 2rem));
 }
 
 .modal-head {
@@ -878,6 +884,7 @@ select {
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
 }
 
 .modal-head h3 {
@@ -887,6 +894,10 @@ select {
 
 .modal-body {
   padding: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 
 .modal-foot {
@@ -895,7 +906,58 @@ select {
   justify-content: flex-end;
   gap: 0.5rem;
   border-top: 1px solid var(--line);
+  flex: 0 0 auto;
 }
+
+.modal-panel .form-grid,
+.modal-panel .form-grid.form-grid-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  width: 100%;
+}
+.modal-panel .form-grid > *,
+.modal-panel .form-grid-compact > *,
+.modal-panel .form-grid-compact > .field-xs,
+.modal-panel .form-grid-compact > .field-sm,
+.modal-panel .form-grid-compact > .field-md,
+.modal-panel .form-grid-compact > .field-lg,
+.modal-panel .form-grid-compact > .full {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+.modal-panel .search-select {
+  min-width: 0;
+  width: 100%;
+}
+.modal-panel .search-select-list {
+  left: 0;
+  right: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+.hub-card-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.hub-help {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: #34445c;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hub-help:hover { border-color: var(--accent, #2f6b3a); }
+.master-help-body h4 { margin: 0 0 8px; }
+.master-help-body ul { margin: 0 0 16px; padding-left: 1.2rem; }
+.master-help-body li { margin: 4px 0; }
 
 /* ===== Daily report expand / summary / full-screen grid ===== */
 .dr-grid-screen {
