@@ -83,9 +83,12 @@
         filters: this.listState.filters,
         escapeHtml: this.ctx.escapeHtml,
         renderActions: (p) => `
-          <button type="button" class="btn btn-ghost btn-small" data-edit="${p.partner_id}">編集</button>
-          <button type="button" class="btn btn-ghost btn-small" data-projects="${p.partner_id}">案件一覧</button>
-          <button type="button" class="btn btn-danger btn-small" data-del="${p.partner_id}">削除</button>`,
+          <span class="desktop-row-actions">
+            <button type="button" class="btn btn-ghost btn-small" data-edit="${p.partner_id}">編集</button>
+            <button type="button" class="btn btn-ghost btn-small" data-projects="${p.partner_id}">案件一覧</button>
+            <button type="button" class="btn btn-danger btn-small" data-del="${p.partner_id}">削除</button>
+          </span>
+          <button type="button" class="btn btn-ghost btn-small mobile-row-action" data-partner-actions="${p.partner_id}" aria-label="${this.ctx.escapeHtml(p.partner_name || `パートナーNo ${p.partner_id}`)}の操作">操作</button>`,
         rowKey: 'partner_id',
       });
 
@@ -101,6 +104,7 @@
             <button type="button" class="btn" id="new">＋ 新規</button>
           </div>
           ${table.html}
+          <div id="modal-host"></div>
         </section>`
       );
       this.kit.bindShell();
@@ -155,6 +159,31 @@
           await this.showList('削除しました');
         })
       );
+      document.querySelectorAll('[data-partner-actions]').forEach((btn) => {
+        btn.addEventListener('click', () => this.openListActions(Number(btn.getAttribute('data-partner-actions'))));
+      });
+    },
+
+    openListActions(id) {
+      const partner = this.rows.find((row) => Number(row.partner_id) === Number(id));
+      const host = document.getElementById('modal-host');
+      if (!partner || !host) return;
+      host.innerHTML = this.kit.modalHtml(
+        `${partner.partner_name || `パートナーNo ${id}`}の操作`,
+        `<div class="mobile-action-list">
+          <button type="button" class="btn btn-ghost" data-run-partner-action="edit">編集</button>
+          <button type="button" class="btn btn-ghost" data-run-partner-action="projects">案件一覧</button>
+          <button type="button" class="btn btn-danger" data-run-partner-action="del">削除</button>
+        </div>`
+      );
+      const close = this.kit.bindModal();
+      document.querySelectorAll('[data-run-partner-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-run-partner-action');
+          close();
+          document.querySelector(`.desktop-row-actions [data-${action}="${id}"]`)?.click();
+        });
+      });
     },
 
     emptyVehicle() {
@@ -216,10 +245,13 @@
         loop_code: '',
         payment_output_code: '',
         bank_name: '',
+        bank_code: '',
         branch_name: '',
+        branch_code: '',
         account_number: '',
         deposit_type: '',
         account_name: '',
+        account_name_kana: '',
         vehicles: [],
       };
       if (id) {
@@ -279,11 +311,14 @@
               <div><label>支払出力</label><select name="payment_output_code">${this.kit.codeOptions(this.codes.payment_output, partner.payment_output_code)}</select></div>
             </div></section>
             <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
+              <div><label>銀行コード（4桁）</label><input name="bank_code" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="${this.ctx.escapeHtml(partner.bank_code || '')}" /></div>
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(partner.bank_name || '')}" /></div>
+              <div><label>支店コード（3桁）</label><input name="branch_code" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" value="${this.ctx.escapeHtml(partner.branch_code || '')}" /></div>
               <div><label>支店名</label><input name="branch_name" value="${this.ctx.escapeHtml(partner.branch_name || '')}" /></div>
               <div><label>口座種別</label><select name="deposit_type">${this.kit.codeOptions(this.codes.deposit_type, partner.deposit_type)}</select></div>
               <div><label>口座番号</label><input name="account_number" value="${this.ctx.escapeHtml(partner.account_number || '')}" /></div>
               <div><label>口座名義</label><input name="account_name" value="${this.ctx.escapeHtml(partner.account_name || '')}" /></div>
+              <div><label>口座名義カナ（CSV用）</label><input name="account_name_kana" value="${this.ctx.escapeHtml(partner.account_name_kana || '')}" /></div>
             </div></section>
             <section class="form-section-card">
             <div class="section-head">
@@ -382,11 +417,14 @@
         tax_return_code: form.tax_return_code.value,
         loop_code: form.loop_code.value,
         payment_output_code: form.payment_output_code.value,
+        bank_code: form.bank_code.value,
         bank_name: form.bank_name.value,
+        branch_code: form.branch_code.value,
         branch_name: form.branch_name.value,
         deposit_type: form.deposit_type.value,
         account_number: form.account_number.value,
         account_name: form.account_name.value,
+        account_name_kana: form.account_name_kana.value,
         vehicles: this.detailState.vehicles,
         version: this.detailState.version,
       };

@@ -35,6 +35,7 @@
       this.ctx.renderLoading();
       const { res, data } = await this.ctx.api('/api/master-settings/hub');
       const hub = data?.hub || {};
+      const canEditBankExport = (this.ctx.currentUser?.roles || []).some((role) => ['admin', 'system'].includes(role));
       this.ctx.app.innerHTML = this.kit.shell(
         'マスター設定（仮組）',
         `<section class="panel">
@@ -68,6 +69,14 @@
               <strong>振込手数料マスター</strong>
               <span>${this.ctx.escapeHtml(hub.transfer_fee_patterns ?? 0)} 件</span>
             </button>
+            ${canEditBankExport ? `<button type="button" class="hub-card" data-hub="bank-profiles">
+              <strong>銀行CSVフォーマット</strong>
+              <span>${this.ctx.escapeHtml(hub.bank_export_profiles ?? 0)} 件</span>
+            </button>
+            <button type="button" class="hub-card" data-hub="source-accounts">
+              <strong>振込元口座マスター</strong>
+              <span>${this.ctx.escapeHtml(hub.source_bank_accounts ?? 0)} 件</span>
+            </button>` : ''}
           </div>
         </section>`
       );
@@ -82,6 +91,8 @@
           else if (key === 'codes') this.showCodes();
           else if (key === 'holidays') this.showHolidays();
           else if (key === 'transfer-fees') this.showTransferFees();
+          else if (key === 'bank-profiles') window.LinksBankExportMaster.openProfiles(this.ctx, () => this.showHub());
+          else if (key === 'source-accounts') window.LinksBankExportMaster.openAccounts(this.ctx, () => this.showHub());
           else this.showSettings();
         });
       });

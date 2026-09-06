@@ -25,7 +25,7 @@
         <li><a href="#ch-advances">先払い</a></li>
         <li><a href="#ch-invoices">請求</a></li>
         <li><a href="#ch-payments">支払</a></li>
-        <li><a href="#ch-cash">入出金管理・CSV</a></li>
+        <li><a href="#ch-cash">入出金管理・FB出力</a></li>
         <li><a href="#ch-master">マスター設定</a></li>
         <li><a href="#ch-ui">UIビルダー</a></li>
         <li><a href="#ch-users">ユーザー管理</a></li>
@@ -469,13 +469,13 @@
       </section>
 
       <section id="ch-cash">
-        <h2 class="chapter">13. 入出金管理・CSV</h2>
-        <p>メニュー「精算 → 入出金管理・CSV」。月6回（5/10/15/20/25/末日）の管理回ごとに、予定と実績を分けて見ます。正式な全銀FBファイルはまだ出ません。確認用の出金CSVです。</p>
+        <h2 class="chapter">13. 入出金管理・FB出力</h2>
+        <p>メニュー「精算 → 入出金管理・FB出力」。月6回（5/10/15/20/25/末日）の予定と実績をカレンダー／一覧で確認し、公開済みの銀行CSVプロファイルから選択した出金予定を出力します。</p>
         <p>使える権限: 管理者 / 経営者 / 総務</p>
 <<<<<<< HEAD
-        <div class="warn">画面一覧の「収支管理」「総振FB」「入金消込」は現行メニューではありません。この章の画面が現行の入出金です。</div>
+        <div class="warn">旧画面一覧の「収支管理」と「総振FB」は、この章の「入出金管理・FB出力」へ統合しました。入金消込は未提供です。</div>
 =======
-        <div class="note">正式FB・入金消込画面は未提供です。現行はこの入出金管理・CSVです。</div>
+        <div class="note">銀行CSVはマスター設定で振込元口座と検証済みプロファイル版を公開してから利用します。出力だけでは実行済みにならず、銀行処理後に実績を登録します。</div>
 >>>>>>> bab91a98b97f02205a7ea4a42a08dcf742e6b41c
         <table>
           <thead><tr><th class="do">すると</th><th class="result">どうなる</th></tr></thead>
@@ -485,7 +485,7 @@
             <tr><td>予定の「変更」（理由必須）</td><td>管理回や予定日が例外として書き換わる</td></tr>
             <tr><td>「実績」で 1=実行</td><td>実行日・実行額が残り、完了扱い。予定額との差額が見える</td></tr>
             <tr><td>実績で 2=保留 / 3=取消</td><td>理由付きで保留または取消。要対応にカウントされる</td></tr>
-            <tr><td>管理回を選んで「出金CSVを作成」</td><td>CSVがダウンロードされ、対象予定はCSV出力済みになる</td></tr>
+            <tr><td>一覧で同じ管理回の出金予定を選び、振込元口座と振込指定日を指定</td><td>プレビューで銀行データを検証し、エラーがなければ銀行CSVを作成する</td></tr>
             <tr><td>出力履歴の「取消」</td><td>そのCSVバッチが取り消され、未実行予定は出力前に戻る</td></tr>
           </tbody>
         </table>
@@ -494,8 +494,8 @@
           <img src="../../仕様MD/画面一覧/12_収支管理.png" alt="収支（旧）">
           <figcaption>旧・収支管理 <span class="badge old">参考画像</span> 現行は予定一覧＋CSV履歴です。</figcaption>
 =======
-          <img src="screenshots/21_cash_management.png" alt="入出金管理・CSV">
-          <figcaption>入出金管理・CSV（現行SPA）</figcaption>
+          <img src="screenshots/21_cash_management.png" alt="入出金管理・FB出力">
+          <figcaption>入出金管理・FB出力（現行SPA）</figcaption>
 >>>>>>> bab91a98b97f02205a7ea4a42a08dcf742e6b41c
         </figure>
       </section>
@@ -605,7 +605,7 @@
             <tr><td>先払い</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td></tr>
             <tr><td>請求</td><td>●</td><td></td><td>●</td><td>●</td><td>●</td><td></td><td>●</td></tr>
             <tr><td>支払</td><td>●</td><td></td><td>●</td><td>●</td><td>●</td><td>●</td><td></td></tr>
-            <tr><td>入出金管理・CSV</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td></tr>
+            <tr><td>入出金管理・FB出力</td><td>●</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td></tr>
             <tr><td>マスター設定</td><td>●</td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr>
             <tr><td>UIビルダー / ユーザー管理</td><td>●</td><td>●</td><td></td><td></td><td></td><td></td><td></td></tr>
           </tbody>
@@ -620,16 +620,16 @@
           <thead><tr><th>画面一覧の名前</th><th>状態</th><th>代わりに使う現行機能</th></tr></thead>
           <tbody>
             <tr><td>11 分割支払管理</td><td><span class="badge off">専用画面なし</span></td><td>分割案件の先払は「先払い」マトリクス。分割返済の債権画面は未提供</td></tr>
-            <tr><td>12 収支管理</td><td><span class="badge off">未提供</span></td><td>入出金管理・CSV</td></tr>
-            <tr><td>13 総振管理・FB出力</td><td><span class="badge off">正式FBは後続</span></td><td>入出金の出金CSV（確認用）</td></tr>
+            <tr><td>12 収支管理</td><td><span class="badge on">統合済み</span></td><td>入出金管理・FB出力のカレンダー</td></tr>
+            <tr><td>13 総振管理・FB出力</td><td><span class="badge on">銀行CSV対応</span></td><td>公開済みプロファイルによる銀行CSV出力</td></tr>
             <tr><td>14 入金消込</td><td><span class="badge off">未提供</span></td><td>入出金の入金予定・実績</td></tr>
             <tr><td>15 収支分析</td><td><span class="badge off">未提供</span></td><td>なし（ダッシュボードの進捗のみ）</td></tr>
           </tbody>
         </table>
         <div class="two-col">
           <figure class="shot">
-            <img src="../../仕様MD/画面一覧/13_総振管理_FB出力.png" alt="総振FB（未提供）">
-            <figcaption>総振FB <span class="badge off">現行メニューに無い</span></figcaption>
+            <img src="../../仕様MD/画面一覧/13_総振管理_FB出力.png" alt="総振FBの参考画面">
+            <figcaption>総振FB <span class="badge old">旧参考画面</span></figcaption>
           </figure>
           <figure class="shot">
             <img src="../../仕様MD/画面一覧/14_入金消込_メイン.png" alt="入金消込（未提供）">
