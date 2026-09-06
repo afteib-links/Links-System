@@ -1,0 +1,44 @@
+# Standalone file. Never merge with docker-compose.yml; never mounts data/mysql.
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: links_verification_demo
+      MYSQL_USER: verification
+      MYSQL_PASSWORD: ${VERIFICATION_DB_PASSWORD:?Set a verification-only password}
+      MYSQL_ROOT_PASSWORD: ${VERIFICATION_ROOT_PASSWORD:?Set a verification-only root password}
+      TZ: Asia/Tokyo
+    volumes:
+      - verification_mysql:/var/lib/mysql
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_NAME: links_verification_demo
+      DB_USER: verification
+      DB_PASSWORD: ${VERIFICATION_DB_PASSWORD:?Set a verification-only password}
+      SESSION_SECRET: ${VERIFICATION_SESSION_SECRET:?Set a verification-only session secret}
+      ADMIN_LOGIN_ID: verification-admin
+      ADMIN_PASSWORD: ${VERIFICATION_PASSWORD:?Set a verification login password}
+      VERIFICATION_PASSWORD: ${VERIFICATION_PASSWORD:?Set a verification login password}
+      VERIFICATION_ENV: isolated
+      VERIFICATION_OUTPUT: /app/verification
+      PDF_DIR: /app/verification/pdf
+      DAILY_REPORT_IMPORT_DIR: /app/verification/uploads/daily-report-imports
+      APP_PORT: 3000
+      TZ: Asia/Tokyo
+    ports:
+      - "127.0.0.1:${VERIFICATION_PORT:-18080}:3000"
+    volumes:
+      - ./output/business-verification/docker:/app/verification
+      - ./output/business-verification/packages:/app/packages
+volumes:
+  verification_mysql:
