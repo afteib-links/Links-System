@@ -299,8 +299,8 @@ function renderInvoice(document, lines, summary) {
   return `<section class="sheet invoice-sheet">
     <div class="top-grid">${recipientBlock(recipient, '御中')}<div><h1>${title}</h1><div class="rule-title"></div><div class="issue-date">${formatDate(document.issued_date)}</div>${issuerBlock(document)}</div></div>
     <div class="invoice-meta"><div>毎度、お引き立てにあずかり誠にありがとうございます。<br>下記の通りご請求申し上げますので、ご査収下さい。</div><div><strong>お支払期日　</strong>${formatDate(document.due_date)}</div></div>
-    <div class="amount-box"><div><strong>ご請求額</strong><span>${yen(total, '-')}</span></div><div><strong>内消費税</strong><span>${yen(tax, '-')}</span></div></div>
-    <div class="invoice-bank">${bankBlock(document)}${document.transfer_fee_note ? `<div class="note">※ ${escape(document.transfer_fee_note)}</div>` : ''}</div>
+    <div class="invoice-amounts"><div class="amount-box"><div><strong>ご請求額</strong><span>${yen(total, '-')}</span></div><div><strong>内消費税</strong><span>${yen(tax, '-')}</span></div></div>
+    <div class="invoice-bank">${bankBlock(document)}${document.transfer_fee_note ? `<div class="note">※ ${escape(document.transfer_fee_note)}</div>` : ''}</div></div>
     <table class="lines"><thead><tr><th class="no">NO.</th><th>摘　要</th><th>単　価</th><th>個　数</th><th>金　額</th></tr></thead><tbody>
       ${invoiceRowsHtml(rows, 8)}
       <tr class="sum"><td colspan="2" rowspan="3"></td><th colspan="2">小計</th><td class="money">${yen(subtotal)}</td></tr>
@@ -435,7 +435,19 @@ function renderHtml(document, lines = []) {
       @media print{html,body{background:#fff}body{padding:0}.preview-stage,.preview-paper{width:auto;min-height:0;padding:0;box-shadow:none}}`
     : '';
   const wrapped = document.preview ? `<div class="preview-stage"><div class="preview-paper">${body}</div></div>` : body;
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>A4見本</title><style>${commonCss()}${layoutCorrectionsCss()}${previewCss}</style></head><body>${wrapped}</body></html>`;
+  const flowCss = `.top-grid{grid-template-columns:minmax(0,52fr) minmax(0,48fr)}.payment-top{grid-template-columns:minmax(0,48fr) minmax(0,52fr)}.invoice-meta{grid-template-columns:minmax(0,60fr) minmax(0,40fr)}.work-invoice-head{grid-template-columns:minmax(0,58fr) minmax(0,42fr)}.invoice-sheet h1{font-size:14pt;letter-spacing:0}.invoice-amounts{display:grid;grid-template-columns:minmax(0,55fr) minmax(0,45fr);gap:5mm;align-items:start}.invoice-amounts .amount-box{width:100%}.invoice-amounts .invoice-bank{position:static;width:auto;margin-top:4mm;overflow-wrap:anywhere;font-size:8pt}`;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>A4見本</title><style>${commonCss()}${layoutCorrectionsCss()}${flowCss}${previewCss}</style></head><body>${wrapped}</body></html>`;
+}
+
+let batchBrowser = null;
+let batchPage = null;
+// Explicitly scoped to offline batch generation; ordinary requests retain their own browser.
+async function withPdfBatch(callback) {
+  if (batchBrowser) throw new Error('PDF batch already active');
+  const { chromium } = require('playwright');
+  batchBrowser = await chromium.launch({ headless: true, executablePath: process.env.PDF_CHROMIUM_EXECUTABLE_PATH || undefined });
+  try { batchPage = await batchBrowser.newPage(); return await callback(); }
+  finally { await batchBrowser.close(); batchBrowser = null; batchPage = null; }
 }
 
 async function writePdf(document, lines) {
@@ -444,20 +456,21 @@ async function writePdf(document, lines) {
   const absolutePath = path.join(PDF_DIR, fileName);
   let chromium;
   try { ({ chromium } = require('playwright')); } catch (_error) { throw new Error('PDF生成用Chromiumがインストールされていません'); }
-  const browser = await chromium.launch({
+  const browser = batchBrowser || await chromium.launch({
     headless:true,
     executablePath:process.env.PDF_CHROMIUM_EXECUTABLE_PATH || undefined,
   });
+  let page;
   try {
-    const page = await browser.newPage();
-    await page.setContent(renderHtml(document, lines), { waitUntil:'networkidle' });
+    page = batchPage || await browser.newPage();
+    await page.setContent(renderHtml(document, lines), { waitUntil: batchBrowser ? 'load' : 'networkidle' });
     const fontReady = await page.evaluate(async () => {
       await document.fonts.ready;
       return document.fonts.check('12px "BIZ UDPGothic"', '日本語 請求 支払 先払');
     });
     if (!fontReady) throw new Error('PDF生成用の日本語フォント BIZ UDPGothic を利用できません');
     await page.pdf({ path:absolutePath, format:'A4', printBackground:true, preferCSSPageSize:true });
-  } finally { await browser.close(); }
+  } finally { if (!batchBrowser) await browser.close(); }
   return { absolutePath, fileName };
 }
 
@@ -468,4 +481,5 @@ module.exports = {
   salaryComponents,
   summaryRows,
   writePdf,
+  withPdfBatch,
 };
