@@ -78,11 +78,12 @@ router.post('/staff', async (req, res) => {
     const name = String(req.body.staff_name || '').trim();
     if (!name) return res.status(400).json({ ok: false, message: '氏名は必須です' });
     const result = await query(
-      `INSERT INTO staff_masters (staff_name, staff_name_kana, role_label, is_active, sort_order)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO staff_masters (staff_name, staff_name_kana, area_name, role_label, is_active, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         name,
         req.body.staff_name_kana || null,
+        String(req.body.area_name || '').trim() || null,
         req.body.role_label || null,
         req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
         Number(req.body.sort_order || 0),
@@ -100,12 +101,13 @@ router.put('/staff/:id', async (req, res) => {
     const id = Number(req.params.id);
     await query(
       `UPDATE staff_masters
-       SET staff_name = ?, staff_name_kana = ?, role_label = ?, is_active = ?, sort_order = ?,
+       SET staff_name = ?, staff_name_kana = ?, area_name = ?, role_label = ?, is_active = ?, sort_order = ?,
            version = version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE staff_master_id = ? AND is_deleted = 0`,
       [
         String(req.body.staff_name || '').trim(),
         req.body.staff_name_kana || null,
+        String(req.body.area_name || '').trim() || null,
         req.body.role_label || null,
         req.body.is_active === false || req.body.is_active === 0 ? 0 : 1,
         Number(req.body.sort_order || 0),
