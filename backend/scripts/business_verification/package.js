@@ -16,6 +16,7 @@ async function exportPackage(pool,env,dest){
   await require('./verify').verify(pool,env);
   const generation=JSON.parse(await fs.readFile(path.join(env.out,'generation.json'),'utf8'));
   if(generation.status!=='complete'||generation.database!==env.db)throw new Error('Only a completed verification generation can be packaged');
+  await fs.mkdir(path.dirname(dest),{recursive:true});
   await fs.mkdir(dest,{recursive:false});
   const tables=await tableInfo(pool),files=[];
   await fs.mkdir(path.join(dest,'tables'));

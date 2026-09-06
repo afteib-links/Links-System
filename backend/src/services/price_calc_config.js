@@ -64,7 +64,7 @@ function resolveFeeItem(items, workDate, selectedId, isTraining = false, isHolid
     if (training) return { item: training, source: 'auto' };
   }
   const matched = items.find((item) => !String(item.name || '').includes('研修') && feeItemMatchesDate(item, workDate, isHoliday));
-  return { item: matched || items.find((item) => feeItemHasSupportedCalc(item)) || null, source: 'auto' };
+  return { item: matched || items.find((item) => !String(item.name || '').includes('研修') && feeItemHasSupportedCalc(item)) || null, source: 'auto' };
 }
 
 function normalizeConfig(extraData) {

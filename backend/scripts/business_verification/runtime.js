@@ -25,9 +25,12 @@ function environment(){
   const pdf=path.resolve(process.env.PDF_DIR||path.join(out,'pdf'));
   if(!pdf.startsWith(out+path.sep))throw new Error('PDF_DIR must be inside VERIFICATION_OUTPUT');
   process.env.PDF_DIR=pdf;
-  return {db,out,pdf,asOf:process.env.VERIFICATION_AS_OF||DEFAULT_AS_OF,seed:Number(process.env.VERIFICATION_SEED||93)};
+  const seed=Number(process.env.VERIFICATION_SEED||93);
+  if(!Number.isSafeInteger(seed)||seed<0||seed>2147483647)throw new Error('VERIFICATION_SEED must be a nonnegative 32-bit integer');
+  return {db,out,pdf,asOf:process.env.VERIFICATION_AS_OF||DEFAULT_AS_OF,seed};
 }
 async function schema(pool){
+  for(const [file,expected]of Object.entries(require('./service-contract.json'))){const actual=crypto.createHash('sha256').update((await fs.readFile(path.join(ROOT,file),'utf8')).replace(/\r\n/g,'\n')).digest('hex');if(actual!==expected)throw new Error(`Business service contract changed: ${file}`);}
   const files=(await fs.readdir(path.join(ROOT,'db/migrations'))).filter(n=>n.endsWith('.sql')).sort();
   if(files.at(-1)!=='029_daily_report_submissions.sql')throw new Error('Schema changed: review generator compatibility before writing');
   const [applied]=await pool.query('SELECT filename FROM schema_migrations ORDER BY filename');

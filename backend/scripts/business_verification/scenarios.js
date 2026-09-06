@@ -71,15 +71,15 @@ function price(project, company, revision=false) {
   const rule=(side)=>({mode,base_distance:mode==='monthly_excess'?1800:100,unit_price:side==='billing'?80:50,tier_mode:'progressive',tiers:mode==='tiered'?[{upper_distance:100,unit_price:0},{upper_distance:180,unit_price:side==='billing'?80:50},{upper_distance:null,unit_price:side==='billing'?100:70}]:[],rounding:{amount_mode:'floor',amount_stage:mode==='monthly_excess'?'month':'day'}});
   return {seed_key:VERSION,fee_items:items,night_rules:{billing:{periods:[{start:'22:00',end:'29:00'}],night_mode:'separate',night_overtime_mode:'separate'},payment:{periods:[{start:i%12===0?'23:00':'22:00',end:'29:00'}],night_mode:'separate',night_overtime_mode:'separate'}},work_rules:{billing:{standard_minutes:480},payment:{standard_minutes:480}},rounding:{billing:{time_unit_minutes:[1,5,15][i%3],time_mode:'floor',amount_mode:'floor',amount_stage:'detail'},payment:{time_unit_minutes:15,time_mode:i%2?'round':'floor',amount_mode:'floor',amount_stage:'detail'}},distance_rules:distance?{billing:rule('billing'),payment:rule('payment')}:{}};
 }
-function input(project,company,date,seed=93) {
+function input(project,company,date,seed=93,asOf=DEFAULT_AS_OF) {
   const day=+date.slice(8),dow=new Date(`${date}T12:00:00Z`).getUTCDay(),r=(day*17+project.index*13+seed)%100;
   const off=date<project.start || (project.end&&date>project.end) || (project.index===49&&date>='2026-08-01'&&date<='2026-08-10') || ((dow===0||dow===6||HOLIDAYS[date]) && !(project.index%10!==9&&day%3===0));
   const absent=!off&&r===12;
   const training=!off&&!absent&&project.index%10<8&&(date<=addDays(project.start,5)||r===21);
   let start=company.start*60+(project.change==='勤務条件改定'?60:0),end=start+540,scenario=off?'不要':absent?'欠勤':training?'研修':'通常';
-  if(!off&&!absent&&!training){if(r<10){end+=90;scenario='残業';}else if(r<15){end-=120;scenario='早退';}else if(r<20&&/点検|調査|配送/.test(company.job)){start=1200;end=1740;scenario='深夜';}}
+  if(!off&&!absent&&!training){if(r<10){end+=90;scenario='残業';}else if(r<15){end-=120;scenario='早退';}else if(r<20&&date<asOf&&/点検|調査|配送/.test(company.job)){start=1200;end=1740;scenario='深夜';if(date>='2026-09-01'&&r===18){start=1080;scenario='深夜残業';}}}
   const time=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-  const data={work_date:date,target_year_month:date.slice(0,7),start_time:off||absent?null:time(start),end_time:off||absent?null:time(end),break_minutes:off||absent?0:60,is_absent:off||absent?1:0,is_training:training?1:0,total_distance:!off&&!absent&&company.driving?80+(r%17)*10:0,night_break_minutes_billing:!off&&!absent&&start===1200?30:0,night_break_minutes_payment:!off&&!absent&&start===1200?30:0,row_comment:`${scenario}｜${company.location}｜${company.job}`,input_source_type:'manual',memo:`検証 ${project.no} ${scenario}`};
+  const data={work_date:date,target_year_month:date.slice(0,7),start_time:off||absent?null:time(start),end_time:off||absent?null:time(end),break_minutes:off||absent?0:60,is_absent:off||absent?1:0,is_training:training?1:0,total_distance:!off&&!absent&&company.driving?80+(r%17)*10:0,night_break_minutes_billing:!off&&!absent&&start>=1080?30:0,night_break_minutes_payment:!off&&!absent&&start>=1080?30:0,row_comment:`${scenario}｜${company.location}｜${company.job}`,input_source_type:'manual',memo:`検証 ${project.no} ${scenario}`};
   if(!off&&!absent&&r===35){data.rate_overrides={billing:{basic:24000},payment:{basic:19200}};data.rate_override_reason='臨時作業範囲の追加（当日限り）';}
   // Expense inputs are retained for input testing; this version of the application
   // does not automatically settle them. Do not invent contractual expense rules.
