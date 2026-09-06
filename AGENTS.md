@@ -63,6 +63,7 @@ git log origin/main -1 --oneline
 - 環境指定がなければ現在の作業環境だけを更新する。Windowsは `pwsh -NoProfile -File scripts/docker-update.ps1`、Linux/macOSは `bash scripts/docker-update.sh` を使う。
 - NAS、ASUSTOR、QNAPが明示された場合だけ、対象環境で `bash scripts/docker-update.sh --nas --backup` を使う。
 - `/api/health` が `db: "up"` を返して初めて成功とする。通常更新でDBボリュームや `data/mysql` を削除しない。
+- AIを使わずWindowsから手動更新する場合は、リポジトリ直下の `Docker更新.cmd` をダブルクリックする。同じ更新ツールとヘルスチェックが実行され、結果画面が保持される。
 
 ## 言語
 

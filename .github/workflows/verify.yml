@@ -78,6 +78,18 @@ jobs:
         if: always()
         run: docker compose down
 
+  windows-docker-launcher-dry-run:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the no-AI Windows launcher
+        shell: cmd
+        env:
+          LINKS_DOCKER_UPDATE_NO_PAUSE: "1"
+        run: call "Docker更新.cmd" -DryRun
+
   mariadb-migration-and-health:
     runs-on: ubuntu-latest
     timeout-minutes: 10

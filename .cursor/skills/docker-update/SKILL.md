@@ -24,3 +24,7 @@ Use the repository-managed updater instead of composing Docker commands manually
 5. Never add `docker compose down -v`, delete `data/mysql`, or remove a database volume during a normal update.
 
 Use `--dry-run` (PowerShell: `-DryRun`) only when validating the updater itself or when the user explicitly asks to preview without applying changes.
+
+## Without AI
+
+When the user wants to update Docker without AI, direct them to double-click `Docker更新.cmd` in the repository root. It calls the same PowerShell updater, keeps the result window open, and only reports success after the health endpoint returns `db=up`.

@@ -46,3 +46,21 @@ test('Docker更新の自動起動条件をSkill・Rule・全AI入口に保持す
   assert.match(agents, /scripts\/docker-update\.ps1/);
   assert.match(agents, /scripts\/docker-update\.sh --nas --backup/);
 });
+
+test('AIを使わないWindowsランチャーも同じ更新ツールと終了結果を表示する', () => {
+  const launcher = read('Docker更新.cmd');
+  const interactive = read('scripts/docker-update-interactive.ps1');
+  const skill = read('.cursor/skills/docker-update/SKILL.md');
+
+  assert.match(launcher, /scripts\\docker-update-interactive\.ps1/);
+  assert.match(launcher, /%ERRORLEVEL%/);
+  assert.match(interactive, /docker-update\.ps1/);
+  assert.match(interactive, /ConvertFrom-Utf8Base64/);
+  assert.ok(interactive.includes(Buffer.from('[正常終了] Docker更新とヘルスチェックが完了しました。').toString('base64')));
+  assert.ok(interactive.includes(Buffer.from('[失敗] Docker更新またはヘルスチェックに失敗しました。').toString('base64')));
+  assert.ok(interactive.includes(Buffer.from('システムURL: http://127.0.0.1:8080').toString('base64')));
+  assert.match(interactive, /Read-Host/);
+  assert.match(launcher, /LINKS_DOCKER_UPDATE_NO_PAUSE/);
+  assert.doesNotMatch(launcher, /down\s+-v/i);
+  assert.match(skill, /double-click `Docker更新\.cmd`/);
+});
