@@ -15,6 +15,7 @@ const partnersRoutes = require('./routes/partners');
 const projectsRoutes = require('./routes/projects');
 const dailyReportsRoutes = require('./routes/daily_reports');
 const dailyReportImportsRoutes = require('./routes/daily_report_imports');
+const dailyReportSubmissionsRoutes = require('./routes/daily_report_submissions');
 const advancesRoutes = require('./routes/advances_matrix');
 const invoicesRoutes = require('./routes/invoices');
 const paymentsRoutes = require('./routes/payments');
@@ -101,6 +102,7 @@ async function createApp() {
   app.use('/api/projects', projectsRoutes);
   app.use('/api/daily-reports', dailyReportsRoutes);
   app.use('/api/daily-report-imports', dailyReportImportsRoutes);
+  app.use('/api/daily-report-submissions', dailyReportSubmissionsRoutes);
   app.use('/api/advances', advancesRoutes);
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/payments', paymentsRoutes);

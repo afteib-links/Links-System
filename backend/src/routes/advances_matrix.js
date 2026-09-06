@@ -3,48 +3,17 @@ const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { ensureCycles } = require('./cash_management');
 const { resolveTransferFee } = require('../services/transfer_fee');
+const {
+  GROUPS,
+  shiftMonth,
+  monthDay,
+  periodForCycle,
+  periodFor,
+} = require('../services/closing_cycles');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('advances'));
 
-const GROUPS = {
-  early: { number: 1, label: '5日・10日締め', paymentCycle: '20', paymentMonthOffset: 0 },
-  middle: { number: 2, label: '15日・20日締め', paymentCycle: 'end', paymentMonthOffset: 0 },
-  late: { number: 3, label: '25日・末日締め', paymentCycle: '10', paymentMonthOffset: 1 },
-};
-const FIVE_DAY_TRACK = new Set(['5', '15', '25']);
-const TEN_DAY_TRACK = new Set(['10', '20', 'end']);
-
-function shiftMonth(ym, offset) {
-  const [year, month] = String(ym).split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1 + offset, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-function dateText(date) { return date.toISOString().slice(0, 10); }
-function monthDay(ym, day) {
-  const [year, month] = ym.split('-').map(Number);
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return dateText(new Date(Date.UTC(year, month - 1, day === 'end' ? last : Number(day))));
-}
-function periodForCycle(ym, closing, groupCode) {
-  if (!GROUPS[groupCode]) throw new Error('前払サイクルが不正です');
-  const value = String(closing || '');
-  if (!FIVE_DAY_TRACK.has(value) && !TEN_DAY_TRACK.has(value)) throw new Error('案件の締日が不正です');
-  if (FIVE_DAY_TRACK.has(value)) {
-    if (groupCode === 'early') return { start: monthDay(shiftMonth(ym, -1), 26), end: monthDay(ym, 5) };
-    if (groupCode === 'middle') return { start: monthDay(ym, 6), end: monthDay(ym, 15) };
-    return { start: monthDay(ym, 16), end: monthDay(ym, 25) };
-  }
-  if (groupCode === 'early') return { start: monthDay(ym, 1), end: monthDay(ym, 10) };
-  if (groupCode === 'middle') return { start: monthDay(ym, 11), end: monthDay(ym, 20) };
-  return { start: monthDay(ym, 21), end: monthDay(ym, 'end') };
-}
-function periodFor(ym, closing) {
-  const groupCode = FIVE_DAY_TRACK.has(String(closing))
-    ? ({ 5: 'early', 15: 'middle', 25: 'late' })[String(closing)]
-    : ({ 10: 'early', 20: 'middle', end: 'late' })[String(closing)];
-  return periodForCycle(ym, closing, groupCode);
-}
 function feeFromProject(project) {
   const projectPattern = project.project_fee_pattern_id ? {
     transfer_fee_pattern_id: project.project_fee_pattern_id,

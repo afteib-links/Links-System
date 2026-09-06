@@ -26,6 +26,7 @@
 | `partners` | パートナーマスタ | admin, system, soumu |
 | `projects` | 案件マスタ | admin, system, soumu, sales |
 | `daily_reports` | 日報 | admin, system, soumu, sales, partner, executive |
+| `daily_report_submissions` | 日報提出 | admin, system, soumu, sales, executive |
 | `advances` | 先払い | admin, executive, soumu |
 | `invoices` | 請求 | admin, executive, soumu, sales, company |
 | `payments` | 支払 | admin, executive, soumu |

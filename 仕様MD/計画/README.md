@@ -27,6 +27,7 @@
 | [17_日報データ取り込み.md](17_日報データ取り込み.md) | メール・FAX・Excelから日報候補を取り込み、原本確認後に反映する共通基盤 | Draft PR #59でPhase 1検証中 |
 | [21_入出金・案件・日報・帳票画面改善.md](21_入出金・案件・日報・帳票画面改善.md) | 入出金カレンダー・口座残高、案件コピー、日報操作列、見本PDF | Issue #83（PR #84 の後） |
 | [22_マスターヘルプとUIビルダー一覧項目.md](22_マスターヘルプとUIビルダー一覧項目.md) | マスター登録ヘルプ、モーダル幅、会社共通の一覧カラム | Draft PR #84 |
+| [24_日報提出一覧.md](24_日報提出一覧.md) | パートナー日報の受領を先払と同じ3サイクルで確認する | `cursor/daily-report-submissions-148a` |
 | [reviews/](reviews/) | PR レビュー記録（Antigravity ↔ Cursor） | 適用中 |
 
 ## 関連仕様
@@ -43,3 +44,4 @@
 | 07 Asustor配備 | `06_development_environment.md` |
 | 08 Asustor更新 | `06_development_environment.md` / `backend/src/migrate.js` |
 | 17 日報データ取り込み | `09_日報・精算・帳票_業務要件.md` / `個別機能仕様書：2-1. 日報登録・一覧管理画面.md` / `05_decision_log.md` |
+| 24 日報提出一覧 | `09_日報・精算・帳票_業務要件.md` / `個別機能仕様書：2-2. 日報提出一覧画面.md` |

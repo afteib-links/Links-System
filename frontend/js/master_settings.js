@@ -28,8 +28,8 @@
     },
     settings: {
       title: 'システム設定の記載方法',
-      how: ['日報の色は #RRGGBB の6桁で入力します。色見本とカラーコードを両方確認してください。', '料金自動計算の倍率・利益率は0以上の数値です。', '請求・支払摘要の表示順は basic,overtime,night,night_overtime,distance,shortage を重複なく6つ並べます。', 'PDFロゴは PNG・JPEG・WebP です。縦横比を維持して帳票へ出します。'],
-      affects: ['日報入力画面の文字サイズ・曜日色・増減単位', '金額データの自動計算と利益率警告', '収支分析の企業別利益率の赤表示', '請求・支払明細の摘要順', 'PDF帳票の会社ロゴ'],
+      how: ['日報の色は #RRGGBB の6桁で入力します。色見本とカラーコードを両方確認してください。', '料金自動計算の倍率・利益率は0以上の数値です。', '日報提出の猶予日は0〜30の整数です。', '請求・支払摘要の表示順は basic,overtime,night,night_overtime,distance,shortage を重複なく6つ並べます。', 'PDFロゴは PNG・JPEG・WebP です。縦横比を維持して帳票へ出します。'],
+      affects: ['日報入力画面の文字サイズ・曜日色・増減単位', '金額データの自動計算と利益率警告', '収支分析の企業別利益率の赤表示', '日報提出の期限と遅延日数', '請求・支払明細の摘要順', 'PDF帳票の会社ロゴ'],
     },
     holidays: {
       title: '祝日・案件休日の登録方法',
@@ -80,6 +80,10 @@
     { key: 'daily_report_fallback_time_step_minutes', label: '時間の代替刻み（分）', type: 'number', defaultValue: '5', min: '1', max: '60', step: '1' },
     { key: 'daily_report_distance_step', label: '距離の増減単位', type: 'number', defaultValue: '1', min: '1', max: '1000', step: '1' },
     { key: 'daily_report_expense_step', label: '通行料・駐車料・交通費の増減単位', type: 'number', defaultValue: '100', min: '1', max: '100000', step: '1' },
+  ];
+
+  const DAILY_REPORT_SUBMISSION_SETTINGS = [
+    { key: 'daily_report_submission_grace_days', label: '猶予日数', type: 'number', defaultValue: '1', min: '0', max: '30', step: '1' },
   ];
 
   const LinksMasterSettings = {
@@ -720,6 +724,7 @@
       const allSettings = data?.settings || [];
       const priceMatrixKeys = new Set(PRICE_MATRIX_SETTINGS.map((setting) => setting.key));
       const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
+      const submissionKeys = new Set(DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => setting.key));
       const values = new Map(allSettings.map((setting) => [setting.setting_key, setting.setting_value]));
       const logoSettingKey = 'document_issuer_logo_data_url';
       let currentLogoDataUrl = values.get(logoSettingKey) || '';
@@ -729,6 +734,12 @@
             <input type="number" min="0" step="${setting.step}" data-price-matrix-setting="${setting.key}" value="${this.ctx.escapeHtml(values.get(setting.key) ?? setting.defaultValue)}" />
           </label>`
       ).join('');
+      const submissionFields = DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => {
+        const value = values.get(setting.key) ?? setting.defaultValue;
+        return `<label>${this.ctx.escapeHtml(setting.label)}
+          <input type="number" min="${setting.min}" max="${setting.max}" step="${setting.step}" data-submission-setting="${setting.key}" value="${this.ctx.escapeHtml(value)}" />
+        </label>`;
+      }).join('');
       const dailyReportFields = DAILY_REPORT_SETTINGS.map((setting) => {
         const value = values.get(setting.key) ?? setting.defaultValue;
         const constraints = setting.type === 'number'
@@ -748,7 +759,7 @@
         </label>`;
       }).join('');
       const rows = allSettings
-        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
         .map(
           (s) => `
           <tr>
@@ -774,6 +785,12 @@
             <p class="muted">入力文字、元単価表示、曜日色、入力欄の増減単位に共通で使用します。祝日・案件休日の日付は「祝日・案件休日」で登録します。</p>
             <div class="form-grid form-grid-compact">${dailyReportFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-daily-report-settings">日報入力画面設定を保存</button></div>
+          </section>
+          <section class="panel daily-report-submission-settings-panel">
+            <h3>日報提出</h3>
+            <p class="muted">基本提出日（対象期間の最終日＋1日）に加算する猶予日数です。期限を超えた提出と未提出の遅延日数に使います。</p>
+            <div class="form-grid form-grid-compact">${submissionFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-submission-settings">日報提出設定を保存</button></div>
           </section>
           <section class="panel">
             <h3>請求・支払摘要の表示順</h3>
@@ -956,6 +973,33 @@
           return;
         }
         this.ctx.showToast('日報入力画面設定を保存しました');
+      });
+      document.getElementById('save-submission-settings')?.addEventListener('click', async () => {
+        const settings = DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => ({
+          ...setting,
+          value: document.querySelector(`[data-submission-setting="${setting.key}"]`)?.value,
+        }));
+        const invalid = settings.some((setting) => {
+          const value = Number(setting.value);
+          return !Number.isInteger(value) || value < Number(setting.min) || value > Number(setting.max);
+        });
+        if (invalid) {
+          window.alert('猶予日は0〜30の整数で入力してください');
+          return;
+        }
+        const results = await Promise.all(
+          settings.map((setting) =>
+            this.ctx.api(`/api/master-settings/settings/${encodeURIComponent(setting.key)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ setting_value: String(Number(setting.value)), setting_label: setting.label }),
+            })
+          )
+        );
+        if (results.some((result) => !result.res.ok)) {
+          window.alert('日報提出設定の保存に失敗しました');
+          return;
+        }
+        this.ctx.showToast('日報提出設定を保存しました');
       });
       document.getElementById('save-settlement-line-order')?.addEventListener('click',async()=>{
         const value=document.getElementById('settlement-line-order').value.trim(),labels=document.getElementById('settlement-line-labels').value.trim();
