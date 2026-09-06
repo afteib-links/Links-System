@@ -9,6 +9,8 @@ const parse=x=>typeof x==='string'?JSON.parse(x):x;
 async function verify(pool,env,api){
   await schema(pool);
   const counts={};
+  const [seedOwners]=await pool.query("SELECT company_id FROM companies WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key'))<>? OR JSON_EXTRACT(extra_data,'$.seed_key') IS NULL",[S.VERSION]);
+  assert.equal(seedOwners.length,0,'only fictional scenario owners');
   for(const table of ['companies','partners','base_projects','projects','staff_masters','price_sets','daily_reports','daily_report_monthly_approvals','advance_records','invoices','payments','cash_schedules','cash_transactions','cash_export_batches','settlement_documents']){
     const [[r]]=await pool.query(`SELECT COUNT(*) n FROM ${table}`);counts[table]=Number(r.n);
   }
@@ -20,7 +22,11 @@ async function verify(pool,env,api){
   const [staff]=await pool.query('SELECT role_label,area_name FROM staff_masters');
   for(const [area,role,n] of [['関東','営業',8],['関東','事務',3],['関東','その他',1],['関西','営業',3]])assert.equal(staff.filter(s=>s.area_name===area&&s.role_label===role).length,n);
   async function zero(label,sql,args=[]){const [rows]=await pool.query(sql,args);assert.equal(rows.length,0,`${label}: ${JSON.stringify(rows.slice(0,3))}`);}
+  const [foreignKeys]=await pool.query("SELECT TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL");
+  for(const fk of foreignKeys){const names=Object.values(fk);assert.ok(names.every(n=>/^\w+$/.test(n)));await zero(`foreign key ${fk.TABLE_NAME}.${fk.COLUMN_NAME}`,`SELECT a.\`${fk.COLUMN_NAME}\` FROM \`${fk.TABLE_NAME}\` a LEFT JOIN \`${fk.REFERENCED_TABLE_NAME}\` b ON b.\`${fk.REFERENCED_COLUMN_NAME}\`=a.\`${fk.COLUMN_NAME}\` WHERE a.\`${fk.COLUMN_NAME}\` IS NOT NULL AND b.\`${fk.REFERENCED_COLUMN_NAME}\` IS NULL LIMIT 1`);}
   await zero('future work',"SELECT daily_report_id FROM daily_reports WHERE work_date>?",[env.asOf]);
+  await zero('shift finishes after reference day',"SELECT daily_report_id FROM daily_reports WHERE is_absent=0 AND TIMESTAMP(work_date,end_time)>TIMESTAMP(?,'23:59:59')",[env.asOf]);
+  const [[nightOvertime]]=await pool.query('SELECT COUNT(*) n FROM daily_reports WHERE night_overtime_minutes_billing>0');assert.ok(nightOvertime.n>0,'night overtime coverage');
   await zero('non-work payments',"SELECT daily_report_id FROM daily_reports WHERE is_absent=1 AND (work_hours<>0 OR calculated_billing_amount<>0 OR calculated_payment_amount<>0)");
   await zero('missing price',"SELECT daily_report_id FROM daily_reports WHERE is_absent=0 AND applied_price_set_id IS NULL");
   await zero('mismatched report owner',"SELECT d.daily_report_id FROM daily_reports d JOIN projects p ON p.project_id=d.project_id WHERE d.partner_id<>p.partner_id OR d.company_id<>p.company_id");
@@ -30,6 +36,7 @@ async function verify(pool,env,api){
   await zero('advance working days',`SELECT a.advance_record_id,a.work_days FROM advance_records a WHERE a.work_days<>(SELECT COUNT(DISTINCT d.work_date) FROM daily_reports d WHERE d.project_id=a.project_id AND d.work_date BETWEEN a.period_start AND a.period_end AND d.status IN ('confirmed','approved') AND d.is_absent=0 AND d.work_hours>0)`);
   await zero('overallocated advances',`SELECT a.advance_record_id FROM advance_records a JOIN advance_payment_allocations x ON x.advance_record_id=a.advance_record_id AND x.status='active' GROUP BY a.advance_record_id,a.advance_amount,a.transfer_fee_amount HAVING SUM(x.amount)>a.advance_amount OR SUM(x.transfer_fee_amount)>a.transfer_fee_amount`);
   await zero('future transaction',"SELECT cash_transaction_id FROM cash_transactions WHERE executed_date>?",[env.asOf]);
+  await zero('unintended overdue cash',"SELECT cash_schedule_id FROM cash_schedules WHERE status IN ('planned','exported') AND scheduled_date<=?",[env.asOf]);
   await zero('execution amount mismatch',`SELECT s.cash_schedule_id FROM cash_schedules s LEFT JOIN cash_transactions t ON t.cash_schedule_id=s.cash_schedule_id AND t.status='executed' WHERE s.status='executed' GROUP BY s.cash_schedule_id,s.amount HAVING COALESCE(SUM(t.executed_amount),0)<>s.amount`);
   await zero('orphan settlement sources',`SELECT s.settlement_line_source_id FROM settlement_line_sources s LEFT JOIN daily_reports d ON d.daily_report_id=s.daily_report_id LEFT JOIN daily_report_monthly_approvals a ON a.monthly_approval_id=s.monthly_approval_id WHERE d.daily_report_id IS NULL OR a.monthly_approval_id IS NULL`);
   await zero('approval chronology',"SELECT monthly_approval_id FROM daily_report_monthly_approvals WHERE decided_at<submitted_at");
@@ -40,6 +47,12 @@ async function verify(pool,env,api){
   await zero('duplicate active payment',`SELECT s.daily_report_id FROM payment_daily_reports s JOIN payments i ON i.payment_id=s.payment_id WHERE i.settlement_status<>'cancelled' GROUP BY s.daily_report_id HAVING COUNT(*)>1`);
   await zero('advance deducted before execution',`SELECT a.advance_payment_allocation_id FROM advance_payment_allocations a JOIN advance_records r ON r.advance_record_id=a.advance_record_id JOIN cash_transactions t ON t.cash_schedule_id=r.cash_schedule_id AND t.status='executed' JOIN settlement_workflows w ON w.settlement_type='payment' AND w.settlement_id=a.payment_id WHERE a.status='active' AND t.executed_date>DATE(w.finalized_at)`);
   const c=S.catalog();
+  let expectedDaily=0;
+  for(const ym of S.months(env.asOf)){const end=S.lastDay(ym)<env.asOf?S.lastDay(ym):env.asOf;for(const p of c.projects.filter(p=>p.start<=end&&(!p.end||p.end>=`${ym}-01`)))for(let date=`${ym}-01`;date<=end;date=S.addDays(date,1))if(!S.intentionallyMissing(p,date))expectedDaily++;}
+  assert.equal(counts.daily_reports,expectedDaily,'expected daily population including no-work dates');
+  for(const [table,prefix]of [['companies','C'],['partners','P'],['base_projects','B'],['projects','J'],['staff_masters','S']]){const [rows]=await pool.query(`SELECT extra_data FROM ${table}`),numbers=rows.map(r=>parse(r.extra_data).scenario_no);assert.ok(numbers.every(n=>new RegExp(`^${prefix}\\d{5}$`).test(n)),`${table} scenario numbers`);assert.equal(new Set(numbers).size,numbers.length,`${table} unique scenario numbers`);}
+  await zero('published real bank profile',`SELECT v.bank_export_profile_version_id FROM bank_export_profile_versions v JOIN bank_export_profiles p ON p.bank_export_profile_id=v.bank_export_profile_id WHERE v.status='published' AND p.profile_code NOT LIKE 'test_only_%'`);
+  const [[manualSchedules]]=await pool.query("SELECT COUNT(*) n FROM cash_schedules WHERE title LIKE '手入力：%'");assert.equal(Number(manualSchedules.n),6,'manual cash schedules');
   const [projectRows]=await pool.query('SELECT * FROM projects ORDER BY project_id');
   for(const row of projectRows){
     const meta=parse(row.extra_data),p=c.projects.find(p=>p.no===meta.scenario_no);
@@ -85,12 +98,29 @@ async function verify(pool,env,api){
     const d=parse(b.definition_snapshot_json),[items]=await pool.query('SELECT export_row_json FROM cash_export_batch_items WHERE cash_export_batch_id=? ORDER BY export_row_no',[b.cash_export_batch_id]);
     const buffer=serializeCsv(d.version,d.columns,items.map(i=>({values:parse(i.export_row_json)})));
     assert.equal(checksum(buffer),b.file_checksum,`CSV ${b.cash_export_batch_id}`);assert.equal(items.length,b.total_count);
+    const amountIndex=d.columns.findIndex(col=>col.source_key==='amount');assert.ok(amountIndex>=0,'CSV amount column');
+    assert.equal(items.reduce((sum,i)=>sum+Number(parse(i.export_row_json)[amountIndex]),0),Number(b.total_amount),`CSV ${b.cash_export_batch_id} amount`);
     assert.equal(checksum(await fs.readFile(path.join(env.out,'csv',`batch-${b.cash_export_batch_id}.csv`))),b.file_checksum);
     if(api&&b===batches[0])assert.equal(checksum((await api.request(`/cash/exports/${b.cash_export_batch_id}/download`)).buffer),b.file_checksum);
   }
   const [docs]=await pool.query('SELECT file_path,snapshot_json FROM settlement_documents');
-  for(const d of docs){const file=path.resolve(env.pdf,d.file_path);assert.ok(file.startsWith(env.pdf+path.sep));const buffer=await fs.readFile(file);assert.equal(buffer.subarray(0,5).toString(),'%PDF-');assert.ok(parse(d.snapshot_json).document.issued_date<=env.asOf);}
+  for(const d of docs){const file=path.resolve(env.pdf,d.file_path);assert.ok(file.startsWith(env.pdf+path.sep));const buffer=await fs.readFile(file);assert.equal(buffer.subarray(0,5).toString(),'%PDF-');const snapshot=parse(d.snapshot_json);assert.ok(snapshot.document.issued_date<=env.asOf);
+    if(snapshot.document.document_type==='salary_statement'){
+      assert.ok(snapshot.document.attendance,'salary attendance snapshot');
+      const model=require('../../src/services/settlement_pdf').salaryComponents(snapshot.document,snapshot.internal_lines||snapshot.lines);
+      assert.equal(model.gross+model.deductions.reduce((n,l)=>n+l.amount,0),Number(snapshot.document.total_amount),'salary gross - deductions');
+      assert.ok(model.workDays>0&&model.workMinutes>0,'salary attendance');
+    }
+  }
   const [reports]=await pool.query('SELECT project_id,work_date,is_absent,start_time,end_time,total_distance,calculated_billing_amount,calculated_payment_amount,status,billing_status,payment_status FROM daily_reports ORDER BY project_id,work_date,daily_report_id');
+  if(env.seed===93){
+    // Independently worked examples: daily base + progressive distance, and
+    // revised daily base + 90 minutes overtime (not the production calculator).
+    for(const [projectNo,date,bill,pay]of [['J00021','2025-11-12',20800,15600],['J00031','2026-06-01',24687,19750]]){
+      const project=projectRows.find(p=>parse(p.extra_data).scenario_no===projectNo),r=reports.find(r=>r.project_id===project.project_id&&r.work_date===date);
+      assert.ok(r,projectNo);assert.equal(Number(r.calculated_billing_amount),bill,`${projectNo} independent bill`);assert.equal(Number(r.calculated_payment_amount),pay,`${projectNo} independent pay`);
+    }
+  }
   const semanticChecksum=crypto.createHash('sha256').update(JSON.stringify(reports)).digest('hex');
   return {status:'passed',counts,semanticChecksum,verifiedCsv:batches.length,verifiedPdf:docs.length,asOf:env.asOf};
 }

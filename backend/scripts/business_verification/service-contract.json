@@ -1,0 +1,19 @@
+{
+  "backend/src/db.js": "6f48bbaeefcca290b515d97e212e75ada831683a83311649de05fd4b6ca42174",
+  "backend/src/services/price_calc.js": "d6b9437bc73f432948db2b782fc17697103f78c96668597a0b52af4d94785e83",
+  "backend/src/services/price_calc_config.js": "274875099697f362ffa5749593d781b1636aa54943af1c17aa4f405180b9b0ba",
+  "backend/src/services/price_set_lifecycle.js": "0c46693e0f675c6a63102b666ffcd075808a56c88e67006f5e7d147b188d744e",
+  "backend/src/services/night_calc.js": "4584918d70f7a9e002777245f6fea40b28e0ce1c3f2294c433d265ef6116149a",
+  "backend/src/services/distance_calc.js": "833caf819344c524eee5d73fa70cc6b764e1927d20b6a641ca0307edd1e09d25",
+  "backend/src/services/closing_cycles.js": "4cb974ee536f3e635675ae5f3f1f129cbbff706b72549f67760a9cdc1cc9503a",
+  "backend/src/services/settlement_line_builder.js": "848fd861ad3e61c0f1d70d581bc1f3bf8ec3d43d369e351c90dbde0190fe9738",
+  "backend/src/services/settlement_pdf.js": "8ccf345dd7b470d7c7d4055fb9a9bb6fc65ccd2313ea8397e310b1ff0160df96",
+  "backend/src/services/settlement_attendance.js": "8c74a5a5fc408aef8fd03fe64af627962c67c52884fc79a713b36ea99417bdcb",
+  "backend/src/services/bank_csv_export.js": "84081df476a183fb69af31a58f8c1fce091d516a2f3d5e5a73db1e9ddabc1382",
+  "backend/src/services/cash_cycle_calendar.js": "dfa99fa60e84297f7711240d5be1bbebeba3ac57e1b7e7cdf1a8da58b4251477",
+  "backend/src/routes/daily_reports.js": "a1b8bd0be2c9211a1f9728568eafdf8a4aab2c71c9e5473236dde46f9d507576",
+  "backend/src/routes/settlements.js": "82175473f53d344dc77f1b40e448c713924c1b48ef6188afda6a85ab3e0cd534",
+  "backend/src/routes/advances_matrix.js": "c41d382646d1dd7daacca9c16add35d2a03ec8b164779ec9f7fc79af41b51f57",
+  "backend/src/routes/cash_management.js": "df732c43efe454c567f198780d483f0910912834e2919484fbf9652680ca0753",
+  "frontend/js/price_set_fee_model.js": "0bb8a56af4fa50731207d62652c4d4a3d39b2d28c7c7a494cd9673e736308161"
+}

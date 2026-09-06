@@ -82,6 +82,8 @@ node backend/scripts/business_verification/serve.js
 
 ## Windows Docker・NAS共通の独立Compose
 
+大量生成の前にDocker/WSLのメモリ余裕を確認する。今回のWindows試行ではWSL上限1 GiBでMariaDBの書き込みがOSエラー12となり、共有DBコンテナが異常終了した。既存システムと同じDBコンテナで大量生成せず、十分な資源を確保した専用Composeを推奨する。WSL設定変更・Docker再起動は既存システムを停止させるため、利用者の承認と停止時間の調整なしに実施しない。
+
 `compose.verification.yml` は単独で指定し、通常の `docker-compose.yml` と合成しない。
 専用の4つの環境変数 `VERIFICATION_DB_PASSWORD`、`VERIFICATION_ROOT_PASSWORD`、`VERIFICATION_SESSION_SECRET`、`VERIFICATION_PASSWORD` を安全に設定する（実運用の値を流用しない）。
 
@@ -139,7 +141,7 @@ DB行登録はトランザクション、ファイルコピーは別工程。失
 
 ## DB変更時と検証範囲
 
-マイグレーション追加、既存SQL変更、列・型・状態値変更は書込み前に停止する。差分を分析し、シナリオ・登録・計算・検証を更新してから `migration-contract.json` と `schema-contract.json` を更新する。互換性の検討なしにハッシュだけ更新しない。
+マイグレーション追加、既存SQL変更、列・型・状態値・利用サービス変更は書込み前に停止する。差分を分析し、シナリオ・登録・計算・検証を更新してから `migration-contract.json`、`schema-contract.json`、`service-contract.json` を更新する。互換性の検討なしにハッシュだけ更新しない。
 マイグレーションSHAは改行をLFへ正規化するためWindows/NASで比較できる。
 単体検証は `node --test backend/test/*.test.js`。DB検証では件数・期間・月次状態・重複・前払控除・月間距離・精算合計・CSV再構成・PDF参照を照合する。
 経費の契約別自動精算、専用欠勤区分、原本受領、正式銀行への取込は対象外であり、合格済みと解釈しない。

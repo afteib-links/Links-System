@@ -12,10 +12,13 @@ async function workflows(pool,c,api,env){
   const [[mp]]=await pool.query("SELECT COUNT(*) n FROM settlement_lines WHERE settlement_type='payment' AND source_type='manual_adjustment'");
   let manualInvoice=Number(mi.n),manualPayment=Number(mp.n);
   const request=api.request;
+  // A crash can occur after the CSV transaction commits but before the local copy is written.
+  const [savedExports]=await pool.query("SELECT cash_export_batch_id FROM cash_export_batches WHERE export_kind='bank_csv'");
+  for(const b of savedExports){const file=path.join(env.out,'csv',`batch-${b.cash_export_batch_id}.csv`);if(!await fs.stat(file).then(()=>true,()=>false)){const saved=await request(`/cash/exports/${b.cash_export_batch_id}/download`);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,saved.buffer,{flag:'wx'});}}
   async function exportsAndTransactions(upper){
-    const [schedules]=await pool.query("SELECT * FROM cash_schedules WHERE status='planned' AND scheduled_date<=? ORDER BY scheduled_date,cash_schedule_id",[upper]);
+    const [schedules]=await pool.query("SELECT * FROM cash_schedules WHERE status IN ('planned','exported') AND scheduled_date<=? ORDER BY scheduled_date,cash_schedule_id",[upper]);
     const groups=new Map();
-    for(const s of schedules.filter(s=>s.direction==='outgoing')){
+    for(const s of schedules.filter(s=>s.direction==='outgoing'&&s.status==='planned')){
       const key=`${s.cash_cycle_id}:${s.scheduled_date}:${Number(s.partner_id||0)%3}`;
       if(!groups.has(key))groups.set(key,[]);groups.get(key).push(s);
     }
@@ -45,15 +48,21 @@ async function workflows(pool,c,api,env){
         const co=c.companies[p.base],partner=c.partners[p.partner],ids=monthRows.get(p.id);
         const existing=existingByDate.get(`${p.id}:${date}`);
         if(existing){if(existing.status==='draft')await request('/daily/day-status',{project_id:p.id,work_date:date,status:'confirmed',acknowledge_warnings:true});ids.push(existing.daily_report_id);return;}
-        const {data,scenario}=input(p,co,date,env.seed);
+        const {data,scenario}=input(p,co,date,env.seed,env.asOf);
         // Contract boundary days still get a zero/non-working confirmation, but never a work record.
         at(`${date}T09:00:00Z`);
         const r=await applyDailyPriceCalc({...data,project_id:p.id,company_id:co.id,partner_id:partner.id});
         const stored={...r,status:'confirmed',extra_data:{seed_key:VERSION,scenario,scenario_no:p.no}};
-        const reportId=await insert(pool,'daily_reports',stored);
+        const conn=await pool.getConnection();
+        let reportId;
+        try{
+        await conn.beginTransaction();
+        reportId=await insert(conn,'daily_reports',stored);
         // Same versioned project/day snapshot shape as day-status; no calculation is reimplemented.
-        await insert(pool,'daily_report_confirmation_snapshots',{daily_report_id:reportId,confirmation_version:1,confirmed_by_user_id:c.actor,snapshot_data:{scope:'project_work_date',project_id:p.id,work_date:date,confirmation_version:1,reports:[{...stored,daily_report_id:reportId,confirmation_version:1}]}});
-        await insert(pool,'daily_report_audit_logs',{daily_report_id:reportId,action_code:'daily_confirm',after_data:{status:'confirmed',confirmation_version:1},reason:`検証生成：${scenario}`,actor_user_id:c.actor});
+        await insert(conn,'daily_report_confirmation_snapshots',{daily_report_id:reportId,confirmation_version:1,confirmed_by_user_id:c.actor,snapshot_data:{scope:'project_work_date',project_id:p.id,work_date:date,confirmation_version:1,reports:[{...stored,daily_report_id:reportId,confirmation_version:1}]}});
+        await insert(conn,'daily_report_audit_logs',{daily_report_id:reportId,action_code:'daily_confirm',after_data:{status:'confirmed',confirmation_version:1},reason:`検証生成：${scenario}`,actor_user_id:c.actor});
+        await conn.commit();
+        }catch(e){await conn.rollback();throw e;}finally{conn.release();}
         ids.push(reportId);
       });
     }
@@ -153,8 +162,9 @@ async function workflows(pool,c,api,env){
   }
   // Future cash schedules remain planned, with one exported example for downloading/review before execution.
   at(env.asOf);
+  const [[alreadyExported]]=await pool.query("SELECT COUNT(*) n FROM cash_schedules WHERE status='exported' AND scheduled_date>?",[env.asOf]);
   const [future]=await pool.query("SELECT * FROM cash_schedules WHERE direction='outgoing' AND status='planned' AND scheduled_date>? ORDER BY cash_schedule_id LIMIT 1",[env.asOf]);
-  if(future.length){const s=future[0],result=await request('/cash/bank-exports',{transfer_date:s.scheduled_date,source_bank_account_id:c.accounts[0],schedule_ids:[s.cash_schedule_id]});await fs.writeFile(path.join(env.out,'csv',`batch-${result.batchId}.csv`),result.buffer,{flag:'wx'});}
+  if(future.length&&!alreadyExported.n){const s=future[0],result=await request('/cash/bank-exports',{transfer_date:s.scheduled_date,source_bank_account_id:c.accounts[0],schedule_ids:[s.cash_schedule_id]});await fs.writeFile(path.join(env.out,'csv',`batch-${result.batchId}.csv`),result.buffer,{flag:'wx'});}
   return {states:log,exceptions:EXCEPTIONS,manualInvoice,manualPayment};
 }
 module.exports={workflows};

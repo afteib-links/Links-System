@@ -356,6 +356,20 @@ function renderPayment(document, lines) {
 }
 
 function salaryComponents(document, lines) {
+  if(lines.some(l=>['monthly_aggregate','correction_copy'].includes(l.source_type))){
+    const groups=new Map(),deductions=[];
+    for(const line of lines){
+      const amount=number(line.amount);if(!amount)continue;
+      const snapshot=snapshotFor(line),component=String(snapshot.source_key||'').split('|')[1];
+      if(amount<0){deductions.push({itemName:line.item_name||'控除',amount});continue;}
+      const label=component==='overtime'?'平日残業賃金':component==='night'?'深夜割増':component==='night_overtime'?'深夜超過':['basic','fallback','override'].includes(component)?'基本・休日・研修賃金':'その他支給';
+      const row=groups.get(label)||[label,0,0,number(line.unit_price)];
+      row[1]+=amount;if(snapshot.calc_type==='hourly')row[2]+=number(line.quantity)*60;
+      if(row[3]!==number(line.unit_price))row[3]=0;groups.set(label,row);
+    }
+    const pay=[...groups.values()];
+    return {pay,deductions,gross:pay.reduce((sum,r)=>sum+r[1],0),workDays:number(document.attendance?.work_days),workMinutes:number(document.attendance?.work_minutes)};
+  }
   const grouped = detailedWorkRows(document, lines);
   const amount = (label) => grouped.filter((row) => row.itemName.endsWith(label)).reduce((sum, row) => sum + number(row.amount), 0);
   const minutes = (label) => grouped.filter((row) => row.itemName.endsWith(label)).reduce((sum, row) => sum + number(row.minutes), 0);
@@ -379,12 +393,14 @@ function salaryComponents(document, lines) {
 function renderSalary(document, lines) {
   const recipient = document.recipient || { name:document.partner_name };
   const model = salaryComponents(document, lines);
-  const gross = number(document.gross_amount ?? model.pay.reduce((sum, row) => sum + row[1], 0));
+  const gross = number(model.gross ?? document.gross_amount ?? model.pay.reduce((sum, row) => sum + row[1], 0));
   const deduction = Math.abs(model.deductions.reduce((sum, row) => sum + row.amount, 0));
   const total = number(document.total_amount ?? gross - deduction);
   const payColumns = [...model.pay.slice(0, 5)];
   while (payColumns.length < 5) payColumns.push(['', 0, 0, 0]);
-  const deductionColumns = [...model.deductions.slice(0, 5)];
+  const deductionColumns = model.deductions.length>5
+    ? [...model.deductions.slice(0,4),{itemName:'その他控除（合計）',amount:model.deductions.slice(4).reduce((sum,r)=>sum+r.amount,0)}]
+    : [...model.deductions];
   while (deductionColumns.length < 5) deductionColumns.push({ itemName:'', amount:0 });
   return `<section class="sheet salary-sheet">
     <div class="salary-head"><div><h1>${formatMonth(document.target_year_month)}　給与明細</h1><div class="recipient-name company-name" style="${companyNameStyle(recipient.name, '殿')}">${escape(recipient.name || '')}　殿</div></div><div>${issuerBlock(document, true)}<div class="pay-date"><strong>給与支払日　</strong>${formatDate(document.payment_date)}</div></div></div>
