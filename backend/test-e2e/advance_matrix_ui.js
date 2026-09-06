@@ -12,7 +12,12 @@ const groups = [
 ];
 function cycle(group, index, projectIndex) {
   const amount = projectIndex === 2 ? 0 : [90000,90000,198000][index];
-  return { ...group, work_days:projectIndex === 2 ? 0 : [6,6,11][index], unit_price:15000, calculated_amount:amount, advance_amount:amount, transfer_fee_base_amount:550, transfer_fee_amount:550, transfer_fee_pattern_name:'標準', is_target:true, adjustment_reason:'', version:0, status:'unplanned', cash_status:null, period_start:`2026-09-${String(index * 10 + 1).padStart(2,'0')}`, period_end:`2026-09-${String(index * 10 + 10).padStart(2,'0')}` };
+  let status = 'unplanned'; let cashStatus = null;
+  if (projectIndex === 1 && index === 0) status = 'planned';
+  if (projectIndex === 3 && index === 1) { status = 'planned'; cashStatus = 'exported'; }
+  if (projectIndex === 4 && index === 0) { status = 'executed'; cashStatus = 'executed'; }
+  if (projectIndex === 5 && index === 2) { status = 'planned'; cashStatus = 'held'; }
+  return { ...group, work_days:projectIndex === 2 ? 0 : [6,6,11][index], unit_price:15000, calculated_amount:amount, advance_amount:amount, transfer_fee_base_amount:550, transfer_fee_amount:550, transfer_fee_pattern_name:'標準', is_target:true, adjustment_reason:'', version:0, status, cash_status:cashStatus, advance_record_id:1000 + projectIndex * 10 + index, period_start:`2026-09-${String(index * 10 + 1).padStart(2,'0')}`, period_end:`2026-09-${String(index * 10 + 10).padStart(2,'0')}` };
 }
 const projects = Array.from({ length:12 }, (_, index) => {
   const cycles = groups.map((group, groupIndex) => cycle(group, groupIndex, index));
@@ -43,23 +48,70 @@ async function main() {
       if (viewport.width <= 760) await page.locator('#sidebar-toggle').click();
       await page.locator('[data-nav-feature="advances"]').click(); await page.locator('.advance-matrix').waitFor();
       const layout = await page.evaluate(() => {
-        const wrap = document.querySelector('.advance-matrix-wrap').getBoundingClientRect();
-        const cycle = document.querySelector('.advance-cycle-cell').getBoundingClientRect();
-        const project = document.querySelector('.advance-project-cell').getBoundingClientRect();
-        return { doc:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,matrix:document.querySelector('.advance-matrix').scrollWidth,wrap:document.querySelector('.advance-matrix-wrap').clientWidth,rows:document.querySelectorAll('.advance-matrix tbody tr').length,stickyLeft:getComputedStyle(document.querySelector('.advance-project-cell')).position,stickyRight:getComputedStyle(document.querySelector('.advance-project-total')).position,projectWidth:project.width,cycleVisibleWidth:Math.max(0,Math.min(cycle.right,wrap.right)-Math.max(cycle.left,wrap.left)),amountWidth:document.querySelector('.advance-amount-input').getBoundingClientRect().width,feeWidth:document.querySelector('.advance-fee-input').getBoundingClientRect().width,periodLines:document.querySelector('.advance-period').children.length,originLines:document.querySelector('.advance-origin').children.length };
+        const wrap = document.querySelector('.advance-matrix-wrap');
+        const rowHeight = document.querySelector('.advance-matrix tbody tr').getBoundingClientRect().height;
+        const headerHeight = document.querySelector('.advance-matrix thead').getBoundingClientRect().height;
+        const footerHeight = document.querySelector('.advance-matrix tfoot').getBoundingClientRect().height;
+        const inputStyle = getComputedStyle(document.querySelector('.advance-amount-input'));
+        const originStyle = getComputedStyle(document.querySelector('.advance-origin'));
+        return { doc:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,matrix:document.querySelector('.advance-matrix').scrollWidth,wrap:wrap.clientWidth,wrapHeight:wrap.clientHeight,headerHeight,footerHeight,rows:document.querySelectorAll('.advance-matrix tbody tr').length,stickyLeft:getComputedStyle(document.querySelector('.advance-project-cell')).position,stickyRight:getComputedStyle(document.querySelector('.advance-project-total')).position,amountWidth:document.querySelector('.advance-amount-input').getBoundingClientRect().width,feeWidth:document.querySelector('.advance-fee-input').getBoundingClientRect().width,periodLines:document.querySelector('.advance-period').children.length,originLines:document.querySelector('.advance-origin').children.length,rowHeight,visibleRows:Math.floor((wrap.clientHeight - headerHeight - footerHeight) / rowHeight),subHeaders:Array.from(document.querySelectorAll('.advance-heading-fields th')).map((node) => node.textContent.trim()),blockHeights:Array.from(document.querySelector('.advance-cycle-grid').children).map((node) => node.getBoundingClientRect().height),projectHeights:Array.from(document.querySelector('.advance-project-cell').children).map((node) => node.getBoundingClientRect().height),cellPadding:getComputedStyle(document.querySelector('.advance-project-cell')).padding,inputBox:`${inputStyle.height}/${inputStyle.minHeight}/${inputStyle.margin}`,originBox:`${originStyle.height}/${originStyle.margin}` };
       });
-      assert.ok(layout.doc <= layout.client + 1, `${viewport.width}pxでページ全体を横スクロールさせない`); assert.ok(layout.matrix > layout.wrap || viewport.width === 1920, '狭い画面ではマトリクス内を横スクロールする'); assert.equal(layout.rows, 12); assert.equal(layout.stickyLeft, 'sticky');
-      if (viewport.width <= 760) {
-        assert.equal(layout.stickyRight, 'static', 'スマホでは案件別合計の右固定を解除する');
-        assert.ok(layout.projectWidth <= 141, 'スマホの案件列を約140pxに縮める');
-        assert.ok(layout.cycleVisibleWidth >= 120, 'スマホでサイクル金額を確認できる表示幅を確保する');
-      } else {
-        assert.equal(layout.stickyRight, 'sticky', 'PC・タブレットでは案件別合計を右固定する');
-      }
+      assert.ok(layout.doc <= layout.client + 1, `${viewport.width}pxでページ全体を横スクロールさせない`); assert.ok(layout.matrix > layout.wrap || viewport.width === 1920, '狭い画面ではマトリクス内を横スクロールする'); assert.equal(layout.rows, 12); assert.equal(layout.stickyLeft, 'sticky'); assert.equal(layout.stickyRight, 'sticky');
       assert.ok(layout.amountWidth < 100, '支払額入力は7桁相当の表示幅にする'); assert.ok(layout.feeWidth < 80, '手数料入力は5桁相当の表示幅にする'); assert.equal(layout.periodLines, 2, '年と月日範囲を2行表示する'); assert.ok(layout.originLines >= 2, '元額と計算根拠を2行表示する');
+      assert.deepEqual(layout.subHeaders.slice(0, 3), ['支払額','手数料','先払・状態'], '各サイクルの小見出しを表示する');
+      assert.ok(layout.rowHeight <= 100, `案件行を100px以下にする（実測 ${layout.rowHeight}px、内訳 ${layout.blockHeights.join('/')}、案件余白 ${layout.cellPadding}、入力 ${layout.inputBox}、元値 ${layout.originBox}）`);
+      if (viewport.width === 1920) assert.ok(layout.visibleRows >= 8, `1920×1080で8案件以上を見渡せる（実測 ${layout.visibleRows}案件、領域 ${layout.wrapHeight}px、見出し ${layout.headerHeight}px、集計 ${layout.footerHeight}px、行 ${layout.rowHeight}px、案件内訳 ${layout.projectHeights.join('/')}）`);
+      if (viewport.width === 1920) {
+        const matrixText = await page.locator('.advance-matrix').innerText();
+        ['未作成','予定作成済み','CSV出力済み','保留','実行済み'].forEach((label) => assert.ok(matrixText.includes(label), `${label}を表示する`));
+        assert.equal(await page.locator('[data-cancel]').count(), 3, '予定作成済みセルへ作成取消を表示する');
+        assert.equal(await page.locator('[data-reverse]').count(), 1, '実行済みセルへ返金・訂正を表示する');
+        assert.equal(await page.locator('[data-project-id="250102"] [data-cycle="early"] [data-amount]').isDisabled(), true, '予定作成済みセルを編集不可にする');
+
+        const saveRequest = page.waitForRequest((request) => request.method() === 'PUT' && request.url().includes('/api/advances/cycles/250101/early'));
+        await page.locator('[data-project-id="250101"] [data-cycle="early"] [data-target]').click();
+        assert.equal((await saveRequest).postDataJSON().is_target, false, '先払OFFをセル保存する');
+        await page.locator('.flash').waitFor();
+
+        await page.locator('.advance-matrix-wrap').evaluate((node) => { node.scrollTop = 180; });
+        const filterRequest = page.waitForRequest((request) => request.method() === 'GET' && request.url().includes('/api/advances/matrix?') && request.url().includes('q=%E9%85%8D%E9%80%81'));
+        await page.locator('#advance-filters input[name="q"]').fill('配送');
+        await page.locator('#advance-filters .btn-secondary').click();
+        await filterRequest;
+        await page.locator('.advance-matrix').waitFor();
+        assert.ok(await page.locator('.advance-matrix-wrap').evaluate((node) => node.scrollTop > 0), '再表示後もスクロール位置を維持する');
+
+        const nextMonthRequest = page.waitForRequest((request) => request.url().includes('target_year_month=2026-10'));
+        await page.locator('#advance-month-next').click(); await nextMonthRequest;
+        const previousMonthRequest = page.waitForRequest((request) => request.url().includes('target_year_month=2026-09'));
+        await page.locator('#advance-month-prev').click(); await previousMonthRequest;
+
+        await page.locator('[data-project-id="250101"] [data-select-project]').check();
+        const createRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().includes('/api/advances/groups/early/records'));
+        await page.locator('[data-create-group="early"]').click();
+        assert.equal((await createRequest).postDataJSON().items[0].project_id, 250101, '選択案件を予定作成へ送る');
+
+        page.once('dialog', (dialog) => dialog.accept('テスト取消'));
+        const cancelRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().includes('/api/advances/records/1010/cancel'));
+        await page.locator('[data-cancel="1010"]').click();
+        assert.equal((await cancelRequest).postDataJSON().reason, 'テスト取消', '取消理由を送る');
+
+        const reversalAnswers = ['7','1000'];
+        const dialogHandler = (dialog) => dialog.accept(reversalAnswers.shift());
+        page.on('dialog', dialogHandler);
+        const reversalRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().includes('/api/advances/records/1040/reversal'));
+        await page.locator('[data-reverse="1040"]').click();
+        assert.deepEqual((await reversalRequest).postDataJSON(), { cash_cycle_id:7,amount:1000 }, '返金・訂正内容を送る');
+        page.off('dialog', dialogHandler);
+
+        const downloadPromise = page.waitForEvent('download');
+        await page.locator('[data-export-group="early"]').click();
+        await downloadPromise;
+        await page.locator('.flash').waitFor();
+      }
       await page.screenshot({ path:path.join(outputDir, `advance-${viewport.width}x${viewport.height}.png`), fullPage:true }); await page.close();
     }
   } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); }
-  console.log('[advance-matrix-ui] 4画面幅、12案件、スマホの合計列固定解除、ページ横はみ出しなしを確認しました');
+  console.log('[advance-matrix-ui] 4画面幅、高密度表示、固定列、状態・保存・絞込・月移動・予定作成・取消・返金訂正・CSVを確認しました');
 }
 main().catch((error) => { console.error(error); process.exit(1); });
