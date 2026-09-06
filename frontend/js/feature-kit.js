@@ -224,7 +224,8 @@
           const attrs = item.filter != null
             ? ` type="button" data-summary-filter="${ctx.escapeHtml(item.filter)}" aria-pressed="${item.active ? 'true' : 'false'}"`
             : '';
-          return `<${tag}${attrs} class="summary-card tone-${ctx.escapeHtml(item.tone || 'neutral')} ${item.active ? 'is-active' : ''}"><span>${ctx.escapeHtml(item.label)}</span><strong>${ctx.escapeHtml(item.value ?? 0)}</strong></${tag}>`;
+          const action = item.actionHtml ? `<div class="summary-card-action">${item.actionHtml}</div>` : '';
+          return `<${tag}${attrs} class="summary-card tone-${ctx.escapeHtml(item.tone || 'neutral')} ${item.active ? 'is-active' : ''} ${item.actionHtml ? 'has-action' : ''}">${action}<span>${ctx.escapeHtml(item.label)}</span><strong>${ctx.escapeHtml(item.value ?? 0)}</strong></${tag}>`;
         }).join('')}</div>`;
       },
       shiftYearMonth(value, delta) {
@@ -284,6 +285,7 @@
           onClose?.();
         };
         document.getElementById('modal-close')?.addEventListener('click', close);
+        document.querySelectorAll('[data-modal-close]').forEach((button) => button.addEventListener('click', close));
         document.getElementById('modal-backdrop')?.addEventListener('click', (e) => {
           if (e.target.id === 'modal-backdrop') close();
         });

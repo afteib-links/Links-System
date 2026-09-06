@@ -1,7 +1,13 @@
 const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const { CYCLE_DAYS, asDate, businessDate } = require('../services/cash_cycle_calendar');
+const {
+  CYCLE_DAYS,
+  businessDate,
+  paddedMonthRange,
+  paddedDateRange,
+  normalizeCashDate,
+} = require('../services/cash_cycle_calendar');
 const {
   validateDefinition,
   buildRows,
@@ -9,16 +15,46 @@ const {
   checksum,
   fileName,
 } = require('../services/bank_csv_export');
+const { yenInteger, mapBalanceRow } = require('../services/source_bank_ledger');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('cash_management'));
+
+const WEEKEND_SHIFT_REASON = '土日祝のため営業日へ変更';
+
+async function holidaySet(from, to) {
+  const rows = await query(
+    `SELECT holiday_date FROM holidays
+      WHERE is_deleted=0 AND is_active=1 AND project_id IS NULL
+        AND holiday_date BETWEEN ? AND ?`,
+    [from, to]
+  );
+  return new Set(rows.map((row) => String(row.holiday_date).slice(0, 10)));
+}
+
+async function holidaysAroundDate(ymd) {
+  const date = String(ymd || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return new Set();
+  const [from, to] = paddedDateRange(date, 14);
+  return holidaySet(from, to);
+}
+
+async function resolveBusinessDate(ymd, direction) {
+  return businessDate(ymd, direction, await holidaysAroundDate(ymd));
+}
+
+function monthBounds(ym) {
+  const [year, month] = String(ym).split('-').map(Number);
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return [`${ym}-01`, `${ym}-${String(last).padStart(2, '0')}`];
+}
 
 async function ensureCycles(ym) {
   if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象年月は YYYY-MM で指定してください');
   const [year, month] = ym.split('-').map(Number);
   const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const holidayRows = await query('SELECT holiday_date FROM holidays WHERE is_deleted = 0 AND is_active = 1 AND holiday_date BETWEEN ? AND ?', [`${ym}-01`, `${ym}-${String(last).padStart(2, '0')}`]);
-  const holidays = new Set(holidayRows.map((r) => String(r.holiday_date).slice(0, 10)));
+  const [from, to] = paddedMonthRange(ym, 14);
+  const holidays = await holidaySet(from, to);
   for (const [code, day] of CYCLE_DAYS) {
     const base = `${ym}-${String(day || last).padStart(2, '0')}`;
     await query(
@@ -36,7 +72,13 @@ router.get('/cycles', async (req, res) => {
   try {
     const ym = String(req.query.target_year_month || ''); await ensureCycles(ym);
     const cycles = await query('SELECT * FROM cash_cycles WHERE target_year_month = ? ORDER BY FIELD(cycle_code, \'05\',\'10\',\'15\',\'20\',\'25\',\'end\')', [ym]);
-    return res.json({ ok: true, cycles });
+    const [from, to] = paddedMonthRange(ym, 14);
+    const holidays = await holidaySet(from, to);
+    return res.json({
+      ok: true,
+      cycles,
+      holiday_dates: [...holidays],
+    });
   } catch (err) { return res.status(400).json({ ok: false, message: err.message }); }
 });
 router.get('/schedules', async (req, res) => {
@@ -50,34 +92,48 @@ router.get('/schedules', async (req, res) => {
               (SELECT t.executed_date FROM cash_transactions t WHERE t.cash_schedule_id=s.cash_schedule_id ORDER BY t.cash_transaction_id DESC LIMIT 1) AS latest_executed_date
        FROM cash_schedules s JOIN cash_cycles c ON c.cash_cycle_id = s.cash_cycle_id
        LEFT JOIN partners p ON p.partner_id=s.partner_id AND p.is_deleted=0
-       WHERE c.target_year_month = ? ORDER BY s.scheduled_date, s.cash_schedule_id`, [ym]);
+       WHERE c.target_year_month = ? OR s.scheduled_date BETWEEN ? AND ?
+       ORDER BY s.scheduled_date, s.cash_schedule_id`, [ym, ...monthBounds(ym)]);
     return res.json({ ok: true, schedules });
   } catch (err) { return res.status(400).json({ ok: false, message: err.message }); }
 });
 router.post('/schedules', async (req, res) => {
   try {
     const b = req.body || {}; const cycleId = Number(b.cash_cycle_id); const amount = Number(b.amount);
-    if (!cycleId || !['incoming', 'outgoing'].includes(b.direction) || !b.counterparty_name || !b.title || !(amount > 0)) throw new Error('管理回、入出金区分、相手先、件名、正の金額は必須です');
-    const cycles = await query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ?', [cycleId]); if (!cycles.length) throw new Error('管理回が見つかりません');
-    const defaultDate = b.direction === 'outgoing' ? cycles[0].planned_outgoing_date : cycles[0].planned_incoming_date;
-    if (b.scheduled_date && b.scheduled_date !== String(defaultDate).slice(0, 10) && !String(b.override_reason || '').trim()) throw new Error('個別予定日の変更理由を入力してください');
+    if (!cycleId || !['incoming', 'outgoing'].includes(b.direction) || !b.counterparty_name || !b.title || !(amount > 0)) throw new Error('締日、入出金区分、相手先、件名、正の金額は必須です');
+    const cycles = await query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ?', [cycleId]); if (!cycles.length) throw new Error('締日が見つかりません');
+    const defaultDate = String(b.direction === 'outgoing' ? cycles[0].planned_outgoing_date : cycles[0].planned_incoming_date).slice(0, 10);
+    const requested = /^\d{4}-\d{2}-\d{2}$/.test(String(b.scheduled_date || '')) ? String(b.scheduled_date).slice(0, 10) : defaultDate;
+    const holidays = await holidaysAroundDate(requested);
+    const normalized = normalizeCashDate(requested, b.direction, defaultDate, holidays);
+    let reason = String(b.override_reason || '').trim();
+    if (normalized.overridden && !reason) {
+      if (normalized.weekendShifted) reason = WEEKEND_SHIFT_REASON;
+      else throw new Error('個別予定日の変更理由を入力してください');
+    }
     const [result] = await getPool().query(
       `INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,company_id,partner_id,project_id,counterparty_name,title,amount,scheduled_date,date_overridden,override_reason,created_by)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [cycleId,b.direction,b.source_type || 'expense',b.company_id || null,b.partner_id || null,b.project_id || null,String(b.counterparty_name).trim(),String(b.title).trim(),amount,b.scheduled_date || defaultDate,b.scheduled_date ? 1 : 0,b.override_reason || null,req.session.user?.user_id || null]
+      [cycleId,b.direction,b.source_type || 'expense',b.company_id || null,b.partner_id || null,b.project_id || null,String(b.counterparty_name).trim(),String(b.title).trim(),amount,normalized.scheduled,normalized.overridden ? 1 : 0,reason || null,req.session.user?.user_id || null]
     );
-    return res.status(201).json({ ok: true, cash_schedule_id: result.insertId });
+    return res.status(201).json({ ok: true, cash_schedule_id: result.insertId, scheduled_date: normalized.scheduled });
   } catch (err) { return res.status(400).json({ ok: false, message: err.message }); }
 });
 router.put('/schedules/:id', async (req, res) => {
   const pool=getPool(); const conn=await pool.getConnection();
   try {
     const id=Number(req.params.id); const b=req.body || {}; const cycleId=Number(b.cash_cycle_id);
-    if(!id || !cycleId || !b.scheduled_date || !String(b.override_reason || '').trim()) throw new Error('管理回、個別予定日、変更理由は必須です');
+    if(!id || !cycleId || !b.scheduled_date) throw new Error('締日、個別予定日は必須です');
     await conn.beginTransaction(); const [rows]=await conn.query('SELECT * FROM cash_schedules WHERE cash_schedule_id=? FOR UPDATE',[id]);
     if(!rows.length || !['planned','held'].includes(rows[0].status)) throw new Error('CSV出力済みまたは実行済みの予定は直接変更できません');
-    const [cycles]=await conn.query('SELECT cash_cycle_id FROM cash_cycles WHERE cash_cycle_id=?',[cycleId]); if(!cycles.length) throw new Error('管理回が見つかりません');
-    await conn.query('UPDATE cash_schedules SET cash_cycle_id=?, scheduled_date=?, date_overridden=1, override_reason=?, version=version+1 WHERE cash_schedule_id=?',[cycleId,b.scheduled_date,String(b.override_reason).trim(),id]);
+    const [cycles]=await conn.query('SELECT cash_cycle_id FROM cash_cycles WHERE cash_cycle_id=?',[cycleId]); if(!cycles.length) throw new Error('締日が見つかりません');
+    const scheduled = await resolveBusinessDate(String(b.scheduled_date).slice(0, 10), rows[0].direction);
+    let reason = String(b.override_reason || '').trim();
+    if (!reason) {
+      if (scheduled !== String(b.scheduled_date).slice(0, 10)) reason = WEEKEND_SHIFT_REASON;
+      else throw new Error('締日、個別予定日、変更理由は必須です');
+    }
+    await conn.query('UPDATE cash_schedules SET cash_cycle_id=?, scheduled_date=?, date_overridden=1, override_reason=?, version=version+1 WHERE cash_schedule_id=?',[cycleId,scheduled,reason,id]);
     await conn.commit(); return res.json({ok:true});
   } catch(err) { await conn.rollback(); return res.status(400).json({ok:false,message:err.message}); } finally {conn.release();}
 });
@@ -100,8 +156,8 @@ router.post('/schedules/:id/transaction', async (req, res) => {
 router.post('/exports', async (req, res) => {
   const pool = getPool(); const conn = await pool.getConnection();
   try {
-    const cycleId = Number(req.body.cash_cycle_id); if (!cycleId) throw new Error('管理回は必須です');
-    await conn.beginTransaction(); const [cycleRows] = await conn.query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ? FOR UPDATE', [cycleId]); if (!cycleRows.length) throw new Error('管理回が見つかりません');
+    const cycleId = Number(req.body.cash_cycle_id); if (!cycleId) throw new Error('締日は必須です');
+    await conn.beginTransaction(); const [cycleRows] = await conn.query('SELECT * FROM cash_cycles WHERE cash_cycle_id = ? FOR UPDATE', [cycleId]); if (!cycleRows.length) throw new Error('締日が見つかりません');
     const groupCode = String(req.body.group_code || '').trim();
     if (groupCode && !['early','middle','late'].includes(groupCode)) throw new Error('前払グループが不正です');
     const itemSql = groupCode
@@ -172,9 +228,95 @@ async function loadSelectedOutgoing(conn, ids, lock = false) {
   if (items.length !== ids.length) throw new Error('選択した予定の一部が見つかりません。再読み込みしてください');
   if (items.some((item) => item.direction !== 'outgoing' || item.status !== 'planned')) throw new Error('出金・予定作成済み以外はCSV出力できません');
   const cycleIds = new Set(items.map((item) => Number(item.cash_cycle_id)));
-  if (cycleIds.size !== 1) throw new Error('異なる管理回の予定を同じCSVへ出力できません');
+  if (cycleIds.size !== 1) throw new Error('異なる締日の予定を同じCSVへ出力できません');
   return items.sort((a, b) => Number(a.cash_schedule_id) - Number(b.cash_schedule_id));
 }
+
+router.get('/balances', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT a.source_bank_account_id,a.account_label,a.bank_name,a.opening_balance,
+              CONCAT('***',RIGHT(a.account_number,4)) masked_account_number,
+              COALESCE(SUM(CASE WHEN e.is_deleted=0 AND e.direction='incoming' THEN e.amount ELSE 0 END),0) incoming_total,
+              COALESCE(SUM(CASE WHEN e.is_deleted=0 AND e.direction='outgoing' THEN e.amount ELSE 0 END),0) outgoing_total
+         FROM source_bank_accounts a
+         LEFT JOIN source_bank_ledger_entries e ON e.source_bank_account_id=a.source_bank_account_id
+        WHERE a.is_deleted=0 AND a.is_active=1
+        GROUP BY a.source_bank_account_id, a.account_label, a.bank_name, a.opening_balance, a.account_number
+        ORDER BY a.account_label,a.source_bank_account_id`
+    );
+    const accounts = rows.map(mapBalanceRow);
+    return res.json({
+      ok: true,
+      accounts,
+      total_balance: accounts.reduce((sum, account) => sum + account.balance, 0),
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: '口座残高を取得できませんでした' });
+  }
+});
+
+router.get('/ledger', async (req, res) => {
+  try {
+    const accountId = Number(req.query.source_bank_account_id || 0);
+    const where = ['e.is_deleted=0'];
+    const params = [];
+    if (accountId > 0) {
+      where.push('e.source_bank_account_id=?');
+      params.push(accountId);
+    }
+    const entries = await query(
+      `SELECT e.*,a.account_label,a.bank_name
+         FROM source_bank_ledger_entries e
+         JOIN source_bank_accounts a ON a.source_bank_account_id=e.source_bank_account_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY e.entry_date DESC, e.source_bank_ledger_entry_id DESC
+        LIMIT 80`,
+      params
+    );
+    return res.json({ ok: true, entries });
+  } catch (error) {
+    return res.status(400).json({ ok: false, message: error.message || '調整入出金を取得できませんでした' });
+  }
+});
+
+router.post('/ledger', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const accountId = Number(b.source_bank_account_id);
+    const amount = yenInteger(b.amount, '金額');
+    if (!accountId || amount <= 0 || !['incoming', 'outgoing'].includes(b.direction) || !/^\d{4}-\d{2}-\d{2}$/.test(String(b.entry_date || ''))) {
+      throw new Error('口座、日付、入出金区分、正の整数円は必須です');
+    }
+    const accounts = await query(
+      'SELECT source_bank_account_id FROM source_bank_accounts WHERE source_bank_account_id=? AND is_deleted=0 AND is_active=1',
+      [accountId]
+    );
+    if (!accounts.length) throw new Error('有効な振込元口座が見つかりません');
+    const [result] = await getPool().query(
+      `INSERT INTO source_bank_ledger_entries
+        (source_bank_account_id,entry_date,direction,amount,memo,created_by)
+       VALUES (?,?,?,?,?,?)`,
+      [accountId, b.entry_date, b.direction, amount, String(b.memo || '').trim() || null, req.session.user?.user_id || null]
+    );
+    return res.status(201).json({ ok: true, source_bank_ledger_entry_id: result.insertId });
+  } catch (error) {
+    return res.status(400).json({ ok: false, message: error.message || '調整入出金を登録できませんでした' });
+  }
+});
+
+router.delete('/ledger/:id', async (req, res) => {
+  try {
+    const result = await query(
+      'UPDATE source_bank_ledger_entries SET is_deleted=1 WHERE source_bank_ledger_entry_id=? AND is_deleted=0',
+      [Number(req.params.id)]
+    );
+    if (!result.affectedRows) return res.status(404).json({ ok: false, message: '調整入出金が見つかりません' });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(400).json({ ok: false, message: error.message || '取消できませんでした' });
+  }
+});
 
 router.get('/bank-export-options', async (_req, res) => {
   try {
@@ -194,14 +336,16 @@ router.get('/bank-export-options', async (_req, res) => {
 
 router.post('/bank-exports/preview', async (req, res) => {
   try {
-    const transferDate = String(req.body?.transfer_date || '');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(transferDate)) throw new Error('振込指定日を入力してください');
+    const requestedDate = String(req.body?.transfer_date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) throw new Error('振込指定日を入力してください');
+    const transferDate = await resolveBusinessDate(requestedDate, 'outgoing');
     const ids = selectedScheduleIds(req.body);
     const definition = await loadBankExportDefinition(getPool(), Number(req.body.source_bank_account_id));
     const items = await loadSelectedOutgoing(getPool(), ids, false);
     const built = buildRows(items, definition.account, transferDate, definition.columns);
     return res.json({
       ok: true,
+      transfer_date: transferDate,
       profile: { name: definition.account.profile_name, version_no: definition.account.version_no, encoding_code: definition.version.encoding_code },
       source_account: { account_label: definition.account.account_label, bank_name: definition.account.bank_name, branch_name: definition.account.branch_name },
       columns: definition.columns.map((column) => ({ key: column.column_key, label: column.column_label })),
@@ -218,8 +362,9 @@ router.post('/bank-exports/preview', async (req, res) => {
 router.post('/bank-exports', async (req, res) => {
   const conn = await getPool().getConnection();
   try {
-    const transferDate = String(req.body?.transfer_date || '');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(transferDate)) throw new Error('振込指定日を入力してください');
+    const requestedDate = String(req.body?.transfer_date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) throw new Error('振込指定日を入力してください');
+    const transferDate = await resolveBusinessDate(requestedDate, 'outgoing');
     const ids = selectedScheduleIds(req.body);
     await conn.beginTransaction();
     const definition = await loadBankExportDefinition(conn, Number(req.body.source_bank_account_id), true);

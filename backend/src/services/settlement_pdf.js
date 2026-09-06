@@ -426,9 +426,16 @@ function renderHtml(document, lines = []) {
   else if (document.document_type === 'cover_letter') body = renderCoverLetter(document);
   else throw new Error(`未対応の帳票種別です: ${document.document_type}`);
   const previewCss = document.preview
-    ? `.sheet:before{content:"見本・未発行";position:fixed;z-index:20;left:18%;top:42%;transform:rotate(-24deg);font-size:46pt;font-weight:700;color:rgba(180,35,24,.18);border:4px solid rgba(180,35,24,.18);padding:4mm 10mm;pointer-events:none}.sheet:after{content:"この画面は確認用です。正式な請求書・支払明細書ではありません。";position:fixed;left:14mm;right:14mm;top:2mm;text-align:center;color:#b42318;font-weight:700}`
+    ? `@media screen{html,body{background:#5d6570;min-height:100%}body{margin:0;padding:16px;display:flex;justify-content:center}
+      .preview-stage{width:210mm}
+      .preview-paper{position:relative;width:210mm;min-height:297mm;padding:9mm 14mm;background:#fff;box-shadow:0 12px 40px rgba(0,0,0,.35);box-sizing:border-box}
+      .preview-paper .sheet{width:100%;min-height:calc(297mm - 18mm)}
+      .preview-paper:before{content:"見本・未発行";position:absolute;z-index:20;left:18%;top:42%;transform:rotate(-24deg);font-size:46pt;font-weight:700;color:rgba(180,35,24,.18);border:4px solid rgba(180,35,24,.18);padding:4mm 10mm;pointer-events:none}
+      .preview-paper:after{content:"この画面は確認用です。正式な請求書・支払明細書ではありません。";position:absolute;left:14mm;right:14mm;top:4mm;text-align:center;color:#b42318;font-weight:700}}
+      @media print{html,body{background:#fff}body{padding:0}.preview-stage,.preview-paper{width:auto;min-height:0;padding:0;box-shadow:none}}`
     : '';
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>${commonCss()}${layoutCorrectionsCss()}${previewCss}</style></head><body>${body}</body></html>`;
+  const wrapped = document.preview ? `<div class="preview-stage"><div class="preview-paper">${body}</div></div>` : body;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>A4見本</title><style>${commonCss()}${layoutCorrectionsCss()}${previewCss}</style></head><body>${wrapped}</body></html>`;
 }
 
 async function writePdf(document, lines) {

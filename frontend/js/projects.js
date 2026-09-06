@@ -217,6 +217,7 @@
         rowKey: 'base_project_id',
         tableId: 'base-projects-table',
         renderActions: (b) => `<button type="button" class="btn btn-ghost btn-small" data-edit-base="${b.base_project_id}">編集</button>
+          <button type="button" class="btn btn-ghost btn-small" data-copy-base="${b.base_project_id}">コピー</button>
           <button type="button" class="btn btn-small" data-create-project="${b.base_project_id}">案件作成</button>
           <button type="button" class="btn btn-danger btn-small" data-del-base="${b.base_project_id}">削除</button>`,
       });
@@ -265,6 +266,22 @@
         btn.addEventListener('click', () => {
           this.kit.pushNav(() => this.showBaseList());
           this.showBaseDetail(Number(btn.getAttribute('data-edit-base')));
+        })
+      );
+      document.querySelectorAll('[data-copy-base]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const result = await this.ctx.api(`/api/projects/base/${btn.getAttribute('data-copy-base')}/copy`, {
+            method: 'POST',
+            body: '{}',
+          });
+          if (!result.res.ok || !result.data?.ok) {
+            window.alert(result.data?.message || 'コピー失敗');
+            return;
+          }
+          const n = result.data.copied_price_set_count;
+          if (n != null) this.ctx.showToast(`金額データを${n}件コピーしました`);
+          this.kit.pushNav(() => this.showBaseList());
+          await this.showBaseDetail(Number(result.data.base_project?.base_project_id));
         })
       );
       document.querySelectorAll('[data-create-project]').forEach((btn) =>
@@ -452,6 +469,7 @@
         rowKey: 'project_id',
         tableId: 'projects-table',
         renderActions: (p) => `<button type="button" class="btn btn-ghost btn-small" data-edit="${p.project_id}">編集</button>
+          <button type="button" class="btn btn-ghost btn-small" data-copy-project="${p.project_id}">コピー</button>
           <button type="button" class="btn btn-danger btn-small" data-del="${p.project_id}">削除</button>`,
       });
       this.ctx.app.innerHTML = this.kit.shell(
@@ -505,6 +523,22 @@
         btn.addEventListener('click', () => {
           this.kit.pushNav(() => this.showProjectList());
           this.showProjectDetail(Number(btn.getAttribute('data-edit')));
+        })
+      );
+      document.querySelectorAll('[data-copy-project]').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const result = await this.ctx.api(`/api/projects/${btn.getAttribute('data-copy-project')}/copy`, {
+            method: 'POST',
+            body: '{}',
+          });
+          if (!result.res.ok || !result.data?.ok) {
+            window.alert(result.data?.message || 'コピー失敗');
+            return;
+          }
+          const n = result.data.copied_price_set_count;
+          if (n != null) this.ctx.showToast(`金額データを${n}件コピーしました`);
+          this.kit.pushNav(() => this.showProjectList());
+          await this.showProjectDetail(Number(result.data.project?.project_id));
         })
       );
       document.querySelectorAll('[data-del]').forEach((btn) =>

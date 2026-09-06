@@ -5,6 +5,7 @@ const {
   listPriceSetsForBase,
   listPriceSetsForProject,
   deepCopyPriceSetsFromBaseToProject,
+  deepCopyPriceSets,
   softDeletePriceSetsForBase,
   softDeletePriceSetsForProject,
 } = require('../services/price_set_lifecycle');
@@ -395,6 +396,42 @@ router.post('/base/:id/create-project', async (req, res) => {
   }
 });
 
+router.post('/base/:id/copy', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const source = await fetchBase(Number(req.params.id));
+    if (!source) return res.status(404).json({ ok: false, message: '基本案件が見つかりません' });
+    const data = pick(source, BASE_FIELDS);
+    data.template_name = `${String(source.template_name || '').trim()}（コピー）`;
+    data.price_set_id = null;
+    const cols = Object.keys(data).filter((key) => data[key] !== undefined);
+    await conn.beginTransaction();
+    const [insertResult] = await conn.query(
+      `INSERT INTO base_projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      cols.map((c) => data[c])
+    );
+    const newId = insertResult.insertId;
+    const copiedPriceSets = await deepCopyPriceSets(
+      conn,
+      { base_project_id: source.base_project_id },
+      { base_project_id: newId, company_id: source.company_id }
+    );
+    await conn.commit();
+    return res.status(201).json({
+      ok: true,
+      base_project: await fetchBase(newId),
+      copied_price_set_count: copiedPriceSets,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[projects/base/copy]', err);
+    return res.status(500).json({ ok: false, message: '基本案件のコピーに失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
 /* ===== 個別案件 ===== */
 router.get('/', async (req, res) => {
   try {
@@ -505,6 +542,44 @@ router.post('/', async (req, res) => {
     await conn.rollback();
     console.error('[projects/create]', err);
     return res.status(500).json({ ok: false, message: '案件の作成に失敗しました' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/:id/copy', async (req, res) => {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const source = await fetchProject(Number(req.params.id));
+    if (!source) return res.status(404).json({ ok: false, message: '案件が見つかりません' });
+    const data = pick(source, PROJECT_FIELDS);
+    data.manager_name = `${String(source.manager_name || '').trim()}（コピー）`;
+    data.price_set_id = null;
+    const vehicleError = await validateVehicleSelection(data);
+    if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
+    const cols = Object.keys(data).filter((key) => data[key] !== undefined);
+    await conn.beginTransaction();
+    const [insertResult] = await conn.query(
+      `INSERT INTO projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      cols.map((c) => data[c])
+    );
+    const projectId = insertResult.insertId;
+    const copiedPriceSets = await deepCopyPriceSets(
+      conn,
+      { project_id: source.project_id },
+      { project_id: projectId, company_id: source.company_id }
+    );
+    await conn.commit();
+    return res.status(201).json({
+      ok: true,
+      project: await fetchProject(projectId),
+      copied_price_set_count: copiedPriceSets,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[projects/copy]', err);
+    return res.status(500).json({ ok: false, message: '案件のコピーに失敗しました' });
   } finally {
     conn.release();
   }

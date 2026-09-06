@@ -8,10 +8,13 @@ const {
   summaryRows,
 } = require('../src/services/settlement_pdf');
 
-test('下書き帳票プレビューは未発行の透かしと注意文を表示する',()=>{
+test('下書き帳票プレビューは未発行の透かしとA4縦の紙面で表示する',()=>{
   const html=renderHtml({document_type:'invoice',preview:true,target_year_month:'2026-09',recipient:{name:'確認先'},subtotal_amount:0,tax_amount:0,total_amount:0},[]);
   assert.match(html,/見本・未発行/);
   assert.match(html,/正式な請求書・支払明細書ではありません/);
+  assert.match(html,/preview-paper/);
+  assert.match(html,/210mm/);
+  assert.match(html,/297mm/);
 });
 
 function workLine({ id, projectId = 10, projectName = '検証案件', date, amount = 20000, overtime = 0 }) {

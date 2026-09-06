@@ -209,12 +209,17 @@ async function copyLines(conn, fromSetId, toSetId) {
   }
 }
 
-async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn) {
+async function deepCopyPriceSets(conn, source, dest) {
+  const fromBase = source.base_project_id != null;
   const [sets] = await conn.query(
-    `SELECT * FROM price_sets
-     WHERE base_project_id = ? AND is_deleted = 0 AND project_id IS NULL
-     ORDER BY price_set_id ASC`,
-    [Number(baseProjectId)]
+    fromBase
+      ? `SELECT * FROM price_sets
+         WHERE base_project_id = ? AND is_deleted = 0 AND project_id IS NULL
+         ORDER BY price_set_id ASC`
+      : `SELECT * FROM price_sets
+         WHERE project_id = ? AND is_deleted = 0 AND base_project_id IS NULL
+         ORDER BY price_set_id ASC`,
+    [Number(fromBase ? source.base_project_id : source.project_id)]
   );
   let copied = 0;
   for (const src of sets) {
@@ -223,12 +228,13 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
       `INSERT INTO price_sets
         (price_set_no, price_set_name, company_id, base_project_id, project_id,
          apply_start_date, apply_end_date, note, extra_data)
-       VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         priceSetNo,
         src.price_set_name,
-        src.company_id,
-        Number(projectId),
+        dest.company_id != null ? Number(dest.company_id) : src.company_id,
+        dest.base_project_id != null ? Number(dest.base_project_id) : null,
+        dest.project_id != null ? Number(dest.project_id) : null,
         src.apply_start_date,
         src.apply_end_date,
         src.note,
@@ -245,6 +251,10 @@ async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn
   return copied;
 }
 
+async function deepCopyPriceSetsFromBaseToProject(baseProjectId, projectId, conn) {
+  return deepCopyPriceSets(conn, { base_project_id: baseProjectId }, { project_id: projectId });
+}
+
 module.exports = {
   assertOwnerExclusive,
   assertValidFromRequired,
@@ -253,6 +263,7 @@ module.exports = {
   listPriceSetsForProject,
   softDeletePriceSetsForBase,
   softDeletePriceSetsForProject,
+  deepCopyPriceSets,
   deepCopyPriceSetsFromBaseToProject,
   allocatePriceSetNo,
   periodsOverlap,

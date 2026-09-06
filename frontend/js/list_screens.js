@@ -186,8 +186,9 @@
           key: 'list',
           label: '予定一覧',
           columns: [
-            { key: 'cycle_code', label: '管理回' },
+            { key: 'cycle_code', label: '締日' },
             { key: 'scheduled_date', label: '予定日' },
+            { key: 'direction', label: '入出金' },
             { key: 'counterparty', label: '相手先・件名' },
             { key: 'amount', label: '予定額' },
             { key: 'executed_amount', label: '実行額' },
