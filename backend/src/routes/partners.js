@@ -30,11 +30,14 @@ const PARTNER_FIELDS = [
   'tax_return_code',
   'loop_code',
   'payment_output_code',
+  'bank_code',
   'bank_name',
+  'branch_code',
   'branch_name',
   'account_number',
   'deposit_type',
   'account_name',
+  'account_name_kana',
 ];
 
 function pick(body, fields) {

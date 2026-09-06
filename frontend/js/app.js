@@ -21,7 +21,7 @@
     { key: 'advances', label: '先払い', desc: '先払いの申請・管理を行います', group: 'billing' },
     { key: 'invoices', label: '請求', desc: '請求の作成・管理を行います', group: 'billing' },
     { key: 'payments', label: '支払', desc: '支払の処理・管理を行います', group: 'billing' },
-    { key: 'cash_management', label: '入出金管理・CSV', desc: '予定・実績・確認用CSVを管理します', group: 'billing' },
+    { key: 'cash_management', label: '入出金管理・FB出力', desc: '予定・実績・銀行CSVを管理します', group: 'billing' },
     { key: 'master_settings', label: 'マスター設定', desc: '担当者・区分・システム設定', group: 'settings' },
     { key: 'ui_builder', label: 'UIビルダー', desc: '画面レイアウトを編集します', group: 'settings' },
     { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },

@@ -189,10 +189,13 @@
         contract_date: '',
         business_content: '',
         bank_name: '',
+        bank_code: '',
         branch_name: '',
+        branch_code: '',
         account_number: '',
         deposit_type: '',
         account_name: '',
+        account_name_kana: '',
         invoice_send_method: '',
         invoice_send_address: '',
         work_mode_code: '',
@@ -244,11 +247,14 @@
               <div class="full"><label>業務内容および付帯作業</label><textarea name="business_content" rows="3">${this.ctx.escapeHtml(company.business_content || '')}</textarea></div>
             </div></section>
             <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
+              <div><label>銀行コード（4桁）</label><input name="bank_code" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="${this.ctx.escapeHtml(company.bank_code || '')}" /></div>
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(company.bank_name || '')}" /></div>
+              <div><label>支店コード（3桁）</label><input name="branch_code" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" value="${this.ctx.escapeHtml(company.branch_code || '')}" /></div>
               <div><label>支店名</label><input name="branch_name" value="${this.ctx.escapeHtml(company.branch_name || '')}" /></div>
               <div><label>口座種別</label><select name="deposit_type">${this.kit.codeOptions(this.codes.deposit_type, company.deposit_type)}</select></div>
               <div><label>口座番号</label><input name="account_number" value="${this.ctx.escapeHtml(company.account_number || '')}" /></div>
               <div><label>口座名義</label><input name="account_name" value="${this.ctx.escapeHtml(company.account_name || '')}" /></div>
+              <div><label>口座名義カナ</label><input name="account_name_kana" value="${this.ctx.escapeHtml(company.account_name_kana || '')}" /></div>
             </div></section>
 
             <section class="form-section-card">
@@ -529,11 +535,14 @@
         payment_date_code: form.payment_date_code.value,
         contract_date: form.contract_date.value || null,
         business_content: form.business_content.value,
+        bank_code: form.bank_code.value,
         bank_name: form.bank_name.value,
+        branch_code: form.branch_code.value,
         branch_name: form.branch_name.value,
         account_number: form.account_number.value,
         deposit_type: form.deposit_type.value,
         account_name: form.account_name.value,
+        account_name_kana: form.account_name_kana.value,
         work_mode_code: form.work_mode_code.value,
         billings: this.detailState.billings,
         vehicles: this.detailState.vehicles,

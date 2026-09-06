@@ -35,6 +35,12 @@ router.get('/hub', async (_req, res) => {
     const [transferFeeCnt] = await query(
       `SELECT COUNT(*) AS cnt FROM transfer_fee_patterns WHERE is_deleted = 0`
     );
+    const [bankProfileCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM bank_export_profiles WHERE is_deleted = 0`
+    );
+    const [sourceAccountCnt] = await query(
+      `SELECT COUNT(*) AS cnt FROM source_bank_accounts WHERE is_deleted = 0`
+    );
     return res.json({
       ok: true,
       hub: {
@@ -45,6 +51,8 @@ router.get('/hub', async (_req, res) => {
         numbering_rules: Number(ruleCnt.cnt || 0),
         holidays: Number(holidayCnt.cnt || 0),
         transfer_fee_patterns: Number(transferFeeCnt.cnt || 0),
+        bank_export_profiles: Number(bankProfileCnt.cnt || 0),
+        source_bank_accounts: Number(sourceAccountCnt.cnt || 0),
       },
     });
   } catch (err) {

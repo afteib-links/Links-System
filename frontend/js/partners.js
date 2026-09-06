@@ -216,10 +216,13 @@
         loop_code: '',
         payment_output_code: '',
         bank_name: '',
+        bank_code: '',
         branch_name: '',
+        branch_code: '',
         account_number: '',
         deposit_type: '',
         account_name: '',
+        account_name_kana: '',
         vehicles: [],
       };
       if (id) {
@@ -279,11 +282,14 @@
               <div><label>支払出力</label><select name="payment_output_code">${this.kit.codeOptions(this.codes.payment_output, partner.payment_output_code)}</select></div>
             </div></section>
             <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
+              <div><label>銀行コード（4桁）</label><input name="bank_code" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="${this.ctx.escapeHtml(partner.bank_code || '')}" /></div>
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(partner.bank_name || '')}" /></div>
+              <div><label>支店コード（3桁）</label><input name="branch_code" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" value="${this.ctx.escapeHtml(partner.branch_code || '')}" /></div>
               <div><label>支店名</label><input name="branch_name" value="${this.ctx.escapeHtml(partner.branch_name || '')}" /></div>
               <div><label>口座種別</label><select name="deposit_type">${this.kit.codeOptions(this.codes.deposit_type, partner.deposit_type)}</select></div>
               <div><label>口座番号</label><input name="account_number" value="${this.ctx.escapeHtml(partner.account_number || '')}" /></div>
               <div><label>口座名義</label><input name="account_name" value="${this.ctx.escapeHtml(partner.account_name || '')}" /></div>
+              <div><label>口座名義カナ（CSV用）</label><input name="account_name_kana" value="${this.ctx.escapeHtml(partner.account_name_kana || '')}" /></div>
             </div></section>
             <section class="form-section-card">
             <div class="section-head">
@@ -382,11 +388,14 @@
         tax_return_code: form.tax_return_code.value,
         loop_code: form.loop_code.value,
         payment_output_code: form.payment_output_code.value,
+        bank_code: form.bank_code.value,
         bank_name: form.bank_name.value,
+        branch_code: form.branch_code.value,
         branch_name: form.branch_name.value,
         deposit_type: form.deposit_type.value,
         account_number: form.account_number.value,
         account_name: form.account_name.value,
+        account_name_kana: form.account_name_kana.value,
         vehicles: this.detailState.vehicles,
         version: this.detailState.version,
       };

@@ -1929,6 +1929,48 @@ label, .field-label { color: #344054; font-weight: 700; }
 .app-shell-scroll-body { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
 .app-shell-scroll-body .app-frame { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
 .app-shell-scroll-body .app-main-scroll-body { flex:1; min-height:0; overflow:hidden; }
+
+/* 入出金管理・銀行CSV */
+.cash-screen { display:flex; flex-direction:column; gap:12px; }
+.cash-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.cash-topbar .month-navigator { margin:0; }
+.cash-view-toggle { display:flex; gap:4px; padding:3px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.cash-filterbar { display:grid; grid-template-columns:minmax(220px,1fr) repeat(3,minmax(130px,auto)) auto auto; gap:8px; align-items:center; }
+.cash-filterbar > * { width:100%; min-width:0; }
+.cash-workspace { display:grid; grid-template-columns:minmax(0,1fr) minmax(285px,340px); gap:12px; align-items:start; }
+.cash-main { min-width:0; }
+.cash-aside { display:flex; flex-direction:column; gap:12px; position:sticky; top:12px; }
+.cash-aside .panel { margin:0; }
+.cash-aside label { display:block; margin:10px 0 4px; font-weight:700; }
+.cash-export-button { width:100%; margin-top:12px; min-height:44px; }
+.cash-selected-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:8px 0; }
+.cash-selected-summary span { padding:8px; border-radius:6px; background:#f2f6f9; text-align:center; color:var(--muted); font-size:12px; }
+.cash-selected-summary strong { display:block; margin-top:2px; color:var(--ink); font-size:16px; }
+.cash-selected-summary .error strong { color:var(--danger); }
+.cash-weekdays,.cash-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(90px,1fr)); }
+.cash-weekdays span { padding:6px; text-align:center; color:var(--muted); font-size:12px; font-weight:700; }
+.cash-calendar-grid { border-top:1px solid var(--line); border-left:1px solid var(--line); }
+.cash-calendar-day { min-height:122px; padding:7px; border:0; border-right:1px solid var(--line); border-bottom:1px solid var(--line); border-radius:0; background:#fff; color:var(--ink); font:inherit; text-align:left; cursor:pointer; display:flex; flex-direction:column; align-items:stretch; gap:3px; }
+.cash-calendar-day:hover { background:#f5fafb; }
+.cash-calendar-day.is-selected { position:relative; z-index:1; outline:2px solid var(--brand); background:#eef8f9; }
+.cash-calendar-day.is-outside { cursor:default; background:#f6f8fb; }
+.cash-day-number { font-weight:800; }
+.cash-cycle-mark { align-self:flex-end; margin-top:-20px; padding:2px 5px; border-radius:10px; background:#e4edf7; color:#29486a; font-size:10px; font-weight:800; }
+.cash-day-in,.cash-day-out { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.cash-day-in { color:#087756; }.cash-day-out { color:#b42318; }
+.cash-calendar-item { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 4px; border-radius:4px; background:#f4f7fa; }
+.cash-calendar-item.incoming { border-left:3px solid #2f9e7b; }.cash-calendar-item.outgoing { border-left:3px solid #d45b54; }
+.cash-more { color:var(--muted); }
+.cash-history ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:7px; }
+.cash-history li { display:flex; justify-content:space-between; gap:6px; padding:8px 0; border-bottom:1px solid var(--line); }
+.cash-history li:last-child { border-bottom:0; }
+.cash-history li strong,.cash-history li small,.cell-sub { display:block; }
+.cash-history li strong { word-break:break-all; font-size:12px; }.cash-history li small,.cell-sub { color:var(--muted); font-size:11px; }
+.status-text.warning { color:#a16207; font-weight:800; }.status-text.success { color:#087756; font-weight:800; }
+.bank-preview-table { max-height:42vh; }.bank-column-grid input,.bank-column-grid select { min-width:90px; }.bank-column-grid { max-height:58vh; }
+.error-list { max-height:130px; overflow:auto; color:var(--danger); }
+@media (max-width:1200px){.cash-workspace{grid-template-columns:minmax(0,1fr)}.cash-aside{position:static;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.cash-filterbar{grid-template-columns:repeat(3,minmax(0,1fr))}.cash-filterbar>input{grid-column:span 2}}
+@media (max-width:760px){.cash-topbar{align-items:stretch}.cash-view-toggle{width:100%}.cash-view-toggle .btn{flex:1}.cash-filterbar{grid-template-columns:1fr}.cash-filterbar>input{grid-column:auto}.cash-calendar-panel{overflow-x:auto}.cash-weekdays,.cash-calendar-grid{min-width:720px}.cash-aside{display:flex}.cash-selected-summary{grid-template-columns:repeat(3,minmax(80px,1fr))}.bank-format-editor .form-actions-sticky{position:sticky;bottom:0;background:#fff;padding:8px}}
 @media (max-width:1200px) {
   .fee-item-head { grid-template-columns:minmax(150px,1fr) minmax(220px,1fr); }
   .fee-item-actions { justify-content:flex-end; }
