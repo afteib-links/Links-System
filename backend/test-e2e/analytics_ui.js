@@ -72,9 +72,18 @@ async function main() {
       assert.equal(await page.locator('.topbar-page-title').innerText(), '収支分析');
       assert.match(await page.locator('.analytics-screen').innerText(), /請求書合計を使用/);
       await page.locator('[data-tab="margin"]').click();
-      await page.getByText('9.5%').waitFor();
-      const color = await page.locator('.neg').first().evaluate((el) => getComputedStyle(el).color);
-      assert.ok(color.includes('180') || color.includes('b4') || color === 'rgb(180, 35, 24)');
+      const rateCell = page.locator('td.neg', { hasText: '9.5%' });
+      await rateCell.waitFor();
+      const colorInfo = await rateCell.evaluate((el) => {
+        const color = getComputedStyle(el).color;
+        const nums = (color.match(/[\d.]+/g) || []).map(Number);
+        const scale = nums[0] <= 1 && nums[1] <= 1 && nums[2] <= 1 ? 255 : 1;
+        return { color, className: el.className, r: (nums[0] || 0) * scale, g: (nums[1] || 0) * scale, b: (nums[2] || 0) * scale };
+      });
+      assert.match(colorInfo.className, /\bneg\b/);
+      assert.ok(colorInfo.r > colorInfo.g && colorInfo.r > colorInfo.b, `利益率警告の赤表示が必要: ${colorInfo.color}`);
+      await page.locator('[data-tab="days"]').click();
+      await page.getByText('22日').waitFor();
       await page.close();
     });
   } finally {

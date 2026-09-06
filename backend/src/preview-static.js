@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const path = require('path');
+const { localUrl } = require('./middleware/local_url');
 
 const port = Number(process.env.APP_PORT || 8080);
 const frontendDir = path.resolve(__dirname, '../../frontend');
@@ -14,6 +15,7 @@ const noCache = (res) => {
 };
 
 const app = express();
+app.use(localUrl);
 
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) {

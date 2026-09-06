@@ -22,3 +22,11 @@ test('バックエンドJavaScriptに構文エラーがない', () => {
     assert.equal(checked.status, 0, `${path.relative(backend, file)}\n${checked.stderr}`);
   }
 });
+
+test('フロントエンドJavaScriptに構文エラーがない', () => {
+  const root = path.resolve(__dirname, '../../frontend');
+  for (const file of javascriptFiles(root)) {
+    const checked = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    assert.equal(checked.status, 0, `${path.relative(root, file)}\n${checked.stderr}`);
+  }
+});
