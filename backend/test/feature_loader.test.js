@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 test('全機能のスクリプトを共通部品と依存順を保って読み込む', async () => {
   // 機能ごとに空のwindowで検証し、他画面の訪問順に依存しないことを確認する。
-  for (const key of ['companies', 'partners', 'base_projects', 'projects', 'price_sets', 'daily_reports', 'advances', 'invoices', 'payments', 'cash_management', 'master_settings', 'ui_builder', 'users']) {
+  for (const key of ['companies', 'partners', 'base_projects', 'projects', 'price_sets', 'daily_reports', 'daily_report_submissions', 'advances', 'invoices', 'payments', 'cash_management', 'master_settings', 'ui_builder', 'users']) {
     const loaded = [];
     const context = vm.createContext({ window: {}, setTimeout, clearTimeout, console });
     context.document = {

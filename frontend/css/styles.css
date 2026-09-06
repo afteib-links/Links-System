@@ -2096,6 +2096,81 @@ label, .field-label { color: #344054; font-weight: 700; }
   .advance-project-col { width: 190px; }
   .advance-project-heading, .advance-project-cell, .advance-project-footer { width: 140px; min-width: 140px; }
 }
+/* 日報提出一覧 */
+.submission-summary-top { margin-bottom: 10px; }
+.submission-panel .summary-cards { grid-template-columns: repeat(4, minmax(140px, 1fr)); margin: 0; gap: 10px; }
+.submission-panel .summary-card { min-height: 72px; padding: 12px 14px; }
+.submission-panel .summary-card span { font-size: 13px; }
+.submission-panel .summary-card strong { font-size: 26px; }
+.submission-grace, .submission-today { display:inline-flex; align-items:baseline; gap:6px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--muted); font-size:13px; }
+.submission-grace strong, .submission-today strong { color:var(--ink); font-size:18px; }
+.submission-today { flex-direction: column; gap: 0; align-items: flex-start; min-width: 168px; }
+.submission-today small { font-size: 11px; color: var(--muted); }
+.submission-matrix-wrap { max-height: calc(100vh - 270px); min-height: 280px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border, #d7dee7); border-radius: 8px; background: #fff; }
+.submission-matrix { width: 100%; min-width: 1480px; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 14px; }
+.submission-matrix th, .submission-matrix td { padding: 5px 8px; border-right: 1px solid var(--border, #d7dee7); border-bottom: 1px solid var(--border, #d7dee7); vertical-align: middle; background: #fff; }
+.submission-matrix thead th { position: sticky; z-index: 4; background: #f7fafc; text-align: center; vertical-align: middle; box-shadow: 0 1px 0 rgba(15,23,42,.08); }
+.submission-matrix thead tr.submission-heading-main th { top: 0; height: 36px; }
+.submission-matrix thead tr.submission-heading-fields th { top: 36px; height: 28px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.submission-matrix thead tr.submission-month-total th { top: 64px; height: 40px; background: #eef4f8; z-index: 5; }
+.submission-project-col { width: 250px; }
+.submission-period-col { width: 132px; }
+.submission-status-col { width: 128px; }
+.submission-date-col { width: 176px; }
+.submission-total-col { width: 150px; }
+.submission-project-heading, .submission-project-cell, .submission-project-footer { position: sticky; left: 0; z-index: 2; }
+.submission-matrix thead .submission-project-heading { z-index: 7; }
+.submission-matrix thead .submission-project-footer { z-index: 6; }
+.submission-project-total-heading, .submission-project-total, .submission-grand-total { position: sticky; right: 0; z-index: 2; border-right: 0 !important; box-shadow: -3px 0 7px rgba(15,23,42,.07); }
+.submission-matrix thead .submission-project-total-heading, .submission-matrix thead .submission-grand-total { z-index: 7; }
+.submission-cycle-heading > strong { font-size: 16px; }
+.submission-period-cell.is-overdue, .submission-status-cell.is-overdue, .submission-date-cell.is-overdue { background: #fff7f6; }
+.submission-period-cell, .submission-status-cell, .submission-date-cell { height: auto; min-height: 52px; vertical-align: middle; }
+.submission-period-range strong { font-size: 15px; white-space: nowrap; }
+.submission-planned { color: var(--muted); font-size: 13px; }
+.submission-planned strong { color: var(--ink); font-size: 15px; }
+.submission-date-cell { padding-right: 6px; }
+.submission-date-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.submission-date { width: 148px; min-height: 32px; height: 32px; padding: 2px 4px; font-size: 14px; }
+.submission-partner-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: baseline; gap: 6px; }
+.submission-partner-name { font-size: 18px; line-height: 1.2; color: #102a43; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.submission-partner-row small { color: var(--muted); font-size: 11px; font-weight: 700; }
+.submission-closing { font-size: 13px; font-weight: 800; color: #1d4e89; white-space: nowrap; }
+.submission-company { margin-top: 2px; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.submission-project-meta { display:flex; gap:6px; align-items:baseline; margin-top:2px; color:var(--ink); font-size:13px; min-width:0; }
+.submission-project-meta span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.submission-switch { display:inline-flex; align-items:center; gap:8px; margin:0; font-weight:800; font-size:14px; }
+.submission-switch input { appearance:none; width:42px; height:24px; min-height:24px; margin:0; padding:0; border:0; border-radius:12px; background:#c5ced8; position:relative; cursor:pointer; flex:0 0 42px; }
+.submission-switch input::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(15,23,42,.25); transition:left .12s ease; }
+.submission-switch input:checked { background:#16a34a; }
+.submission-switch input:checked::after { left:21px; }
+.submission-overdue { display:inline-flex; align-items:center; gap:2px; color:var(--muted); font-weight:700; font-size:14px; margin:0; }
+.submission-overdue.is-overdue { color: var(--danger); font-weight: 800; }
+.submission-overdue-input { width: 52px; min-height: 30px; height: 30px; padding: 1px 4px; font-size: 14px; font-weight: 800; text-align: right; }
+.submission-overdue.is-overdue .submission-overdue-input { color: var(--danger); }
+.submission-project-total span, .submission-grand-total small { display: flex; justify-content: space-between; gap: 6px; margin: 1px 0; font-size: 13px; line-height: 1.15; }
+.submission-project-total strong, .submission-grand-total > strong { font-size: 15px; }
+.submission-cycle-total > span { display: block; font-weight: 800; font-size: 13px; }
+.submission-cycle-total > small { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; }
+@media (max-width: 1366px) {
+  .submission-matrix-wrap { max-height: calc(100vh - 290px); }
+  .submission-project-col { width: 210px; }
+  .submission-partner-name { font-size: 16px; }
+}
+@media (max-width: 760px) {
+  .submission-matrix { min-width: 1320px; }
+  .submission-project-heading, .submission-project-cell, .submission-project-footer { width: 150px; min-width: 150px; }
+  .submission-project-total-heading, .submission-project-total, .submission-grand-total {
+    position: static;
+    right: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+}
+@media (max-width: 600px) {
+  .submission-matrix-wrap { max-width: 100%; max-height: calc(100vh - 330px); }
+  .submission-panel .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .fee-summary-names { margin: .5rem 0 .75rem; }
 .fee-summary-names input { width: 100%; }
 .fee-matrix-wide { table-layout: fixed; }
