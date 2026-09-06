@@ -26,6 +26,7 @@ const bankExportMasterRoutes = require('./routes/bank_export_masters');
 const cashManagementRoutes = require('./routes/cash_management');
 const settlementRoutes = require('./routes/settlements');
 const dashboardRoutes = require('./routes/dashboard');
+const analyticsRoutes = require('./routes/analytics');
 
 
 async function createApp() {
@@ -110,6 +111,7 @@ async function createApp() {
   app.use('/api/cash-management', cashManagementRoutes.router);
   app.use('/api/settlements', settlementRoutes);
   app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/analytics', analyticsRoutes);
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {

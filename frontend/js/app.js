@@ -22,6 +22,7 @@
     { key: 'invoices', label: '請求', desc: '請求の作成・管理を行います', group: 'billing' },
     { key: 'payments', label: '支払', desc: '支払の処理・管理を行います', group: 'billing' },
     { key: 'cash_management', label: '入出金管理・FB出力', desc: '予定・実績・銀行CSVを管理します', group: 'billing' },
+    { key: 'analytics', label: '収支分析', desc: '担当者・企業・パートナーの収支を見ます', group: 'analysis' },
     { key: 'master_settings', label: 'マスター設定', desc: '担当者・区分・システム設定', group: 'settings' },
     { key: 'ui_builder', label: 'UIビルダー', desc: '画面レイアウトを編集します', group: 'settings' },
     { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },
@@ -31,6 +32,7 @@
     { key: 'master', label: 'マスタ' },
     { key: 'daily', label: '日々の運用' },
     { key: 'billing', label: '精算' },
+    { key: 'analysis', label: '分析' },
     { key: 'settings', label: '設定' },
   ];
 
@@ -45,6 +47,7 @@
     invoices: ['admin', 'executive', 'soumu', 'sales', 'company'],
     payments: ['admin', 'executive', 'soumu', 'sales', 'partner'],
     cash_management: ['admin', 'executive', 'soumu'],
+    analytics: ['admin', 'executive', 'soumu'],
     master_settings: ['admin', 'system', 'soumu'],
     ui_builder: ['admin', 'system'],
     users: ['admin', 'system'],
