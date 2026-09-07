@@ -1,6 +1,6 @@
 (() => {
   const LinksCompanies = {
-    async open(ctx) {
+    async open(ctx, options = {}) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ctx.renderLoading();
@@ -11,6 +11,10 @@
       this.codes = codes;
       this.staff = staffRes.data?.staff || [];
       this.layout = layout;
+      if (options.company_id) {
+        await this.showDetail(Number(options.company_id));
+        return;
+      }
       await this.showList();
     },
 
