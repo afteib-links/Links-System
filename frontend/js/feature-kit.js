@@ -280,7 +280,11 @@
           </div>`;
       },
       bindModal(onClose) {
+        const onKeydown = (event) => {
+          if (event.key === 'Escape') close();
+        };
         const close = () => {
+          document.removeEventListener('keydown', onKeydown);
           document.getElementById('modal-backdrop')?.remove();
           onClose?.();
         };
@@ -289,6 +293,7 @@
         document.getElementById('modal-backdrop')?.addEventListener('click', (e) => {
           if (e.target.id === 'modal-backdrop') close();
         });
+        document.addEventListener('keydown', onKeydown);
         return close;
       },
     };

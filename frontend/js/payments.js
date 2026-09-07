@@ -2,7 +2,7 @@
   const ui=Object.create(window.LinksInvoices);
   Object.assign(ui,{
     kind:'payment',
-    async open(ctx){this.ctx=ctx;this.kit=window.LinksFeatureKit.createFeatureKit(ctx);this.ym=this.kit.currentYearMonth();this.filters={q:'',closing:'',status:''};this.ctx.renderLoading();this.layoutSaved=await this.kit.loadLayout('payments');await this.list();},
+    async open(ctx,options={}){this.ctx=ctx;this.kit=window.LinksFeatureKit.createFeatureKit(ctx);this.ym=/^\d{4}-\d{2}$/.test(options.targetYearMonth||'')?options.targetYearMonth:this.kit.currentYearMonth();this.filters={q:options.query?String(options.query):'',closing:'',status:''};this.ctx.renderLoading();this.layoutSaved=await this.kit.loadLayout('payments');if(options.settlementId)await this.detail(Number(options.settlementId));else await this.list();},
     async list(message=''){
       this.ctx.renderLoading();const [targets,rows]=await Promise.all([this.ctx.api(`/api/payments/targets?target_year_month=${encodeURIComponent(this.ym)}`),this.ctx.api(`/api/payments?target_year_month=${encodeURIComponent(this.ym)}`)]);if(!targets.res.ok)return this.error(targets.data?.message);this.targets=targets.data.targets||[];
       const visible=this.targets.filter(x=>{const text=`${x.partner_id} ${x.partner_name||''} ${(x.projects||[]).map(p=>p.project_id).join(' ')}`.toLowerCase();return(!this.filters.q||text.includes(this.filters.q.toLowerCase()))&&(!this.filters.closing||String(x.closing_date||'')===this.filters.closing);});
