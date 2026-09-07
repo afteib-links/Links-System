@@ -24,6 +24,16 @@
       ]);
       this.baseLayout = window.LinksListScreens?.areaLayout(baseLayout, 'list') || null;
       this.projectLayout = window.LinksListScreens?.areaLayout(projectLayout, 'list') || null;
+      if (options.base_project_id) {
+        this.tab = 'base';
+        await this.showBaseDetail(Number(options.base_project_id));
+        return;
+      }
+      if (options.project_id) {
+        this.tab = 'projects';
+        await this.showProjectDetail(Number(options.project_id));
+        return;
+      }
       if (this.tab === 'base') await this.showBaseList();
       else await this.showProjectList();
     },

@@ -12,6 +12,7 @@
   ];
 
   const FEATURE_FALLBACK = [
+    { key: 'base_management', label: '基本管理', desc: '企業から金額データまでを横断して管理します', group: 'master' },
     { key: 'companies', label: '企業マスタ', desc: '企業情報を登録・管理します', group: 'master' },
     { key: 'partners', label: 'パートナーマスタ', desc: 'パートナー企業を登録・管理します', group: 'master' },
     { key: 'base_projects', label: '基本案件', desc: '基本案件テンプレートを管理します', group: 'master' },
@@ -38,6 +39,7 @@
   ];
 
   const FEATURE_ROLE_MAP = {
+    base_management: ['admin', 'system', 'soumu'],
     companies: ['admin', 'system', 'soumu'],
     partners: ['admin', 'system', 'soumu'],
     base_projects: ['admin', 'system', 'soumu', 'sales'],

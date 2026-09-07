@@ -15,6 +15,7 @@ const ROLES = [
 const ROLE_KEYS = ROLES.map((r) => r.key);
 
 const FEATURES = [
+  { key: 'base_management', label: '基本管理', group: 'master' },
   { key: 'companies', label: '企業マスタ', group: 'master' },
   { key: 'partners', label: 'パートナーマスタ', group: 'master' },
   { key: 'base_projects', label: '基本案件', group: 'master' },
@@ -36,6 +37,7 @@ const FEATURE_KEYS = FEATURES.map((f) => f.key);
 
 /** 機能キー → 利用可能な権限キー */
 const FEATURE_ROLE_MAP = {
+  base_management: ['admin', 'system', 'soumu'],
   companies: ['admin', 'system', 'soumu'],
   partners: ['admin', 'system', 'soumu'],
   base_projects: ['admin', 'system', 'soumu', 'sales'],

@@ -27,6 +27,7 @@
     "test:e2e-bank-export": "node test-e2e/bank_export_ui.js",
     "test:e2e-cash-menu": "node test-e2e/cash_menu_ui.js",
     "test:e2e-analytics": "node test-e2e/analytics_ui.js",
+    "test:e2e-base-management": "node test-e2e/base_management_ui.js",
     "capture:manual": "node scripts/capture_manual_screens.js"
   },
   "engines": {
