@@ -32,6 +32,12 @@ async function main() {
           companies: [
             { company_id: 1, office_no: 'C001', company_name: '企業A', company_name_kana: 'キギョウエー', closing_date_code: 'end', payment_date_code: 'end' },
             { company_id: 2, office_no: 'C002', company_name: '企業B', closing_date_code: '15' },
+            ...Array.from({ length: 28 }, (_, index) => ({
+              company_id: index + 3,
+              office_no: `C${String(index + 3).padStart(3, '0')}`,
+              company_name: `企業${String(index + 3).padStart(2, '0')}`,
+              closing_date_code: 'end',
+            })),
           ],
           base_projects: [{ base_project_id: 11, company_id: 1, template_name: '定期便', closing_date: 'end' }],
           projects: [{ project_id: 21, base_project_id: 11, company_id: 1, partner_id: 31, partner_name: 'パートナーA', closing_date: 'end' }],
@@ -45,6 +51,14 @@ async function main() {
     await page.locator('.bm-screen').waitFor();
     const initialScreen = await page.locator('.bm-screen').elementHandle();
     assert.equal(await page.locator('.bm-heads .bm-column-title').count(), 4);
+    await page.setViewportSize({ width: 600, height: 800 });
+    const companyScroll = await page.locator('[data-list="company"]').evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      return { scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+    });
+    assert.ok(companyScroll.scrollHeight > companyScroll.clientHeight, 'スマホで企業一覧に縦スクロールが必要');
+    assert.ok(companyScroll.scrollTop > 0, 'スマホで企業一覧を最下部まで縦スクロールできる');
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.locator('[data-list="company"] [data-id="1"]').click();
     await page.locator('[data-list="base"] [data-id="11"]').click();
     await page.locator('[data-list="project"] [data-id="21"]').click();
@@ -60,6 +74,13 @@ async function main() {
     await page.locator('.bm-all-table').waitFor();
     assert.match(await page.locator('.bm-all-table').innerText(), /基本案件なし/);
     assert.match(await page.locator('.bm-all-table').innerText(), /通常料金/);
+    await page.setViewportSize({ width: 900, height: 800 });
+    const allScroll = await page.locator('.bm-all-wrap').evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      return { scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+    });
+    assert.ok(allScroll.scrollHeight > allScroll.clientHeight, 'タブレットの全対象一覧に縦スクロールが必要');
+    assert.ok(allScroll.scrollTop > 0, 'タブレットで全対象一覧を最下部まで縦スクロールできる');
     await page.setViewportSize({ width: 1200, height: 800 });
     const overflow = await page.locator('.bm-screen').evaluate((element) => element.scrollWidth > element.clientWidth);
     assert.equal(overflow, true, '狭い画面ではミラーカラム全体を横スクロールできる');
