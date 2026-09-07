@@ -2281,7 +2281,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .analytics-screen .month-table td.sticky-left { position:sticky; left:0; background:inherit; z-index:1; }
 
 /* 基本管理：企業 → 基本案件 → 個別案件 → 金額データのミラーカラム */
-.bm-screen { height:100%; min-height:0; display:flex; flex-direction:column; overflow:auto; color:#102a43; }
+.bm-screen { height:100%; min-height:0; display:flex; flex-direction:column; overflow-x:auto; overflow-y:hidden; color:#102a43; }
 .bm-guide { display:flex; justify-content:space-between; align-items:center; gap:16px; min-width:1480px; min-height:42px; padding:0 2px 10px; font-size:13px; color:#46627f; }
 .bm-guide strong { color:#1459c7; }
 .bm-breadcrumb { display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:800; color:#0f2742; }
@@ -2320,7 +2320,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-placeholder { color:#71869b; background:#fafbfd; font-size:14px; }
 .bm-preview { min-width:0; min-height:0; display:flex; flex-direction:column; background:#f8fafc; }
 .bm-preview-title { flex:0 0 56px; padding:17px 14px; border-bottom:1px solid #9eb3ce; background:#f7f9fc; font-size:16px; font-weight:800; }
-#bm-preview-body { min-height:0; overflow:auto; padding:12px; }
+#bm-preview-body { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; padding:12px; }
 .bm-preview-card { position:relative; min-height:100%; overflow:hidden; border:1px solid #b8c7db; border-radius:9px; background:#fff; }
 .bm-preview-hero { display:flex; justify-content:space-between; align-items:start; gap:16px; padding:18px 16px; background:linear-gradient(135deg,#244ca8,#2c64da); color:#fff; }
 .bm-preview-hero small { font-size:13px; font-weight:800; }
@@ -2333,6 +2333,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-detail-grid span { display:block; margin-bottom:3px; color:#587391; font-size:12px; }
 .bm-detail-grid strong { display:block; overflow-wrap:anywhere; color:#102a43; font-size:15px; }
 .bm-alert { margin:12px 14px 0; padding:9px 11px; border:1px solid #ef9a9a; border-radius:6px; background:#fff1f1; color:#b42318; font-size:13px; font-weight:800; }
+.bm-amount-note { margin:10px 14px 0; color:#587391; font-size:12px; line-height:1.55; }
 .bm-next { margin:12px 14px; padding:11px 12px; border:1px solid #8ab7f7; border-radius:7px; background:#eef6ff; }
 .bm-next span { display:block; color:#52759a; font-size:12px; font-weight:800; }
 .bm-next strong { display:block; margin-top:4px; color:#07459c; font-size:14px; }

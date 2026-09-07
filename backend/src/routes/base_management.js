@@ -41,7 +41,11 @@ router.get('/', async (_req, res) => {
                 ps.base_project_id, ps.project_id, ps.apply_start_date,
                 ps.apply_end_date, ps.updated_at,
                 (SELECT COUNT(*) FROM price_set_lines psl
-                 WHERE psl.price_set_id = ps.price_set_id AND psl.is_deleted = 0) AS line_count
+                 WHERE psl.price_set_id = ps.price_set_id AND psl.is_deleted = 0) AS line_count,
+                (SELECT COALESCE(SUM(psl.billing_unit_price), 0) FROM price_set_lines psl
+                 WHERE psl.price_set_id = ps.price_set_id AND psl.is_deleted = 0) AS billing_unit_total,
+                (SELECT COALESCE(SUM(psl.payment_unit_price), 0) FROM price_set_lines psl
+                 WHERE psl.price_set_id = ps.price_set_id AND psl.is_deleted = 0) AS payment_unit_total
          FROM price_sets ps
          WHERE ps.is_deleted = 0
          ORDER BY ps.apply_start_date DESC, ps.price_set_id DESC`

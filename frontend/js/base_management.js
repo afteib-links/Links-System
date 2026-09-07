@@ -55,6 +55,7 @@
       const v = String(value);
       return v === 'end' || v === '末' || v === '末日' ? '末日' : `${v.replace('日', '')}日`;
     },
+    money(value) { return `￥${Math.round(Number(value || 0)).toLocaleString('ja-JP')}`; },
     idOf(type, row) {
       return Number(row?.[`${type === 'base' ? 'base_project' : type === 'price' ? 'price_set' : type}_id`] || 0);
     },
@@ -121,7 +122,7 @@
     columnHeader(type, title, count, controls) {
       const [key, direction] = this.state.sort[type];
       const button = (sortKey, label) => `<button type="button" class="bm-sort ${key === sortKey ? 'is-active' : ''}" data-sort-type="${type}" data-sort-key="${sortKey}">${this.esc(label)}${key === sortKey ? (direction > 0 ? ' ▲' : ' ▼') : ''}</button>`;
-      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span>${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}</div></div>`;
+      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span data-count-type="${type}">${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}</div></div>`;
     },
 
     render() {
@@ -134,7 +135,7 @@
       const allBase = `<button type="button" class="bm-sort ${this.state.all && this.state.companyId ? 'is-active' : ''}" data-all="base" ${this.state.companyId ? '' : 'disabled'}>全対象</button>`;
       const body = `
         <section class="bm-screen" aria-label="基本管理">
-          <div class="bm-guide"><div class="bm-breadcrumb">${crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業'}</div><div><strong>クリック</strong>で詳細 <span>／</span> <strong>ダブルクリック</strong>で編集画面</div></div>
+          <div class="bm-guide"><div class="bm-breadcrumb" id="bm-breadcrumb">${crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業'}</div><div><strong>クリック</strong>で詳細 <span>／</span> <strong>ダブルクリック</strong>で編集画面</div></div>
           <div class="bm-workspace">
             <div class="bm-browser">
               <div class="bm-heads">
@@ -150,7 +151,9 @@
         </section>`;
       this.ctx.app.innerHTML = this.kit.shell('基本管理', body, { wide: true, showHistoryBack: false, scrollBodyOnly: true });
       this.kit.bindShell();
-      this.bind();
+      this.bindControls();
+      this.bindRows();
+      this.bindPreview();
     },
 
     normalColumns() {
@@ -264,10 +267,15 @@
         const company = this.company(row.company_id || project?.company_id || base?.company_id);
         const today = '2026-09-08';
         const status = row.apply_start_date > today ? '適用予定' : row.apply_end_date && row.apply_end_date < today ? '適用終了' : '適用中';
-        items = [['金額データNo', row.price_set_no || row.price_set_id], ['名称', row.price_set_name], ['企業', company?.company_name], ['基本案件', base?.template_name], ['個別案件', project ? this.nameOf('project', project) : '基本案件用'], ['適用開始日', this.date(row.apply_start_date)], ['適用終了日', this.date(row.apply_end_date)], ['料金項目数', `${row.line_count || 0}件`], ['適用状態', status]];
+        const billing = Number(row.billing_unit_total || 0);
+        const payment = Number(row.payment_unit_total || 0);
+        const difference = billing - payment;
+        const margin = billing > 0 ? `${((difference / billing) * 100).toFixed(1)}%` : '算出不可';
+        items = [['金額データNo', row.price_set_no || row.price_set_id], ['名称', row.price_set_name], ['企業', company?.company_name], ['基本案件', base?.template_name], ['個別案件', project ? this.nameOf('project', project) : '基本案件用'], ['適用開始日', this.date(row.apply_start_date)], ['適用終了日', this.date(row.apply_end_date)], ['料金行数', `${row.line_count || 0}件`], ['請求単価合計', this.money(billing)], ['支払単価合計', this.money(payment)], ['単価差額合計', this.money(difference)], ['参考利益率', margin], ['適用状態', status]];
         next = status === '適用終了' ? '必要に応じてコピーして次の改定を作成してください。' : '料金項目と適用期間を確認し、必要なら改定コピーしてください。';
       }
-      return `<div class="bm-preview-card"><div class="bm-preview-hero"><div><small>${TYPE_LABELS[type]}</small><h2>${this.esc(this.nameOf(type, row))}</h2><p>選択項目の登録内容と関連状況</p></div><button type="button" class="btn bm-edit" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集を開く</button></div>${notice}${this.detailGrid(items)}<div class="bm-next"><span>次に確認・設定する内容</span><strong>${this.esc(next)}</strong></div><div class="bm-preview-actions"><button type="button" class="btn" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集画面へ</button>${type === 'price' ? '<button type="button" class="btn btn-ghost" data-copy-price>コピーして改定</button>' : ''}</div><p class="bm-updated">最終更新 ${this.esc(row.updated_at ? String(row.updated_at).replace('T', ' ').slice(0, 16) : '未取得')}</p></div>`;
+      const amountNote = type === 'price' ? '<p class="bm-amount-note">金額は登録されている料金行の単価を合算した確認用の参考値です。月次の請求額・支払額ではありません。</p>' : '';
+      return `<div class="bm-preview-card"><div class="bm-preview-hero"><div><small>${TYPE_LABELS[type]}</small><h2>${this.esc(this.nameOf(type, row))}</h2><p>選択項目の登録内容と関連状況</p></div><button type="button" class="btn bm-edit" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集を開く</button></div>${notice}${this.detailGrid(items)}${amountNote}<div class="bm-next"><span>次に確認・設定する内容</span><strong>${this.esc(next)}</strong></div><div class="bm-preview-actions"><button type="button" class="btn" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集画面へ</button>${type === 'price' ? '<button type="button" class="btn btn-ghost" data-copy-price>コピーして改定</button>' : ''}</div><p class="bm-updated">最終更新 ${this.esc(row.updated_at ? String(row.updated_at).replace('T', ' ').slice(0, 16) : '未取得')}</p></div>`;
     },
 
     select(type, id) {
@@ -276,7 +284,7 @@
       if (!row) return;
       if (this.state.all) {
         this.state.selected = { type, row };
-        this.render();
+        this.updateSelection();
         return;
       }
       if (type === 'company') Object.assign(this.state, { companyId: row.company_id, baseId: null, projectId: null, priceId: null });
@@ -284,7 +292,7 @@
       if (type === 'project') Object.assign(this.state, { companyId: row.company_id, baseId: row.base_project_id, projectId: row.project_id, priceId: null });
       if (type === 'price') Object.assign(this.state, { priceId: row.price_set_id });
       this.state.selected = { type, row };
-      this.render();
+      this.updateSelection(type);
     },
 
     edit(type, id) {
@@ -294,18 +302,45 @@
       return this.ctx.openFeature('price_sets', { price_set_id: id });
     },
 
-    bind() {
-      let clickTimer = null;
+    updateSelection(changedType = null) {
+      const downstream = changedType === 'company' ? ['base', 'project', 'price'] : changedType === 'base' ? ['project', 'price'] : changedType === 'project' ? ['price'] : [];
+      downstream.forEach((type) => {
+        const list = document.querySelector(`[data-list="${type}"]`);
+        if (!list) return;
+        list.innerHTML = this.listRows(type);
+        this.bindRows(list);
+        const count = document.querySelector(`[data-count-type="${type}"]`);
+        if (count) count.textContent = String(this.rows(type).length);
+      });
       document.querySelectorAll('[data-type][data-id]').forEach((element) => {
+        const selected = this.state.selected?.type === element.dataset.type && this.idOf(element.dataset.type, this.state.selected.row) === Number(element.dataset.id);
+        element.classList.toggle('is-selected', selected);
+      });
+      const crumbs = this.breadcrumbs();
+      const breadcrumb = document.getElementById('bm-breadcrumb');
+      if (breadcrumb) breadcrumb.innerHTML = crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業';
+      const preview = document.getElementById('bm-preview-body');
+      if (preview) {
+        preview.innerHTML = this.preview();
+        preview.scrollTop = 0;
+        this.bindPreview();
+      }
+    },
+
+    bindRows(root = document) {
+      root.querySelectorAll('[data-type][data-id]').forEach((element) => {
         element.addEventListener('click', () => {
-          clearTimeout(clickTimer);
-          clickTimer = setTimeout(() => this.select(element.dataset.type, element.dataset.id), 180);
+          clearTimeout(this.clickTimer);
+          this.clickTimer = setTimeout(() => this.select(element.dataset.type, element.dataset.id), 180);
         });
         element.addEventListener('dblclick', () => {
-          clearTimeout(clickTimer);
+          clearTimeout(this.clickTimer);
           this.edit(element.dataset.type, Number(element.dataset.id));
         });
       });
+    },
+
+    bindControls() {
       document.querySelectorAll('[data-sort-type]').forEach((button) => button.addEventListener('click', () => {
         const type = button.dataset.sortType;
         const key = button.dataset.sortKey;
@@ -322,7 +357,10 @@
         Object.assign(this.state, { all: true, baseId: null, projectId: null, priceId: null, selected: null });
         this.render();
       });
-      document.querySelectorAll('[data-edit-type]').forEach((button) => button.addEventListener('click', () => this.edit(button.dataset.editType, Number(button.dataset.editId))));
+    },
+
+    bindPreview() {
+      document.querySelectorAll('#bm-preview-body [data-edit-type]').forEach((button) => button.addEventListener('click', () => this.edit(button.dataset.editType, Number(button.dataset.editId))));
       document.querySelector('[data-copy-price]')?.addEventListener('click', () => this.ctx.openFeature('price_sets', { price_set_id: this.idOf('price', this.state.selected?.row) }));
     },
   };

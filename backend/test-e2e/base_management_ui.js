@@ -35,7 +35,7 @@ async function main() {
           ],
           base_projects: [{ base_project_id: 11, company_id: 1, template_name: '定期便', closing_date: 'end' }],
           projects: [{ project_id: 21, base_project_id: 11, company_id: 1, partner_id: 31, partner_name: 'パートナーA', closing_date: 'end' }],
-          price_sets: [{ price_set_id: 41, price_set_no: 'PS-001', price_set_name: '通常料金', company_id: 1, project_id: 21, apply_start_date: '2026-09-01', line_count: 3 }],
+          price_sets: [{ price_set_id: 41, price_set_no: 'PS-001', price_set_name: '通常料金', company_id: 1, project_id: 21, apply_start_date: '2026-09-01', line_count: 3, billing_unit_total: 75000, payment_unit_total: 60000 }],
         };
       }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -43,13 +43,19 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'networkidle' });
     await page.locator('[data-nav-feature="base_management"]').click();
     await page.locator('.bm-screen').waitFor();
+    const initialScreen = await page.locator('.bm-screen').elementHandle();
     assert.equal(await page.locator('.bm-heads .bm-column-title').count(), 4);
     await page.locator('[data-list="company"] [data-id="1"]').click();
     await page.locator('[data-list="base"] [data-id="11"]').click();
     await page.locator('[data-list="project"] [data-id="21"]').click();
     await page.locator('[data-list="price"] [data-id="41"]').click();
-    await page.getByText('料金項目数').waitFor();
+    await page.getByText('請求単価合計').waitFor();
     assert.match(await page.locator('#bm-preview-body').innerText(), /通常料金/);
+    assert.match(await page.locator('#bm-preview-body').innerText(), /￥75,000/);
+    assert.equal(await initialScreen.evaluate((element) => element.isConnected), true, '項目選択で画面全体を再描画しない');
+    await page.setViewportSize({ width: 1600, height: 700 });
+    const previewOverflow = await page.locator('#bm-preview-body').evaluate((element) => element.scrollHeight > element.clientHeight);
+    assert.equal(previewOverflow, true, '詳細プレビュー本文だけを縦スクロールできる');
     await page.locator('[data-all="company"]').click();
     await page.locator('.bm-all-table').waitFor();
     assert.match(await page.locator('.bm-all-table').innerText(), /基本案件なし/);
