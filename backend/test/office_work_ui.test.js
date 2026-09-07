@@ -25,9 +25,29 @@ test('事務作業は日報チェック・PDF表示・案件選択を提供す�
   assert.match(source, /settlements\/\$\{this\.type\}\/\$\{ids\[0\]\}\/preview/);
 });
 
-test('事務作業プレビューは画面内固定と内部スクロールを使う', () => {
+test('事務作業プレビューは案件一覧を置かず進行状況を表示する', () => {
   const css = read('frontend/css/styles.css');
+  const source = read('frontend/js/office_work.js');
   assert.match(css, /\.office-preview-card \{[^}]*height:100%[^}]*overflow:hidden[^}]*display:flex/s);
-  assert.match(css, /\.office-project-table \{[^}]*flex:1[^}]*overflow:auto/s);
+  assert.doesNotMatch(source, /office-project-table/);
+  assert.match(source, /未入力/);
+  assert.match(source, /請求支払/);
+  assert.match(source, /日報未承認/);
+  assert.match(source, /出力済み/);
   assert.match(css, /\.office-column-row \{[^}]*padding:18px 12px 10px[^}]*align-items:flex-start/s);
+});
+
+test('全対象と第3ミラーの業務フィルターを提供する', () => {
+  const css = read('frontend/css/styles.css');
+  const source = read('frontend/js/office_work.js');
+  assert.match(source, /id="office-all-companies">全対象/);
+  assert.match(source, /data-company-sort="number">企業No/);
+  assert.match(source, /data-company-sort="closing">締日/);
+  assert.match(source, /data-company-sort="kana">フリガナ/);
+  assert.match(source, /data-type-filter/);
+  assert.match(source, /renderAllTable/);
+  assert.match(source, /詳細プレビュー/);
+  assert.match(css, /grid-template-columns:300px 220px 230px minmax\(400px,1fr\)/);
+  assert.match(css, /\.office-column-row strong,[^}]*font-size:18px/s);
+  assert.match(css, /\.office-head-actions \.btn \{[^}]*min-height:38px[^}]*font-size:14px/s);
 });

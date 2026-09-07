@@ -261,11 +261,13 @@
     .preview-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .preview-actions .btn { min-height: 40px; font-size: 15px; }
     .updated { margin-left: auto; color: #64748b; font-size: 12px; text-align: right; }
-    .preview-projects { min-height: 90px; flex: 1; overflow: auto; padding: 0; }
-    .preview-projects table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .preview-projects th, .preview-projects td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
-    .preview-projects thead { position: sticky; top: 0; background: #f1f5f9; }
-    .preview-projects .btn { min-height: 30px; padding: 4px 8px; font-size: 12px; }
+    .preview-status-grid { min-height: 90px; flex: 1; padding: 9px 10px; background: #f8fafc; }
+    .preview-status-grid h3 { margin: 0 0 7px; font-size: 12px; }
+    .preview-status-grid > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .preview-status-grid article { padding: 7px 8px; border: 1px solid #dbe3ec; border-left: 4px solid #2563eb; border-radius: 6px; background: #fff; }
+    .preview-status-grid small, .preview-status-grid strong { display: block; }
+    .preview-status-grid small { color: #64748b; font-size: 10px; }
+    .preview-status-grid strong { margin-top: 2px; font-size: 15px; }
 
     .project-dialog {
       width: 100vw;
@@ -480,19 +482,22 @@
       if (type === '日報') {
         const attention = project.seed % 6 === 0;
         const complete = entered === days && !attention;
-        return { status: attention ? '差戻し' : complete ? '承認済み' : entered === days ? '承認待ち' : '入力中', tone: attention ? 'attention' : complete ? 'complete' : entered === days ? 'waiting' : 'working', progress: `${entered}/${days}日`, amount: billing, entered, days, confirmed, billing, payment };
+        const settled = complete && project.seed % 2 === 0;
+        return { status: attention ? '差戻し' : settled ? '請求支払' : complete ? '承認済み' : entered === days ? '承認中' : entered ? '入力済み' : '未入力', tone: attention ? 'attention' : complete ? 'complete' : entered === days ? 'waiting' : 'working', progress: `${entered}/${days}日`, amount: billing, entered, days, confirmed, billing, payment };
       }
       if (type === '請求') {
         const modes = [
-          { status: '日報未承認', tone: 'attention' }, { status: '下書き', tone: 'working' },
-          { status: '営業確認待ち', tone: 'waiting' }, { status: '確定・発行済み', tone: 'complete' }
+          { status: '日報未承認', tone: 'attention' }, { status: '入力中', tone: 'working' },
+          { status: '入力済み', tone: 'working' }, { status: '承認中', tone: 'waiting' },
+          { status: '承認済み', tone: 'complete' }, { status: '出力済み', tone: 'complete' }
         ];
         const mode = modes[project.seed % modes.length];
         return { ...mode, progress: mode.status, amount: Math.round(billing * 1.1), billing };
       }
       const modes = [
-        { status: '日報未承認', tone: 'attention' }, { status: '下書き', tone: 'working' },
-        { status: '営業確認待ち', tone: 'waiting' }, { status: '確定済み', tone: 'complete' }
+        { status: '日報未承認', tone: 'attention' }, { status: '入力中', tone: 'working' },
+        { status: '入力済み', tone: 'working' }, { status: '承認中', tone: 'waiting' },
+        { status: '承認済み', tone: 'complete' }, { status: '出力済み', tone: 'complete' }
       ];
       const mode = modes[(project.seed + 1) % modes.length];
       const advance = project.seed % 3 === 0 ? 50000 : 0;
@@ -669,7 +674,8 @@
       const warning = summary.tone === 'attention' ? `<p class="preview-warning">⚠ 要対応の案件が ${summary.metrics.filter(m => m.tone === 'attention').length}件あります</p>` : '';
       const closeDate = state.company.closing;
       const headerAction = state.itemType === '日報' ? '日報チェック' : 'PDF表示';
-      const projectRows = summary.projects.map(project => { const metric = projectMetrics(project, state.itemType); return `<tr><td>#${project.id}</td><td>${escapeHtml(project.name)}</td><td>${project.closing}</td><td>${badge(metric.progress, metric.tone)}</td><td><button type="button" class="btn btn-secondary" data-preview-open="${project.id}">${state.itemType === '日報' ? '日報確認' : '入力画面'}</button></td></tr>`; }).join('');
+      const statusLabels = state.itemType === '日報' ? ['未入力', '入力済み', '承認中', '承認済み', '請求支払', '差戻し'] : ['日報未承認', '入力中', '入力済み', '承認中', '承認済み', '出力済み'];
+      const statusBlocks = statusLabels.map(label => `<article><small>${label}</small><strong>${summary.metrics.filter(metric => metric.status === label).length}件</strong></article>`).join('');
       el.preview.innerHTML = `<article class="preview-card">
         <header class="preview-header"><div class="preview-header-main"><p class="preview-kicker">${state.itemType}・選択範囲の集計</p><h2>${state.company.name} / ${state.partner.name}</h2><p>${formatYm(state.ym)}　${badge(summary.status, summary.tone)}</p></div><button type="button" class="btn" id="preview-head-action">${headerAction}</button></header>
         <section class="preview-section"><div class="context-grid">
@@ -680,11 +686,10 @@
         </div><p class="scope-note">表示金額・件数は、選択中の企業 × パートナー × 対象月の集計です。</p></section>
         <section class="preview-section"><h3 class="section-heading">処理状況</h3><div class="metric-grid">${metrics}</div>${warning}</section>
         <section class="preview-section"><div class="next-action ${summary.tone === 'attention' ? 'attention' : summary.tone === 'waiting' ? 'warning' : ''}"><small>次に必要な作業</small><strong>${nextActionFor(state.itemType, summary)}</strong></div></section>
-        <section class="preview-projects"><table><thead><tr><th>案件No</th><th>案件名</th><th>締日</th><th>進捗・状態</th><th>操作</th></tr></thead><tbody>${projectRows}</tbody></table></section>
+        <section class="preview-status-grid"><h3>進行状況</h3><div>${statusBlocks}</div></section>
         <footer class="preview-section preview-actions"><button type="button" class="btn btn-primary" id="open-input">入力画面を開く</button><span class="updated">最終更新 2026/08/${String(12 + summary.projects.length).padStart(2, '0')} 16:20<br>更新者：総務 担当者</span></footer>
       </article>`;
       document.getElementById('open-input').onclick = openSelectedBusiness;
-      document.querySelectorAll('[data-preview-open]').forEach(button => button.onclick = () => navigateToProject(summary.projects.find(project => project.id === Number(button.dataset.previewOpen))));
       document.getElementById('preview-head-action').onclick = () => {
         if (state.itemType === '日報') return openSelectedBusiness();
         const params = new URLSearchParams({ target_year_month: state.ym, company_id: state.company.id, partner_id: state.partner.id, view: 'pdf' });
