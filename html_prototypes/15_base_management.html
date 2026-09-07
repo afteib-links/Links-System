@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本管理 - LinksSys</title>
+<!--
+  操作イメージ確認（静的HTML・実データなし）
+  1. 企業 → 基本案件 → 個別案件 → 金額データ
+  2. クリックで詳細、ダブルクリックで編集画面
+  3. 第1列の全対象は全体、第2列の全対象はその企業
+-->
+<link rel="stylesheet" href="common.css">
+<style>
+  :root {
+    --col-company: 280px;
+    --col-base: 280px;
+    --col-project: 280px;
+    --col-price: 280px;
+    --row-h: 88px;
+    --col-line: #94a3b8;
+    --blue: #1d4ed8;
+    --blue-soft: #eff6ff;
+  }
+  .main-content { min-width: 0; }
+  .app-header.app-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 58px;
+    min-height: 58px;
+    padding: 8px 20px;
+    background: #fff;
+    border-bottom: 1px solid #cbd5e1;
+    box-shadow: 0 2px 8px rgba(23,32,51,.04);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .sidebar-toggle {
+    width: 38px; height: 38px; flex: 0 0 38px;
+    border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; font-size: 18px; cursor: pointer;
+  }
+  .topbar-context { flex: 0 0 auto; color: #64748b; font-size: 13px; white-space: nowrap; }
+  .topbar-page-title {
+    flex: 1 1 auto; min-width: 0; margin: 0; font-size: 22px; font-weight: 700; color: #0f172a;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .header-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .app-topbar .btn-secondary {
+    color: #0f172a; border: 1px solid #94a3b8; background: #fff; min-height: 38px;
+    text-decoration: none; display: inline-flex; align-items: center; padding: 7px 12px;
+    border-radius: 6px; font-size: 14px;
+  }
+  .app-topbar .btn-secondary:hover { background: #edf2f7; }
+  .user-pill { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+  .user-pill strong { font-size: 14px; color: #0f172a; }
+  .user-pill span { font-size: 12px; color: #64748b; }
+  .page-body.miller-page {
+    padding: 12px 16px 16px; overflow: hidden; display: flex; flex-direction: column; gap: 10px;
+  }
+  .office-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+  .interaction-guide {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px; color: #334155; background: #f8fafc; border: 1px solid #cbd5e1;
+    border-radius: 7px; font-size: 14px; white-space: nowrap;
+  }
+  .interaction-guide strong { color: var(--blue); }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #0f172a; flex-shrink: 0; }
+  .breadcrumb span.active { font-weight: 700; }
+  .grid-scroll {
+    flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--col-line); border-radius: 8px; background: #fff;
+  }
+  .miller-grid {
+    min-width: 1480px; min-height: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: var(--col-company) var(--col-base) var(--col-project) var(--col-price) minmax(320px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .col-head {
+    grid-row: 1; padding: 10px 12px; background: #f8fafc;
+    border-bottom: 1px solid var(--col-line); border-right: 1px solid var(--col-line); min-height: 96px;
+  }
+  .col-head-preview { border-right: none; }
+  .column-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .column-title { font-size: 16px; font-weight: 700; color: #64748b; }
+  .column-count { font-size: 16px; background: #e2e8f0; padding: 4px 10px; border-radius: 12px; color: #334155; }
+  .sort-row { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .sort-btn {
+    border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 14px; font-weight: 600;
+    min-height: 38px; padding: 6px 9px; border-radius: 6px; cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .sort-btn:hover { background: #eef2f7; }
+  .sort-btn.active { background: var(--blue-soft); border-color: #2563eb; color: var(--blue); }
+  .sort-btn.all-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .sort-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .col-body {
+    grid-row: 2; overflow-y: auto; overflow-x: hidden; border-right: 1px solid var(--col-line);
+    min-height: 0; list-style: none; margin: 0; padding: 0;
+  }
+  .col-body.hidden, .all-body.hidden { display: none !important; }
+  .all-body {
+    grid-column: 1 / 5; grid-row: 2; overflow: auto; min-height: 0; border-right: 1px solid var(--col-line);
+  }
+  .preview-body { grid-column: 5; grid-row: 2; overflow-y: auto; background: #f8fafc; min-height: 0; }
+  .column-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    height: var(--row-h); min-height: var(--row-h); max-height: var(--row-h);
+    padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #e2e8f0; box-sizing: border-box; user-select: none;
+  }
+  .column-item:hover { background: #f8fafc; }
+  .column-item.selected { background: var(--blue-soft); box-shadow: inset 4px 0 0 #2563eb; }
+  .column-item .chevron { font-size: 20px; color: #94a3b8; flex-shrink: 0; }
+  .item-stack { min-width: 0; flex: 1; }
+  .item-name { font-size: 18px; font-weight: 700; color: #0f172a; line-height: 1.2; }
+  .column-item.selected .item-name { color: var(--blue); }
+  .item-fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; font-size: 14px; color: #475569; }
+  .empty-message {
+    display: flex; align-items: center; height: var(--row-h); padding: 0 16px; color: #64748b; font-size: 14px;
+  }
+  .preview-content { padding: 10px; height: 100%; }
+  .preview-placeholder {
+    min-height: 100%; display: grid; place-items: center; padding: 30px; color: #64748b; text-align: center; font-size: 16px;
+  }
+  .preview-card {
+    min-height: 100%; display: flex; flex-direction: column; background: #fff;
+    border: 1px solid #cbd5e1; border-radius: 9px; overflow: hidden;
+  }
+  .preview-header {
+    padding: 14px 16px; color: #fff; background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  }
+  .preview-kicker { margin: 0 0 4px; color: #bfdbfe; font-size: 13px; font-weight: 700; }
+  .preview-header h2 { margin: 0; font-size: 20px; }
+  .preview-header p { margin: 6px 0 0; color: #dbeafe; font-size: 14px; }
+  .preview-header .btn { color: #1e3a8a; background: #fff; border-color: #fff; min-height: 40px; }
+  .preview-section { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
+  .preview-section:last-child { border-bottom: 0; }
+  .context-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+  .context-item small { display: block; color: #64748b; font-size: 12px; }
+  .context-item strong { display: block; margin-top: 2px; color: #0f172a; font-size: 16px; }
+  .preview-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .summary-box { min-height: 70px; padding: 10px 11px; border: 1px solid #dbe3ec; border-radius: 7px; background: #f8fafc; }
+  .summary-box small, .summary-box strong { display: block; }
+  .summary-box small { color: #64748b; font-size: 12px; }
+  .summary-box strong { margin-top: 4px; color: #0f172a; font-size: 18px; }
+  .next-action { padding: 11px 12px; border: 1px solid #bfdbfe; border-radius: 7px; background: #eff6ff; }
+  .next-action small, .next-action strong { display: block; }
+  .next-action small { color: #64748b; font-size: 12px; font-weight: 700; }
+  .next-action strong { margin-top: 4px; color: #1e3a8a; font-size: 14px; }
+  .preview-warning { margin: 10px 0 0; padding: 9px 11px; border-left: 4px solid #dc2626; background: #fef2f2; color: #b42318; font-size: 13px; font-weight: 700; }
+  .status-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .status-active { color: #15803d; background: #dcfce7; }
+  .status-future { color: #1d4ed8; background: #dbeafe; }
+  .status-expired { color: #64748b; background: #e2e8f0; }
+  .empty-inline { color: #94a3b8; font-size: 14px; font-weight: 600; }
+  .preview-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .preview-actions .btn { min-height: 40px; font-size: 15px; }
+  .all-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 16px; }
+  .all-table col.col-c { width: var(--col-company); }
+  .all-table col.col-b { width: var(--col-base); }
+  .all-table col.col-p { width: var(--col-project); }
+  .all-table col.col-r { width: var(--col-price); }
+  .all-table td {
+    height: var(--row-h); min-height: var(--row-h); padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0; border-right: 1px solid var(--col-line);
+    vertical-align: middle; box-sizing: border-box;
+  }
+  .all-table td.group-cell { font-weight: 700; vertical-align: top; height: auto; }
+  .all-table td.group-cell.selected { background: var(--blue-soft); box-shadow: inset 4px 0 0 #2563eb; }
+  .all-table tr.item-row { cursor: pointer; height: var(--row-h); }
+  .all-table tr.item-row:hover td.leaf-cell { background: #f8fafc; }
+  .all-table tr.item-row.selected td.leaf-cell { background: var(--blue-soft); box-shadow: inset 4px 0 0 #2563eb; }
+  .sidebar.collapsed { width: 0; overflow: hidden; border: 0; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="app-sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      ダッシュボード
+    </a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item active" href="15_base_management.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="10" y="3" width="7" height="18"/><rect x="17" y="3" width="4" height="18"/></svg>基本管理</a>
+    <a class="sidebar-item" href="03_company.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 21V7l6-4v18M9 7H3l0 14M15 11h.01M15 16h.01M9 11h.01M9 16h.01"/></svg>企業管理</a>
+    <a class="sidebar-item" href="04_partner.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>パートナー管理</a>
+    <a class="sidebar-item" href="05_base_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>基本案件管理</a>
+    <a class="sidebar-item" href="06_project.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>案件管理</a>
+    <a class="sidebar-item" href="07_price_master.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>金額データ管理</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="14_office_work_codex.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="10" y="3" width="7" height="18"/><rect x="17" y="3" width="4" height="18"/></svg>事務作業</a>
+    <a class="sidebar-item" href="08_daily_report.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>日報管理</a>
+    <a class="sidebar-item" href="09_invoice.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>請求管理</a>
+    <a class="sidebar-item" href="10_payment.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>支払管理</a>
+    <a class="sidebar-item" href="11_advance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>先払・分割支払</a>
+    <div class="sidebar-section-label">分析・決算</div>
+    <a class="sidebar-item" href="12_finance.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>収支管理・分析</a>
+    <a class="sidebar-item" href="13_analytics.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>収支分析</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">管</div>
+    <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+  </div>
+</aside>
+
+<div class="main-content">
+  <header class="app-header app-topbar">
+    <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む">☰</button>
+    <div class="topbar-context"><span>運送業務基幹システム</span></div>
+    <h1 class="topbar-page-title">基本管理</h1>
+    <div class="header-actions">
+      <div class="user-pill"><strong>管理者 Admin</strong><span>管理者</span></div>
+      <a class="btn btn-secondary" href="01_login.html">ログアウト</a>
+    </div>
+  </header>
+  <div class="page-body miller-page">
+    <div class="office-toolbar">
+      <span class="interaction-guide">クリックで<strong>詳細</strong>　／　ダブルクリックで<strong>編集画面</strong></span>
+      <a class="btn btn-outline" href="index.html">プロトタイプ一覧</a>
+    </div>
+    <div class="breadcrumb" id="breadcrumb"><span>企業を選択</span></div>
+    <div class="grid-scroll">
+      <div class="miller-grid">
+        <div class="col-head" style="grid-column:1">
+          <div class="column-header-top"><span class="column-title">企業</span><span class="column-count" id="companyCount">0</span></div>
+          <div class="sort-row" id="sortCompany"></div>
+        </div>
+        <div class="col-head" style="grid-column:2">
+          <div class="column-header-top"><span class="column-title">基本案件</span><span class="column-count" id="baseCount">0</span></div>
+          <div class="sort-row" id="sortBase"></div>
+        </div>
+        <div class="col-head" style="grid-column:3">
+          <div class="column-header-top"><span class="column-title">個別案件</span><span class="column-count" id="projectCount">0</span></div>
+          <div class="sort-row" id="sortProject"></div>
+        </div>
+        <div class="col-head" style="grid-column:4">
+          <div class="column-header-top"><span class="column-title">金額データ</span><span class="column-count" id="priceCount">0</span></div>
+          <div class="sort-row" id="sortPrice"></div>
+        </div>
+        <div class="col-head col-head-preview" style="grid-column:5">
+          <div class="column-header-top"><span class="column-title">詳細プレビュー</span></div>
+        </div>
+        <ul class="col-body" id="colCompany" style="grid-column:1"></ul>
+        <ul class="col-body" id="colBase" style="grid-column:2"></ul>
+        <ul class="col-body" id="colProject" style="grid-column:3"></ul>
+        <ul class="col-body" id="colPrice" style="grid-column:4"></ul>
+        <div class="all-body hidden" id="allBody">
+          <table class="all-table">
+            <colgroup>
+              <col class="col-c"><col class="col-b"><col class="col-p"><col class="col-r">
+            </colgroup>
+            <tbody id="allTableBody"></tbody>
+          </table>
+        </div>
+        <div class="preview-body">
+          <div id="colPreview" class="preview-content">
+            <div class="preview-placeholder">企業・基本案件・個別案件・金額データを選択してください</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const closingLabels = ['末日', '15日', '20日'];
+  const closingDays = [31, 15, 20];
+  const EDIT = { company: '03_company.html', base: '05_base_project.html', project: '06_project.html', price: '07_price_master.html' };
+
+  const companies = [];
+  const bases = [];
+  const projects = [];
+  const prices = [];
+  let baseSeq = 1;
+  let projSeq = 1;
+  let priceSeq = 1;
+  for (let i = 1; i <= 8; i++) {
+    const ci = (i - 1) % 3;
+    const company = {
+      id: i,
+      no: `C${String(i).padStart(3, '0')}`,
+      name: `企業${i}`,
+      kana: `キギョウ${i}`,
+      closingLabel: closingLabels[ci],
+      closingDay: closingDays[ci],
+      paymentLabel: i % 2 ? '翌月末日' : '翌月15日',
+      contractDate: `202${(i % 5) + 1}-04-01`
+    };
+    companies.push(company);
+    const baseCount = i === 8 ? 0 : (i % 2 === 0 ? 2 : 1);
+    for (let b = 1; b <= baseCount; b++) {
+      const bi = (i + b) % 3;
+      const base = {
+        id: baseSeq,
+        no: `BP-${String(baseSeq).padStart(4, '0')}`,
+        companyId: company.id,
+        name: `${company.name} テンプレ${b}`,
+        closingLabel: closingLabels[bi],
+        closingDay: closingDays[bi],
+        manager: ['担当A', '担当B', '担当C'][baseSeq % 3],
+        businessType: ['定期配送', 'スポット配送', '構内作業'][baseSeq % 3],
+        workCondition: b % 2 ? '08:00～17:00／休憩60分' : '09:00～18:00／休憩60分'
+      };
+      bases.push(base);
+      baseSeq += 1;
+      const projCount = i === 7 && b === 1 ? 0 : (b === 1 ? 2 : 1);
+      for (let p = 1; p <= projCount; p++) {
+        const pi = (i + p) % 3;
+        const project = {
+          id: projSeq,
+          no: `PRJ-${String(projSeq).padStart(4, '0')}`,
+          baseId: base.id,
+          companyId: company.id,
+          name: `${base.name} 案件${p}`,
+          closingLabel: closingLabels[pi],
+          closingDay: closingDays[pi],
+          partnerName: `パートナー${((projSeq - 1) % 9) + 1}`,
+          manager: ['担当A', '担当B', '担当C'][projSeq % 3],
+          businessType: base.businessType,
+          operationStart: `2026-${String(((projSeq - 1) % 6) + 1).padStart(2, '0')}-01`,
+          paymentType: projSeq % 4 === 0 ? '分割' : '通常',
+          shortageWarning: projSeq % 6 === 0
+        };
+        projects.push(project);
+        projSeq += 1;
+        const priceCount = i === 6 && b === 1 && p === 2 ? 0 : (p === 1 ? 2 : 1);
+        for (let r = 1; r <= priceCount; r++) {
+          const month = String(((i + r) % 9) + 1).padStart(2, '0');
+          prices.push({
+            id: priceSeq,
+            no: `PS-2026${month}01-${String(priceSeq).padStart(3, '0')}`,
+            projectId: project.id,
+            baseId: base.id,
+            companyId: company.id,
+            name: `${project.name} 料金${r}`,
+            startDate: `2026-${month}-01`,
+            endDate: r === 1 && priceSeq % 4 === 0 ? `2026-${month}-28` : null,
+            itemCount: 3 + (priceSeq % 5)
+          });
+          priceSeq += 1;
+        }
+      }
+    }
+  }
+
+  const state = {
+    company: null,
+    base: null,
+    project: null,
+    price: null,
+    focus: null,
+    allCompany: false,
+    allBase: false,
+    sort: {
+      company: { key: 'name', dir: 'asc' },
+      base: { key: 'name', dir: 'asc' },
+      project: { key: 'name', dir: 'asc' },
+      price: { key: 'name', dir: 'asc' }
+    }
+  };
+
+  const sortDefs = {
+    company: [{ key: 'name', label: '企業名' }, { key: 'closingDay', label: '締日' }],
+    base: [{ key: 'name', label: 'テンプレ名' }, { key: 'closingDay', label: '締日' }],
+    project: [{ key: 'name', label: 'テンプレ名' }, { key: 'closingDay', label: '締日' }],
+    price: [{ key: 'name', label: '名称' }, { key: 'startDate', label: '適用開始日' }]
+  };
+
+  const el = {
+    colCompany: document.getElementById('colCompany'),
+    colBase: document.getElementById('colBase'),
+    colProject: document.getElementById('colProject'),
+    colPrice: document.getElementById('colPrice'),
+    allBody: document.getElementById('allBody'),
+    allTableBody: document.getElementById('allTableBody'),
+    colPreview: document.getElementById('colPreview'),
+    companyCount: document.getElementById('companyCount'),
+    baseCount: document.getElementById('baseCount'),
+    projectCount: document.getElementById('projectCount'),
+    priceCount: document.getElementById('priceCount'),
+    breadcrumb: document.getElementById('breadcrumb'),
+    sortCompany: document.getElementById('sortCompany'),
+    sortBase: document.getElementById('sortBase'),
+    sortProject: document.getElementById('sortProject'),
+    sortPrice: document.getElementById('sortPrice')
+  };
+
+  let clickTimer = null;
+  function bindSelect(node, onSelect, href) {
+    node.addEventListener('click', (ev) => {
+      if (ev.detail > 1) return;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(onSelect, 280);
+    });
+    node.addEventListener('dblclick', (ev) => {
+      ev.preventDefault();
+      clearTimeout(clickTimer);
+      location.href = typeof href === 'function' ? href() : href;
+    });
+  }
+
+  function editHref(kind, context = {}) {
+    const company = context.company || state.company;
+    const base = context.base || state.base;
+    const project = context.project || state.project;
+    const price = context.price || state.price;
+    const params = new URLSearchParams();
+    if (company) params.set('company_id', company.id);
+    if (base && kind !== 'company') params.set('base_project_id', base.id);
+    if (project && ['project', 'price'].includes(kind)) params.set('project_id', project.id);
+    if (price && kind === 'price') params.set('price_set_id', price.id);
+    return `${EDIT[kind]}?${params.toString()}`;
+  }
+
+  function compare(a, b, key, dir) {
+    const av = a[key];
+    const bv = b[key];
+    const cmp = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv), 'ja');
+    return dir === 'desc' ? -cmp : cmp;
+  }
+
+  function sorted(list, which) {
+    const { key, dir } = state.sort[which];
+    return [...list].sort((a, b) => compare(a, b, key, dir));
+  }
+
+  function basesOf(companyId) { return bases.filter((x) => x.companyId === companyId); }
+  function projectsOf(baseId) { return projects.filter((x) => x.baseId === baseId); }
+  function pricesOf(projectId) { return prices.filter((x) => x.projectId === projectId); }
+
+  function isAllMode() {
+    return state.allCompany || (state.allBase && !!state.company);
+  }
+
+  function renderSort(which, host, extraFirst) {
+    host.innerHTML = '';
+    if (extraFirst) host.appendChild(extraFirst);
+    sortDefs[which].forEach((def) => {
+      const btn = document.createElement('button');
+      const active = state.sort[which].key === def.key;
+      btn.type = 'button';
+      btn.className = 'sort-btn' + (active ? ' active' : '');
+      btn.textContent = def.label + (active ? (state.sort[which].dir === 'asc' ? ' ▲' : ' ▼') : '');
+      btn.addEventListener('click', () => {
+        if (state.sort[which].key === def.key) {
+          state.sort[which].dir = state.sort[which].dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sort[which] = { key: def.key, dir: 'asc' };
+        }
+        renderAll();
+      });
+      host.appendChild(btn);
+    });
+  }
+
+  function allCompanyBtn() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sort-btn all-btn' + (state.allCompany ? ' active' : '');
+    btn.textContent = '全対象';
+    btn.addEventListener('click', () => {
+      state.allCompany = !state.allCompany;
+      if (state.allCompany) state.allBase = false;
+      renderAll();
+    });
+    return btn;
+  }
+
+  function allBaseBtn() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sort-btn all-btn' + (state.allBase && !state.allCompany ? ' active' : '');
+    btn.textContent = '全対象';
+    btn.disabled = !state.company || state.allCompany;
+    btn.addEventListener('click', () => {
+      if (!state.company || state.allCompany) return;
+      state.allBase = !state.allBase;
+      renderAll();
+    });
+    return btn;
+  }
+
+  function updateBreadcrumb() {
+    if (state.allCompany && !state.focus) {
+      el.breadcrumb.innerHTML = '<span class="active">全対象（全体）</span>';
+      return;
+    }
+    if (state.allBase && state.company && !state.focus) {
+      el.breadcrumb.innerHTML = `<span>${state.company.name}</span><span>&gt;</span><span class="active">全対象</span>`;
+      return;
+    }
+    const parts = [];
+    if (state.company) parts.push(state.company.name);
+    if (state.base) parts.push(state.base.name);
+    if (state.project) parts.push(state.project.name);
+    if (state.price) parts.push(state.price.name);
+    if (!parts.length) {
+      el.breadcrumb.innerHTML = '<span>企業を選択</span>';
+      return;
+    }
+    el.breadcrumb.innerHTML = parts.map((name, i) =>
+      `<span${i === parts.length - 1 ? ' class="active"' : ''}>${name}</span>`
+    ).join('<span>&gt;</span>');
+  }
+
+  function rowHtml(title, meta, chevron) {
+    return `<div class="item-stack"><div class="item-name">${title}</div><div class="item-fields">${meta}</div></div>${chevron ? '<span class="chevron">›</span>' : ''}`;
+  }
+
+  function renderCompanyColumn() {
+    const rows = sorted(companies, 'company');
+    el.companyCount.textContent = String(rows.length);
+    el.colCompany.innerHTML = '';
+    rows.forEach((comp) => {
+      const li = document.createElement('li');
+      li.className = 'column-item' + (state.company && state.company.id === comp.id ? ' selected' : '');
+      li.innerHTML = rowHtml(comp.name, `<span>${comp.no}</span><span>締日 ${comp.closingLabel}</span>`, true);
+      bindSelect(li, () => selectCompany(comp), () => editHref('company', { company: comp }));
+      el.colCompany.appendChild(li);
+    });
+  }
+
+  function renderBaseColumn() {
+    if (!state.company) {
+      el.baseCount.textContent = '0';
+      el.colBase.innerHTML = '<li class="empty-message">企業を選択してください</li>';
+      return;
+    }
+    const rows = sorted(basesOf(state.company.id), 'base');
+    el.baseCount.textContent = String(rows.length);
+    el.colBase.innerHTML = '';
+    if (!rows.length) {
+      el.colBase.innerHTML = '<li class="empty-message">基本案件がありません</li>';
+      return;
+    }
+    rows.forEach((base) => {
+      const li = document.createElement('li');
+      li.className = 'column-item' + (state.base && state.base.id === base.id ? ' selected' : '');
+      li.innerHTML = rowHtml(base.name, `<span>${base.no}</span><span>締日 ${base.closingLabel}</span>`, true);
+      bindSelect(li, () => selectBase(base), () => editHref('base', { company: state.company, base }));
+      el.colBase.appendChild(li);
+    });
+  }
+
+  function renderProjectColumn() {
+    if (!state.base) {
+      el.projectCount.textContent = '0';
+      el.colProject.innerHTML = '<li class="empty-message">基本案件を選択してください</li>';
+      return;
+    }
+    const rows = sorted(projectsOf(state.base.id), 'project');
+    el.projectCount.textContent = String(rows.length);
+    el.colProject.innerHTML = '';
+    if (!rows.length) {
+      el.colProject.innerHTML = '<li class="empty-message">個別案件がありません</li>';
+      return;
+    }
+    rows.forEach((project) => {
+      const li = document.createElement('li');
+      li.className = 'column-item' + (state.project && state.project.id === project.id ? ' selected' : '');
+      li.innerHTML = rowHtml(project.name, `<span>${project.no}</span><span>締日 ${project.closingLabel}</span>`, true);
+      bindSelect(li, () => selectProject(project), () => editHref('project', { company: state.company, base: state.base, project }));
+      el.colProject.appendChild(li);
+    });
+  }
+
+  function renderPriceColumn() {
+    if (!state.project) {
+      el.priceCount.textContent = '0';
+      el.colPrice.innerHTML = '<li class="empty-message">個別案件を選択してください</li>';
+      return;
+    }
+    const rows = sorted(pricesOf(state.project.id), 'price');
+    el.priceCount.textContent = String(rows.length);
+    el.colPrice.innerHTML = '';
+    if (!rows.length) {
+      el.colPrice.innerHTML = '<li class="empty-message">金額データがありません</li>';
+      return;
+    }
+    rows.forEach((price) => {
+      const li = document.createElement('li');
+      li.className = 'column-item' + (state.price && state.price.id === price.id ? ' selected' : '');
+      li.innerHTML = rowHtml(price.name, `<span>${price.no}</span><span>適用開始 ${price.startDate}</span>`, false);
+      bindSelect(li, () => selectPrice(price), () => editHref('price', { company: state.company, base: state.base, project: state.project, price }));
+      el.colPrice.appendChild(li);
+    });
+  }
+
+  function companiesForAllView() {
+    return state.allCompany ? sorted(companies, 'company') : (state.company ? [state.company] : []);
+  }
+
+  function leafSelected(comp, base, project, price) {
+    return state.company && state.company.id === comp.id
+      && state.base && state.base.id === base.id
+      && state.project && state.project.id === project.id
+      && state.price && state.price.id === price.id;
+  }
+
+  function renderHierarchy() {
+    el.allTableBody.innerHTML = '';
+    const rows = [];
+    const companyList = companiesForAllView();
+    companyList.forEach((company) => {
+      const baseList = sorted(basesOf(company.id), 'base');
+      if (!baseList.length) return rows.push({ company, base: null, project: null, price: null });
+      baseList.forEach((base) => {
+        const projectList = sorted(projectsOf(base.id), 'project');
+        if (!projectList.length) return rows.push({ company, base, project: null, price: null });
+        projectList.forEach((project) => {
+          const priceList = sorted(pricesOf(project.id), 'price');
+          if (!priceList.length) rows.push({ company, base, project, price: null });
+          else priceList.forEach((price) => rows.push({ company, base, project, price }));
+        });
+      });
+    });
+
+    const span = (row, key) => rows.filter((candidate) => {
+      if (candidate.company.id !== row.company.id) return false;
+      if (key === 'company') return true;
+      if ((candidate.base?.id || null) !== (row.base?.id || null)) return false;
+      if (key === 'base') return true;
+      return (candidate.project?.id || null) === (row.project?.id || null);
+    }).length;
+    const drawn = { company: new Set(), base: new Set(), project: new Set() };
+
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.className = 'item-row' + (row.price && leafSelected(row.company, row.base, row.project, row.price) ? ' selected' : '');
+      if (!drawn.company.has(row.company.id)) {
+        drawn.company.add(row.company.id);
+        const td = document.createElement('td');
+        td.className = 'group-cell' + (state.focus === 'company' && state.company?.id === row.company.id ? ' selected' : '');
+        td.rowSpan = span(row, 'company');
+        td.innerHTML = `<div class="item-name">${row.company.name}</div><div class="item-fields"><span>${row.company.no}</span><span>締日 ${row.company.closingLabel}</span></div>`;
+        bindSelect(td, () => selectCompany(row.company), () => editHref('company', { company: row.company }));
+        tr.appendChild(td);
+      }
+      if (!row.base) {
+        tr.insertAdjacentHTML('beforeend', '<td><span class="empty-inline">基本案件なし</span></td><td><span class="empty-inline">個別案件なし</span></td><td class="leaf-cell"><span class="empty-inline">金額データなし</span></td>');
+      } else {
+        const baseKey = `${row.company.id}:${row.base.id}`;
+        if (!drawn.base.has(baseKey)) {
+          drawn.base.add(baseKey);
+          const td = document.createElement('td');
+          td.className = 'group-cell' + (state.focus === 'base' && state.base?.id === row.base.id ? ' selected' : '');
+          td.rowSpan = span(row, 'base');
+          td.innerHTML = `<div class="item-name">${row.base.name}</div><div class="item-fields"><span>${row.base.no}</span><span>締日 ${row.base.closingLabel}</span></div>`;
+          bindSelect(td, () => { state.company = row.company; selectBase(row.base); }, () => editHref('base', row));
+          tr.appendChild(td);
+        }
+        if (!row.project) {
+          tr.insertAdjacentHTML('beforeend', '<td><span class="empty-inline">個別案件なし</span></td><td class="leaf-cell"><span class="empty-inline">金額データなし</span></td>');
+        } else {
+          const projectKey = `${row.company.id}:${row.base.id}:${row.project.id}`;
+          if (!drawn.project.has(projectKey)) {
+            drawn.project.add(projectKey);
+            const td = document.createElement('td');
+            td.className = 'group-cell' + (state.focus === 'project' && state.project?.id === row.project.id ? ' selected' : '');
+            td.rowSpan = span(row, 'project');
+            td.innerHTML = `<div class="item-name">${row.project.name}</div><div class="item-fields"><span>${row.project.no}</span><span>締日 ${row.project.closingLabel}</span></div>`;
+            bindSelect(td, () => { state.company = row.company; state.base = row.base; selectProject(row.project); }, () => editHref('project', row));
+            tr.appendChild(td);
+          }
+          if (!row.price) {
+            tr.insertAdjacentHTML('beforeend', '<td class="leaf-cell"><span class="empty-inline">金額データなし</span></td>');
+          } else {
+            const td = document.createElement('td');
+            td.className = 'leaf-cell';
+            td.innerHTML = `<div class="item-name">${row.price.name}</div><div class="item-fields"><span>${row.price.no}</span><span>適用開始 ${row.price.startDate}</span></div>`;
+            bindSelect(td, () => { state.company = row.company; state.base = row.base; state.project = row.project; selectPrice(row.price); }, () => editHref('price', row));
+            tr.appendChild(td);
+          }
+        }
+      }
+      el.allTableBody.appendChild(tr);
+    });
+    el.companyCount.textContent = String(companyList.length);
+    el.baseCount.textContent = String(new Set(rows.filter((row) => row.base).map((row) => row.base.id)).size);
+    el.projectCount.textContent = String(new Set(rows.filter((row) => row.project).map((row) => row.project.id)).size);
+    el.priceCount.textContent = String(rows.filter((row) => row.price).length);
+  }
+
+  function previewFields(pairs) {
+    return pairs.map(([label, value]) =>
+      `<div class="context-item"><small>${label}</small><strong>${value}</strong></div>`
+    ).join('');
+  }
+
+  function renderPreview() {
+    const kind = state.focus;
+    if (!kind) {
+      el.colPreview.innerHTML = '<div class="preview-placeholder">企業・基本案件・個別案件・金額データを選択してください</div>';
+      return;
+    }
+    let title = '';
+    let kicker = '';
+    let href = '';
+    let fields = '';
+    let note = '';
+    let summary = '';
+    let nextAction = '';
+    let warning = '';
+    let relatedAction = '';
+    if (kind === 'company' && state.company) {
+      kicker = '企業';
+      title = state.company.name;
+      href = editHref('company');
+      const companyBases = basesOf(state.company.id);
+      const companyProjects = projects.filter((project) => project.companyId === state.company.id);
+      const companyPrices = prices.filter((price) => price.companyId === state.company.id);
+      fields = previewFields([
+        ['企業No', state.company.no],
+        ['企業名', state.company.name],
+        ['フリガナ', state.company.kana],
+        ['締日', state.company.closingLabel],
+        ['支払日', state.company.paymentLabel],
+        ['契約日', state.company.contractDate]
+      ]);
+      summary = previewSummary([['基本案件', `${companyBases.length}件`], ['個別案件', `${companyProjects.length}件`], ['金額データ', `${companyPrices.length}件`]]);
+      nextAction = companyBases.length ? '基本案件の内容と、配下の個別案件・金額データを確認してください。' : 'この企業で使用する基本案件を登録してください。';
+      relatedAction = `<a class="btn btn-secondary" href="05_base_project.html?company_id=${state.company.id}">基本案件を確認</a>`;
+      note = 'ダブルクリック、または編集を開くで企業管理へ移動します。';
+    } else if (kind === 'base' && state.base) {
+      kicker = '基本案件';
+      title = state.base.name;
+      href = editHref('base');
+      const baseProjects = projectsOf(state.base.id);
+      const basePrices = prices.filter((price) => price.baseId === state.base.id);
+      fields = previewFields([
+        ['基本案件No', state.base.no],
+        ['テンプレ名', state.base.name],
+        ['企業', state.company ? state.company.name : '-'],
+        ['担当', state.base.manager],
+        ['業種', state.base.businessType],
+        ['勤務条件', state.base.workCondition],
+        ['締日', state.base.closingLabel]
+      ]);
+      summary = previewSummary([['個別案件', `${baseProjects.length}件`], ['配下金額データ', `${basePrices.length}件`], ['締日', state.base.closingLabel]]);
+      nextAction = !baseProjects.length ? '基本案件の内容を確認し、運用する個別案件を作成してください。' : !basePrices.length ? '個別案件に適用する金額データを登録してください。' : '個別案件と金額データの適用内容を確認してください。';
+      relatedAction = `<a class="btn btn-secondary" href="06_project.html?company_id=${state.company?.id || ''}&base_project_id=${state.base.id}">個別案件を確認</a>`;
+      note = 'ダブルクリック、または編集を開くで基本案件管理へ移動します。';
+    } else if (kind === 'project' && state.project) {
+      kicker = '個別案件';
+      title = state.project.name;
+      href = editHref('project');
+      const projectPrices = pricesOf(state.project.id);
+      fields = previewFields([
+        ['案件No', state.project.no],
+        ['案件名', state.project.name],
+        ['締日', state.project.closingLabel],
+        ['基本案件', state.base ? state.base.name : '-'],
+        ['企業', state.company ? state.company.name : '-'],
+        ['パートナー', state.project.partnerName],
+        ['担当', state.project.manager],
+        ['業種', state.project.businessType],
+        ['運用開始日', state.project.operationStart],
+        ['支払区分', state.project.paymentType]
+      ]);
+      summary = previewSummary([['金額データ', `${projectPrices.length}件`], ['支払区分', state.project.paymentType], ['運用開始', state.project.operationStart]]);
+      nextAction = projectPrices.length ? '適用中の金額データと、パートナー・勤務条件を確認してください。' : '請求・支払計算に使用する金額データを登録してください。';
+      warning = state.project.shortageWarning ? '<p class="preview-warning">⚠ 日次基準時間または不足控除の設定を確認してください。</p>' : '';
+      relatedAction = `<a class="btn btn-secondary" href="07_price_master.html?company_id=${state.company?.id || ''}&project_id=${state.project.id}">金額データを確認</a>`;
+      note = 'ダブルクリック、または編集を開くで案件管理へ移動します。';
+    } else if (kind === 'price' && state.price) {
+      kicker = '金額データ';
+      title = state.price.name;
+      href = editHref('price');
+      const status = priceStatus(state.price);
+      fields = previewFields([
+        ['金額データNo', state.price.no],
+        ['名称', state.price.name],
+        ['適用開始日', state.price.startDate],
+        ['適用終了日', state.price.endDate || '無期限'],
+        ['個別案件', state.project ? state.project.name : '-'],
+        ['基本案件', state.base ? state.base.name : '-'],
+        ['企業', state.company ? state.company.name : '-'],
+        ['料金項目数', `${state.price.itemCount}件`],
+        ['適用状態', `<span class="status-badge status-${status.tone}">${status.label}</span>`]
+      ]);
+      summary = previewSummary([['料金項目', `${state.price.itemCount}件`], ['適用開始', state.price.startDate], ['適用状態', status.label]]);
+      nextAction = status.tone === 'future' ? '適用開始日と単価を確認し、開始前の設定を完了してください。' : status.tone === 'expired' ? '後続の金額データが登録されているか確認してください。' : '請求・支払単価と利益率を確認してください。';
+      relatedAction = `<a class="btn btn-secondary" href="${href}&action=copy">コピーして改定</a>`;
+      note = 'ダブルクリック、または編集を開くで金額データ管理へ移動します。';
+    } else {
+      el.colPreview.innerHTML = '<div class="preview-placeholder">企業・基本案件・個別案件・金額データを選択してください</div>';
+      return;
+    }
+    el.colPreview.innerHTML = `<article class="preview-card">
+      <header class="preview-header">
+        <div><p class="preview-kicker">${kicker}</p><h2>${title}</h2><p>${note}</p></div>
+        <a class="btn" href="${href}">編集を開く</a>
+      </header>
+      <section class="preview-section"><div class="context-grid">${fields}</div></section>
+      <section class="preview-section"><div class="preview-summary">${summary}</div>${warning}</section>
+      <section class="preview-section"><div class="next-action"><small>次に確認・設定する内容</small><strong>${nextAction}</strong></div></section>
+      <footer class="preview-section preview-actions">
+        <a class="btn btn-primary" href="${href}">編集画面へ</a>
+        ${relatedAction}
+      </footer>
+    </article>`;
+  }
+
+  function previewSummary(items) {
+    return items.map(([label, value]) => `<div class="summary-box"><small>${label}</small><strong>${value}</strong></div>`).join('');
+  }
+
+  function priceStatus(price) {
+    const today = '2026-08-15';
+    if (price.startDate > today) return { label: '適用前', tone: 'future' };
+    if (price.endDate && price.endDate < today) return { label: '終了', tone: 'expired' };
+    return { label: '適用中', tone: 'active' };
+  }
+
+  function renderAll() {
+    renderSort('company', el.sortCompany, allCompanyBtn());
+    renderSort('base', el.sortBase, allBaseBtn());
+    renderSort('project', el.sortProject);
+    renderSort('price', el.sortPrice);
+    const allMode = isAllMode();
+    el.colCompany.classList.toggle('hidden', allMode);
+    el.colBase.classList.toggle('hidden', allMode);
+    el.colProject.classList.toggle('hidden', allMode);
+    el.colPrice.classList.toggle('hidden', allMode);
+    el.allBody.classList.toggle('hidden', !allMode);
+    if (allMode) renderHierarchy();
+    else {
+      renderCompanyColumn();
+      renderBaseColumn();
+      renderProjectColumn();
+      renderPriceColumn();
+    }
+    renderPreview();
+    updateBreadcrumb();
+  }
+
+  function selectCompany(comp) {
+    state.company = comp;
+    state.base = null;
+    state.project = null;
+    state.price = null;
+    state.focus = 'company';
+    if (!state.allCompany) state.allBase = false;
+    renderAll();
+  }
+
+  function selectBase(base) {
+    state.base = base;
+    state.project = null;
+    state.price = null;
+    state.focus = 'base';
+    renderAll();
+  }
+
+  function selectProject(project) {
+    state.project = project;
+    state.price = null;
+    state.focus = 'project';
+    renderAll();
+  }
+
+  function selectPrice(price) {
+    state.price = price;
+    state.focus = 'price';
+    renderAll();
+  }
+
+  document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    document.getElementById('app-sidebar').classList.toggle('collapsed');
+  });
+  renderAll();
+</script>
+</body>
+</html>
