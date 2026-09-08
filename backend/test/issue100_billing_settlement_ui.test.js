@@ -11,11 +11,16 @@ test('請求先Noは企業内採番され案件から選択できる', () => {
   const companies = read('backend/src/routes/companies.js');
   const projects = read('backend/src/routes/projects.js');
   const projectUi = read('frontend/js/projects.js');
+  const verificationSeed = read('backend/scripts/seed_verification_data.js');
   assert.match(migration, /UNIQUE KEY uq_company_billings_company_no \(company_id, billing_no\)/);
   assert.match(migration, /ADD COLUMN billing_id BIGINT UNSIGNED NULL/);
   assert.match(companies, /Math\.max\(max, Number\(row\.billing_no \|\| 0\)\)/);
   assert.match(projects, /選択した請求先が案件の企業に属していません/);
   assert.match(projectUi, /<label>請求先No<\/label>/);
+  assert.match(verificationSeed, /billing_no: 1/);
+  assert.match(verificationSeed, /billing_id: company\.billingId/);
+  assert.match(verificationSeed, /settlement_projects/);
+  assert.match(verificationSeed, /repairIssue100Data/);
 });
 
 test('日報未完了でも案件を保持した精算下書きを作れる', () => {

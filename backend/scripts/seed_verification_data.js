@@ -192,8 +192,9 @@ function reportInput(project, date, position) {
 }
 
 async function assertSchema(conn) {
-  const [rows] = await conn.query(`SHOW TABLES LIKE 'daily_report_monthly_approvals'`);
-  if (!rows.length) throw new Error('必要なマイグレーションが未適用です。先にアプリを起動してマイグレーションを適用してください。');
+  const [approvalRows] = await conn.query(`SHOW TABLES LIKE 'daily_report_monthly_approvals'`);
+  const [settlementProjectRows] = await conn.query(`SHOW TABLES LIKE 'settlement_projects'`);
+  if (!approvalRows.length || !settlementProjectRows.length) throw new Error('必要なマイグレーションが未適用です。先にアプリを起動してマイグレーションを適用してください。');
 }
 
 async function verificationSummary(conn) {
@@ -209,12 +210,20 @@ async function verificationSummary(conn) {
   }
   const seedWhere = "JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.seed_key')) = ? AND is_deleted = 0";
   const [projectRows] = await conn.execute(`SELECT COUNT(*) AS count FROM projects WHERE ${seedWhere}`, [SEED_KEY]);
+  const [projectBillingRows] = await conn.execute(`SELECT COUNT(*) AS count FROM projects WHERE ${seedWhere} AND billing_id IS NOT NULL`, [SEED_KEY]);
   const [reportRows] = await conn.execute(`SELECT COUNT(*) AS count FROM daily_reports WHERE ${seedWhere}`, [SEED_KEY]);
   const [advanceRows] = await conn.execute(`SELECT COUNT(*) AS count FROM advance_records ar JOIN projects p ON p.project_id=ar.project_id WHERE JSON_UNQUOTE(JSON_EXTRACT(p.extra_data,'$.seed_key'))=?`, [SEED_KEY]);
   const [baseRows] = await conn.execute(`SELECT COUNT(*) AS count FROM base_projects WHERE ${seedWhere}`, [SEED_KEY]);
   const [priceSetRows] = await conn.execute(`SELECT COUNT(*) AS count FROM price_sets WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.seed_key')) = ? AND is_deleted = 0`, [SEED_KEY]);
   const [invoiceRows] = await conn.execute(`SELECT COUNT(*) AS count FROM invoices WHERE ${seedWhere}`, [SEED_KEY]);
   const [paymentRows] = await conn.execute(`SELECT COUNT(*) AS count FROM payments WHERE ${seedWhere}`, [SEED_KEY]);
+  const [billingRows] = await conn.execute(`SELECT COUNT(*) AS count FROM company_billings WHERE ${seedWhere} AND billing_no IS NOT NULL`, [SEED_KEY]);
+  const [settlementProjectRows] = await conn.execute(
+    `SELECT COUNT(*) AS count FROM settlement_projects sp
+     WHERE (sp.settlement_type='invoice' AND sp.settlement_id IN (SELECT invoice_id FROM invoices WHERE ${seedWhere}))
+        OR (sp.settlement_type='payment' AND sp.settlement_id IN (SELECT payment_id FROM payments WHERE ${seedWhere}))`,
+    [SEED_KEY, SEED_KEY]
+  );
   const [workflowRows] = await conn.execute(`SELECT COUNT(*) count FROM settlement_workflows w WHERE (w.settlement_type='invoice' AND w.settlement_id IN (SELECT invoice_id FROM invoices WHERE ${seedWhere})) OR (w.settlement_type='payment' AND w.settlement_id IN (SELECT payment_id FROM payments WHERE ${seedWhere}))`,[SEED_KEY,SEED_KEY]);
   const [documentRows] = await conn.execute(`SELECT COUNT(*) count FROM settlement_documents d WHERE (d.settlement_type='invoice' AND d.settlement_id IN (SELECT invoice_id FROM invoices WHERE ${seedWhere})) OR (d.settlement_type='payment' AND d.settlement_id IN (SELECT payment_id FROM payments WHERE ${seedWhere}))`,[SEED_KEY,SEED_KEY]);
   const [noReportRows] = await conn.execute(
@@ -234,11 +243,14 @@ async function verificationSummary(conn) {
   );
   result.base_projects = Number(baseRows[0].count);
   result.projects = Number(projectRows[0].count);
+  result.projects_with_billing = Number(projectBillingRows[0].count);
   result.price_sets = Number(priceSetRows[0].count);
   result.daily_reports = Number(reportRows[0].count);
   result.advance_records = Number(advanceRows[0].count);
   result.invoices = Number(invoiceRows[0].count);
   result.payments = Number(paymentRows[0].count);
+  result.company_billings_with_no = Number(billingRows[0].count);
+  result.settlement_project_links = Number(settlementProjectRows[0].count);
   result.settlement_workflows = Number(workflowRows[0].count);
   result.settlement_documents = Number(documentRows[0].count);
   result.projects_without_reports = Number(noReportRows[0].count);
@@ -353,6 +365,7 @@ async function createInvoicesAndPayments(conn) {
     });
     const lines=rows.map(row=>({line_type:'work',source_type:'monthly_approval_snapshot',source_id:row.daily_report_id,project_id:row.project_id,daily_report_id:row.daily_report_id,item_name:`稼働 ${String(row.work_date).slice(0,10)}`,quantity:1,unit_price:Number(row.calculated_billing_amount||0),amount:Number(row.calculated_billing_amount||0),tax_category:'taxable',snapshot_json:JSON.stringify({...row,seed_key:SEED_KEY})}));
     for(const line of lines)await insert(conn,'settlement_lines',{settlement_type:'invoice',settlement_id:invoiceId,...line});
+    for(const projectId of [...new Set(rows.map((row)=>Number(row.project_id)))])await insert(conn,'settlement_projects',{settlement_type:'invoice',settlement_id:invoiceId,project_id:projectId});
     await insert(conn, 'invoice_details', { invoice_id: invoiceId, price_name: '稼働分（匿名検証用）', unit_price: subtotal, quantity: 1, amount: subtotal, is_adjustment_row: 0 });
     for (const row of rows) {
       await conn.execute('INSERT INTO invoice_daily_reports (invoice_id, daily_report_id) VALUES (?, ?)', [invoiceId, row.daily_report_id]);
@@ -391,6 +404,7 @@ async function createInvoicesAndPayments(conn) {
     if(advanceAmount>0)lines.push({settlement_type:'payment',settlement_id:paymentId,line_type:'advance',source_type:'advance',source_id:advance[0].advance_record_id,item_name:'前払控除',quantity:1,unit_price:-advanceAmount,amount:-advanceAmount,tax_category:'non_taxable',snapshot_json:JSON.stringify({seed_key:SEED_KEY})});
     for(const rule of appliedRules.filter(x=>x.applied>0))lines.push({settlement_type:'payment',settlement_id:paymentId,line_type:'deduction',source_type:'rule',source_id:rule.settlement_deduction_rule_id,item_name:rule.display_name,quantity:1,unit_price:-rule.applied,amount:-rule.applied,tax_category:rule.tax_category,snapshot_json:JSON.stringify({seed_key:SEED_KEY})});
     for(const line of lines)await insert(conn,'settlement_lines',line);
+    for(const projectId of [...new Set(rows.map((row)=>Number(row.project_id)))])await insert(conn,'settlement_projects',{settlement_type:'payment',settlement_id:paymentId,project_id:projectId});
     if(advanceAmount>0)await insert(conn,'advance_payment_allocations',{advance_record_id:advance[0].advance_record_id,payment_id:paymentId,amount:advanceAmount});
     await insert(conn, 'payment_details', { payment_id: paymentId, detail_type: 'work_item', item_name: '稼働分（匿名検証用）', unit_price: gross, quantity: 1, amount: gross });
     for (const row of rows) {
@@ -475,6 +489,15 @@ async function resetBusinessData() {
     const companyIds=companies.map(x=>x.company_id),partnerIds=partners.map(x=>x.partner_id),projectIds=projects.map(x=>x.project_id),baseIds=bases.map(x=>x.base_project_id),priceSetIds=priceSets.map(x=>x.price_set_id);
     let invoiceIds=invoices.map(x=>x.invoice_id),paymentIds=payments.map(x=>x.payment_id);
     const marks=(values)=>values.map(()=>'?').join(',');
+    if(baseIds.length){
+      const [externalBaseRefs]=await conn.query(
+        `SELECT COUNT(*) count FROM projects
+         WHERE base_project_id IN (${marks(baseIds)})
+           AND (extra_data IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key'))<>?)`,
+        [...baseIds,SEED_KEY]
+      );
+      if(Number(externalBaseRefs[0].count)>0)throw new Error('検証用基本案件を参照する検証キー外の案件があるため、限定リセットを中止しました。');
+    }
     const [reports]=projectIds.length?await conn.query(`SELECT * FROM daily_reports WHERE project_id IN (${marks(projectIds)})`,projectIds):[[]];
     const reportIds=reports.map(x=>x.daily_report_id);
     if(reportIds.length){
@@ -496,6 +519,7 @@ async function resetBusinessData() {
       documentFiles=documents.map(x=>x.file_path).filter(Boolean);
       await conn.query(`DELETE FROM settlement_documents WHERE ${conditions.join(' OR ')}`,params);
       await conn.query(`DELETE FROM settlement_workflows WHERE ${conditions.join(' OR ')}`,params);
+      await conn.query(`DELETE FROM settlement_projects WHERE ${conditions.join(' OR ')}`,params);
       const [seedLines]=await conn.query(`SELECT settlement_line_id FROM settlement_lines WHERE ${conditions.join(' OR ')}`,params);
       const settlementLineIds=seedLines.map(x=>x.settlement_line_id);
       await removeWhere('settlement_line_audit_logs','settlement_line_id',settlementLineIds);
@@ -533,19 +557,27 @@ async function resetBusinessData() {
     await removeWhere('daily_report_audit_logs','daily_report_id',reportIds);
     await removeWhere('daily_report_monthly_approvals','project_id',projectIds);
     await removeWhere('daily_reports','daily_report_id',reportIds);
+    await removeWhere('daily_report_distance_monthly_results','project_id',projectIds);
+    await removeWhere('daily_report_submissions','project_id',projectIds);
     await removeWhere('price_set_lines','price_set_id',priceSetIds);
     await removeWhere('price_sets','price_set_id',priceSetIds);
+    const [advanceCycleSettings]=projectIds.length?await conn.query(`SELECT advance_cycle_setting_id FROM advance_cycle_settings WHERE project_id IN (${marks(projectIds)})`,projectIds):[[]];
+    const advanceCycleSettingIds=advanceCycleSettings.map(x=>x.advance_cycle_setting_id);
+    await removeWhere('advance_cycle_setting_audit_logs','advance_cycle_setting_id',advanceCycleSettingIds);
+    await removeWhere('advance_cycle_settings','project_id',projectIds);
     await removeWhere('project_revisions','project_id',projectIds);
     await removeWhere('project_settlement_reviewers','project_id',projectIds);
     await removeWhere('project_invoice_settings','project_id',projectIds);
+    await removeWhere('settlement_projects','project_id',projectIds);
+    await removeWhere('holidays','project_id',projectIds);
     await removeWhere('partner_vehicles','partner_id',partnerIds);
     await removeWhere('company_vehicles','company_id',companyIds);
-    await removeWhere('company_billings','company_id',companyIds);
     await removeWhere('company_manager_periods','company_id',companyIds);
     await removeWhere('company_invoice_settings','company_id',companyIds);
     await removeWhere('invoice_exclusions','company_id',companyIds);
     await removeWhere('settlement_deduction_rules','partner_id',partnerIds);
     await removeWhere('projects','project_id',projectIds);
+    await removeWhere('company_billings','company_id',companyIds);
     await removeWhere('base_projects','base_project_id',baseIds);
     await removeWhere('holidays','extra_data',[]);
     await conn.query(`DELETE FROM holidays WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key'))=?`,[SEED_KEY]);
@@ -559,6 +591,56 @@ async function resetBusinessData() {
     throw error;
   } finally {
     conn.release();
+  }
+}
+
+async function repairIssue100Data() {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    await assertSchema(conn);
+    await conn.beginTransaction();
+    const [billingResult] = await conn.query(
+      `UPDATE projects p
+       JOIN (
+         SELECT company_id,MIN(billing_id) billing_id
+         FROM company_billings
+         WHERE is_deleted=0
+         GROUP BY company_id
+       ) cb ON cb.company_id=p.company_id
+       SET p.billing_id=cb.billing_id,p.version=p.version+1
+       WHERE JSON_UNQUOTE(JSON_EXTRACT(p.extra_data,'$.seed_key'))=? AND p.billing_id IS NULL`,
+      [SEED_KEY]
+    );
+    await conn.query(
+      `INSERT IGNORE INTO settlement_projects (settlement_type,settlement_id,project_id)
+       SELECT 'invoice',l.invoice_id,d.project_id
+       FROM invoice_daily_reports l
+       JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
+       JOIN invoices i ON i.invoice_id=l.invoice_id
+       WHERE JSON_UNQUOTE(JSON_EXTRACT(i.extra_data,'$.seed_key'))=?
+       GROUP BY l.invoice_id,d.project_id`,
+      [SEED_KEY]
+    );
+    await conn.query(
+      `INSERT IGNORE INTO settlement_projects (settlement_type,settlement_id,project_id)
+       SELECT 'payment',l.payment_id,d.project_id
+       FROM payment_daily_reports l
+       JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
+       JOIN payments p ON p.payment_id=l.payment_id
+       WHERE JSON_UNQUOTE(JSON_EXTRACT(p.extra_data,'$.seed_key'))=?
+       GROUP BY l.payment_id,d.project_id`,
+      [SEED_KEY]
+    );
+    await conn.commit();
+    console.log(`[verification-seed] Issue #100追従: 案件請求先 ${Number(billingResult.affectedRows||0)}件を設定しました`);
+    console.log(JSON.stringify(await verificationSummary(conn), null, 2));
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+    await pool.end();
   }
 }
 
@@ -580,8 +662,8 @@ async function seed() {
         payment_date_code: 'end', invoice_send_method: index % 2 ? 'email' : 'post', deposit_type: 'ordinary',
         extra_data: JSON.stringify({ seed_key: SEED_KEY }),
       });
-      companies.push({ id: companyId, name: companyName });
-      await insert(conn, 'company_billings', { company_id: companyId, billing_print_name: companyName, billing_summary_no: `TEST-BILL-${no}`, extra_data: JSON.stringify({ seed_key: SEED_KEY }) });
+      const billingId = await insert(conn, 'company_billings', { company_id: companyId, billing_no: 1, billing_print_name: companyName, billing_summary_no: `TEST-BILL-${no}`, extra_data: JSON.stringify({ seed_key: SEED_KEY }) });
+      companies.push({ id: companyId, name: companyName, billingId });
     }
     for (let index = 0; index < 30; index += 1) {
       const no = String(index + 1).padStart(2, '0');
@@ -617,7 +699,7 @@ async function seed() {
       const baseName = BASE_PROJECT_NAMES[baseIndex]; const variant = PROJECT_VARIANTS[Math.floor(index / 10) % PROJECT_VARIANTS.length];
       const [vehicleRows] = await conn.execute('SELECT vehicle_id FROM partner_vehicles WHERE partner_id = ? AND is_deleted = 0 LIMIT 1', [partnerId]);
       const projectId = await insert(conn, 'projects', {
-        base_project_id: baseProjects[baseIndex], company_id: company.id, partner_id: partnerId, vehicle_id: vehicleRows[0].vehicle_id,
+        base_project_id: baseProjects[baseIndex], company_id: company.id, billing_id: company.billingId, partner_id: partnerId, vehicle_id: vehicleRows[0].vehicle_id,
         manager_name: `${variant}担当`, business_type: `${shortProjectName(baseName)}｜${variant}`,
         payment_type: 'normal', installment_amount: index < 5 ? 7000 : null, operation_start_date: index >= 45 ? '2026-06-01' : '2026-01-01',
         closing_date: ['5', '10', '15', '20', '25', 'end'][index % 6], execution_time_start: '08:00', execution_time_end: '17:00', binding_time: 9, break_time: 1,
@@ -698,6 +780,10 @@ async function main() {
   }
   if (process.argv.includes('--repair-special-august')) {
     await repairSpecialAugust();
+    return;
+  }
+  if (process.argv.includes('--repair-issue100')) {
+    await repairIssue100Data();
     return;
   }
   if (process.argv.includes('--verify')) {
