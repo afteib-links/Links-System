@@ -86,6 +86,15 @@
     { key: 'daily_report_submission_grace_days', label: '猶予日数', type: 'number', defaultValue: '1', min: '0', max: '30', step: '1' },
   ];
 
+  const STATUS_COLOR_SETTINGS = [
+    { key:'status_color_neutral', label:'未処理・未作成', defaultValue:'#64748B' },
+    { key:'status_color_working', label:'作業中・下書き', defaultValue:'#2563EB' },
+    { key:'status_color_waiting', label:'確認待ち・保留', defaultValue:'#D97706' },
+    { key:'status_color_complete', label:'完了・確定', defaultValue:'#16805B' },
+    { key:'status_color_attention', label:'差戻し・エラー', defaultValue:'#D92D20' },
+    { key:'status_color_inactive', label:'取消・無効', defaultValue:'#6B7280' },
+  ];
+
   const LinksMasterSettings = {
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
@@ -725,6 +734,7 @@
       const priceMatrixKeys = new Set(PRICE_MATRIX_SETTINGS.map((setting) => setting.key));
       const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
       const submissionKeys = new Set(DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => setting.key));
+      const statusColorKeys = new Set(STATUS_COLOR_SETTINGS.map((setting) => setting.key));
       const values = new Map(allSettings.map((setting) => [setting.setting_key, setting.setting_value]));
       const logoSettingKey = 'document_issuer_logo_data_url';
       let currentLogoDataUrl = values.get(logoSettingKey) || '';
@@ -758,8 +768,14 @@
           <input type="${setting.type}" ${constraints} data-daily-report-setting="${setting.key}" value="${this.ctx.escapeHtml(value)}" />
         </label>`;
       }).join('');
+      const statusColorFields = STATUS_COLOR_SETTINGS.map((setting) => {
+        const value = values.get(setting.key) ?? setting.defaultValue;
+        return `<label>${this.ctx.escapeHtml(setting.label)}
+          <span class="color-setting-control"><input type="color" data-status-color="${setting.key}" value="${this.ctx.escapeHtml(value)}"><input class="color-setting-code" data-status-color-code="${setting.key}" value="${this.ctx.escapeHtml(value)}" maxlength="7"></span>
+        </label>`;
+      }).join('');
       const rows = allSettings
-        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && !statusColorKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
         .map(
           (s) => `
           <tr>
@@ -791,6 +807,12 @@
             <p class="muted">基本提出日（対象期間の最終日＋1日）に加算する猶予日数です。期限を超えた提出と未提出の遅延日数に使います。</p>
             <div class="form-grid form-grid-compact">${submissionFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-submission-settings">日報提出設定を保存</button></div>
+          </section>
+          <section class="panel status-color-settings-panel">
+            <h3>ステータスの色</h3>
+            <p class="muted">色だけに頼らず、ラベルと記号も併記します。ここで選んだ色は次回の画面表示から全機能へ反映されます。</p>
+            <div class="form-grid form-grid-compact">${statusColorFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-status-colors">ステータス色を保存</button></div>
           </section>
           <section class="panel">
             <h3>請求・支払摘要の表示順</h3>
@@ -922,6 +944,24 @@
         code?.addEventListener('change', () => {
           if (!/^#[0-9a-f]{6}$/i.test(code.value)) code.value = picker.value.toUpperCase();
         });
+      });
+      STATUS_COLOR_SETTINGS.forEach((setting) => {
+        const picker = document.querySelector(`[data-status-color="${setting.key}"]`);
+        const code = document.querySelector(`[data-status-color-code="${setting.key}"]`);
+        picker?.addEventListener('input', () => { code.value = picker.value.toUpperCase(); });
+        code?.addEventListener('change', () => {
+          if (/^#[0-9a-f]{6}$/i.test(code.value || '')) picker.value = code.value;
+          else code.value = picker.value.toUpperCase();
+        });
+      });
+      document.getElementById('save-status-colors')?.addEventListener('click', async () => {
+        const settings = STATUS_COLOR_SETTINGS.map((setting) => ({ ...setting, value:document.querySelector(`[data-status-color="${setting.key}"]`)?.value }));
+        if (settings.some((setting) => !/^#[0-9a-f]{6}$/i.test(setting.value || ''))) return window.alert('色は#RRGGBB形式で入力してください');
+        const results = await Promise.all(settings.map((setting) => this.ctx.api(`/api/master-settings/settings/${setting.key}`, { method:'PUT', body:JSON.stringify({ setting_value:setting.value.toUpperCase(), setting_label:`状態色：${setting.label}` }) })));
+        if (results.some((result) => !result.res.ok)) return window.alert('ステータス色の保存に失敗しました');
+        const cssNames={status_color_neutral:'--status-neutral',status_color_working:'--status-working',status_color_waiting:'--status-waiting',status_color_complete:'--status-complete',status_color_attention:'--status-attention',status_color_inactive:'--status-inactive'};
+        settings.forEach((setting)=>document.documentElement.style.setProperty(cssNames[setting.key],setting.value));
+        this.ctx.showToast('ステータス色を保存して画面へ反映しました');
       });
       document.getElementById('save-price-matrix-settings')?.addEventListener('click', async () => {
         const settings = PRICE_MATRIX_SETTINGS.map((setting) => ({

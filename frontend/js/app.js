@@ -103,6 +103,20 @@
       .replaceAll("'", '&#39;');
   }
 
+  async function loadUiSettings() {
+    const { res, data } = await api('/api/masters/ui-settings');
+    if (!res.ok || !data?.ok) return;
+    const map = {
+      status_color_neutral:'--status-neutral', status_color_working:'--status-working',
+      status_color_waiting:'--status-waiting', status_color_complete:'--status-complete',
+      status_color_attention:'--status-attention', status_color_inactive:'--status-inactive',
+    };
+    for (const [key, cssName] of Object.entries(map)) {
+      const value = data.settings?.[key];
+      if (/^#[0-9a-f]{6}$/i.test(value || '')) document.documentElement.style.setProperty(cssName, value);
+    }
+  }
+
   function can(featureKey) {
     if (!featureCatalog.some((feature) => feature.key === featureKey)) {
       return false;
@@ -333,6 +347,7 @@
       }
 
       currentUser = data.user;
+      await loadUiSettings();
       featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
       await showHome();
@@ -660,6 +675,7 @@
     const { res, data } = await api('/api/auth/me');
     if (res.ok && data?.ok && data.user) {
       currentUser = data.user;
+      await loadUiSettings();
       featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
       await showHome();

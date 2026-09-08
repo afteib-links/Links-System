@@ -17,6 +17,12 @@
   --ok: #137a52;
   --warning: #a15c00;
   --info: #1d5fbf;
+  --status-neutral: #64748b;
+  --status-working: #2563eb;
+  --status-waiting: #d97706;
+  --status-complete: #16805b;
+  --status-attention: #d92d20;
+  --status-inactive: #6b7280;
   --header: #ffffff;
   --shadow: 0 8px 24px rgba(23, 32, 51, 0.08);
   --font-display: "Meiryo UI", Meiryo, "BIZ UDPGothic", "Yu Gothic UI", "Yu Gothic", sans-serif;
@@ -1751,12 +1757,12 @@ label, .field-label { color: #344054; font-weight: 700; }
 .tone-complete::before, .status-approved::before, .status-finalized::before, .status-executed::before, .status-closed::before, .status-issued::before, .status-billed::before, .status-paid::before { content:"✓"; }
 .tone-attention::before, .status-rejected::before, .status-correcting::before, .status-error::before, .status-failed::before, .status-overdue::before { content:"!"; }
 .tone-inactive::before, .status-cancelled::before, .status-disabled::before, .status-inactive::before { content:"—"; }
-.tone-neutral, .status-not_started, .status-unplanned, .status-none, .status-cancelled { background:#eef1f5; color:#4b5565; border-color:#d5dbe3; }
-.tone-working, .status-draft, .status-inputting, .status-ready, .status-planned, .status-open { background:#e8f1ff; color:#174ea6; border-color:#b8d2fb; }
-.tone-waiting, .status-submitted, .status-confirmed, .status-sales_reviewed, .status-exported, .status-held, .status-reserved { background:#fff4d6; color:#855100; border-color:#efd38a; }
-.tone-complete, .status-approved, .status-finalized, .status-executed, .status-closed, .status-issued, .status-billed, .status-paid { background:#e4f5ec; color:#0c6744; border-color:#a8ddc2; }
-.tone-attention, .status-rejected, .status-correcting, .status-error, .status-failed, .status-overdue { background:#ffebe9; color:#9c2319; border-color:#efb4ae; }
-.tone-inactive, .status-disabled, .status-inactive { background:#f1f3f5; color:#687384; border-color:#d7dce2; text-decoration:none; }
+.tone-neutral, .status-not_started, .status-unplanned, .status-none { background:color-mix(in srgb,var(--status-neutral) 12%,white); color:var(--status-neutral); border-color:color-mix(in srgb,var(--status-neutral) 35%,white); }
+.tone-working, .status-draft, .status-inputting, .status-ready, .status-planned, .status-open { background:color-mix(in srgb,var(--status-working) 12%,white); color:var(--status-working); border-color:color-mix(in srgb,var(--status-working) 35%,white); }
+.tone-waiting, .status-submitted, .status-confirmed, .status-sales_reviewed, .status-exported, .status-held, .status-reserved { background:color-mix(in srgb,var(--status-waiting) 13%,white); color:color-mix(in srgb,var(--status-waiting) 82%,black); border-color:color-mix(in srgb,var(--status-waiting) 40%,white); }
+.tone-complete, .status-approved, .status-finalized, .status-executed, .status-closed, .status-issued, .status-billed, .status-paid { background:color-mix(in srgb,var(--status-complete) 12%,white); color:var(--status-complete); border-color:color-mix(in srgb,var(--status-complete) 35%,white); }
+.tone-attention, .status-rejected, .status-correcting, .status-error, .status-failed, .status-overdue { background:color-mix(in srgb,var(--status-attention) 11%,white); color:var(--status-attention); border-color:color-mix(in srgb,var(--status-attention) 35%,white); }
+.tone-inactive, .status-cancelled, .status-disabled, .status-inactive { background:color-mix(in srgb,var(--status-inactive) 10%,white); color:var(--status-inactive); border-color:color-mix(in srgb,var(--status-inactive) 30%,white); text-decoration:none; }
 
 .summary-cards { display:grid; grid-template-columns:repeat(6,minmax(110px,1fr)); gap:10px; margin:0 0 14px; }
 .summary-card { position:relative; min-height:72px; padding:10px 12px; border:1px solid var(--line); border-top:3px solid #8090a3; border-radius:7px; background:#fff; display:flex; flex-direction:column; gap:3px; }
@@ -2267,6 +2273,9 @@ label, .field-label { color: #344054; font-weight: 700; }
 .analytics-screen .check-row { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:12px; align-items:center; }
 .analytics-screen .check-row span { font-weight:700; }
 .analytics-screen .check-row label { display:flex; align-items:center; gap:6px; font-weight:600; }
+.analytics-screen .check-row span,
+.analytics-screen .check-row label { font-size:13px; line-height:1.35; }
+.analytics-screen .check-row input[type="checkbox"] { width:16px; height:16px; min-height:0; margin:0; }
 .analytics-table-wrap { overflow:auto; max-height:calc(100vh - 280px); border:1px solid var(--line); border-radius:8px; }
 .analytics-screen .row-area { background:#dfe8ee; font-weight:700; }
 .analytics-screen .row-staff { background:#eef4f6; font-weight:700; }

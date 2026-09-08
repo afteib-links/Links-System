@@ -46,6 +46,7 @@ const BASE_FIELDS = [
 const PROJECT_FIELDS = [
   'base_project_id',
   'company_id',
+  'billing_id',
   'partner_id',
   'vehicle_id',
   'vehicle_owner_type',
@@ -144,6 +145,19 @@ async function validateVehicleSelection(data) {
   return rows.length ? null : '選択した車両が案件の所有元に属していません';
 }
 
+async function validateBillingSelection(data) {
+  if (!data.billing_id) {
+    data.billing_id = null;
+    return null;
+  }
+  const rows = await query(
+    `SELECT billing_id FROM company_billings
+     WHERE billing_id = ? AND company_id = ? AND is_deleted = 0 LIMIT 1`,
+    [Number(data.billing_id), Number(data.company_id)]
+  );
+  return rows.length ? null : '選択した請求先が案件の企業に属していません';
+}
+
 async function fetchBase(id) {
   const rows = await query(
     `SELECT b.*, c.company_name
@@ -175,11 +189,13 @@ async function fetchProject(id) {
     `SELECT p.*,
             c.company_name,
             pt.partner_name,
-            b.template_name AS base_template_name
+            b.template_name AS base_template_name,
+            cb.billing_no, cb.billing_print_name
      FROM projects p
      LEFT JOIN companies c ON c.company_id = p.company_id
      LEFT JOIN partners pt ON pt.partner_id = p.partner_id
      LEFT JOIN base_projects b ON b.base_project_id = p.base_project_id
+     LEFT JOIN company_billings cb ON cb.billing_id = p.billing_id AND cb.is_deleted = 0
      WHERE p.project_id = ? AND p.is_deleted = 0
      LIMIT 1`,
     [id]
@@ -340,6 +356,7 @@ router.post('/base/:id/create-project', async (req, res) => {
     const data = {
       base_project_id: base.base_project_id,
       company_id: projectCompanyId,
+      billing_id: overrides.billing_id != null ? overrides.billing_id : null,
       partner_id: overrides.partner_id != null ? overrides.partner_id : base.partner_id,
       vehicle_id: vehicleId,
       vehicle_owner_type: vehicleOwnerType,
@@ -368,6 +385,8 @@ router.post('/base/:id/create-project', async (req, res) => {
     };
     const vehicleError = await validateVehicleSelection(data);
     if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     const cols = Object.keys(data).filter((k) => data[k] !== undefined);
     await conn.beginTransaction();
     const [insertResult] = await conn.query(
@@ -458,7 +477,7 @@ router.get('/', async (req, res) => {
       params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
     const rows = await query(
-      `SELECT p.project_id, p.base_project_id, p.company_id, p.partner_id, p.vehicle_id,
+      `SELECT p.project_id, p.base_project_id, p.company_id, p.billing_id, p.partner_id, p.vehicle_id,
               p.vehicle_owner_type,
               p.manager_name, p.business_type, p.payment_type, p.installment_amount,
               p.transfer_fee_pattern_id,
@@ -500,6 +519,8 @@ router.post('/', async (req, res) => {
     }
     const vehicleError = await validateVehicleSelection(data);
     if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     if (!data.payment_type) data.payment_type = 'normal';
     data.price_set_id = null;
     const cols = Object.keys(data);
@@ -558,6 +579,8 @@ router.post('/:id/copy', async (req, res) => {
     data.price_set_id = null;
     const vehicleError = await validateVehicleSelection(data);
     if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     const cols = Object.keys(data).filter((key) => data[key] !== undefined);
     await conn.beginTransaction();
     const [insertResult] = await conn.query(
@@ -594,6 +617,8 @@ router.put('/:id', async (req, res) => {
     }
     const vehicleError = await validateVehicleSelection(data);
     if (vehicleError) return res.status(400).json({ ok: false, message: vehicleError });
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
     const sets = PROJECT_FIELDS.map((f) => `${f} = ?`);
     const params = PROJECT_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));

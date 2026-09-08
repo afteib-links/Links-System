@@ -72,6 +72,7 @@ function normalizeBillings(list) {
   if (!Array.isArray(list)) return [];
   return list.map((row) => ({
     billing_id: row.billing_id ? Number(row.billing_id) : null,
+    billing_no: row.billing_no ? Number(row.billing_no) : null,
     billing_print_name: row.billing_print_name || null,
     billing_zip_code: row.billing_zip_code || null,
     billing_address: row.billing_address || null,
@@ -235,6 +236,11 @@ async function syncBillings(conn, companyId, billings) {
   for (const row of existing) {
     if (!keepIds.has(Number(row.billing_id))) {
       await conn.query(
+        `UPDATE projects SET billing_id = NULL, version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE billing_id = ? AND is_deleted = 0`,
+        [row.billing_id]
+      );
+      await conn.query(
         `UPDATE company_billings
          SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
          WHERE billing_id = ? AND company_id = ?`,
@@ -266,13 +272,19 @@ async function syncBillings(conn, companyId, billings) {
         ]
       );
     } else {
+      const [numberRows] = await conn.query(
+        `SELECT billing_no FROM company_billings WHERE company_id = ? FOR UPDATE`,
+        [companyId]
+      );
+      const billingNo = numberRows.reduce((max, row) => Math.max(max, Number(row.billing_no || 0)), 0) + 1;
       await conn.query(
         `INSERT INTO company_billings
-          (company_id, billing_print_name, billing_zip_code, billing_address, billing_phone,
+          (company_id, billing_no, billing_print_name, billing_zip_code, billing_address, billing_phone,
            billing_fax, billing_email, invoice_send_method, billing_manager, billing_summary_no)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           companyId,
+          billingNo,
           b.billing_print_name,
           b.billing_zip_code,
           b.billing_address,

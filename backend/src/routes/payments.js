@@ -63,7 +63,7 @@ function restrictPaymentRead(req, where, params, paymentAlias = 'pay') {
     return;
   }
   if (roles.has('sales')) {
-    where.push(`EXISTS (SELECT 1 FROM payment_daily_reports pdr JOIN daily_reports dr ON dr.daily_report_id=pdr.daily_report_id JOIN project_settlement_reviewers psr ON psr.project_id=dr.project_id WHERE pdr.payment_id=${paymentAlias}.payment_id AND psr.user_id=?)`);
+    where.push(`EXISTS (SELECT 1 FROM settlement_projects sp JOIN project_settlement_reviewers psr ON psr.project_id=sp.project_id WHERE sp.settlement_type='payment' AND sp.settlement_id=${paymentAlias}.payment_id AND psr.user_id=?)`);
     params.push(req.session.user.user_id);
     return;
   }
@@ -122,11 +122,10 @@ router.get('/targets', async (req, res) => {
     const approvals=await query(`SELECT project_id FROM daily_report_monthly_approvals WHERE target_year_month=? AND status='approved'`,[ym]);
     const approvedProjects=new Set(approvals.map((row)=>Number(row.project_id)));
     const linked=await query(
-      `SELECT d.project_id,pay.payment_id,w.status FROM payment_daily_reports l
-       JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
-       JOIN payments pay ON pay.payment_id=l.payment_id AND pay.is_deleted=0 AND pay.target_year_month=?
+      `SELECT sp.project_id,pay.payment_id,w.status FROM settlement_projects sp
+       JOIN payments pay ON pay.payment_id=sp.settlement_id AND pay.is_deleted=0 AND pay.target_year_month=?
        JOIN settlement_workflows w ON w.settlement_type='payment' AND w.settlement_id=pay.payment_id
-       WHERE w.status<>'cancelled' ORDER BY pay.payment_id DESC`,[ym]
+       WHERE sp.settlement_type='payment' AND w.status<>'cancelled' ORDER BY pay.payment_id DESC`,[ym]
     );
     const linkByProject=new Map();for(const row of linked)if(!linkByProject.has(Number(row.project_id)))linkByProject.set(Number(row.project_id),row);
     const reportsByProject=new Map();for(const report of reports){const id=Number(report.project_id);if(!reportsByProject.has(id))reportsByProject.set(id,[]);reportsByProject.get(id).push(report);}
@@ -175,6 +174,7 @@ router.get('/targets', async (req, res) => {
         other_adjustment_amount: 0,
         final_transfer_amount: finalAmount,
         report_count: eligible.length,target_status:targetStatus,
+        can_create:!active,
         settlement_id:active?Number(active.payment_id):null,
       };
       targets.push(target);

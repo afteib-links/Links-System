@@ -37,4 +37,17 @@ router.get('/codes', async (req, res) => {
   }
 });
 
+router.get('/ui-settings', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT setting_key, setting_value FROM system_settings
+       WHERE is_deleted = 0 AND setting_key LIKE 'status_color_%'`
+    );
+    return res.json({ ok:true, settings:Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value])) });
+  } catch (err) {
+    console.error('[masters/ui-settings]', err);
+    return res.status(500).json({ ok:false, message:'表示設定の取得に失敗しました' });
+  }
+});
+
 module.exports = router;

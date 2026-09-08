@@ -343,6 +343,7 @@
         .map(
           (b, idx) => `
           <tr>
+            <td>${this.ctx.escapeHtml(b.billing_no || '保存時に自動採番')}</td>
             <td>${this.ctx.escapeHtml(b.billing_print_name || '-')}</td>
             <td>${this.ctx.escapeHtml(`${b.billing_zip_code?`〒${b.billing_zip_code} `:''}${b.billing_address||''}`||'-')}</td>
             <td>${this.ctx.escapeHtml(b.billing_email || '-')}</td>
@@ -355,8 +356,8 @@
           </tr>`
         )
         .join('');
-      return `<table class="data-table data-table-compact"><thead><tr><th>印字名称</th><th>送付先</th><th>メール</th><th>送付方法</th><th>取り纏めNo</th><th>操作</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6">請求先はまだありません</td></tr>'}</tbody></table>`;
+      return `<table class="data-table data-table-compact"><thead><tr><th>請求先No</th><th>印字名称</th><th>送付先</th><th>メール</th><th>送付方法</th><th>取り纏めNo</th><th>操作</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7">請求先はまだありません</td></tr>'}</tbody></table>`;
     },
 
     vehiclesTableHtml() {
@@ -447,6 +448,7 @@
       host.innerHTML = this.kit.modalHtml(
         isNew ? '請求先追加' : '請求先編集',
         `<div class="form-grid">
+          <div><label>請求先No</label><input value="${this.ctx.escapeHtml(b.billing_no || '保存時に自動採番')}" disabled /></div>
           <div class="full"><label>請求先印字名称</label><input id="m_billing_print_name" value="${this.ctx.escapeHtml(b.billing_print_name || '')}" /></div>
           <div><label>請求先郵便番号</label><input id="m_billing_zip_code" value="${this.ctx.escapeHtml(b.billing_zip_code || '')}" /></div>
           <div><label>請求書送付方法</label><select id="m_invoice_send_method">${this.kit.codeOptions(this.codes.invoice_send_method,b.invoice_send_method)}</select></div>
@@ -464,6 +466,7 @@
       document.getElementById('modal-save')?.addEventListener('click', () => {
         const row = {
           billing_id: b.billing_id,
+          billing_no: b.billing_no,
           billing_print_name: document.getElementById('m_billing_print_name').value,
           billing_zip_code: document.getElementById('m_billing_zip_code').value,
           billing_address: document.getElementById('m_billing_address').value,
