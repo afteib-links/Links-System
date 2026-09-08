@@ -453,15 +453,17 @@ router.post('/:kind/:id/source-diff/apply', requireRole('admin','soumu'), async(
 router.post('/:kind/:id/sales-review', requireRole('admin','sales'), async (req,res) => {
   const kind=req.params.kind, id=Number(req.params.id); if(!validKind(kind)) return res.status(404).end(); const conn=await getPool().getConnection();
   try { await conn.beginTransaction(); const [wf]=await conn.query(`SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE`,[kind,id]); if(!wf.length || wf[0].status!=='draft') throw new Error('下書き状態のものだけ営業確認できます');
-    const [headers]=await conn.query(`SELECT target_year_month FROM ${tableFor(kind)} WHERE ${idFor(kind)}=?`,[id]);
-    const freshLines=await currentAggregateForSettlement(conn,kind,id,headers[0].target_year_month);
-    const [currentLines]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' AND is_manually_added=0`,[kind,id]);
-    const currentByKey=new Map(currentLines.map((line)=>[json(line.snapshot_json).source_key,line]));
-    if(freshLines.length!==currentLines.length||freshLines.some((line)=>{const current=currentByKey.get(line.source_key);return !current||asMoney(current.amount)!==asMoney(line.amount)||Number(current.quantity)!==Number(line.quantity);})){throw new Error('日報との差分が残っています。「日報から再反映」で全差分を反映してください');}
     const [links]=await conn.query(`SELECT project_id FROM settlement_projects WHERE settlement_type=? AND settlement_id=?`,[kind,id]);
     const projectIds=[...new Set(links.map(x=>x.project_id).filter(Boolean))];
-    const [linkedReports]=await conn.query(`SELECT COUNT(DISTINCT d.project_id) project_count FROM ${kind==='invoice'?'invoice_daily_reports':'payment_daily_reports'} l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id WHERE l.${idFor(kind)}=?`,[id]);
-    if(Number(linkedReports[0].project_count)!==projectIds.length)throw new Error('全案件の承認済み日報を「日報から再反映」で取り込んでください');
+    if(!wf[0].correction_of_settlement_id){
+      const [headers]=await conn.query(`SELECT target_year_month FROM ${tableFor(kind)} WHERE ${idFor(kind)}=?`,[id]);
+      const freshLines=await currentAggregateForSettlement(conn,kind,id,headers[0].target_year_month);
+      const [currentLines]=await conn.query(`SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' AND is_manually_added=0`,[kind,id]);
+      const currentByKey=new Map(currentLines.map((line)=>[json(line.snapshot_json).source_key,line]));
+      if(freshLines.length!==currentLines.length||freshLines.some((line)=>{const current=currentByKey.get(line.source_key);return !current||asMoney(current.amount)!==asMoney(line.amount)||Number(current.quantity)!==Number(line.quantity);})){throw new Error('日報との差分が残っています。「日報から再反映」で全差分を反映してください');}
+      const [linkedReports]=await conn.query(`SELECT COUNT(DISTINCT d.project_id) project_count FROM ${kind==='invoice'?'invoice_daily_reports':'payment_daily_reports'} l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id WHERE l.${idFor(kind)}=?`,[id]);
+      if(Number(linkedReports[0].project_count)!==projectIds.length)throw new Error('全案件の承認済み日報を「日報から再反映」で取り込んでください');
+    }
     const actor=req.session.user.user_id;
     if (!roles(req).has('admin')) for(const projectId of projectIds){const [reviewers]=await conn.query('SELECT user_id FROM project_settlement_reviewers WHERE project_id=?',[projectId]); if(!reviewers.some(x=>Number(x.user_id)===Number(actor))) throw new Error('担当営業者だけが確認できます。案件に営業確認者を設定してください');}
     await conn.query(`UPDATE settlement_workflows SET status='sales_reviewed',sales_reviewed_by_user_id=?,sales_reviewed_at=CURRENT_TIMESTAMP WHERE settlement_workflow_id=?`,[actor,wf[0].settlement_workflow_id]); await conn.query(`UPDATE ${tableFor(kind)} SET settlement_status='sales_reviewed' WHERE ${idFor(kind)}=?`,[id]); await conn.commit(); return res.json({ok:true,status:'sales_reviewed'});
