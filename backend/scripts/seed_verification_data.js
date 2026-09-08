@@ -450,6 +450,24 @@ async function verificationSummary(conn) {
   result.invoices = await countSeed('invoices');
   result.payments = await countSeed('payments');
 
+  const [projectBillingRows] = await conn.execute(
+    `SELECT COUNT(*) AS count FROM projects WHERE ${seedWhere} AND billing_id IS NOT NULL`,
+    [SEED_KEY]
+  );
+  const [billingNoRows] = await conn.execute(
+    `SELECT COUNT(*) AS count FROM company_billings WHERE ${seedWhere} AND billing_no IS NOT NULL`,
+    [SEED_KEY]
+  );
+  const [settlementProjectRows] = await conn.execute(
+    `SELECT COUNT(*) AS count FROM settlement_projects sp
+     WHERE (sp.settlement_type='invoice' AND sp.settlement_id IN (SELECT invoice_id FROM invoices WHERE ${seedWhere}))
+        OR (sp.settlement_type='payment' AND sp.settlement_id IN (SELECT payment_id FROM payments WHERE ${seedWhere}))`,
+    [SEED_KEY, SEED_KEY]
+  );
+  result.projects_with_billing = Number(projectBillingRows[0].count);
+  result.company_billings_with_no = Number(billingNoRows[0].count);
+  result.settlement_project_links = Number(settlementProjectRows[0].count);
+
   const [advanceRows] = await conn.execute(
     `SELECT COUNT(*) AS count FROM advance_records ar
      JOIN projects p ON p.project_id = ar.project_id
@@ -701,6 +719,9 @@ async function createSettlementsForMonth(conn, ym, { maxCompanies = 8, maxPartne
       });
     }
     for (const line of lines) await insert(conn, 'settlement_lines', { settlement_type: 'invoice', settlement_id: invoiceId, ...line });
+    for (const projectId of projectIds) {
+      await insert(conn, 'settlement_projects', { settlement_type: 'invoice', settlement_id: invoiceId, project_id: projectId });
+    }
     await insert(conn, 'invoice_details', {
       invoice_id: invoiceId, price_name: '稼働分（匿名検証用）', unit_price: subtotal, quantity: 1, amount: subtotal, is_adjustment_row: 0,
     });
@@ -746,6 +767,7 @@ async function createSettlementsForMonth(conn, ym, { maxCompanies = 8, maxPartne
   let paymentCount = 0;
   const partnerEntries = [...byPartner.entries()].slice(0, maxPartners);
   for (const [paymentIndex, [partnerId, rows]] of partnerEntries.entries()) {
+    const projectIds = [...new Set(rows.map((row) => row.project_id))];
     const gross = rows.reduce((sum, row) => sum + Number(row.calculated_payment_amount || 0), 0);
     if (gross <= 0 && ym !== MATRIX_MONTH) continue;
     const [partnerRows] = await conn.execute(
@@ -840,6 +862,9 @@ async function createSettlementsForMonth(conn, ym, { maxCompanies = 8, maxPartne
       });
     }
     for (const line of lines) await insert(conn, 'settlement_lines', line);
+    for (const projectId of projectIds) {
+      await insert(conn, 'settlement_projects', { settlement_type: 'payment', settlement_id: paymentId, project_id: projectId });
+    }
     if (advanceAmount > 0) {
       await insert(conn, 'advance_payment_allocations', {
         advance_record_id: advance[0].advance_record_id, payment_id: paymentId, amount: advanceAmount,
@@ -967,8 +992,11 @@ async function resetBusinessData() {
       ? await conn.query(`SELECT advance_record_id FROM advance_records WHERE project_id IN (${marks(projectIds)})`, projectIds)
       : [[]];
     const advanceRecordIds = advanceRecords.map((x) => x.advance_record_id);
-    const removeWhere = async (table, column, values) => {
-      if (values.length) await conn.query(`DELETE FROM ${table} WHERE ${column} IN (${marks(values)})`, values);
+    const removeWhere = async (table, column, values, extraCondition = '') => {
+      if (values.length) {
+        const suffix = extraCondition ? ` AND ${extraCondition}` : '';
+        await conn.query(`DELETE FROM ${table} WHERE ${column} IN (${marks(values)})${suffix}`, values);
+      }
     };
 
     await conn.beginTransaction();
@@ -995,6 +1023,9 @@ async function resetBusinessData() {
       await conn.query(`DELETE FROM settlement_lines WHERE ${conditions.join(' OR ')}`, params);
     }
     await removeWhere('settlement_carry_forward_allocations', 'payment_id', paymentIds);
+    await removeWhere('settlement_projects', 'settlement_id', invoiceIds, "settlement_type='invoice'");
+    await removeWhere('settlement_projects', 'settlement_id', paymentIds, "settlement_type='payment'");
+    await removeWhere('settlement_projects', 'project_id', projectIds);
     await removeWhere('advance_payment_allocations', 'payment_id', paymentIds);
     await removeWhere('advance_payment_allocations', 'advance_record_id', advanceRecordIds);
     await removeWhere('settlement_carry_forwards', 'source_payment_id', paymentIds);
@@ -1082,12 +1113,12 @@ async function resetBusinessData() {
     await removeWhere('project_invoice_settings', 'project_id', projectIds);
     await removeWhere('partner_vehicles', 'partner_id', partnerIds);
     await removeWhere('company_vehicles', 'company_id', companyIds);
-    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('company_manager_periods', 'company_id', companyIds);
     await removeWhere('company_invoice_settings', 'company_id', companyIds);
     await removeWhere('invoice_exclusions', 'company_id', companyIds);
     await removeWhere('settlement_deduction_rules', 'partner_id', partnerIds);
     await removeWhere('projects', 'project_id', projectIds);
+    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('base_projects', 'base_project_id', baseIds);
     await removeWhere('partners', 'partner_id', partnerIds);
     await removeWhere('companies', 'company_id', companyIds);
@@ -1296,8 +1327,9 @@ async function seed() {
       });
       // 合算用: 先頭12社を4グループにまとめ同一 summary_no
       const summaryGroup = index < 12 ? String(Math.floor(index / 3) + 1).padStart(2, '0') : no;
-      await insert(conn, 'company_billings', {
+      const billingId = await insert(conn, 'company_billings', {
         company_id: companyId,
+        billing_no: 1,
         billing_print_name: name,
         billing_address: `東京都サンプル区請求宛${index % 40 + 1}`,
         billing_phone: `03-${String(3000 + index).slice(-4)}-${String(4000 + index).slice(-4)}`,
@@ -1318,7 +1350,7 @@ async function seed() {
          ON DUPLICATE KEY UPDATE display_mode=VALUES(display_mode)`,
         [companyId, index % 3 === 0 ? 'project_aggregated' : 'detailed']
       );
-      companies.push({ id: companyId, name, closing, summaryGroup });
+      companies.push({ id: companyId, billingId, name, closing, summaryGroup });
     }
 
     const partners = [];
@@ -1455,6 +1487,7 @@ async function seed() {
       const projectId = await insert(conn, 'projects', {
         base_project_id: base.id,
         company_id: company.id,
+        billing_id: company.billingId,
         partner_id: partner?.id || null,
         vehicle_id: partner?.vehicleId || null,
         manager_name: `${variant}担当`,
@@ -1929,6 +1962,14 @@ async function seed() {
 }
 
 async function main() {
+  if (process.argv.includes('--repair-issue100')) {
+    await repairIssue100Data();
+    return;
+  }
+  if (process.argv.includes('--detach-external-projects')) {
+    await detachExternalDerivedProjects();
+    return;
+  }
   if (process.argv.includes('--reset')) {
     await resetBusinessData();
     await seed();
