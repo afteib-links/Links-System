@@ -59,3 +59,55 @@ docker compose exec -T -e PDF_DIR=/app/pdf/preview app npm run preview:settlemen
 - 請求: 単一／複数合算、詳細／取纏、下書き予約、税・調整行
 - 支払・先払: 3サイクル、手修正、取消、正式控除、振込0繰越、給与明細
 - 入出金: 管理回、入出金予定、実行／出力済、口座不備行
+
+## 2026-09 マトリクス一覧（個別案件 index 110〜149）
+
+`projects.extra_data.scenario` に以下を格納。画面では企業・パートナー名の `@_` で絞り込む。
+
+| index | scenario | 確認内容 |
+|------:|----------|----------|
+| 110 | `matrix-overtime` | 超過 |
+| 111 | `matrix-shortage` | 不足 |
+| 112 | `matrix-night` | 深夜 |
+| 113 | `matrix-night-ot` | 深夜超過 |
+| 114 | `matrix-holiday` | 休日料金（9/21–23） |
+| 115 | `matrix-training` | 研修 |
+| 116 | `matrix-manual` | 料金手動選択 |
+| 117 | `matrix-override` | 一時単価変更 |
+| 118 | `matrix-distance-daily` | 距離・日次超過 |
+| 119 | `matrix-distance-monthly` | 距離・月次超過 |
+| 120 | `matrix-distance-tiered` | 距離・段階 |
+| 121 | `matrix-night-split` | 請求≠支払の深夜帯 |
+| 122 | `matrix-rounding` | 丸め差 |
+| 123 | `matrix-absent` | 欠勤 |
+| 124 | `matrix-unnecessary` | 不要（非稼働） |
+| 125 | `matrix-multi-row` | 同日複数行 |
+| 126 | `matrix-expense` | 経費混在 |
+| 127 | `matrix-status-mix` | draft/confirmed/approved 混在 |
+| 128 | `matrix-reject` | 差戻し |
+| 129 | `matrix-monthly` | 月極料金 |
+| 130 | `matrix-installment` | 先払3サイクル・手修正・取消 |
+| 131 | `matrix-installment-zero` | 稼働0先払 |
+| 132 | `matrix-unassigned` | パートナー未割当 |
+| 133 | `matrix-late-start` | 途中開始（2026-06〜） |
+| 134 | `matrix-ended` | 途中終了（〜2026-06） |
+| 135 | `matrix-payment-bias-a` | 支払単価A |
+| 136 | `matrix-payment-bias-b` | 支払単価B（請求同・支払差） |
+| 137 | `matrix-consolidate-a` | 合算請求（同一企業） |
+| 138 | `matrix-consolidate-b` | 合算請求 |
+| 139 | `matrix-consolidate-c` | 合算請求 |
+| 140 | `matrix-draft-invoice` | 請求下書き予約 |
+| 141 | `matrix-carry` | 振込0・繰越 |
+| 142 | `matrix-night-include` | 深夜 include_in_base |
+| 143 | `matrix-night-excluded` | 深夜 excluded |
+| 144 | `matrix-submission` | 提出済／未提出／遅延 |
+| 145 | `matrix-account-ok` | 口座完备対照 |
+| 146 | `matrix-revision-cross` | 4/1改定＋跨ぎ稼働 |
+| 147 | `matrix-sep-revision` | 9/1改定 |
+| 148 | `matrix-no-report` | 日報なし |
+| 149 | `matrix-standard` | 通常平日（基準） |
+
+## PDF生成メモ
+
+- 既定では帳票PDFはスタブ（Chromium未導入環境向け）
+- 実PDFが必要な場合: `VERIFICATION_SEED_FORCE_PDF=1` または `PDF_CHROMIUM_EXECUTABLE_PATH` を指定
