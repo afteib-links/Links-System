@@ -27,3 +27,21 @@ test('確認指定がない検証データリセットを拒否する', () => {
   assert.notEqual(result.status, 0);
   assert.match(`${result.stdout}${result.stderr}`, /VERIFICATION_RESET_CONFIRM=DELETE_VERIFICATION_DATA/);
 });
+
+test('確認指定がない検証参照の切離しを拒否する', () => {
+  const result = spawnSync(process.execPath, [script, '--detach-external-projects'], {
+    env: { ...process.env, NODE_ENV: 'development', VERIFICATION_DETACH_CONFIRM: '' },
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /VERIFICATION_DETACH_CONFIRM=DETACH_EXTERNAL_PROJECTS/);
+});
+
+test('本番モードでは検証参照の切離しを拒否する', () => {
+  const result = spawnSync(process.execPath, [script, '--detach-external-projects'], {
+    env: { ...process.env, NODE_ENV: 'production', VERIFICATION_DETACH_CONFIRM: 'DETACH_EXTERNAL_PROJECTS' },
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /本番モードでは検証データ参照の切離しを実行できません/);
+});

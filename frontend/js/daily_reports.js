@@ -1,15 +1,25 @@
 (() => {
   const LinksDailyReports = {
     async open(ctx) {
+      const options = arguments[1] || {};
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ctx.renderLoading();
-      this.ym = this.kit.currentYearMonth();
+      this.ym = /^\d{4}-\d{2}$/.test(options.targetYearMonth || '') ? options.targetYearMonth : this.kit.currentYearMonth();
       this.listFilters = { q:'', closing_date:'', workflow_status:'', workflow_statuses:'', input_progress:'' };
       this.listState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
       this.layout = await this.kit.loadAreaLayout('daily_reports');
       this.saveInFlight = null;
-      await this.showMonthList();
+      if (options.projectId) {
+        await this.showInputGrid({
+          project_id: Number(options.projectId),
+          company_id: options.companyId ? Number(options.companyId) : null,
+          partner_id: options.partnerId ? Number(options.partnerId) : null,
+        });
+      } else {
+        if (options.query) this.listFilters.q = String(options.query);
+        await this.showMonthList();
+      }
     },
 
     canImport() {

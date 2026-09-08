@@ -31,14 +31,28 @@ docker compose exec -T -e NODE_ENV=development -e VERIFICATION_RESET_CONFIRM=DEL
 
 | 区分 | 内容 |
 |------|------|
-| 企業 | 100件（締日6種循環、請求取纏番号・表示モード混在） |
+| 企業 | 100件（締日6種循環、企業内請求先No・請求取纏番号・表示モード混在） |
 | パートナー | 150件（口座完备／不備、先払可否、控除上書き） |
 | 基本案件 | 130件 |
-| 個別案件 | 150件（通常／分割、途中開始・終了、未割当、合算用など） |
+| 個別案件 | 150件（企業ごとの請求先を設定、通常／分割、途中開始・終了、未割当、合算用など） |
 | 金額（PriceSet） | 約200件（基本テンプレ50 + 個別150 + 途中改定分） |
 | 期間 | 2025-11〜2026-09 |
 | 運用イメージ月 | 2025-11〜2026-08（連続稼働・改定・合算・先払） |
 | 検証マトリクス月 | **2026-09**（T-* パターンを明示配置） |
+
+請求・支払の検証データには、作成時点の対象案件を `settlement_projects` に保存します。`verify:verification-data` の結果では、請求先設定済み案件数、請求先No設定数、精算対象案件リンク数も確認できます。
+
+Issue #100以前に投入済みの現行キーの匿名検証データへ請求先Noと精算対象案件の関連だけを補完する場合は、削除を伴わない次のコマンドを使用します。
+
+```powershell
+docker compose exec -T app npm run repair:verification-issue100
+```
+
+検証キー外の案件が現行キーの検証用マスターを参照して限定リセットを妨げる場合は、対象案件を残したまま企業・パートナー・基本案件・請求先を通常データとして複製し、参照を切り離せます。本番では実行できず、確認用環境変数が必須です。
+
+```powershell
+docker compose exec -T -e NODE_ENV=development -e VERIFICATION_DETACH_CONFIRM=DETACH_EXTERNAL_PROJECTS app npm run detach:verification-dependencies
+```
 
 ## 帳票プレビュー
 

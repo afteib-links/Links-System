@@ -33,6 +33,24 @@ router.get('/companies', async (_req, res) => {
   }
 });
 
+router.get('/company-billings', async (req, res) => {
+  try {
+    const companyId = Number(req.query.company_id || 0);
+    if (companyId <= 0) return res.status(400).json({ ok:false, message:'企業を指定してください' });
+    const rows = await query(
+      `SELECT billing_id, company_id, billing_no, billing_print_name, billing_summary_no
+       FROM company_billings
+       WHERE company_id = ? AND is_deleted = 0
+       ORDER BY billing_no ASC, billing_id ASC`,
+      [companyId]
+    );
+    return res.json({ ok:true, billings:rows });
+  } catch (err) {
+    console.error('[lookups/company-billings]', err);
+    return res.status(500).json({ ok:false, message:'請求先一覧の取得に失敗しました' });
+  }
+});
+
 router.get('/partners', async (_req, res) => {
   try {
     const rows = await query(

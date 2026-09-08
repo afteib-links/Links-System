@@ -226,10 +226,11 @@
         escapeHtml: this.ctx.escapeHtml,
         rowKey: 'base_project_id',
         tableId: 'base-projects-table',
-        renderActions: (b) => `<button type="button" class="btn btn-ghost btn-small" data-edit-base="${b.base_project_id}">編集</button>
+        renderActions: (b) => `<span class="desktop-row-actions"><button type="button" class="btn btn-ghost btn-small" data-edit-base="${b.base_project_id}">編集</button>
           <button type="button" class="btn btn-ghost btn-small" data-copy-base="${b.base_project_id}">コピー</button>
           <button type="button" class="btn btn-small" data-create-project="${b.base_project_id}">案件作成</button>
-          <button type="button" class="btn btn-danger btn-small" data-del-base="${b.base_project_id}">削除</button>`,
+          <button type="button" class="btn btn-danger btn-small" data-del-base="${b.base_project_id}">削除</button></span>
+          <button type="button" class="btn btn-ghost btn-small mobile-row-action" data-base-actions="${b.base_project_id}">操作</button>`,
       });
       this.ctx.app.innerHTML = this.kit.shell(
         this.titleBase(),
@@ -326,6 +327,15 @@
           await this.showBaseList('削除しました');
         })
       );
+      document.querySelectorAll('[data-base-actions]').forEach((btn) => btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-base-actions'));
+        document.body.insertAdjacentHTML('beforeend', this.kit.modalHtml('基本案件の操作', `<div class="mobile-action-menu"><button class="btn" data-mobile-edit-base="${id}">編集</button><button class="btn btn-ghost" data-mobile-copy-base="${id}">コピー</button><button class="btn btn-secondary" data-mobile-create-project="${id}">案件作成</button><button class="btn btn-danger" data-mobile-delete-base="${id}">削除</button></div>`));
+        const close = this.kit.bindModal();
+        document.querySelector('[data-mobile-edit-base]')?.addEventListener('click', () => { close(); this.showBaseDetail(id); });
+        document.querySelector('[data-mobile-copy-base]')?.addEventListener('click', () => { close(); document.querySelector(`[data-copy-base="${id}"]`)?.click(); });
+        document.querySelector('[data-mobile-create-project]')?.addEventListener('click', () => { close(); document.querySelector(`[data-create-project="${id}"]`)?.click(); });
+        document.querySelector('[data-mobile-delete-base]')?.addEventListener('click', () => { close(); document.querySelector(`[data-del-base="${id}"]`)?.click(); });
+      }));
     },
 
     async showBaseDetail(id) {
@@ -478,9 +488,10 @@
         escapeHtml: this.ctx.escapeHtml,
         rowKey: 'project_id',
         tableId: 'projects-table',
-        renderActions: (p) => `<button type="button" class="btn btn-ghost btn-small" data-edit="${p.project_id}">編集</button>
+        renderActions: (p) => `<span class="desktop-row-actions"><button type="button" class="btn btn-ghost btn-small" data-edit="${p.project_id}">編集</button>
           <button type="button" class="btn btn-ghost btn-small" data-copy-project="${p.project_id}">コピー</button>
-          <button type="button" class="btn btn-danger btn-small" data-del="${p.project_id}">削除</button>`,
+          <button type="button" class="btn btn-danger btn-small" data-del="${p.project_id}">削除</button></span>
+          <button type="button" class="btn btn-ghost btn-small mobile-row-action" data-project-actions="${p.project_id}">操作</button>`,
       });
       this.ctx.app.innerHTML = this.kit.shell(
         this.titleProjects(),
@@ -562,6 +573,14 @@
           await this.showProjectList('削除しました');
         })
       );
+      document.querySelectorAll('[data-project-actions]').forEach((btn) => btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-project-actions'));
+        document.body.insertAdjacentHTML('beforeend', this.kit.modalHtml('個別案件の操作', `<div class="mobile-action-menu"><button class="btn" data-mobile-edit-project="${id}">編集</button><button class="btn btn-ghost" data-mobile-copy-project="${id}">コピー</button><button class="btn btn-danger" data-mobile-delete-project="${id}">削除</button></div>`));
+        const close = this.kit.bindModal();
+        document.querySelector('[data-mobile-edit-project]')?.addEventListener('click', () => { close(); this.showProjectDetail(id); });
+        document.querySelector('[data-mobile-copy-project]')?.addEventListener('click', () => { close(); document.querySelector(`[data-copy-project="${id}"]`)?.click(); });
+        document.querySelector('[data-mobile-delete-project]')?.addEventListener('click', () => { close(); document.querySelector(`[data-del="${id}"]`)?.click(); });
+      }));
     },
 
     async showProjectDetail(id) {
@@ -570,6 +589,7 @@
         project_id: null,
         version: 1,
         company_id: this.companyFilter || '',
+        billing_id: '',
         base_project_id: '',
         partner_id: this.partnerFilter || '',
         vehicle_id: '',
@@ -607,6 +627,8 @@
         `/api/lookups/base-projects${project.company_id ? `?company_id=${project.company_id}` : ''}`
       );
       this.baseProjects = bases.data?.base_projects || [];
+      const billingResponse = project.company_id ? await this.ctx.api(`/api/lookups/company-billings?company_id=${project.company_id}`) : null;
+      this.projectBillings = billingResponse?.data?.billings || [];
       this.projectVehicles = [];
       if (project.vehicle_owner_type) {
         const ownerId = project.vehicle_owner_type === 'company' ? project.company_id : project.partner_id;
@@ -646,6 +668,7 @@
             <div class="form-sections">
               <section class="form-section-card"><h3>基本情報・担当</h3><div class="form-grid form-grid-compact">
                 <div class="field-md"><label>企業（必須）</label><div id="project-company">${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', project.company_id, { required:true })}</div></div>
+                <div class="field-md"><label>請求先No</label><div id="project-billing">${this.kit.searchSelectHtml('billing_id', this.projectBillings, 'billing_id', 'billing_print_name', project.billing_id, { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` })}</div></div>
                 <div class="field-md"><label>基本案件</label><div id="project-base">${this.kit.searchSelectHtml('base_project_id', this.baseProjects, 'base_project_id', 'template_name', project.base_project_id)}</div></div>
                 <div class="field-md"><label>パートナー</label>${this.kit.searchSelectHtml('partner_id', this.partners, 'partner_id', 'partner_name', project.partner_id)}</div>
                 <div class="field-md"><label>担当者</label><input name="manager_name" value="${this.ctx.escapeHtml(project.manager_name || '')}" /></div>
@@ -719,6 +742,9 @@
         this.baseProjects = basesRes.data?.base_projects || [];
         replaceSearchSelect('project-base', 'base_project_id', this.baseProjects, 'base_project_id', 'template_name', '');
         replaceSearchSelect('template-picker', 'template_picker', this.baseProjects, 'base_project_id', 'template_name', '');
+        const billingRes = cid ? await this.ctx.api(`/api/lookups/company-billings?company_id=${cid}`) : null;
+        this.projectBillings = billingRes?.data?.billings || [];
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
         if (projectForm.vehicle_owner_type.value === 'company') await reloadVehicles();
       });
       projectForm.partner_id?.addEventListener('change', async () => {
@@ -746,6 +772,9 @@
         const basesRes = await this.ctx.api(`/api/lookups/base-projects?company_id=${b.company_id}`);
         this.baseProjects = basesRes.data?.base_projects || [];
         replaceSearchSelect('project-base', 'base_project_id', this.baseProjects, 'base_project_id', 'template_name', b.base_project_id);
+        const billingRes = await this.ctx.api(`/api/lookups/company-billings?company_id=${b.company_id}`);
+        this.projectBillings = billingRes.data?.billings || [];
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
         if (form.vehicle_owner_type.value === 'company') await reloadVehicles();
         form.manager_name.value = b.default_manager || '';
         form.business_type.value = b.business_type || '';
@@ -767,6 +796,7 @@
         const form = e.currentTarget;
         const payload = {
           company_id: Number(form.company_id.value),
+          billing_id: form.billing_id.value ? Number(form.billing_id.value) : null,
           base_project_id: form.base_project_id.value ? Number(form.base_project_id.value) : null,
           partner_id: form.partner_id.value ? Number(form.partner_id.value) : null,
           vehicle_id: form.vehicle_id.value ? Number(form.vehicle_id.value) : null,

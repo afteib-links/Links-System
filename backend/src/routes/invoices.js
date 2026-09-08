@@ -46,7 +46,7 @@ function restrictInvoiceRead(req, where, params, invoiceAlias='i') {
   const roles=roleSet(req);
   if(roles.has('admin')||roles.has('soumu')||roles.has('executive'))return;
   if(roles.has('company')){where.push(`${invoiceAlias}.company_id=?`);params.push(req.session.user.company_id);return;}
-  if(roles.has('sales')){where.push(`EXISTS (SELECT 1 FROM invoice_daily_reports air JOIN daily_reports adr ON adr.daily_report_id=air.daily_report_id JOIN project_settlement_reviewers psr ON psr.project_id=adr.project_id WHERE air.invoice_id=${invoiceAlias}.invoice_id AND psr.user_id=?)`);params.push(req.session.user.user_id);return;}
+  if(roles.has('sales')){where.push(`EXISTS (SELECT 1 FROM settlement_projects sp JOIN project_settlement_reviewers psr ON psr.project_id=sp.project_id WHERE sp.settlement_type='invoice' AND sp.settlement_id=${invoiceAlias}.invoice_id AND psr.user_id=?)`);params.push(req.session.user.user_id);return;}
   where.push('1=0');
 }
 
@@ -73,7 +73,7 @@ router.get('/targets', async (req, res) => {
        JOIN companies c ON c.company_id=pr.company_id AND c.is_deleted=0
        LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id
        LEFT JOIN company_billings cb
-          ON cb.billing_id=(SELECT MIN(cb2.billing_id) FROM company_billings cb2 WHERE cb2.company_id=pr.company_id AND cb2.is_deleted=0)
+          ON cb.billing_id=COALESCE(pr.billing_id,(SELECT cb2.billing_id FROM company_billings cb2 WHERE cb2.company_id=pr.company_id AND cb2.is_deleted=0 ORDER BY cb2.billing_no,cb2.billing_id LIMIT 1))
        WHERE ${projectWhere.join(' AND ')}
        ORDER BY c.company_name, pr.project_id`, projectParams
     );
@@ -87,11 +87,11 @@ router.get('/targets', async (req, res) => {
     );
     const approvedProjects = new Set(approvals.map((row)=>Number(row.project_id)));
     const linked = await query(
-      `SELECT d.project_id,i.invoice_id,w.status
-       FROM invoice_daily_reports l JOIN daily_reports d ON d.daily_report_id=l.daily_report_id
-       JOIN invoices i ON i.invoice_id=l.invoice_id AND i.is_deleted=0 AND i.target_year_month=?
+      `SELECT sp.project_id,i.invoice_id,i.approval_status,w.status
+       FROM settlement_projects sp
+       JOIN invoices i ON i.invoice_id=sp.settlement_id AND i.is_deleted=0 AND i.target_year_month=?
        JOIN settlement_workflows w ON w.settlement_type='invoice' AND w.settlement_id=i.invoice_id
-       WHERE w.status<>'cancelled' ORDER BY i.invoice_id DESC`, [ym]
+       WHERE sp.settlement_type='invoice' AND w.status<>'cancelled' ORDER BY i.invoice_id DESC`, [ym]
     );
     const linkByProject = new Map();
     for (const row of linked) if (!linkByProject.has(Number(row.project_id))) linkByProject.set(Number(row.project_id), row);
@@ -134,7 +134,9 @@ router.get('/targets', async (req, res) => {
         tax_rounding: taxSetting.rounding ?? null,
         tax_error: taxSetting.error || null,
         target_status: targetStatus,
+        can_create: !active,
         settlement_id: active ? Number(active.invoice_id) : null,
+        approval_status: active?.approval_status || null,
       });
     }
 
