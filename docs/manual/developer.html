@@ -361,7 +361,7 @@ git push -u origin cursor/&lt;英語短名&gt;-148a
 
       <section id="d-test">
         <h2 class="chapter">14. テスト・検証データ</h2>
-        <p>匿名検証データは <code>backend/scripts/seed_verification_data.js</code> です。アプリ起動（マイグレーション完了）後、コンテナまたは <code>PDF_DIR</code> が書ける環境で実行します。本番 <code>NODE_ENV=production</code> ではリセットできません。</p>
+        <p>匿名検証データは <code>backend/scripts/seed_verification_data.js</code> です。表示名は <code>@_</code> 接頭辞、期間は 2025-11〜2026-09（2026-09はマトリクス月）。規模は企業100／パートナー150／基本130／個別150／金額約200です。アプリ起動（マイグレーション完了）後、コンテナまたは <code>PDF_DIR</code> が書ける環境で実行します。本番 <code>NODE_ENV=production</code> ではリセットできません。</p>
         <div class="flow"># Docker
 docker compose exec -T app npm run seed:verification
 docker compose exec -T app npm run verify:verification-data
