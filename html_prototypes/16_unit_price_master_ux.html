@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>単価マスター入力UX案 - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .ux-banner {
+    background: linear-gradient(90deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1e3a5f;
+  }
+  .ux-banner strong { color: #1d4ed8; }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .meta-grid label { display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .meta-grid input, .meta-grid select { width: 100%; }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+  }
+  .tab-btn {
+    border: 1px solid var(--color-border);
+    background: #fff;
+    color: var(--color-text-muted);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tab-btn.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .section-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .pkg-card, .addon-card, .preview-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .pkg-card-head, .addon-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .pkg-card-head input[type="text"], .addon-card-head input[type="text"] {
+    flex: 1;
+    min-width: 160px;
+    font-weight: 700;
+  }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #f8fafc;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip input { margin: 0; }
+  .chip.on { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .pair-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 720px) {
+    .pair-grid { grid-template-columns: 1fr; }
+  }
+  .field-block {
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .field-block h4 {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+  }
+  .money-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .money-row label { font-size: 12px; color: var(--color-text-muted); }
+  .money-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .money-wrap span { color: var(--color-text-muted); }
+  .money-wrap input { width: 100%; text-align: right; }
+  .rate-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rate-table th, .rate-table td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 8px 6px;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .rate-table th { font-size: 11px; color: var(--color-text-muted); font-weight: 600; }
+  .rate-table input[type="number"] { width: 100%; text-align: right; }
+  .rate-off { opacity: 0.45; }
+  .hint { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+  .addon-type-select { min-width: 200px; }
+  .tier-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .tier-table th, .tier-table td { border: 1px solid var(--color-border); padding: 6px; }
+  .tier-table th { background: #f1f5f9; font-size: 11px; }
+  .tier-table input { width: 100%; }
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .preview-card h3 { font-size: 15px; margin-bottom: 6px; }
+  .preview-card .badge-line { margin-bottom: 10px; }
+  .preview-kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+  .preview-kv .muted { color: var(--color-text-muted); }
+  .preview-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 18px 0 10px;
+    color: #334155;
+  }
+  .matrix-demo {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .matrix-demo table { border-collapse: collapse; min-width: 920px; font-size: 12px; }
+  .matrix-demo th, .matrix-demo td {
+    border: 1px solid var(--color-border);
+    padding: 6px;
+    text-align: center;
+  }
+  .matrix-demo th { background: #f1f5f9; position: sticky; top: 0; }
+  .matrix-demo .cell-in {
+    background: #fef3c7;
+    min-width: 72px;
+  }
+  .compare-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 12px 0 16px;
+  }
+  .stat-box {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .stat-box .n { font-size: 22px; font-weight: 700; color: #1d4ed8; }
+  .stat-box .l { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+  .daily-mini {
+    background: #fff;
+    border: 1px dashed #93c5fd;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 16px;
+  }
+  .daily-mini table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .daily-mini th, .daily-mini td { border-bottom: 1px solid var(--color-border); padding: 6px; text-align: left; }
+  .warn { color: #b45309; font-size: 12px; margin-top: 6px; }
+  details.rate-fold > summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .empty-state {
+    padding: 24px;
+    text-align: center;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <a class="sidebar-item" href="02_dashboard.html">ダッシュボード</a>
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理（現行）</a>
+    <a class="sidebar-item active" href="16_unit_price_master_ux.html">単価入力UX案</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">案</div>
+    <div><div class="sidebar-user-name">UXサンプル</div><div class="sidebar-user-role">入力イメージ</div></div>
+  </div>
+</aside>
+
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">単価マスター入力UX案</h1>
+    <div class="flex gap-2 items-center">
+      <span class="badge badge-blue">プロトタイプ</span>
+      <button class="btn btn-outline btn-sm" type="button" id="resetSampleBtn">サンプル再読込</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ux-banner">
+      <strong>この画面は入力イメージのサンプルです（本番未接続）。</strong>
+      契約パッケージ（日極／月極＋時間単価）と加算項目（距離・段階・回数・燃料・その他）に分けて登録する案です。
+      日報ではパッケージ名を料金区分に当て、距離・回数・燃料実績を加算項目へ当てて計算する想定です。
+    </div>
+
+    <div class="meta-grid panel" style="padding:14px;background:#fff;border:1px solid var(--color-border);border-radius:8px;">
+      <div>
+        <label>金額データNo</label>
+        <input class="form-control" id="metaNo" value="PS-20260401-001" readonly>
+      </div>
+      <div>
+        <label>名称</label>
+        <input class="form-control" id="metaName" value="首都圏配送便 2026年度単価">
+      </div>
+      <div>
+        <label>対象案件（サンプル）</label>
+        <input class="form-control" id="metaProject" value="首都圏定期ルート配送便">
+      </div>
+      <div>
+        <label>適用開始</label>
+        <input class="form-control" type="date" id="metaFrom" value="2026-04-01">
+      </div>
+      <div>
+        <label>適用終了</label>
+        <input class="form-control" type="date" id="metaTo" value="2027-03-31">
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab-btn active" data-tab="packages">1. 契約パッケージ</button>
+      <button type="button" class="tab-btn" data-tab="addons">2. 加算項目</button>
+      <button type="button" class="tab-btn" data-tab="preview">3. 料金表プレビュー</button>
+      <button type="button" class="tab-btn" data-tab="compare">4. 現行マトリクス比較</button>
+    </div>
+
+    <!-- Packages -->
+    <section id="tab-packages" class="tab-panel active">
+      <div class="section-toolbar">
+        <p class="hint">1パッケージ＝「この条件の日」のまとめ金額＋時間単価。条件が違う金額はカードを分けます。</p>
+        <button type="button" class="btn btn-primary btn-sm" id="addPackageBtn">＋ パッケージ</button>
+      </div>
+      <div id="packagesArea"></div>
+    </section>
+
+    <!-- Addons -->
+    <section id="tab-addons" class="tab-panel">
+      <div class="section-toolbar">
+        <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+          <label class="hint" for="newAddonType">種別を選んで追加</label>
+          <select id="newAddonType" class="form-control addon-type-select">
+            <option value="distance_daily">距離超過（日次）</option>
+            <option value="distance_monthly">距離超過（月累計）</option>
+            <option value="distance_tiered">距離・段階表</option>
+            <option value="count">回数単価</option>
+            <option value="fuel">燃料費</option>
+            <option value="other">その他単価</option>
+          </select>
+          <button type="button" class="btn btn-primary btn-sm" id="addAddonBtn">＋ 加算項目</button>
+        </div>
+      </div>
+      <p class="hint" style="margin-bottom:12px;">種別ごとに必要な欄だけ表示します。請求／支払は独立です。</p>
+      <div id="addonsArea"></div>
+    </section>
+
+    <!-- Preview -->
+    <section id="tab-preview" class="tab-panel">
+      <p class="hint">登録内容を「人が読む料金表」として再レイアウトした見え方です。入力フォームとは別です。</p>
+      <div id="previewArea"></div>
+      <div class="daily-mini">
+        <h3 style="font-size:14px;margin-bottom:8px;">日報への当て方（イメージ）</h3>
+        <p class="hint" style="margin-bottom:8px;">勤務日の曜日・祝日・祭日からパッケージを自動候補。距離・回数・燃料は加算項目へ。</p>
+        <table>
+          <thead>
+            <tr><th>日報入力</th><th>参照する単価</th><th>計算のイメージ</th></tr>
+          </thead>
+          <tbody id="dailyMapBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Compare -->
+    <section id="tab-compare" class="tab-panel">
+      <p class="hint">同じサンプル契約を、現行の「計算種別 × 料金種別」マトリクス風に広げた場合との対比です。</p>
+      <div class="compare-stats" id="compareStats"></div>
+      <h3 class="preview-section-title">新案：短いフォーム（パッケージ数＋加算数）</h3>
+      <div id="compareNewSummary" class="hint"></div>
+      <h3 class="preview-section-title">現行風：広いマトリクス（入力セルが多くなる例）</h3>
+      <div class="matrix-demo" id="compareMatrix"></div>
+    </section>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  const DAY_OPTS = [
+    { code: 'mon', label: '月' },
+    { code: 'tue', label: '火' },
+    { code: 'wed', label: '水' },
+    { code: 'thu', label: '木' },
+    { code: 'fri', label: '金' },
+    { code: 'sat', label: '土' },
+    { code: 'sun', label: '日' },
+    { code: 'holiday', label: '祝' },
+    { code: 'festival', label: '祭' }
+  ];
+
+  const RATE_KEYS = [
+    { key: 'shortage', label: '不足' },
+    { key: 'overtime', label: '時間外' },
+    { key: 'night', label: '深夜' },
+    { key: 'night_ot', label: '深夜超過' }
+  ];
+
+  const ADDON_LABELS = {
+    distance_daily: '距離超過（日次）',
+    distance_monthly: '距離超過（月累計）',
+    distance_tiered: '距離・段階表',
+    count: '回数単価',
+    fuel: '燃料費',
+    other: 'その他単価'
+  };
+
+  function money(n) {
+    const v = Number(n || 0);
+    return '￥' + v.toLocaleString('ja-JP');
+  }
+
+  function blankRates() {
+    const o = {};
+    RATE_KEYS.forEach((r) => {
+      o[r.key] = { enabled: true, billing: 0, payment: 0 };
+    });
+    return o;
+  }
+
+  function sampleState() {
+    return {
+      packages: [
+        {
+          id: 'pkg1',
+          name: '平日',
+          days: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false, holiday: false, festival: false },
+          baseType: 'daily',
+          billing: 25000,
+          payment: 18000,
+          rates: {
+            shortage: { enabled: true, billing: 2500, payment: 1800 },
+            overtime: { enabled: true, billing: 3125, payment: 2250 },
+            night: { enabled: true, billing: 3375, payment: 2430 },
+            night_ot: { enabled: true, billing: 4000, payment: 2880 }
+          }
+        },
+        {
+          id: 'pkg2',
+          name: '土曜',
+          days: { mon: false, tue: false, wed: false, thu: false, fri: false, sat: true, sun: false, holiday: false, festival: false },
+          baseType: 'daily',
+          billing: 28000,
+          payment: 20000,
+          rates: {
+            shortage: { enabled: true, billing: 2800, payment: 2000 },
+            overtime: { enabled: true, billing: 3500, payment: 2500 },
+            night: { enabled: true, billing: 3780, payment: 2700 },
+            night_ot: { enabled: true, billing: 4480, payment: 3200 }
+          }
+        },
+        {
+          id: 'pkg3',
+          name: '祝日・祭日',
+          days: { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false, holiday: true, festival: true },
+          baseType: 'daily',
+          billing: 32000,
+          payment: 23000,
+          rates: {
+            shortage: { enabled: true, billing: 3200, payment: 2300 },
+            overtime: { enabled: true, billing: 4000, payment: 2875 },
+            night: { enabled: false, billing: 0, payment: 0 },
+            night_ot: { enabled: false, billing: 0, payment: 0 }
+          }
+        }
+      ],
+      addons: [
+        {
+          id: 'ad1',
+          type: 'distance_daily',
+          name: '日次距離超過',
+          baseKm: 50,
+          billingUnit: 150,
+          paymentUnit: 120
+        },
+        {
+          id: 'ad2',
+          type: 'distance_monthly',
+          name: '月累計距離超過',
+          baseKm: 1000,
+          billingUnit: 100,
+          paymentUnit: 80
+        },
+        {
+          id: 'ad3',
+          type: 'distance_tiered',
+          name: '長距離段階',
+          tierMode: 'excess_unit',
+          tiers: [
+            { upTo: 100, billing: 0, payment: 0, fixed: false },
+            { upTo: 200, billing: 120, payment: 100, fixed: false },
+            { upTo: '', billing: 180, payment: 150, fixed: false }
+          ]
+        },
+        {
+          id: 'ad4',
+          type: 'count',
+          name: '搬入作業',
+          unitName: '回',
+          billingUnit: 3000,
+          paymentUnit: 2200
+        },
+        {
+          id: 'ad5',
+          type: 'fuel',
+          name: '燃料費',
+          distanceSource: 'import',
+          fixedKm: 800,
+          billingUnit: 25,
+          paymentUnit: 20
+        },
+        {
+          id: 'ad6',
+          type: 'other',
+          name: '待機手当',
+          calcMode: 'fixed',
+          billingUnit: 5000,
+          paymentUnit: 4000
+        }
+      ]
+    };
+  }
+
+  let state = sampleState();
+  let uid = 100;
+
+  function nextId(prefix) {
+    uid += 1;
+    return prefix + uid;
+  }
+
+  function dayOverlapWarning(packages) {
+    const map = {};
+    const conflicts = [];
+    packages.forEach((pkg) => {
+      DAY_OPTS.forEach((d) => {
+        if (!pkg.days[d.code]) return;
+        if (map[d.code]) conflicts.push(`${d.label}:「${map[d.code]}」と「${pkg.name}」`);
+        else map[d.code] = pkg.name || '(無題)';
+      });
+    });
+    return conflicts;
+  }
+
+  function countNewInputs() {
+    let n = 0;
+    state.packages.forEach((pkg) => {
+      n += 2; // base billing/payment
+      RATE_KEYS.forEach((r) => {
+        if (pkg.rates[r.key].enabled) n += 2;
+      });
+    });
+    state.addons.forEach((ad) => {
+      if (ad.type === 'distance_tiered') {
+        n += (ad.tiers || []).length * 2;
+      } else {
+        n += 2;
+      }
+    });
+    return n;
+  }
+
+  function countOldMatrixCells() {
+    // Simulate: 3 fee items (weekday/sat/holiday) × 2 calc rows × 5 price types × 2 (bill/pay)
+    // plus distance as separate — approximate "dense matrix"
+    const feeItems = 3;
+    const calcRows = 2;
+    const priceTypes = 5;
+    const sides = 2;
+    return feeItems * calcRows * priceTypes * sides;
+  }
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'preview') renderPreview();
+      if (btn.dataset.tab === 'compare') renderCompare();
+    });
+  });
+
+  // ---- Packages render ----
+  function renderPackages() {
+    const area = document.getElementById('packagesArea');
+    const conflicts = dayOverlapWarning(state.packages);
+    area.innerHTML = state.packages.map((pkg, idx) => packageHtml(pkg, idx)).join('') +
+      (conflicts.length
+        ? `<p class="warn">適用条件の重複: ${conflicts.join(' / ')}</p>`
+        : '<p class="hint">適用条件の重複はありません。</p>');
+
+    area.querySelectorAll('[data-pkg-action]').forEach((el) => {
+      el.addEventListener('click', onPkgAction);
+    });
+    area.querySelectorAll('[data-pkg-field]').forEach((el) => {
+      el.addEventListener('input', onPkgField);
+      el.addEventListener('change', onPkgField);
+    });
+  }
+
+  function packageHtml(pkg, idx) {
+    const chips = DAY_OPTS.map((d) => {
+      const on = !!pkg.days[d.code];
+      return `<label class="chip ${on ? 'on' : ''}"><input type="checkbox" data-pkg-field="day" data-day="${d.code}" data-idx="${idx}" ${on ? 'checked' : ''}>${d.label}</label>`;
+    }).join('');
+
+    const rateRows = RATE_KEYS.map((r) => {
+      const cell = pkg.rates[r.key];
+      const off = cell.enabled ? '' : 'rate-off';
+      return `<tr class="${off}">
+        <td><label><input type="checkbox" data-pkg-field="rateOn" data-rate="${r.key}" data-idx="${idx}" ${cell.enabled ? 'checked' : ''}> ${r.label}</label></td>
+        <td><div class="money-wrap"><span>￥</span><input type="number" data-pkg-field="rateBilling" data-rate="${r.key}" data-idx="${idx}" value="${cell.billing}" ${cell.enabled ? '' : 'disabled'}></div></td>
+        <td><div class="money-wrap"><span>￥</span><input type="number" data-pkg-field="ratePayment" data-rate="${r.key}" data-idx="${idx}" value="${cell.payment}" ${cell.enabled ? '' : 'disabled'}></div></td>
+      </tr>`;
+    }).join('');
+
+    return `<article class="pkg-card" data-pkg="${idx}">
+      <div class="pkg-card-head">
+        <input type="text" class="form-control" data-pkg-field="name" data-idx="${idx}" value="${escapeHtml(pkg.name)}" placeholder="パッケージ名（例: 平日）">
+        <select class="form-control" data-pkg-field="baseType" data-idx="${idx}" style="width:140px">
+          <option value="daily" ${pkg.baseType === 'daily' ? 'selected' : ''}>日極</option>
+          <option value="monthly" ${pkg.baseType === 'monthly' ? 'selected' : ''}>月極</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" data-pkg-action="dup" data-idx="${idx}">コピー</button>
+        <button type="button" class="btn btn-danger btn-sm" data-pkg-action="del" data-idx="${idx}">削除</button>
+      </div>
+      <div class="hint">適用条件</div>
+      <div class="chip-row">${chips}</div>
+      <div class="pair-grid" style="margin:10px 0">
+        <div class="field-block">
+          <h4>まとめ金額・請求</h4>
+          <div class="money-row"><label>金額</label><div class="money-wrap"><span>￥</span><input type="number" data-pkg-field="billing" data-idx="${idx}" value="${pkg.billing}"></div></div>
+        </div>
+        <div class="field-block">
+          <h4>まとめ金額・支払</h4>
+          <div class="money-row"><label>金額</label><div class="money-wrap"><span>￥</span><input type="number" data-pkg-field="payment" data-idx="${idx}" value="${pkg.payment}"></div></div>
+        </div>
+      </div>
+      ${pkg.baseType === 'monthly' ? '<p class="hint">月極は案件×対象月に1回計上（日報で月極行を選んだとき）。按分しません。</p>' : ''}
+      <details class="rate-fold" open>
+        <summary>時間単価（不足・時間外・深夜・深夜超過）</summary>
+        <table class="rate-table">
+          <thead><tr><th>種別</th><th>請求／h</th><th>支払／h</th></tr></thead>
+          <tbody>${rateRows}</tbody>
+        </table>
+      </details>
+    </article>`;
+  }
+
+  function onPkgAction(e) {
+    const btn = e.currentTarget;
+    const idx = Number(btn.dataset.idx);
+    const action = btn.dataset.pkgAction;
+    if (action === 'del') {
+      state.packages.splice(idx, 1);
+      renderPackages();
+      return;
+    }
+    if (action === 'dup') {
+      const src = state.packages[idx];
+      const copy = JSON.parse(JSON.stringify(src));
+      copy.id = nextId('pkg');
+      copy.name = (src.name || 'パッケージ') + '（コピー）';
+      state.packages.splice(idx + 1, 0, copy);
+      renderPackages();
+    }
+  }
+
+  function onPkgField(e) {
+    const el = e.target;
+    const idx = Number(el.dataset.idx);
+    const pkg = state.packages[idx];
+    if (!pkg) return;
+    const field = el.dataset.pkgField;
+    if (field === 'name') pkg.name = el.value;
+    if (field === 'baseType') { pkg.baseType = el.value; renderPackages(); return; }
+    if (field === 'billing') pkg.billing = Number(el.value || 0);
+    if (field === 'payment') pkg.payment = Number(el.value || 0);
+    if (field === 'day') {
+      pkg.days[el.dataset.day] = el.checked;
+      renderPackages();
+      return;
+    }
+    if (field === 'rateOn') {
+      pkg.rates[el.dataset.rate].enabled = el.checked;
+      renderPackages();
+      return;
+    }
+    if (field === 'rateBilling') pkg.rates[el.dataset.rate].billing = Number(el.value || 0);
+    if (field === 'ratePayment') pkg.rates[el.dataset.rate].payment = Number(el.value || 0);
+  }
+
+  document.getElementById('addPackageBtn').addEventListener('click', () => {
+    const rates = blankRates();
+    RATE_KEYS.forEach((r) => { rates[r.key].enabled = false; });
+    state.packages.push({
+      id: nextId('pkg'),
+      name: '新しいパッケージ',
+      days: { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: true, holiday: false, festival: false },
+      baseType: 'daily',
+      billing: 0,
+      payment: 0,
+      rates
+    });
+    renderPackages();
+  });
+
+  // ---- Addons ----
+  function blankAddon(type) {
+    const base = { id: nextId('ad'), type, name: ADDON_LABELS[type] || '加算' };
+    if (type === 'distance_daily' || type === 'distance_monthly') {
+      return { ...base, baseKm: 0, billingUnit: 0, paymentUnit: 0 };
+    }
+    if (type === 'distance_tiered') {
+      return {
+        ...base,
+        tierMode: 'excess_unit',
+        tiers: [
+          { upTo: 50, billing: 0, payment: 0, fixed: false },
+          { upTo: '', billing: 100, payment: 80, fixed: false }
+        ]
+      };
+    }
+    if (type === 'count') {
+      return { ...base, unitName: '回', billingUnit: 0, paymentUnit: 0 };
+    }
+    if (type === 'fuel') {
+      return { ...base, distanceSource: 'fixed', fixedKm: 0, billingUnit: 0, paymentUnit: 0 };
+    }
+    return { ...base, calcMode: 'unit', billingUnit: 0, paymentUnit: 0 };
+  }
+
+  function renderAddons() {
+    const area = document.getElementById('addonsArea');
+    if (!state.addons.length) {
+      area.innerHTML = '<div class="empty-state">加算項目がありません。上の種別から追加してください。</div>';
+      return;
+    }
+    area.innerHTML = state.addons.map((ad, idx) => addonHtml(ad, idx)).join('');
+    area.querySelectorAll('[data-addon-action]').forEach((el) => {
+      el.addEventListener('click', onAddonAction);
+    });
+    area.querySelectorAll('[data-addon-field]').forEach((el) => {
+      el.addEventListener('input', onAddonField);
+      el.addEventListener('change', onAddonField);
+    });
+  }
+
+  function addonHtml(ad, idx) {
+    let body = '';
+    if (ad.type === 'distance_daily' || ad.type === 'distance_monthly') {
+      body = `<div class="pair-grid">
+        <div class="field-block">
+          <h4>条件</h4>
+          <div class="money-row"><label>基準km</label><input type="number" data-addon-field="baseKm" data-idx="${idx}" value="${ad.baseKm}"></div>
+          <p class="hint">${ad.type === 'distance_daily' ? '毎日の走行距離が基準を超えた分 × 単価' : '月累計が基準を超えた分 × 単価（月結果へ帰属）'}</p>
+        </div>
+        <div class="field-block">
+          <h4>超過単価</h4>
+          <div class="money-row"><label>請求</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="billingUnit" data-idx="${idx}" value="${ad.billingUnit}"></div></div>
+          <div class="money-row"><label>支払</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="paymentUnit" data-idx="${idx}" value="${ad.paymentUnit}"></div></div>
+        </div>
+      </div>`;
+    } else if (ad.type === 'distance_tiered') {
+      const rows = (ad.tiers || []).map((t, ti) => `<tr>
+        <td><input type="number" placeholder="上限なし" data-addon-field="tierUpTo" data-idx="${idx}" data-ti="${ti}" value="${t.upTo}"></td>
+        <td><input type="number" data-addon-field="tierBilling" data-idx="${idx}" data-ti="${ti}" value="${t.billing}"></td>
+        <td><input type="number" data-addon-field="tierPayment" data-idx="${idx}" data-ti="${ti}" value="${t.payment}"></td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-addon-action="delTier" data-idx="${idx}" data-ti="${ti}">削除</button></td>
+      </tr>`).join('');
+      body = `<div class="field-block" style="margin-bottom:8px">
+        <h4>計算型</h4>
+        <select class="form-control" data-addon-field="tierMode" data-idx="${idx}">
+          <option value="excess_unit" ${ad.tierMode === 'excess_unit' ? 'selected' : ''}>超過距離 × 段階単価</option>
+          <option value="all_unit" ${ad.tierMode === 'all_unit' ? 'selected' : ''}>全距離 × 段階単価</option>
+          <option value="cumulative" ${ad.tierMode === 'cumulative' ? 'selected' : ''}>段階内累積</option>
+          <option value="fixed" ${ad.tierMode === 'fixed' ? 'selected' : ''}>段階固定額</option>
+        </select>
+      </div>
+      <table class="tier-table">
+        <thead><tr><th>〜km（空＝上限なし）</th><th>請求</th><th>支払</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" data-addon-action="addTier" data-idx="${idx}">＋ 段階行</button>`;
+    } else if (ad.type === 'count') {
+      body = `<div class="pair-grid">
+        <div class="field-block">
+          <h4>単位</h4>
+          <div class="money-row"><label>単位名</label><input type="text" data-addon-field="unitName" data-idx="${idx}" value="${escapeHtml(ad.unitName || '回')}"></div>
+          <p class="hint">日報の回数 × 単価</p>
+        </div>
+        <div class="field-block">
+          <h4>1回あたり</h4>
+          <div class="money-row"><label>請求</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="billingUnit" data-idx="${idx}" value="${ad.billingUnit}"></div></div>
+          <div class="money-row"><label>支払</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="paymentUnit" data-idx="${idx}" value="${ad.paymentUnit}"></div></div>
+        </div>
+      </div>`;
+    } else if (ad.type === 'fuel') {
+      body = `<div class="pair-grid">
+        <div class="field-block">
+          <h4>距離の取り方</h4>
+          <select class="form-control" data-addon-field="distanceSource" data-idx="${idx}">
+            <option value="fixed" ${ad.distanceSource === 'fixed' ? 'selected' : ''}>毎月決まった距離</option>
+            <option value="import" ${ad.distanceSource === 'import' ? 'selected' : ''}>Web取込距離</option>
+          </select>
+          ${ad.distanceSource === 'fixed' ? `<div class="money-row" style="margin-top:8px"><label>月間km</label><input type="number" data-addon-field="fixedKm" data-idx="${idx}" value="${ad.fixedKm}"></div>` : '<p class="hint" style="margin-top:8px">取込ファイルの距離 × 単価（運用境界は合意待ち）</p>'}
+        </div>
+        <div class="field-block">
+          <h4>単価（／km）</h4>
+          <div class="money-row"><label>請求</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="billingUnit" data-idx="${idx}" value="${ad.billingUnit}"></div></div>
+          <div class="money-row"><label>支払</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="paymentUnit" data-idx="${idx}" value="${ad.paymentUnit}"></div></div>
+        </div>
+      </div>`;
+    } else {
+      body = `<div class="pair-grid">
+        <div class="field-block">
+          <h4>計算</h4>
+          <select class="form-control" data-addon-field="calcMode" data-idx="${idx}">
+            <option value="fixed" ${ad.calcMode === 'fixed' ? 'selected' : ''}>固定額</option>
+            <option value="unit" ${ad.calcMode === 'unit' ? 'selected' : ''}>単価 × 数量</option>
+          </select>
+        </div>
+        <div class="field-block">
+          <h4>${ad.calcMode === 'fixed' ? '金額' : '単価'}</h4>
+          <div class="money-row"><label>請求</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="billingUnit" data-idx="${idx}" value="${ad.billingUnit}"></div></div>
+          <div class="money-row"><label>支払</label><div class="money-wrap"><span>￥</span><input type="number" data-addon-field="paymentUnit" data-idx="${idx}" value="${ad.paymentUnit}"></div></div>
+        </div>
+      </div>`;
+    }
+
+    return `<article class="addon-card">
+      <div class="addon-card-head">
+        <span class="badge badge-blue">${ADDON_LABELS[ad.type] || ad.type}</span>
+        <input type="text" class="form-control" data-addon-field="name" data-idx="${idx}" value="${escapeHtml(ad.name)}" placeholder="項目名">
+        <button type="button" class="btn btn-danger btn-sm" data-addon-action="del" data-idx="${idx}">削除</button>
+      </div>
+      ${body}
+    </article>`;
+  }
+
+  function onAddonAction(e) {
+    const btn = e.currentTarget;
+    const idx = Number(btn.dataset.idx);
+    const action = btn.dataset.addonAction;
+    if (action === 'del') {
+      state.addons.splice(idx, 1);
+      renderAddons();
+      return;
+    }
+    if (action === 'addTier') {
+      state.addons[idx].tiers.push({ upTo: '', billing: 0, payment: 0, fixed: false });
+      renderAddons();
+      return;
+    }
+    if (action === 'delTier') {
+      state.addons[idx].tiers.splice(Number(btn.dataset.ti), 1);
+      renderAddons();
+    }
+  }
+
+  function onAddonField(e) {
+    const el = e.target;
+    const idx = Number(el.dataset.idx);
+    const ad = state.addons[idx];
+    if (!ad) return;
+    const f = el.dataset.addonField;
+    if (f === 'name') ad.name = el.value;
+    else if (f === 'baseKm' || f === 'billingUnit' || f === 'paymentUnit' || f === 'fixedKm') ad[f] = Number(el.value || 0);
+    else if (f === 'unitName') ad.unitName = el.value;
+    else if (f === 'tierMode') ad.tierMode = el.value;
+    else if (f === 'distanceSource') { ad.distanceSource = el.value; renderAddons(); return; }
+    else if (f === 'calcMode') { ad.calcMode = el.value; renderAddons(); return; }
+    else if (f === 'tierUpTo') ad.tiers[Number(el.dataset.ti)].upTo = el.value === '' ? '' : Number(el.value);
+    else if (f === 'tierBilling') ad.tiers[Number(el.dataset.ti)].billing = Number(el.value || 0);
+    else if (f === 'tierPayment') ad.tiers[Number(el.dataset.ti)].payment = Number(el.value || 0);
+  }
+
+  document.getElementById('addAddonBtn').addEventListener('click', () => {
+    const type = document.getElementById('newAddonType').value;
+    state.addons.push(blankAddon(type));
+    renderAddons();
+  });
+
+  // ---- Preview ----
+  function dayLabels(pkg) {
+    return DAY_OPTS.filter((d) => pkg.days[d.code]).map((d) => d.label).join('') || '（未設定）';
+  }
+
+  function renderPreview() {
+    const area = document.getElementById('previewArea');
+    const pkgCards = state.packages.map((pkg) => {
+      const rates = RATE_KEYS.filter((r) => pkg.rates[r.key].enabled).map((r) => {
+        const c = pkg.rates[r.key];
+        return `<div class="preview-kv"><span class="muted">${r.label}</span><span>請求 ${money(c.billing)} / 支払 ${money(c.payment)}</span></div>`;
+      }).join('') || '<div class="hint">時間単価なし</div>';
+      return `<div class="preview-card">
+        <h3>${escapeHtml(pkg.name)}</h3>
+        <div class="badge-line"><span class="badge badge-green">${pkg.baseType === 'monthly' ? '月極' : '日極'}</span>
+          <span class="badge badge-blue">${dayLabels(pkg)}</span></div>
+        <div class="preview-kv"><span class="muted">まとめ金額</span><span>請求 ${money(pkg.billing)} / 支払 ${money(pkg.payment)}</span></div>
+        <div style="margin-top:8px;font-size:12px;font-weight:600;color:#64748b">時間単価</div>
+        ${rates}
+      </div>`;
+    }).join('');
+
+    const addonCards = state.addons.map((ad) => {
+      let detail = '';
+      if (ad.type === 'distance_daily' || ad.type === 'distance_monthly') {
+        detail = `基準 ${ad.baseKm}km 超 × 請求 ${money(ad.billingUnit)} / 支払 ${money(ad.paymentUnit)}`;
+      } else if (ad.type === 'distance_tiered') {
+        detail = `段階 ${(ad.tiers || []).length} 行（${ad.tierMode}）`;
+      } else if (ad.type === 'count') {
+        detail = `1${ad.unitName || '回'} 請求 ${money(ad.billingUnit)} / 支払 ${money(ad.paymentUnit)}`;
+      } else if (ad.type === 'fuel') {
+        detail = `${ad.distanceSource === 'fixed' ? '固定' + ad.fixedKm + 'km' : '取込距離'} × 請求 ${money(ad.billingUnit)} / 支払 ${money(ad.paymentUnit)}`;
+      } else {
+        detail = `${ad.calcMode === 'fixed' ? '固定' : '単価×数量'} 請求 ${money(ad.billingUnit)} / 支払 ${money(ad.paymentUnit)}`;
+      }
+      return `<div class="preview-card">
+        <h3>${escapeHtml(ad.name)}</h3>
+        <div class="badge-line"><span class="badge badge-blue">${ADDON_LABELS[ad.type]}</span></div>
+        <p class="hint">${escapeHtml(detail)}</p>
+      </div>`;
+    }).join('');
+
+    area.innerHTML = `
+      <h3 class="preview-section-title">契約パッケージ</h3>
+      <div class="preview-grid">${pkgCards || '<div class="empty-state">なし</div>'}</div>
+      <h3 class="preview-section-title">加算項目</h3>
+      <div class="preview-grid">${addonCards || '<div class="empty-state">なし</div>'}</div>`;
+
+    const mapBody = document.getElementById('dailyMapBody');
+    const rows = [];
+    state.packages.forEach((pkg) => {
+      rows.push(`<tr><td>料金区分「${escapeHtml(pkg.name)}」</td><td>契約パッケージ</td><td>${pkg.baseType === 'monthly' ? '月極1回' : '日極'}＋有効な時間単価</td></tr>`);
+    });
+    state.addons.forEach((ad) => {
+      let src = '加算項目';
+      if (ad.type.startsWith('distance')) src = '走行距離';
+      if (ad.type === 'count') src = '回数';
+      if (ad.type === 'fuel') src = '燃料距離';
+      rows.push(`<tr><td>${escapeHtml(src)}（${escapeHtml(ad.name)}）</td><td>加算「${ADDON_LABELS[ad.type]}」</td><td>実績 × 登録単価</td></tr>`);
+    });
+    mapBody.innerHTML = rows.join('') || '<tr><td colspan="3">データなし</td></tr>';
+  }
+
+  // ---- Compare ----
+  function renderCompare() {
+    const newN = countNewInputs();
+    const oldN = countOldMatrixCells();
+    document.getElementById('compareStats').innerHTML = `
+      <div class="stat-box"><div class="n">${state.packages.length}</div><div class="l">契約パッケージ数</div></div>
+      <div class="stat-box"><div class="n">${state.addons.length}</div><div class="l">加算項目数</div></div>
+      <div class="stat-box"><div class="n">${newN}</div><div class="l">新案の主な金額入力数（目安）</div></div>
+      <div class="stat-box"><div class="n">${oldN}</div><div class="l">現行マトリクス風セル数（目安）</div></div>`;
+
+    document.getElementById('compareNewSummary').innerHTML =
+      `パッケージは縦フォーム、加算は種別専用欄のみ。同じサンプルで金額入力の目安は <strong>${newN}</strong> 対 マトリクス風 <strong>${oldN}</strong> です。`;
+
+    const pts = ['基本', '不足', '時間外', '深夜', '深夜超過'];
+    const calcs = ['日極', '時間'];
+    const items = state.packages.slice(0, 3);
+    let head = '<tr><th>項目\\\\種別</th>';
+    pts.forEach((p) => { head += `<th colspan="2">${p}</th>`; });
+    head += '</tr><tr><th>計算</th>';
+    pts.forEach(() => { head += '<th>請求</th><th>支払</th>'; });
+    head += '</tr>';
+
+    let body = '';
+    items.forEach((pkg) => {
+      calcs.forEach((calc, ci) => {
+        body += `<tr><th>${escapeHtml(pkg.name)}／${calc}</th>`;
+        pts.forEach((pt, pi) => {
+          let b = '—';
+          let p = '—';
+          if (ci === 0 && pi === 0) {
+            b = money(pkg.billing);
+            p = money(pkg.payment);
+          } else if (ci === 1) {
+            const map = { 1: 'shortage', 2: 'overtime', 3: 'night', 4: 'night_ot' };
+            const key = map[pi];
+            if (key && pkg.rates[key].enabled) {
+              b = money(pkg.rates[key].billing);
+              p = money(pkg.rates[key].payment);
+            }
+          }
+          body += `<td class="cell-in">${b}</td><td class="cell-in">${p}</td>`;
+        });
+        body += '</tr>';
+      });
+    });
+
+    document.getElementById('compareMatrix').innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>
+      <p class="hint" style="padding:8px">黄色セルは入力候補。現行UIはこの交差表を料金項目ごとに持つため、空セルや使わない組合せも画面に残りやすいです。</p>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  document.getElementById('resetSampleBtn').addEventListener('click', () => {
+    state = sampleState();
+    uid = 100;
+    renderPackages();
+    renderAddons();
+    renderPreview();
+    renderCompare();
+  });
+
+  // init
+  renderPackages();
+  renderAddons();
+})();
+</script>
+</body>
+</html>
