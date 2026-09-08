@@ -1060,16 +1060,19 @@ async function resetBusinessData() {
     await removeWhere('daily_report_monthly_approvals', 'project_id', projectIds);
     await removeWhere('daily_report_submissions', 'project_id', projectIds);
     await removeWhere('daily_reports', 'daily_report_id', reportIds);
-    // 休日は案件FKがあるため、案件削除より先に必ず消す
+    // 休日は案件FKがあるため、案件削除より先に必ず消す（seed_key のみ対象）
     await conn.query(
       `DELETE FROM holidays
-        WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key')) IN (${marks(allKeys)})
-           OR holiday_name LIKE ?
-           OR holiday_name LIKE ?`,
-      [...allKeys, `${PREFIX}%`, '【検証】%']
+        WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key')) IN (${marks(allKeys)})`,
+      allKeys
     );
     if (projectIds.length) {
-      await conn.query(`DELETE FROM holidays WHERE project_id IN (${marks(projectIds)})`, projectIds);
+      await conn.query(
+        `DELETE FROM holidays
+          WHERE project_id IN (${marks(projectIds)})
+            AND JSON_UNQUOTE(JSON_EXTRACT(extra_data,'$.seed_key')) IN (${marks(allKeys)})`,
+        [...projectIds, ...allKeys]
+      );
     }
     await removeWhere('price_set_lines', 'price_set_id', priceSetIds);
     await removeWhere('price_sets', 'price_set_id', priceSetIds);
@@ -1115,11 +1118,7 @@ async function seed() {
     }
 
     await conn.beginTransaction();
-    // 控除ルールを検証期間全体に拡張
-    await conn.execute(
-      `UPDATE settlement_deduction_rules SET valid_from='2025-11-01'
-        WHERE scope='common' AND partner_id IS NULL AND rule_code IN ('office_fee','safety_fee') AND valid_from > '2025-11-01'`
-    );
+    // 共通控除マスタは変更しない（精算作成月は 2026-02 以降で既存 valid_from=2026-01-01 が適用される）
 
     const companies = [];
     for (let index = 0; index < COMPANY_COUNT; index += 1) {
