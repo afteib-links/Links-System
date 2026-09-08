@@ -42,6 +42,19 @@ async function main() {
       return { response, data };
     }
     const post = (route, body) => request(route, { method: 'POST', body: JSON.stringify(body) });
+    async function syncSource(kind, settlementId) {
+      const diff = await request(`/api/settlements/${kind}/${settlementId}/source-diff`);
+      assert.equal(diff.response.status, 200);
+      const changes = Array.isArray(diff.data.changes) ? diff.data.changes : [];
+      const applied = await post(`/api/settlements/${kind}/${settlementId}/source-diff/apply`, {
+        change_keys: changes.map((change) => change.change_key),
+        replace_line_ids: changes.filter((change) => change.protected && change.current?.settlement_line_id)
+          .map((change) => Number(change.current.settlement_line_id)),
+        sync_only: true,
+        reason: 'UAT日報再反映',
+      });
+      assert.equal(applied.response.status, 200);
+    }
 
     const login = await post('/api/auth/login', { login_id: loginId, password });
     assert.equal(login.response.status, 200);
@@ -66,6 +79,7 @@ async function main() {
       billing_id: invoiceTarget.billing_id,
       billing_summary_no: invoiceTarget.billing_summary_no,
       billing_print_name: invoiceTarget.billing_print_name,
+      project_ids: [invoiceTarget.project_id],
       daily_report_ids: invoiceTarget.report_ids, closing_date: invoiceTarget.closing_date || 'end',
       adjustments: [{ item_name: 'UAT調整', amount: -500, reason: '運用受入確認', tax_category: 'taxable' }],
     };
@@ -73,6 +87,7 @@ async function main() {
     assert.equal(invoiceDraft.response.status, 201);
     const invoiceId = Number(invoiceDraft.data.settlement_id);
     assert.equal((await post('/api/settlements/invoice/drafts', invoiceBody)).response.status, 400, '同じ日報の二重予約を拒否する');
+    await syncSource('invoice', invoiceId);
     const invoiceBefore = await request(`/api/settlements/invoice/${invoiceId}`);
     assert.ok(invoiceBefore.data.lines.every((line) => line.source_type === 'monthly_aggregate' || line.source_type === 'manual_adjustment'));
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/sales-review`, {})).response.status, 200);
@@ -104,10 +119,12 @@ async function main() {
     );
     const zeroDraft = await post('/api/settlements/payment/drafts', {
       target_year_month: '2026-05', partner_id: zeroTarget.partner_id,
+      project_ids: [zeroTarget.project_id],
       daily_report_ids: zeroTarget.report_ids, closing_date: zeroTarget.closing_date || 'end',
     });
     assert.equal(zeroDraft.response.status, 201);
     const zeroPaymentId = Number(zeroDraft.data.settlement_id);
+    await syncSource('payment', zeroPaymentId);
     assert.equal((await post(`/api/settlements/payment/${zeroPaymentId}/sales-review`, {})).response.status, 200);
     const zeroFinal = await post(`/api/settlements/payment/${zeroPaymentId}/finalize`, { cash_cycle_id: cashCycleId });
     assert.equal(zeroFinal.response.status, 200);
@@ -131,10 +148,12 @@ async function main() {
     assert.ok(correctionTarget);
     const paymentDraft = await post('/api/settlements/payment/drafts', {
       target_year_month: '2026-05', partner_id: correctionTarget.partner_id,
+      project_ids: [correctionTarget.project_id],
       daily_report_ids: correctionTarget.report_ids, closing_date: correctionTarget.closing_date || 'end', issue_salary_statement: true,
     });
     assert.equal(paymentDraft.response.status, 201);
     const paymentId = Number(paymentDraft.data.settlement_id);
+    await syncSource('payment', paymentId);
     assert.equal((await post(`/api/settlements/payment/${paymentId}/sales-review`, {})).response.status, 200);
     const paymentFinal = await post(`/api/settlements/payment/${paymentId}/finalize`, { cash_cycle_id: cashCycleId });
     assert.equal(paymentFinal.response.status, 200);
