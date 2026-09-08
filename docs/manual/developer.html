@@ -40,7 +40,7 @@
         <p class="eyebrow">運送業務基幹システム</p>
         <h1>Links-System<br>開発者マニュアル</h1>
         <p>機能の役割、設定の入れ方、匿名の記入例を3件以上ずつ載せた開発者向け資料です。画面の見た目は <a href="index.html">画面俯瞰マニュアル</a> を併用してください。</p>
-        <p>記入例はすべて架空です（<code>【検証】</code> 接頭辞のイメージ）。実在の顧客名・口座は使わないでください。</p>
+        <p>記入例はすべて架空です（<code>@_</code> 接頭辞のイメージ）。実在の顧客名・口座は使わないでください。</p>
         <p>対象版: 現行SPA + Express + MariaDB / 作成日: 2026-09-05</p>
       </header>
 
@@ -156,7 +156,7 @@ git push -u origin cursor/&lt;英語短名&gt;-148a
           <thead><tr><th>項目</th><th>例1 管理者</th><th>例2 総務</th><th>例3 パートナー閲覧</th><th>例4 企業請求のみ</th></tr></thead>
           <tbody>
             <tr><td>ID</td><td><code>admin</code></td><td><code>soumu01</code></td><td><code>partner.yamada</code></td><td><code>company.toto</code></td></tr>
-            <tr><td>名</td><td>管理者</td><td>検証 総務</td><td>【検証】山田 恒一</td><td>【検証】東都ロジ担当</td></tr>
+            <tr><td>名</td><td>管理者</td><td>検証 総務</td><td>@_山田 恒一</td><td>@_東都ロジ担当</td></tr>
             <tr><td>権限</td><td><code>admin</code></td><td><code>soumu</code></td><td><code>partner</code></td><td><code>company</code></td></tr>
             <tr><td>部署</td><td>（空）</td><td>総務、経理</td><td>（空）</td><td>（空）</td></tr>
             <tr><td>紐付け</td><td>なし</td><td>なし</td><td>partner_id = 対象パートナー</td><td>company_id = 対象企業</td></tr>
@@ -178,7 +178,7 @@ git push -u origin cursor/&lt;英語短名&gt;-148a
         <table>
           <thead><tr><th>項目</th><th>例1 配送（締日20日）</th><th>例2 倉庫（末日締め）</th><th>例3 調査業務</th></tr></thead>
           <tbody>
-            <tr><td>企業名</td><td>【検証】東都ロジスティクス株式会社</td><td>【検証】京浜倉庫サービス株式会社</td><td>【検証】北辰ネットワーク便株式会社</td></tr>
+            <tr><td>企業名</td><td>@_東都ロジスティクス株式会社</td><td>@_京浜倉庫サービス株式会社</td><td>@_北辰ネットワーク便株式会社</td></tr>
             <tr><td>企業名カナ</td><td>トウトロジスティクス</td><td>ケイヒンソウコサービス</td><td>ホクシンネットワークビン</td></tr>
             <tr><td>郵便番号 / 住所</td><td>100-0001 東京都千代田区検証1-1-1</td><td>230-0001 横浜市鶴見区検証2-2-2</td><td>330-0001 さいたま市検証3-3-3</td></tr>
             <tr><td>基本締日</td><td>20日</td><td>末日</td><td>15日</td></tr>
@@ -203,7 +203,7 @@ git push -u origin cursor/&lt;英語短名&gt;-148a
         <table>
           <thead><tr><th>項目</th><th>例1 個人（先払あり）</th><th>例2 個人（先払なし）</th><th>例3 外注会社イメージ</th></tr></thead>
           <tbody>
-            <tr><td>名称</td><td>【検証】山田 恒一</td><td>【検証】佐藤 拓也</td><td>【検証】みなと流通パートナー</td></tr>
+            <tr><td>名称</td><td>@_山田 恒一</td><td>@_佐藤 拓也</td><td>@_みなと流通パートナー</td></tr>
             <tr><td>カナ</td><td>ヤマダ コウイチ</td><td>サトウ タクヤ</td><td>ミナトリュウツウパートナー</td></tr>
             <tr><td>先払い対象</td><td>オン</td><td>オフ</td><td>オン</td></tr>
             <tr><td>振込手数料</td><td>固定330円パターン</td><td>未設定（0円）</td><td>固定550円パターン</td></tr>
@@ -361,7 +361,7 @@ git push -u origin cursor/&lt;英語短名&gt;-148a
 
       <section id="d-test">
         <h2 class="chapter">14. テスト・検証データ</h2>
-        <p>匿名検証データは <code>backend/scripts/seed_verification_data.js</code> です。アプリ起動（マイグレーション完了）後、コンテナまたは <code>PDF_DIR</code> が書ける環境で実行します。本番 <code>NODE_ENV=production</code> ではリセットできません。</p>
+        <p>匿名検証データは <code>backend/scripts/seed_verification_data.js</code> です。表示名は <code>@_</code> 接頭辞、期間は 2025-11〜2026-09（2026-09はマトリクス月）。規模は企業100／パートナー150／基本130／個別150／金額約200です。アプリ起動（マイグレーション完了）後、コンテナまたは <code>PDF_DIR</code> が書ける環境で実行します。本番 <code>NODE_ENV=production</code> ではリセットできません。</p>
         <div class="flow"># Docker
 docker compose exec -T app npm run seed:verification
 docker compose exec -T app npm run verify:verification-data
