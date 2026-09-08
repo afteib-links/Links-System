@@ -1,7 +1,7 @@
 const { writePdf } = require('../src/services/settlement_pdf');
 
 const issuer = {
-  name:'【検証】リンクスシステム株式会社',
+  name:'@_リンクスシステム株式会社',
   zip_code:'000-0000',
   address:'東京都サンプル区テスト1-2-3',
   registration_number:'T0000000000000',
@@ -12,7 +12,7 @@ const issuer = {
   ],
 };
 const recipient = {
-  name:'【検証】サンプル取引先株式会社',
+  name:'@_サンプル取引先株式会社',
   zip_code:'000-0001',
   address:'東京都テスト区匿名4-5-6',
   bank_name:'検証銀行',
