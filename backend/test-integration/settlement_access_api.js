@@ -46,11 +46,15 @@ async function main() {
     const [invoices] = await pool.query(
       `SELECT invoice_id, company_id FROM invoices
        WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.seed_key'))='verification-data-2025-11-2026-09'
+         AND target_year_month='2026-05'
+         AND settlement_status='finalized'
        ORDER BY invoice_id LIMIT 2`
     );
     const [payments] = await pool.query(
       `SELECT payment_id, partner_id FROM payments
        WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.seed_key'))='verification-data-2025-11-2026-09'
+         AND target_year_month='2026-05'
+         AND settlement_status='finalized'
        ORDER BY payment_id LIMIT 2`
     );
     assert.equal(invoices.length, 2, '匿名検証用請求が2件必要です');
