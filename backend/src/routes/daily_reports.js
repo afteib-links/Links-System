@@ -281,7 +281,8 @@ router.get('/month-projects', async (req, res) => {
 
     const projects = await query(
       `SELECT p.project_id, p.company_id, p.partner_id, p.manager_name, p.business_type, p.closing_date,
-              c.company_name, pt.partner_name, b.template_name
+              c.company_name, c.company_name_kana, c.closing_date_code AS company_closing_date,
+              pt.partner_name, b.template_name
        FROM projects p
        LEFT JOIN companies c ON c.company_id = p.company_id
        LEFT JOIN partners pt ON pt.partner_id = p.partner_id

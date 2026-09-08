@@ -1,7 +1,7 @@
 (() => {
   const ui = {
     kind:'invoice',
-    async open(ctx) { this.ctx=ctx;this.kit=window.LinksFeatureKit.createFeatureKit(ctx);this.ym=this.kit.currentYearMonth();this.filters={q:'',closing:'',status:''};this.ctx.renderLoading();this.layoutSaved=await this.kit.loadLayout('invoices');await this.list(); },
+    async open(ctx,options={}) { this.ctx=ctx;this.kit=window.LinksFeatureKit.createFeatureKit(ctx);this.ym=/^\d{4}-\d{2}$/.test(options.targetYearMonth||'')?options.targetYearMonth:this.kit.currentYearMonth();this.filters={q:options.query?String(options.query):'',closing:'',status:''};this.ctx.renderLoading();this.layoutSaved=await this.kit.loadLayout('invoices');if(options.settlementId)await this.detail(Number(options.settlementId));else await this.list(); },
     money(v){return this.kit.money(v);},
     status(v){return ({available:'請求可能',draft:'請求書作成中',sales_reviewed:'営業確認済み',finalized:'最終確定',cancelled:'取消済み',awaiting_approval:'日報承認待ち',not_available:'対象なし',no_reports:'日報未登録'}[v]||v||'日報未登録');},
     tax(v){return ({taxable:'課税',non_taxable:'非課税',tax_exempt:'免税'}[v]||v);},

@@ -87,7 +87,7 @@ router.get('/targets', async (req, res) => {
     );
     const approvedProjects = new Set(approvals.map((row)=>Number(row.project_id)));
     const linked = await query(
-      `SELECT sp.project_id,i.invoice_id,w.status
+      `SELECT sp.project_id,i.invoice_id,i.approval_status,w.status
        FROM settlement_projects sp
        JOIN invoices i ON i.invoice_id=sp.settlement_id AND i.is_deleted=0 AND i.target_year_month=?
        JOIN settlement_workflows w ON w.settlement_type='invoice' AND w.settlement_id=i.invoice_id
@@ -136,6 +136,7 @@ router.get('/targets', async (req, res) => {
         target_status: targetStatus,
         can_create: !active,
         settlement_id: active ? Number(active.invoice_id) : null,
+        approval_status: active?.approval_status || null,
       });
     }
 

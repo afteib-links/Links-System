@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>事務作業 - LinksSys</title>
+  <link rel="stylesheet" href="common.css">
+  <style>
+    :root {
+      --company-col: 300px;
+      --partner-col: 220px;
+      --item-col: 230px;
+      --line: #94a3b8;
+      --soft-line: #dbe3ec;
+      --blue: #1d4ed8;
+      --blue-soft: #eff6ff;
+      --warning: #b45309;
+      --warning-soft: #fff7ed;
+      --danger: #b42318;
+      --danger-soft: #fef2f2;
+      --success: #15803d;
+      --success-soft: #f0fdf4;
+    }
+
+    * { box-sizing: border-box; }
+    button, input { font: inherit; }
+    .main-content { min-width: 0; }
+    .app-header.app-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 58px;
+      min-height: 58px;
+      padding: 8px 20px;
+      background: #fff;
+      border-bottom: 1px solid #cbd5e1;
+      box-shadow: 0 2px 8px rgba(23, 32, 51, .04);
+      overflow: hidden;
+    }
+    .sidebar-toggle {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .topbar-context { color: #64748b; font-size: 13px; white-space: nowrap; }
+    .topbar-page-title {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+      color: #0f172a;
+      font-size: 22px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .user-pill { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+    .user-pill strong { font-size: 14px; }
+    .user-pill span { color: #64748b; font-size: 12px; }
+
+    .office-page {
+      height: calc(100vh - 58px);
+      min-height: 620px;
+      padding: 12px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .office-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex: 0 0 auto;
+    }
+    .month-nav { display: flex; align-items: center; gap: 8px; }
+    .month-nav .btn, .month-nav input { min-height: 40px; font-size: 16px; }
+    .month-nav input {
+      width: 160px;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .month-label { color: #334155; font-size: 16px; }
+    .interaction-guide {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .interaction-guide strong { color: var(--blue); }
+    .breadcrumb { display: flex; gap: 8px; min-height: 24px; color: #334155; font-size: 15px; }
+    .breadcrumb .active { color: #0f172a; font-weight: 700; }
+
+    .grid-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+    }
+    .miller-grid {
+      min-width: 1180px;
+      min-height: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: var(--company-col) var(--partner-col) var(--item-col) minmax(400px, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .column-head {
+      min-height: 102px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .column-head:last-of-type { border-right: 0; }
+    .column-head-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .column-title { color: #475569; font-size: 16px; font-weight: 700; }
+    .column-count {
+      min-width: 34px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      color: #334155;
+      background: #e2e8f0;
+      font-size: 14px;
+      text-align: center;
+    }
+    .head-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+    .head-button {
+      min-height: 38px;
+      padding: 6px 9px;
+      color: #334155;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .head-button:hover { background: #eef2f7; }
+    .head-button.active { color: var(--blue); background: var(--blue-soft); border-color: #2563eb; }
+    .head-button.all.active { color: #fff; background: var(--blue); }
+    .head-button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .column-body {
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      list-style: none;
+      border-right: 1px solid var(--line);
+    }
+    .column-row {
+      min-height: 88px;
+      padding: 18px 12px 10px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .column-row:hover { background: #f8fafc; }
+    .column-row.selected { background: var(--blue-soft); box-shadow: inset 4px 0 0 #2563eb; }
+    .row-main { flex: 1; min-width: 0; }
+    .row-name { color: #0f172a; font-size: 18px; font-weight: 700; line-height: 1.25; }
+    .selected .row-name { color: var(--blue); }
+    .row-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; color: #475569; font-size: 14px; }
+    .row-chevron { flex: 0 0 auto; color: #94a3b8; font-size: 22px; }
+    .row-hint { margin-top: 4px; color: #64748b; font-size: 12px; }
+    .empty-row { min-height: 88px; padding: 28px 14px; color: #64748b; font-size: 14px; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status-neutral { color: #475569; background: #f1f5f9; }
+    .status-working { color: #1d4ed8; background: #dbeafe; }
+    .status-waiting { color: #b45309; background: #ffedd5; }
+    .status-complete { color: #15803d; background: #dcfce7; }
+    .status-attention { color: #b42318; background: #fee2e2; }
+
+    .all-table-wrap { grid-column: 1 / 4; grid-row: 2; min-height: 0; overflow: auto; border-right: 1px solid var(--line); }
+    .all-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .all-table col:nth-child(1) { width: var(--company-col); }
+    .all-table col:nth-child(2) { width: var(--partner-col); }
+    .all-table col:nth-child(3) { width: var(--item-col); }
+    .all-table td { padding: 11px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    .all-table td.group { vertical-align: top; background: #fbfdff; }
+    .all-table tr.business-row { min-height: 88px; cursor: pointer; }
+    .all-table tr.business-row:hover td.business-cell { background: #f8fafc; }
+    .all-table tr.business-row.selected td.business-cell { background: var(--blue-soft); box-shadow: inset 4px 0 0 #2563eb; }
+    .hidden { display: none !important; }
+
+    .preview-body { grid-column: 4; grid-row: 2; min-height: 0; overflow: hidden; background: #f8fafc; }
+    .preview-content { height: 100%; min-height: 0; padding: 10px; }
+    .preview-placeholder {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      color: #64748b;
+      text-align: center;
+    }
+    .preview-card { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: #fff; border: 1px solid #cbd5e1; border-radius: 9px; }
+    .preview-header { flex: 0 0 auto; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #fff; background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+    .preview-header-main { min-width: 0; }
+    .preview-header .btn { flex: 0 0 auto; color: #1e3a8a; background: #fff; border-color: #fff; }
+    .preview-kicker { margin: 0 0 2px; color: #bfdbfe; font-size: 11px; font-weight: 700; }
+    .preview-header h2 { margin: 0; font-size: 17px; line-height: 1.25; }
+    .preview-header p { margin: 3px 0 0; color: #dbeafe; font-size: 12px; }
+    .preview-section { flex: 0 0 auto; padding: 7px 10px; border-bottom: 1px solid #e2e8f0; }
+    .preview-section:last-child { border-bottom: 0; }
+    .context-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .context-item small { display: block; color: #64748b; font-size: 10px; }
+    .context-item strong { display: block; margin-top: 1px; color: #0f172a; font-size: 13px; }
+    .scope-note { margin: 5px 0 0; color: #64748b; font-size: 10px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .metric {
+      min-height: 58px;
+      padding: 7px 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+    }
+    .metric span { display: block; color: #64748b; font-size: 12px; }
+    .metric strong { display: block; margin-top: 3px; color: #0f172a; font-size: 15px; }
+    .metric strong.money { font-size: 14px; }
+    .section-heading { margin: 0 0 5px; color: #334155; font-size: 12px; }
+    .workflow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .workflow-step { padding: 7px 4px; color: #64748b; background: #f1f5f9; border-radius: 5px; font-size: 11px; font-weight: 700; text-align: center; }
+    .workflow-step.done { color: #166534; background: #dcfce7; }
+    .workflow-step.current { color: #1d4ed8; background: #dbeafe; outline: 1px solid #60a5fa; }
+    .next-action { padding: 7px 10px; border-radius: 7px; border: 1px solid #bfdbfe; background: var(--blue-soft); }
+    .next-action.attention { border-color: #fecaca; background: var(--danger-soft); }
+    .next-action.warning { border-color: #fed7aa; background: var(--warning-soft); }
+    .next-action small { display: block; margin-bottom: 3px; color: #64748b; font-size: 12px; font-weight: 700; }
+    .next-action strong { color: #1e3a8a; font-size: 12px; }
+    .next-action.attention strong { color: var(--danger); }
+    .next-action.warning strong { color: var(--warning); }
+    .preview-warning { margin: 10px 0 0; color: var(--danger); font-size: 13px; font-weight: 600; }
+    .preview-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .preview-actions .btn { min-height: 40px; font-size: 15px; }
+    .updated { margin-left: auto; color: #64748b; font-size: 12px; text-align: right; }
+    .preview-status-grid { min-height: 90px; flex: 1; padding: 9px 10px; background: #f8fafc; }
+    .preview-status-grid h3 { margin: 0 0 7px; font-size: 12px; }
+    .preview-status-grid > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .preview-status-grid article { padding: 7px 8px; border: 1px solid #dbe3ec; border-left: 4px solid #2563eb; border-radius: 6px; background: #fff; }
+    .preview-status-grid small, .preview-status-grid strong { display: block; }
+    .preview-status-grid small { color: #64748b; font-size: 10px; }
+    .preview-status-grid strong { margin-top: 2px; font-size: 15px; }
+
+    .project-dialog {
+      width: 100vw;
+      max-width: none;
+      height: 100vh;
+      max-height: none;
+      margin: 0;
+      padding: 20px 16px;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 0;
+    }
+    .project-dialog[open] { display: flex; }
+    .dialog-panel {
+      width: min(860px, 100%);
+      max-height: min(760px, 100%);
+      overflow: hidden;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .32);
+    }
+    .project-dialog::backdrop { background: rgba(15, 23, 42, .58); }
+    .dialog-head { display: flex; justify-content: space-between; gap: 20px; padding: 18px 20px; border-bottom: 1px solid #e2e8f0; }
+    .dialog-head h2 { margin: 0; color: #0f172a; font-size: 20px; }
+    .dialog-head p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+    .dialog-close { width: 36px; height: 36px; border: 0; border-radius: 6px; background: #f1f5f9; cursor: pointer; font-size: 22px; }
+    .dialog-body { max-height: 520px; padding: 16px 20px; overflow: auto; }
+    .project-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .project-table th { position: sticky; top: 0; padding: 9px 10px; color: #475569; background: #f1f5f9; text-align: left; }
+    .project-table td { padding: 11px 10px; border-bottom: 1px solid #e2e8f0; }
+    .project-table tr { cursor: pointer; }
+    .project-table tbody tr:hover { background: #f8fafc; }
+    .project-table tbody tr.selected { background: var(--blue-soft); outline: 2px solid #60a5fa; outline-offset: -2px; }
+    .project-table .num { text-align: right; white-space: nowrap; }
+    .dialog-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+    .sidebar.collapsed { width: 0; overflow: hidden; border: 0; }
+
+    @media (max-width: 1100px) {
+      .interaction-guide { width: 100%; margin-left: 0; justify-content: center; }
+      .office-page { height: auto; min-height: calc(100vh - 58px); overflow: visible; }
+      .grid-scroll { min-height: 650px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="app-sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-icon">L</div><div class="sidebar-logo-text">LinksSys</div></div>
+    <nav class="sidebar-nav" aria-label="機能メニュー">
+      <div class="sidebar-section-label">メイン</div>
+      <a class="sidebar-item" href="02_dashboard.html">▦ ダッシュボード</a>
+      <div class="sidebar-section-label">マスタ管理</div>
+      <a class="sidebar-item" href="03_company.html">▥ 企業管理</a>
+      <a class="sidebar-item" href="04_partner.html">♙ パートナー管理</a>
+      <a class="sidebar-item" href="05_base_project.html">▰ 基本案件管理</a>
+      <a class="sidebar-item" href="06_project.html">▤ 案件管理</a>
+      <a class="sidebar-item" href="07_price_master.html">￥ 金額データ管理</a>
+      <div class="sidebar-section-label">日々の運用</div>
+      <a class="sidebar-item active" href="14_office_work_codex.html">▥ 事務作業</a>
+      <a class="sidebar-item" href="08_daily_report.html">✎ 日報管理</a>
+      <div class="sidebar-section-label">精算</div>
+      <a class="sidebar-item" href="09_invoice.html">▤ 請求管理</a>
+      <a class="sidebar-item" href="10_payment.html">▣ 支払管理</a>
+      <a class="sidebar-item" href="11_advance.html">◷ 先払・分割支払</a>
+      <div class="sidebar-section-label">分析・決算</div>
+      <a class="sidebar-item" href="12_finance.html">▥ 収支管理・分析</a>
+      <a class="sidebar-item" href="13_analytics.html">⌁ 収支分析</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user-avatar">管</div>
+      <div><div class="sidebar-user-name">管理者 Admin</div><div class="sidebar-user-role">Admin権限</div></div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="app-header app-topbar">
+      <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む">☰</button>
+      <div class="topbar-context">運送業務基幹システム</div>
+      <h1 class="topbar-page-title">事務作業</h1>
+      <div class="header-actions">
+        <div class="user-pill"><strong>管理者 Admin</strong><span>管理者</span></div>
+        <a class="btn btn-secondary" href="01_login.html">ログアウト</a>
+      </div>
+    </header>
+
+    <main class="office-page">
+      <div class="office-toolbar">
+        <div class="month-nav">
+          <button type="button" class="btn btn-ghost" id="month-prev">← 前月</button>
+          <input type="month" id="month-value" value="2026-08" aria-label="対象年月">
+          <button type="button" class="btn" id="month-load">表示</button>
+          <button type="button" class="btn btn-ghost" id="month-next">翌月 →</button>
+        </div>
+        <span class="month-label">対象月: <strong id="month-label">2026年8月</strong></span>
+        <div class="interaction-guide" aria-label="操作方法"><strong>シングルクリック</strong> 詳細表示 <span>／</span> <strong>ダブルクリック</strong> 入力画面</div>
+      </div>
+      <div class="breadcrumb" id="breadcrumb"><span>企業を選択</span></div>
+
+      <div class="grid-scroll">
+        <section class="miller-grid" aria-label="事務作業の対象選択">
+          <header class="column-head" style="grid-column:1">
+            <div class="column-head-top"><span class="column-title">企業</span><span class="column-count" id="company-count">0</span></div>
+            <div class="head-actions" id="company-actions"></div>
+          </header>
+          <header class="column-head" style="grid-column:2">
+            <div class="column-head-top"><span class="column-title">パートナー</span><span class="column-count" id="partner-count">0</span></div>
+            <div class="head-actions" id="partner-actions"></div>
+          </header>
+          <header class="column-head" style="grid-column:3">
+            <div class="column-head-top"><span class="column-title">業務項目</span><span class="column-count" id="item-count">0</span></div>
+            <div class="head-actions" id="item-actions"></div>
+          </header>
+          <header class="column-head" style="grid-column:4">
+            <div class="column-head-top"><span class="column-title">詳細プレビュー</span></div>
+          </header>
+
+          <ul class="column-body" id="company-column" style="grid-column:1;grid-row:2"></ul>
+          <ul class="column-body" id="partner-column" style="grid-column:2;grid-row:2"></ul>
+          <ul class="column-body" id="item-column" style="grid-column:3;grid-row:2"></ul>
+          <div class="all-table-wrap hidden" id="all-view">
+            <table class="all-table"><colgroup><col><col><col></colgroup><tbody id="all-table-body"></tbody></table>
+          </div>
+          <aside class="preview-body"><div class="preview-content" id="preview"><div class="preview-placeholder">企業、パートナー、業務項目の順に選択してください</div></div></aside>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog class="project-dialog" id="project-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-panel">
+      <div class="dialog-head">
+        <div><h2 id="dialog-title">案件を選択</h2><p id="dialog-context"></p></div>
+        <button type="button" class="dialog-close" id="dialog-close" aria-label="閉じる">×</button>
+      </div>
+      <div class="dialog-body">
+        <p class="row-hint">案件行を選択して「選択して開く」、または案件行をダブルクリックしてください。</p>
+        <table class="project-table">
+          <thead><tr><th>案件No</th><th>案件名</th><th>締日</th><th>進捗・状態</th><th class="num">金額</th></tr></thead>
+          <tbody id="project-table-body"></tbody>
+        </table>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" id="dialog-cancel">キャンセル</button>
+        <button type="button" class="btn btn-primary" id="dialog-open" disabled>選択して開く</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const ITEM_TYPES = ['日報', '請求', '支払'];
+    const ITEM_LINKS = { '日報': '08_daily_report.html', '請求': '09_invoice.html', '支払': '10_payment.html' };
+    const companies = [
+      { id: 1, no: 'C001', name: '企業1', kana: 'キギョウイチ', closing: '末日' },
+      { id: 2, no: 'C002', name: '企業2', kana: 'キギョウニ', closing: '15日' },
+      { id: 3, no: 'C003', name: '企業3', kana: 'キギョウサン', closing: '20日' },
+      { id: 4, no: 'C004', name: '企業4', kana: 'キギョウヨン', closing: '末日' },
+      { id: 5, no: 'C005', name: '企業5', kana: 'キギョウゴ', closing: '10日' },
+      { id: 6, no: 'C006', name: '企業6', kana: 'キギョウロク', closing: '25日' }
+    ];
+    const partners = [
+      { id: 1, name: 'パートナー1' }, { id: 2, name: 'パートナー2' }, { id: 3, name: 'パートナー3' },
+      { id: 4, name: 'パートナー4' }, { id: 5, name: 'パートナー5' }, { id: 6, name: 'パートナー6' },
+      { id: 7, name: 'パートナー7' }, { id: 8, name: 'パートナー8' }
+    ];
+    const projectData = [
+      { id: 101, companyId: 1, partnerId: 1, name: '企業1 定期配送A', closing: '末日', seed: 1 },
+      { id: 102, companyId: 1, partnerId: 1, name: '企業1 定期配送B', closing: '末日', seed: 4 },
+      { id: 103, companyId: 1, partnerId: 2, name: '企業1 スポット便', closing: '末日', seed: 7 },
+      { id: 201, companyId: 2, partnerId: 3, name: '企業2 ルート配送', closing: '15日', seed: 2 },
+      { id: 301, companyId: 3, partnerId: 1, name: '企業3 センター便', closing: '20日', seed: 5 },
+      { id: 302, companyId: 3, partnerId: 4, name: '企業3 夜間便', closing: '20日', seed: 8 },
+      { id: 303, companyId: 3, partnerId: 4, name: '企業3 休日便', closing: '20日', seed: 3 },
+      { id: 401, companyId: 4, partnerId: 5, name: '企業4 専属便', closing: '末日', seed: 6 },
+      { id: 402, companyId: 4, partnerId: 6, name: '企業4 臨時便', closing: '末日', seed: 9 },
+      { id: 501, companyId: 5, partnerId: 7, name: '企業5 構内作業', closing: '10日', seed: 10 },
+      { id: 601, companyId: 6, partnerId: 8, name: '企業6 定期便', closing: '25日', seed: 11 },
+      { id: 602, companyId: 6, partnerId: 8, name: '企業6 増便', closing: '25日', seed: 12 }
+    ];
+
+    const state = {
+      ym: '2026-08', company: null, partner: null, itemType: null,
+      itemFilter: null, allCompanies: false, allPartners: false,
+      sort: { key: 'no', direction: 'asc' }, selectedDialogProject: null
+    };
+    let businessClickTimer = null;
+    const el = {
+      companyColumn: document.getElementById('company-column'), partnerColumn: document.getElementById('partner-column'),
+      itemColumn: document.getElementById('item-column'), preview: document.getElementById('preview'),
+      allView: document.getElementById('all-view'), allTableBody: document.getElementById('all-table-body'),
+      companyCount: document.getElementById('company-count'), partnerCount: document.getElementById('partner-count'),
+      itemCount: document.getElementById('item-count'), companyActions: document.getElementById('company-actions'),
+      partnerActions: document.getElementById('partner-actions'), itemActions: document.getElementById('item-actions'),
+      breadcrumb: document.getElementById('breadcrumb'), monthValue: document.getElementById('month-value'),
+      monthLabel: document.getElementById('month-label'), dialog: document.getElementById('project-dialog'),
+      dialogTitle: document.getElementById('dialog-title'), dialogContext: document.getElementById('dialog-context'),
+      projectTableBody: document.getElementById('project-table-body'), dialogOpen: document.getElementById('dialog-open')
+    };
+
+    const money = value => `￥${Math.round(Number(value || 0)).toLocaleString('ja-JP')}`;
+    const formatYm = value => { const [y, m] = value.split('-'); return `${Number(y)}年${Number(m)}月`; };
+    const escapeHtml = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    const projectsFor = (companyId, partnerId) => projectData.filter(p => p.companyId === companyId && p.partnerId === partnerId);
+    const partnersFor = companyId => partners.filter(partner => projectData.some(p => p.companyId === companyId && p.partnerId === partner.id));
+    const isAllMode = () => state.allCompanies || (state.allPartners && state.company);
+
+    function projectMetrics(project, type) {
+      const days = 20 + (project.seed % 4);
+      const entered = Math.max(8, days - (project.seed % 5));
+      const confirmed = Math.max(6, entered - (project.seed % 3));
+      const billing = 310000 + project.seed * 27500;
+      const payment = 235000 + project.seed * 18750;
+      if (type === '日報') {
+        const attention = project.seed % 6 === 0;
+        const complete = entered === days && !attention;
+        const settled = complete && project.seed % 2 === 0;
+        return { status: attention ? '差戻し' : settled ? '請求支払' : complete ? '承認済み' : entered === days ? '承認中' : entered ? '入力済み' : '未入力', tone: attention ? 'attention' : complete ? 'complete' : entered === days ? 'waiting' : 'working', progress: `${entered}/${days}日`, amount: billing, entered, days, confirmed, billing, payment };
+      }
+      if (type === '請求') {
+        const modes = [
+          { status: '日報未承認', tone: 'attention' }, { status: '入力中', tone: 'working' },
+          { status: '入力済み', tone: 'working' }, { status: '承認中', tone: 'waiting' },
+          { status: '承認済み', tone: 'complete' }, { status: '出力済み', tone: 'complete' }
+        ];
+        const mode = modes[project.seed % modes.length];
+        return { ...mode, progress: mode.status, amount: Math.round(billing * 1.1), billing };
+      }
+      const modes = [
+        { status: '日報未承認', tone: 'attention' }, { status: '入力中', tone: 'working' },
+        { status: '入力済み', tone: 'working' }, { status: '承認中', tone: 'waiting' },
+        { status: '承認済み', tone: 'complete' }, { status: '出力済み', tone: 'complete' }
+      ];
+      const mode = modes[(project.seed + 1) % modes.length];
+      const advance = project.seed % 3 === 0 ? 50000 : 0;
+      const fees = 1100 + (project.seed % 2 ? 8800 : 0);
+      return { ...mode, progress: mode.status, amount: Math.max(0, payment - advance - fees), gross: payment, advance, fees };
+    }
+
+    function summaryFor(company, partner, type) {
+      const projects = projectsFor(company.id, partner.id);
+      const metrics = projects.map(project => projectMetrics(project, type));
+      const priority = { attention: 4, waiting: 3, working: 2, neutral: 1, complete: 0 };
+      const primary = [...metrics].sort((a, b) => priority[b.tone] - priority[a.tone])[0] || { status: '対象なし', tone: 'neutral' };
+      const total = key => metrics.reduce((sum, item) => sum + Number(item[key] || 0), 0);
+      return { projects, metrics, status: primary.status, tone: primary.tone, entered: total('entered'), days: total('days'), confirmed: total('confirmed'), billing: total('billing'), payment: total('payment'), amount: total('amount'), gross: total('gross'), advance: total('advance'), fees: total('fees') };
+    }
+
+    function badge(status, tone) { return `<span class="status-badge status-${tone}">${escapeHtml(status)}</span>`; }
+    function sortedCompanies() {
+      return [...companies].sort((a, b) => {
+        const cmp = String(a[state.sort.key]).localeCompare(String(b[state.sort.key]), 'ja', { numeric: true });
+        return state.sort.direction === 'desc' ? -cmp : cmp;
+      });
+    }
+    function businessTypes() { return state.itemFilter ? [state.itemFilter] : ITEM_TYPES; }
+
+    function renderHeadActions() {
+      el.companyActions.innerHTML = `<button class="head-button all ${state.allCompanies ? 'active' : ''}" data-all-companies>全対象</button>` +
+        ['no:企業No', 'closing:締日', 'kana:フリガナ'].map(def => {
+          const [key, label] = def.split(':');
+          const active = state.sort.key === key;
+          return `<button class="head-button ${active ? 'active' : ''}" data-sort="${key}">${label}${active ? (state.sort.direction === 'asc' ? ' ▲' : ' ▼') : ''}</button>`;
+        }).join('');
+      el.partnerActions.innerHTML = `<button class="head-button all ${state.allPartners && !state.allCompanies ? 'active' : ''}" data-all-partners ${!state.company || state.allCompanies ? 'disabled' : ''}>全対象</button>`;
+      el.itemActions.innerHTML = ITEM_TYPES.map(type => `<button class="head-button ${state.itemFilter === type ? 'active' : ''}" data-filter="${type}">${type}</button>`).join('');
+
+      document.querySelector('[data-all-companies]').onclick = () => { state.allCompanies = !state.allCompanies; if (state.allCompanies) state.allPartners = false; render(); };
+      document.querySelector('[data-all-partners]').onclick = () => { if (!state.company || state.allCompanies) return; state.allPartners = !state.allPartners; render(); };
+      document.querySelectorAll('[data-sort]').forEach(button => button.onclick = () => {
+        const key = button.dataset.sort;
+        state.sort = state.sort.key === key ? { key, direction: state.sort.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' };
+        render();
+      });
+      document.querySelectorAll('[data-filter]').forEach(button => button.onclick = () => {
+        state.itemFilter = state.itemFilter === button.dataset.filter ? null : button.dataset.filter;
+        if (state.itemType && state.itemFilter && state.itemType !== state.itemFilter) state.itemType = null;
+        render();
+      });
+    }
+
+    function renderColumns() {
+      const companyRows = sortedCompanies();
+      el.companyCount.textContent = companyRows.length;
+      el.companyColumn.innerHTML = companyRows.map(company => `<li class="column-row ${state.company?.id === company.id ? 'selected' : ''}" data-company="${company.id}"><div class="row-main"><div class="row-name">${escapeHtml(company.name)}</div><div class="row-meta"><span>${company.no}</span><span>締日 ${company.closing}</span><span>${company.kana}</span></div></div><span class="row-chevron">›</span></li>`).join('');
+      el.companyColumn.querySelectorAll('[data-company]').forEach(row => row.onclick = () => {
+        state.company = companies.find(c => c.id === Number(row.dataset.company)); state.partner = null; state.itemType = null; state.allPartners = false; render();
+      });
+
+      if (!state.company) {
+        el.partnerCount.textContent = '0'; el.partnerColumn.innerHTML = '<li class="empty-row">企業を選択してください</li>';
+      } else {
+        const rows = partnersFor(state.company.id);
+        el.partnerCount.textContent = rows.length;
+        el.partnerColumn.innerHTML = rows.map(partner => `<li class="column-row ${state.partner?.id === partner.id ? 'selected' : ''}" data-partner="${partner.id}"><div class="row-main"><div class="row-name">${escapeHtml(partner.name)}</div><div class="row-meta"><span>${projectsFor(state.company.id, partner.id).length}案件</span></div></div><span class="row-chevron">›</span></li>`).join('') || '<li class="empty-row">紐づくパートナーがいません</li>';
+        el.partnerColumn.querySelectorAll('[data-partner]').forEach(row => row.onclick = () => {
+          state.partner = partners.find(p => p.id === Number(row.dataset.partner)); state.itemType = null; render();
+        });
+      }
+
+      if (!state.company || !state.partner) {
+        el.itemCount.textContent = '0'; el.itemColumn.innerHTML = '<li class="empty-row">パートナーを選択してください</li>';
+      } else {
+        const types = businessTypes();
+        el.itemCount.textContent = types.length;
+        el.itemColumn.innerHTML = types.map(type => {
+          const summary = summaryFor(state.company, state.partner, type);
+          return `<li class="column-row ${state.itemType === type ? 'selected' : ''}" data-business="${type}" title="ダブルクリックで入力画面を開きます"><div class="row-main"><div class="row-name">${type}</div><div class="row-meta">${badge(summary.status, summary.tone)}<span>${summary.projects.length}案件</span></div><div class="row-hint">ダブルクリックで入力画面</div></div><span class="row-chevron">›</span></li>`;
+        }).join('');
+        bindBusinessRows(el.itemColumn, state.company, state.partner);
+      }
+    }
+
+    function bindBusinessRows(root, company, partner) {
+      root.querySelectorAll('[data-business]').forEach(row => {
+        row.onclick = () => {
+          window.clearTimeout(businessClickTimer);
+          businessClickTimer = window.setTimeout(() => {
+            state.company = company; state.partner = partner; state.itemType = row.dataset.business; render();
+          }, 220);
+        };
+        row.ondblclick = event => {
+          event.preventDefault();
+          window.clearTimeout(businessClickTimer);
+          state.company = company; state.partner = partner; state.itemType = row.dataset.business; openSelectedBusiness();
+        };
+      });
+    }
+
+    function renderAllView() {
+      const companyList = state.allCompanies ? sortedCompanies() : state.company ? [state.company] : [];
+      let html = '', companyCount = 0, partnerCount = 0, itemCount = 0;
+      companyList.forEach(company => {
+        const partnerList = partnersFor(company.id);
+        const blocks = partnerList.map(partner => ({ partner, types: businessTypes() }));
+        const companySpan = blocks.reduce((sum, block) => sum + block.types.length, 0);
+        if (!companySpan) return;
+        companyCount++;
+        let companyDrawn = false;
+        blocks.forEach(block => {
+          partnerCount++;
+          block.types.forEach((type, index) => {
+            itemCount++;
+            const summary = summaryFor(company, block.partner, type);
+            const selected = state.company?.id === company.id && state.partner?.id === block.partner.id && state.itemType === type;
+            html += `<tr class="business-row ${selected ? 'selected' : ''}" data-company="${company.id}" data-partner="${block.partner.id}" data-business="${type}">`;
+            if (!companyDrawn) { html += `<td class="group" rowspan="${companySpan}"><div class="row-name">${company.name}</div><div class="row-meta"><span>${company.no}</span><span>締日 ${company.closing}</span><span>${company.kana}</span></div></td>`; companyDrawn = true; }
+            if (index === 0) html += `<td class="group" rowspan="${block.types.length}"><div class="row-name">${block.partner.name}</div><div class="row-meta"><span>${summary.projects.length}案件</span></div></td>`;
+            html += `<td class="business-cell"><div class="row-name">${type}</div><div class="row-meta">${badge(summary.status, summary.tone)}<span>${summary.projects.length}案件</span></div><div class="row-hint">ダブルクリックで入力画面</div></td></tr>`;
+          });
+        });
+      });
+      el.allTableBody.innerHTML = html;
+      el.companyCount.textContent = companyCount; el.partnerCount.textContent = partnerCount; el.itemCount.textContent = itemCount;
+      el.allTableBody.querySelectorAll('[data-business]').forEach(row => {
+        const company = companies.find(c => c.id === Number(row.dataset.company));
+        const partner = partners.find(p => p.id === Number(row.dataset.partner));
+        row.onclick = () => {
+          window.clearTimeout(businessClickTimer);
+          businessClickTimer = window.setTimeout(() => {
+            state.company = company; state.partner = partner; state.itemType = row.dataset.business; render();
+          }, 220);
+        };
+        row.ondblclick = event => {
+          event.preventDefault();
+          window.clearTimeout(businessClickTimer);
+          state.company = company; state.partner = partner; state.itemType = row.dataset.business; openSelectedBusiness();
+        };
+      });
+    }
+
+    function workflowHtml(type, tone) {
+      const steps = type === '日報' ? ['入力', '日次確認', '承認依頼', '承認済み'] : ['日報承認', '下書き', '営業確認', type === '請求' ? '確定・発行' : '最終確定'];
+      const current = tone === 'complete' ? 3 : tone === 'waiting' ? 2 : tone === 'working' ? 1 : 0;
+      return `<div class="workflow">${steps.map((step, i) => `<div class="workflow-step ${i < current ? 'done' : i === current ? 'current' : ''}">${step}</div>`).join('')}</div>`;
+    }
+
+    function previewMetrics(type, summary) {
+      if (type === '日報') return [
+        ['入力日数', `${summary.entered}/${summary.days}日`], ['日次確認', `${summary.confirmed}/${summary.days}日`],
+        ['請求見込額', money(summary.billing), 'money'], ['支払見込額', money(summary.payment), 'money']
+      ];
+      if (type === '請求') return [
+        ['対象案件', `${summary.projects.length}件`], ['日報承認済み', `${summary.metrics.filter(m => m.tone !== 'attention').length}/${summary.projects.length}件`],
+        ['請求見込額（税込）', money(summary.amount), 'money'], ['PDF発行', summary.tone === 'complete' ? '発行済み' : '未発行']
+      ];
+      return [
+        ['支払総額', money(summary.gross), 'money'], ['前払控除', money(summary.advance), 'money'],
+        ['手数料等', money(summary.fees), 'money'], ['最終振込予定額', money(summary.amount), 'money']
+      ];
+    }
+
+    function nextActionFor(type, summary) {
+      if (summary.tone === 'attention') return type === '日報' ? '差戻し内容を確認し、対象日を修正してください' : '日報の承認状態を確認してください';
+      if (summary.tone === 'waiting') return type === '日報' ? '承認担当者の確認を待っています' : '営業確認を完了してください';
+      if (summary.tone === 'working') return type === '日報' ? '未入力日を入力し、日次確認を完了してください' : `${type}下書きの明細を確認してください`;
+      return type === '日報' ? '月次承認済みです。請求・支払へ進めます' : `${type}処理は完了しています`;
+    }
+
+    function renderPreview() {
+      if (!state.company || !state.partner || !state.itemType) {
+        el.preview.innerHTML = '<div class="preview-placeholder">企業、パートナー、業務項目の順に選択してください</div>'; return;
+      }
+      const summary = summaryFor(state.company, state.partner, state.itemType);
+      const metrics = previewMetrics(state.itemType, summary).map(([label, value, cls]) => `<div class="metric"><span>${label}</span><strong class="${cls || ''}">${value}</strong></div>`).join('');
+      const warning = summary.tone === 'attention' ? `<p class="preview-warning">⚠ 要対応の案件が ${summary.metrics.filter(m => m.tone === 'attention').length}件あります</p>` : '';
+      const closeDate = state.company.closing;
+      const headerAction = state.itemType === '日報' ? '日報チェック' : 'PDF表示';
+      const statusLabels = state.itemType === '日報' ? ['未入力', '入力済み', '承認中', '承認済み', '請求支払', '差戻し'] : ['日報未承認', '入力中', '入力済み', '承認中', '承認済み', '出力済み'];
+      const statusBlocks = statusLabels.map(label => `<article><small>${label}</small><strong>${summary.metrics.filter(metric => metric.status === label).length}件</strong></article>`).join('');
+      el.preview.innerHTML = `<article class="preview-card">
+        <header class="preview-header"><div class="preview-header-main"><p class="preview-kicker">${state.itemType}・選択範囲の集計</p><h2>${state.company.name} / ${state.partner.name}</h2><p>${formatYm(state.ym)}　${badge(summary.status, summary.tone)}</p></div><button type="button" class="btn" id="preview-head-action">${headerAction}</button></header>
+        <section class="preview-section"><div class="context-grid">
+          <div class="context-item"><small>対象月</small><strong>${formatYm(state.ym)}</strong></div>
+          <div class="context-item"><small>企業No</small><strong>${state.company.no}</strong></div>
+          <div class="context-item"><small>対象案件</small><strong>${summary.projects.length}件</strong></div>
+          <div class="context-item"><small>締日</small><strong>${closeDate}</strong></div>
+        </div><p class="scope-note">表示金額・件数は、選択中の企業 × パートナー × 対象月の集計です。</p></section>
+        <section class="preview-section"><h3 class="section-heading">処理状況</h3><div class="metric-grid">${metrics}</div>${warning}</section>
+        <section class="preview-section"><div class="next-action ${summary.tone === 'attention' ? 'attention' : summary.tone === 'waiting' ? 'warning' : ''}"><small>次に必要な作業</small><strong>${nextActionFor(state.itemType, summary)}</strong></div></section>
+        <section class="preview-status-grid"><h3>進行状況</h3><div>${statusBlocks}</div></section>
+        <footer class="preview-section preview-actions"><button type="button" class="btn btn-primary" id="open-input">入力画面を開く</button><span class="updated">最終更新 2026/08/${String(12 + summary.projects.length).padStart(2, '0')} 16:20<br>更新者：総務 担当者</span></footer>
+      </article>`;
+      document.getElementById('open-input').onclick = openSelectedBusiness;
+      document.getElementById('preview-head-action').onclick = () => {
+        if (state.itemType === '日報') return openSelectedBusiness();
+        const params = new URLSearchParams({ target_year_month: state.ym, company_id: state.company.id, partner_id: state.partner.id, view: 'pdf' });
+        window.open(`${ITEM_LINKS[state.itemType]}?${params.toString()}`, '_blank', 'noopener');
+      };
+    }
+
+    function updateBreadcrumb() {
+      if (state.allCompanies && !state.itemType) { el.breadcrumb.innerHTML = '<span class="active">全対象（全企業）</span>'; return; }
+      if (state.allPartners && state.company && !state.itemType) { el.breadcrumb.innerHTML = `<span>${state.company.name}</span><span>›</span><span class="active">全パートナー</span>`; return; }
+      const parts = [];
+      if (state.company) parts.push(state.company.name);
+      if (state.partner) parts.push(state.partner.name);
+      if (state.itemType) parts.push(state.itemType);
+      el.breadcrumb.innerHTML = parts.length ? parts.map((part, index) => `<span class="${index === parts.length - 1 ? 'active' : ''}">${part}</span>`).join('<span>›</span>') : '<span>企業を選択</span>';
+    }
+
+    function navigateToProject(project) {
+      const params = new URLSearchParams({ target_year_month: state.ym, company_id: project.companyId, partner_id: project.partnerId, project_id: project.id });
+      window.location.href = `${ITEM_LINKS[state.itemType]}?${params.toString()}`;
+    }
+    function openSelectedBusiness() {
+      if (!state.company || !state.partner || !state.itemType) return;
+      const projects = projectsFor(state.company.id, state.partner.id);
+      if (projects.length === 1) { navigateToProject(projects[0]); return; }
+      showProjectDialog(projects);
+    }
+    function showProjectDialog(projects) {
+      state.selectedDialogProject = null;
+      el.dialogTitle.textContent = `${state.itemType}：案件を選択`;
+      el.dialogContext.textContent = `${formatYm(state.ym)}　${state.company.name} / ${state.partner.name}`;
+      el.projectTableBody.innerHTML = projects.map(project => {
+        const metric = projectMetrics(project, state.itemType);
+        return `<tr data-project="${project.id}" tabindex="0"><td>#${project.id}</td><td><strong>${escapeHtml(project.name)}</strong></td><td>${project.closing}</td><td>${badge(metric.progress, metric.tone)}</td><td class="num">${money(metric.amount)}</td></tr>`;
+      }).join('');
+      el.dialogOpen.disabled = true;
+      el.projectTableBody.querySelectorAll('[data-project]').forEach(row => {
+        const project = projects.find(p => p.id === Number(row.dataset.project));
+        row.onclick = () => { el.projectTableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected')); row.classList.add('selected'); state.selectedDialogProject = project; el.dialogOpen.disabled = false; };
+        row.ondblclick = () => navigateToProject(project);
+        row.onkeydown = event => { if (event.key === 'Enter') { row.click(); if (event.ctrlKey) navigateToProject(project); } };
+      });
+      el.dialog.showModal();
+    }
+    function closeDialog() { if (el.dialog.open) el.dialog.close(); state.selectedDialogProject = null; }
+
+    function shiftMonth(delta) {
+      const [year, month] = state.ym.split('-').map(Number);
+      const date = new Date(year, month - 1 + delta, 1);
+      state.ym = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      el.monthValue.value = state.ym; el.monthLabel.textContent = formatYm(state.ym); renderPreview();
+    }
+    function render() {
+      renderHeadActions();
+      const allMode = isAllMode();
+      el.companyColumn.classList.toggle('hidden', allMode); el.partnerColumn.classList.toggle('hidden', allMode); el.itemColumn.classList.toggle('hidden', allMode); el.allView.classList.toggle('hidden', !allMode);
+      if (allMode) renderAllView(); else renderColumns();
+      renderPreview(); updateBreadcrumb();
+    }
+
+    document.getElementById('sidebar-toggle').onclick = () => document.getElementById('app-sidebar').classList.toggle('collapsed');
+    document.getElementById('month-prev').onclick = () => shiftMonth(-1);
+    document.getElementById('month-next').onclick = () => shiftMonth(1);
+    document.getElementById('month-load').onclick = () => { if (el.monthValue.value) { state.ym = el.monthValue.value; el.monthLabel.textContent = formatYm(state.ym); renderPreview(); } };
+    document.getElementById('dialog-close').onclick = closeDialog;
+    document.getElementById('dialog-cancel').onclick = closeDialog;
+    el.dialogOpen.onclick = () => { if (state.selectedDialogProject) navigateToProject(state.selectedDialogProject); };
+    el.dialog.addEventListener('click', event => {
+      const rect = el.dialog.getBoundingClientRect();
+      const outsidePanel = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+      if (event.target === el.dialog || outsidePanel) closeDialog();
+    });
+    el.dialog.addEventListener('pointerdown', event => {
+      if (event.target === el.dialog) closeDialog();
+    });
+    el.dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
+    el.monthLabel.textContent = formatYm(state.ym);
+    render();
+  </script>
+</body>
+</html>

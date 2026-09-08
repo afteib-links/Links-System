@@ -122,7 +122,7 @@ router.get('/targets', async (req, res) => {
     const approvals=await query(`SELECT project_id FROM daily_report_monthly_approvals WHERE target_year_month=? AND status='approved'`,[ym]);
     const approvedProjects=new Set(approvals.map((row)=>Number(row.project_id)));
     const linked=await query(
-      `SELECT sp.project_id,pay.payment_id,w.status FROM settlement_projects sp
+      `SELECT sp.project_id,pay.payment_id,pay.approval_status,w.status FROM settlement_projects sp
        JOIN payments pay ON pay.payment_id=sp.settlement_id AND pay.is_deleted=0 AND pay.target_year_month=?
        JOIN settlement_workflows w ON w.settlement_type='payment' AND w.settlement_id=pay.payment_id
        WHERE sp.settlement_type='payment' AND w.status<>'cancelled' ORDER BY pay.payment_id DESC`,[ym]
@@ -176,6 +176,7 @@ router.get('/targets', async (req, res) => {
         report_count: eligible.length,target_status:targetStatus,
         can_create:!active,
         settlement_id:active?Number(active.payment_id):null,
+        approval_status:active?.approval_status||null,
       };
       targets.push(target);
     }
