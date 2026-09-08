@@ -12,6 +12,7 @@
     "reset-and-seed:verification": "node scripts/seed_verification_data.js --reset",
     "verify:verification-data": "node scripts/seed_verification_data.js --verify",
     "repair:verification-issue100": "node scripts/seed_verification_data.js --repair-issue100",
+    "detach:verification-dependencies": "node scripts/seed_verification_data.js --detach-external-projects",
     "preview:settlement-pdfs": "node scripts/generate_settlement_pdf_previews.js",
     "test:settlement-access": "node test-integration/settlement_access_api.js",
     "test:settlement-workflow": "node test-integration/settlement_workflow_api.js",

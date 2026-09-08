@@ -644,6 +644,99 @@ async function repairIssue100Data() {
   }
 }
 
+function detachedExtra(value, source) {
+  let extra = {};
+  try { extra = typeof value === 'string' ? JSON.parse(value || '{}') : {...(value || {})}; } catch (_error) { extra = {}; }
+  delete extra.seed_key;
+  extra.detached_from_verification = source;
+  return JSON.stringify(extra);
+}
+
+function clonedRow(row, idField, overrides) {
+  const data = {...row, ...overrides};
+  delete data[idField];
+  delete data.created_at;
+  delete data.updated_at;
+  data.version = 1;
+  return data;
+}
+
+async function detachExternalDerivedProjects() {
+  if (process.env.NODE_ENV === 'production') throw new Error('本番モードでは検証データ参照の切離しを実行できません。');
+  if (process.env.VERIFICATION_DETACH_CONFIRM !== 'DETACH_EXTERNAL_PROJECTS') throw new Error('VERIFICATION_DETACH_CONFIRM=DETACH_EXTERNAL_PROJECTS の明示指定が必要です。');
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    await assertSchema(conn);
+    const [projects] = await conn.query(
+      `SELECT p.* FROM projects p
+       JOIN base_projects b ON b.base_project_id=p.base_project_id
+       WHERE JSON_UNQUOTE(JSON_EXTRACT(b.extra_data,'$.seed_key'))=?
+         AND (p.extra_data IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(p.extra_data,'$.seed_key'))<>?)
+       FOR UPDATE`,
+      [SEED_KEY,SEED_KEY]
+    );
+    if (!projects.length) { console.log('[verification-seed] 切離し対象の案件はありません'); return; }
+    await conn.beginTransaction();
+    const companyMap = new Map(); const partnerMap = new Map(); const billingMap = new Map(); const baseMap = new Map();
+    for (const project of projects) {
+      if (!companyMap.has(Number(project.company_id))) {
+        const [[source]] = await conn.query('SELECT * FROM companies WHERE company_id=? FOR UPDATE',[project.company_id]);
+        const companyName = `${String(source.company_name||'').replace(PREFIX,'').replace(/（保持）$/,'')}（保持）`;
+        const companyId = await insert(conn,'companies',clonedRow(source,'company_id',{
+          company_name:companyName,
+          office_no:`KEEP-${project.project_id}-${source.office_no||source.company_id}`.slice(0,50),
+          extra_data:detachedExtra(source.extra_data,`company:${source.company_id}`),
+        }));
+        companyMap.set(Number(project.company_id),companyId);
+        const [billings] = await conn.query('SELECT * FROM company_billings WHERE company_id=? AND is_deleted=0 ORDER BY billing_no,billing_id LIMIT 1',[project.company_id]);
+        if (billings.length) {
+          const billingId=await insert(conn,'company_billings',clonedRow(billings[0],'billing_id',{
+            company_id:companyId,billing_no:1,billing_print_name:companyName,
+            extra_data:detachedExtra(billings[0].extra_data,`billing:${billings[0].billing_id}`),
+          }));
+          billingMap.set(Number(project.company_id),billingId);
+        }
+      }
+      if (project.partner_id && !partnerMap.has(Number(project.partner_id))) {
+        const [[source]] = await conn.query('SELECT * FROM partners WHERE partner_id=? FOR UPDATE',[project.partner_id]);
+        const partnerId=await insert(conn,'partners',clonedRow(source,'partner_id',{
+          partner_name:`${String(source.partner_name||'').replace(/（検証）$/,'').replace(/（保持）$/,'')}（保持）`,
+          extra_data:detachedExtra(source.extra_data,`partner:${source.partner_id}`),
+        }));
+        partnerMap.set(Number(project.partner_id),partnerId);
+      }
+      if (!baseMap.has(Number(project.base_project_id))) {
+        const [[source]] = await conn.query('SELECT * FROM base_projects WHERE base_project_id=? FOR UPDATE',[project.base_project_id]);
+        const baseProjectId=await insert(conn,'base_projects',clonedRow(source,'base_project_id',{
+          company_id:companyMap.get(Number(project.company_id)),
+          partner_id:source.partner_id ? partnerMap.get(Number(source.partner_id)) || null : null,
+          template_name:`${String(source.template_name||'').replace(/（保持）$/,'')}（保持）`,
+          extra_data:detachedExtra(source.extra_data,`base_project:${source.base_project_id}`),
+        }));
+        baseMap.set(Number(project.base_project_id),baseProjectId);
+      }
+      await conn.query(
+        `UPDATE projects SET base_project_id=?,company_id=?,billing_id=?,partner_id=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE project_id=?`,
+        [baseMap.get(Number(project.base_project_id)),companyMap.get(Number(project.company_id)),billingMap.get(Number(project.company_id))||null,project.partner_id?partnerMap.get(Number(project.partner_id)):null,project.project_id]
+      );
+      const [priceSets]=await conn.query('SELECT price_set_id,extra_data FROM price_sets WHERE project_id=? FOR UPDATE',[project.project_id]);
+      for(const priceSet of priceSets)await conn.query(
+        'UPDATE price_sets SET company_id=?,base_project_id=NULL,extra_data=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE price_set_id=?',
+        [companyMap.get(Number(project.company_id)),detachedExtra(priceSet.extra_data,`price_set:${priceSet.price_set_id}`),priceSet.price_set_id]
+      );
+    }
+    await conn.commit();
+    console.log(`[verification-seed] 検証データ参照から通常案件 ${projects.length}件を切り離しました`);
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+    await pool.end();
+  }
+}
+
 async function seed() {
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -784,6 +877,10 @@ async function main() {
   }
   if (process.argv.includes('--repair-issue100')) {
     await repairIssue100Data();
+    return;
+  }
+  if (process.argv.includes('--detach-external-projects')) {
+    await detachExternalDerivedProjects();
     return;
   }
   if (process.argv.includes('--verify')) {

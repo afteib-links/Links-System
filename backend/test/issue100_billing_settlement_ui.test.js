@@ -21,6 +21,8 @@ test('請求先Noは企業内採番され案件から選択できる', () => {
   assert.match(verificationSeed, /billing_id: company\.billingId/);
   assert.match(verificationSeed, /settlement_projects/);
   assert.match(verificationSeed, /repairIssue100Data/);
+  assert.match(verificationSeed, /detachExternalDerivedProjects/);
+  assert.match(verificationSeed, /VERIFICATION_DETACH_CONFIRM/);
 });
 
 test('日報未完了でも案件を保持した精算下書きを作れる', () => {

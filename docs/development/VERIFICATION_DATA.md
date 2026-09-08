@@ -25,6 +25,12 @@ Issue #100以前に投入済みの匿名検証データへ請求先Noと精算�
 docker compose exec -T app npm run repair:verification-issue100
 ```
 
+検証キー外の案件が検証用マスターを参照して限定リセットを妨げる場合は、対象案件を残したまま企業・パートナー・基本案件・請求先を通常データとして複製し、参照を切り離せます。本番では実行できず、確認用環境変数が必須です。
+
+```powershell
+docker compose exec -T -e NODE_ENV=development -e VERIFICATION_DETACH_CONFIRM=DETACH_EXTERNAL_PROJECTS app npm run detach:verification-dependencies
+```
+
 ## 帳票プレビュー
 
 DBへ接続せず、匿名の固定データから請求書、請求取纏書、支払明細書・作業料金請求書、給与明細書、送付状の5種類を生成できます。
