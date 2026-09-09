@@ -556,6 +556,7 @@ router.post('/monthly-approval', async (req, res) => {
     const ym = String(req.body.target_year_month || '').trim();
     const action = String(req.body.action || 'submit');
     const actorUserId = req.session.user.user_id || null;
+    const actorRoles = new Set(req.session.user.roles || []);
     if (!projectId || !ym) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
 
     await conn.beginTransaction();
@@ -590,6 +591,10 @@ router.post('/monthly-approval', async (req, res) => {
     );
     const latest = latestRows[0] || null;
     if (action === 'submit') {
+      if (![...actorRoles].some((role)=>['admin','soumu'].includes(role))) {
+        await conn.rollback();
+        return res.status(403).json({ ok:false, message:'事務担当だけが最終確認と営業確認依頼を実行できます' });
+      }
       const unchecked = uncheckedDatesForMonth(reports, ym);
       if (unchecked.length && !req.body.acknowledge_warnings) {
         await conn.rollback();
@@ -613,19 +618,104 @@ router.post('/monthly-approval', async (req, res) => {
         monthly_distance_results: monthlyDistanceResults,
         reports,
       };
-      await conn.query(
+      const [approvalResult] = await conn.query(
         `INSERT INTO daily_report_monthly_approvals
           (project_id, target_year_month, approval_version, status, snapshot_data,
            note, submitted_by_user_id)
          VALUES (?, ?, ?, 'submitted', ?, ?, ?)`,
         [projectId, ym, nextVersion, JSON.stringify(snapshot), req.body.note || null, actorUserId]
       );
+      const [previousClosings]=await conn.query(
+        `SELECT COALESCE(MAX(revision_no),0) revision_no FROM monthly_closing_workflows
+         WHERE project_id=? AND target_year_month=? FOR UPDATE`,[projectId,ym]
+      );
+      const [closingResult]=await conn.query(
+        `INSERT INTO monthly_closing_workflows
+          (project_id,target_year_month,revision_no,status,monthly_approval_id,
+           office_confirmed_by_user_id,office_confirmed_at,requested_by_user_id,requested_at)
+         VALUES (?,?,?,'sales_review_requested',?,?,CURRENT_TIMESTAMP,?,CURRENT_TIMESTAMP)`,
+        [projectId,ym,Number(previousClosings[0]?.revision_no||0)+1,approvalResult.insertId,actorUserId,actorUserId]
+      );
+      let [reviewers]=await conn.query(
+        `SELECT u.user_id FROM project_settlement_reviewers r
+         JOIN users u ON u.user_id=r.user_id AND u.is_deleted=0 AND u.is_active=1
+         WHERE r.project_id=?`,[projectId]
+      );
+      let assignmentSource='project';
+      if(!reviewers.length){
+        [reviewers]=await conn.query(
+          `SELECT user_id FROM users WHERE is_deleted=0 AND is_active=1
+           AND (role='admin' OR JSON_CONTAINS(COALESCE(roles,JSON_ARRAY()),JSON_QUOTE('admin')))
+           ORDER BY user_id LIMIT 1`
+        );
+        assignmentSource='admin_fallback';
+      }
+      if(!reviewers.length)throw new Error('営業確認者が未設定で、代替の管理者も見つかりません');
+      for(const reviewer of reviewers)await conn.query(
+        `INSERT INTO monthly_closing_reviewers
+          (monthly_closing_workflow_id,reviewer_user_id,assignment_source)
+         VALUES (?,?,?)`,[closingResult.insertId,reviewer.user_id,assignmentSource]
+      );
+      const [settlements]=await conn.query(
+        `SELECT settlement_type,settlement_id FROM settlement_projects
+         WHERE project_id=?`,[projectId]
+      );
+      for(const settlement of settlements){
+        await conn.query(
+          `UPDATE settlement_workflows SET status='sales_review_requested'
+           WHERE settlement_type=? AND settlement_id=? AND status='draft'`,
+          [settlement.settlement_type,settlement.settlement_id]
+        );
+        await conn.query(
+          `UPDATE ${settlement.settlement_type==='invoice'?'invoices':'payments'} SET settlement_status='sales_review_requested'
+           WHERE ${settlement.settlement_type==='invoice'?'invoice_id':'payment_id'}=? AND settlement_status='draft'`,
+          [settlement.settlement_id]
+        );
+      }
     } else {
-      if (!latest || latest.status !== 'submitted') {
+      const allowedLatestStatuses = action==='cancel' ? ['submitted','approved'] : ['submitted'];
+      if (!latest || !allowedLatestStatuses.includes(latest.status)) {
         await conn.rollback();
         return res.status(409).json({ ok: false, message: '承認依頼中の月次日報がありません' });
       }
       if (action === 'approve') {
+        if (![...actorRoles].some((role)=>['admin','sales'].includes(role))) {
+          await conn.rollback();
+          return res.status(403).json({ok:false,message:'担当営業だけが承認できます'});
+        }
+        const [closings]=await conn.query(
+          `SELECT * FROM monthly_closing_workflows WHERE monthly_approval_id=? FOR UPDATE`,
+          [latest.monthly_approval_id]
+        );
+        if(!closings.length||!['sales_review_requested','sales_approved'].includes(closings[0].status))throw new Error('営業確認依頼中ではありません');
+        const [assigned]=await conn.query(
+          `SELECT * FROM monthly_closing_reviewers
+           WHERE monthly_closing_workflow_id=? AND reviewer_user_id=? FOR UPDATE`,
+          [closings[0].monthly_closing_workflow_id,actorUserId]
+        );
+        if(!assigned.length)throw new Error('この案件の営業確認者ではありません');
+        await conn.query(
+          `UPDATE monthly_closing_reviewers SET status='approved',decision_note=?,decided_at=CURRENT_TIMESTAMP
+           WHERE monthly_closing_reviewer_id=?`,[req.body.note||null,assigned[0].monthly_closing_reviewer_id]
+        );
+        const [pending]=await conn.query(
+          `SELECT COUNT(*) cnt FROM monthly_closing_reviewers
+           WHERE monthly_closing_workflow_id=? AND status='pending'`,[closings[0].monthly_closing_workflow_id]
+        );
+        if(Number(pending[0].cnt)>0){
+          await conn.commit();
+          return res.json({ok:true,approval:latest,pending_reviewer_count:Number(pending[0].cnt)});
+        }
+        const [supervisorSetting]=await conn.query(
+          `SELECT setting_value FROM system_settings
+           WHERE setting_key='settlement_supervisor_approval_required' AND is_deleted=0 LIMIT 1`
+        );
+        if(String(supervisorSetting[0]?.setting_value||'0')==='1'){
+          await conn.query(`UPDATE monthly_closing_workflows SET status='supervisor_pending',version=version+1 WHERE monthly_closing_workflow_id=?`,[closings[0].monthly_closing_workflow_id]);
+          await conn.commit();
+          return res.json({ok:true,approval:latest,status:'supervisor_pending'});
+        }
+        await conn.query(`UPDATE monthly_closing_workflows SET status='approved',version=version+1 WHERE monthly_closing_workflow_id=?`,[closings[0].monthly_closing_workflow_id]);
         const approvalSnapshot = {
           project_id: projectId,
           target_year_month: ym,
@@ -645,6 +735,19 @@ router.post('/monthly-approval', async (req, res) => {
            WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0 AND status = 'confirmed'`,
           [projectId, ym]
         );
+        const [linkedSettlements]=await conn.query(`SELECT settlement_type,settlement_id FROM settlement_projects WHERE project_id=?`,[projectId]);
+        for(const settlement of linkedSettlements){
+          const [linkedProjects]=await conn.query(`SELECT project_id FROM settlement_projects WHERE settlement_type=? AND settlement_id=?`,[settlement.settlement_type,settlement.settlement_id]);
+          let allApproved=true;
+          for(const linked of linkedProjects){
+            const [state]=await conn.query(`SELECT status FROM monthly_closing_workflows WHERE project_id=? AND target_year_month=? ORDER BY revision_no DESC LIMIT 1`,[linked.project_id,ym]);
+            if(state[0]?.status!=='approved'){allApproved=false;break;}
+          }
+          if(allApproved){
+            await conn.query(`UPDATE settlement_workflows SET status='approved',approved_by_user_id=?,approved_at=CURRENT_TIMESTAMP WHERE settlement_type=? AND settlement_id=?`,[actorUserId,settlement.settlement_type,settlement.settlement_id]);
+            await conn.query(`UPDATE ${settlement.settlement_type==='invoice'?'invoices':'payments'} SET settlement_status='approved' WHERE ${settlement.settlement_type==='invoice'?'invoice_id':'payment_id'}=?`,[settlement.settlement_id]);
+          }
+        }
       } else if (action === 'reject') {
         if (!String(req.body.note || '').trim()) {
           await conn.rollback();
@@ -656,14 +759,47 @@ router.post('/monthly-approval', async (req, res) => {
            WHERE monthly_approval_id = ?`,
           [actorUserId, req.body.note, latest.monthly_approval_id]
         );
+        await conn.query(`UPDATE monthly_closing_workflows SET status='returned',returned_by_user_id=?,returned_at=CURRENT_TIMESTAMP,return_reason=?,version=version+1 WHERE monthly_approval_id=?`,[actorUserId,req.body.note,latest.monthly_approval_id]);
+        await conn.query(`UPDATE monthly_closing_reviewers SET status=IF(reviewer_user_id=?,'returned','cancelled'),decision_note=?,decided_at=CURRENT_TIMESTAMP WHERE monthly_closing_workflow_id=(SELECT monthly_closing_workflow_id FROM monthly_closing_workflows WHERE monthly_approval_id=?)`,[actorUserId,req.body.note,latest.monthly_approval_id]);
+        const [returnedLinks]=await conn.query(`SELECT settlement_type,settlement_id FROM settlement_projects WHERE project_id=?`,[projectId]);
+        for(const settlement of returnedLinks){
+          await conn.query(`UPDATE settlement_workflows SET status='draft' WHERE settlement_type=? AND settlement_id=? AND status='sales_review_requested'`,[settlement.settlement_type,settlement.settlement_id]);
+          await conn.query(`UPDATE ${settlement.settlement_type==='invoice'?'invoices':'payments'} SET settlement_status='draft' WHERE ${settlement.settlement_type==='invoice'?'invoice_id':'payment_id'}=? AND settlement_status='sales_review_requested'`,[settlement.settlement_id]);
+        }
       } else if (action === 'cancel') {
+        if (![...actorRoles].some((role)=>['admin','soumu','executive'].includes(role))) {
+          await conn.rollback();
+          return res.status(403).json({ok:false,message:'承認取消を実行できません'});
+        }
+        const cancellationReason=String(req.body.note||'').trim();
+        if(!cancellationReason){
+          await conn.rollback();
+          return res.status(400).json({ok:false,message:'承認取消理由は必須です'});
+        }
+        const [issuedSettlements]=await conn.query(
+          `SELECT sw.settlement_type,sw.settlement_id FROM settlement_projects sp
+           JOIN settlement_workflows sw ON sw.settlement_type=sp.settlement_type AND sw.settlement_id=sp.settlement_id
+           WHERE sp.project_id=? AND sw.status='finalized' LIMIT 1`,[projectId]
+        );
+        if(issuedSettlements.length){
+          await conn.rollback();
+          return res.status(409).json({ok:false,message:'発行済みの請求書・支払書を先に発行無効にしてください'});
+        }
         await conn.query(
           `UPDATE daily_report_monthly_approvals
            SET status = 'cancelled', decided_by_user_id = ?, decided_at = CURRENT_TIMESTAMP,
                note = COALESCE(?, note)
            WHERE monthly_approval_id = ?`,
-          [actorUserId, req.body.note || null, latest.monthly_approval_id]
+          [actorUserId, cancellationReason, latest.monthly_approval_id]
         );
+        await conn.query(`UPDATE monthly_closing_workflows SET status='cancelled',approval_cancelled_by_user_id=?,approval_cancelled_at=CURRENT_TIMESTAMP,approval_cancellation_reason=?,version=version+1 WHERE monthly_approval_id=?`,[actorUserId,cancellationReason,latest.monthly_approval_id]);
+        await conn.query(`UPDATE monthly_closing_reviewers SET status='cancelled' WHERE monthly_closing_workflow_id=(SELECT monthly_closing_workflow_id FROM monthly_closing_workflows WHERE monthly_approval_id=?)`,[latest.monthly_approval_id]);
+        await conn.query(`UPDATE daily_reports SET status='confirmed',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE project_id=? AND target_year_month=? AND is_deleted=0 AND status='approved'`,[projectId,ym]);
+        const [cancelLinks]=await conn.query(`SELECT settlement_type,settlement_id FROM settlement_projects WHERE project_id=?`,[projectId]);
+        for(const settlement of cancelLinks){
+          await conn.query(`UPDATE settlement_workflows SET status='draft',approved_by_user_id=NULL,approved_at=NULL WHERE settlement_type=? AND settlement_id=? AND status IN ('sales_review_requested','sales_reviewed','supervisor_pending','approved')`,[settlement.settlement_type,settlement.settlement_id]);
+          await conn.query(`UPDATE ${settlement.settlement_type==='invoice'?'invoices':'payments'} SET settlement_status='draft' WHERE ${settlement.settlement_type==='invoice'?'invoice_id':'payment_id'}=? AND settlement_status IN ('sales_review_requested','sales_reviewed','supervisor_pending','approved')`,[settlement.settlement_id]);
+        }
       } else {
         await conn.rollback();
         return res.status(400).json({ ok: false, message: '月次承認操作が不正です' });

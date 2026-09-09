@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260908e';
+  const version = '20260909a';
   const pending = new Map();
   const common = [['feature-kit', 'LinksFeatureKit'], ['data-table', 'LinksDataTable'], ['list_screens', 'LinksListScreens']];
   const modules = {
@@ -18,6 +18,7 @@
     cash_management: [['cash_management', 'LinksCashManagement']],
     analytics: [['analytics', 'LinksAnalytics']],
     master_settings: [['bank_export_master', 'LinksBankExportMaster'], ['master_settings', 'LinksMasterSettings']],
+    help_settings: [['help_settings', 'LinksHelpSettings']],
     ui_builder: [['ui_builder', 'LinksUiBuilder']],
     users: [],
   };

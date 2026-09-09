@@ -90,11 +90,16 @@ async function seed(pool, yearMonth) {
   const [partner] = await pool.execute(
     `INSERT INTO partners (partner_name) VALUES ('E2E匿名パートナー')`
   );
+  const [billing] = await pool.execute(
+    `INSERT INTO company_billings (company_id, billing_no, billing_print_name)
+     VALUES (?, 0, 'E2E匿名企業')`,
+    [company.insertId]
+  );
   const [project] = await pool.execute(
     `INSERT INTO projects
-      (company_id, partner_id, manager_name, business_type, execution_time_start, execution_time_end, break_time)
-     VALUES (?, ?, 'E2E担当', '日報画面E2E', '08:00:00', '17:00:00', 1)`,
-    [company.insertId, partner.insertId]
+      (company_id, billing_id, partner_id, manager_name, business_type, execution_time_start, execution_time_end, break_time)
+     VALUES (?, ?, ?, 'E2E担当', '日報画面E2E', '08:00:00', '17:00:00', 1)`,
+    [company.insertId, billing.insertId, partner.insertId]
   );
   const [priceSet] = await pool.execute(
     `INSERT INTO price_sets

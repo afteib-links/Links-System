@@ -49,7 +49,7 @@
       bindShell(options = {}) {
         if (ctx.bindChrome) ctx.bindChrome();
         else ctx.bindLogout();
-        document.getElementById('back-history')?.addEventListener('click', () => {
+        const goBack = () => {
           if (typeof options.onBack === 'function') {
             options.onBack();
             return;
@@ -57,7 +57,10 @@
           const prev = navStack.pop();
           if (typeof prev === 'function') prev();
           else ctx.showHome();
-        });
+        };
+        document.getElementById('back-history')?.addEventListener('click', goBack);
+        const headerBack = document.getElementById('header-back');
+        if (headerBack) headerBack.onclick = goBack;
       },
       pushNav(fn) {
         if (typeof fn === 'function') navStack.push(fn);
@@ -206,7 +209,8 @@
           cancelled:['inactive','—','取消済み'], disabled:['inactive','—','無効'], inactive:['inactive','—','無効'], skipped:['inactive','—','対象外'],
         };
         const [tone, icon, defaultLabel] = map[String(code || '').toLowerCase()] || ['neutral','○',label || code || '未設定'];
-        return { code:String(code || ''), tone, icon, label:label || defaultLabel };
+        const configured = window.LinksStatusLabels?.[String(code || '').toLowerCase()];
+        return { code:String(code || ''), tone, icon, label:configured || label || defaultLabel };
       },
       statusBadge(code, label = '') {
         const meta = this.statusMeta(code, label);

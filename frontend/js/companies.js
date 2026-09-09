@@ -4,7 +4,7 @@
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ctx.renderLoading();
-      this.listState = { q: '', sortKey: 'company_id', sortOrder: 'asc', filters: {} };
+      this.listState = { q: '', includeEnded: false, sortKey: 'company_id', sortOrder: 'asc', filters: {} };
       const [codes, staffRes, layout] = await Promise.all([
         this.kit.loadCodes(), this.ctx.api('/api/master-settings/staff'), this.kit.loadAreaLayout('companies'),
       ]);
@@ -30,6 +30,8 @@
         },
         { key: 'our_manager', label: '営業担当' },
         { key: 'base_project_count', label: '基本案件数' },
+        { key: 'contract_status_code', label: '契約状況', getValue: (r) => this.kit.codeLabel(this.codes.contract_status, r.contract_status_code) },
+        { key: 'operation_end_date', label: '稼働終了日', getValue: (r) => this.kit.dateValue(r.operation_end_date) || '-' },
         {
           key: 'closing_date',
           label: '締日',
@@ -45,7 +47,7 @@
 
     async showList(message = '') {
       this.ctx.renderLoading();
-      const params = new URLSearchParams({ q: this.listState.q || '' });
+      const params = new URLSearchParams({ q: this.listState.q || '', include_ended: this.listState.includeEnded ? '1' : '0' });
       const { res, data } = await this.ctx.api(`/api/companies?${params}`);
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
@@ -82,6 +84,7 @@
           <div class="toolbar">
             <input id="company-q" type="text" placeholder="企業名で検索" value="${this.ctx.escapeHtml(this.listState.q)}" />
             <button type="button" class="btn" id="company-search">検索</button>
+            <label class="check-item"><input type="checkbox" id="company-include-ended" ${this.listState.includeEnded ? 'checked' : ''}><span>終了しているものも表示</span></label>
             <button type="button" class="btn" id="company-new">＋ 新規企業登録</button>
           </div>
           ${table.html}
@@ -112,6 +115,7 @@
         this.listState.q = document.getElementById('company-q').value.trim();
         this.showList();
       });
+      document.getElementById('company-include-ended')?.addEventListener('change', (event) => { this.listState.includeEnded = event.target.checked; this.showList(); });
       document.getElementById('company-new')?.addEventListener('click', () => {
         this.kit.pushNav(() => this.showList());
         this.showDetail(null);
@@ -166,9 +170,10 @@
       });
     },
 
-    emptyBilling() {
+    emptyBilling(values = {}) {
       return {
         billing_id: null,
+        billing_no: values.billing_no ?? null,
         billing_print_name: '',
         billing_zip_code: '',
         billing_address: '',
@@ -178,6 +183,22 @@
         invoice_send_method: '',
         billing_manager: '',
         billing_summary_no: '',
+        _autoCopied: Boolean(values._autoCopied),
+        ...values,
+      };
+    },
+
+    billingFromCompanyForm() {
+      const form = document.getElementById('company-form');
+      if (!form) return {};
+      return {
+        billing_print_name: form.company_name?.value || '',
+        billing_zip_code: form.zip_code?.value || '',
+        billing_address: form.address?.value || '',
+        billing_phone: form.contact?.value || '',
+        billing_fax: form.fax?.value || '',
+        invoice_send_method: form.invoice_send_method?.value || '',
+        billing_manager: form.contract_manager?.value || '',
       };
     },
 
@@ -221,6 +242,8 @@
         closing_date_code: '',
         payment_date_code: '',
         contract_date: '',
+        contract_status_code: 'active',
+        operation_end_date: '',
         business_content: '',
         bank_name: '',
         bank_code: '',
@@ -253,7 +276,9 @@
       this.detailState = {
         companyId: company.company_id || null,
         version: company.version || 1,
-        billings: (company.billings || []).map((b) => ({ ...b })),
+        billings: (company.billings || []).length
+          ? company.billings.map((b) => ({ ...b, _autoCopied: false }))
+          : [this.emptyBilling({ billing_no: 0, _autoCopied: true })],
         vehicles: (company.vehicles || []).map((v) => ({ ...v })),
         manager_periods: (company.manager_periods || []).map((p) => ({ ...p })),
       };
@@ -278,6 +303,8 @@
               <div><label>基本締日</label><select name="closing_date_code">${this.kit.codeOptions(this.codes.closing_date, company.closing_date_code)}</select></div>
               <div><label>基本支払日</label><select name="payment_date_code">${this.kit.codeOptions(this.codes.payment_date, company.payment_date_code)}</select></div>
               <div><label>基本契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(company.contract_date))}" /></div>
+              <div><label>契約状況区分</label><select name="contract_status_code">${this.kit.codeOptions(this.codes.contract_status, company.contract_status_code || 'active')}</select></div>
+              <div><label>稼働終了日</label><input type="date" name="operation_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(company.operation_end_date))}" /></div>
               <div class="full"><label>業務内容および付帯作業</label><textarea name="business_content" rows="3">${this.ctx.escapeHtml(company.business_content || '')}</textarea></div>
             </div></section>
             <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
@@ -332,6 +359,16 @@
       document.getElementById('add-vehicle')?.addEventListener('click', () => this.openVehicleModal(null));
       document.getElementById('add-period')?.addEventListener('click', () => this.openPeriodModal(null));
       this.bindChildTables();
+      if (!companyId) {
+        ['company_name','zip_code','address','contact','fax','invoice_send_method','contract_manager'].forEach((name) => {
+          document.querySelector(`#company-form [name="${name}"]`)?.addEventListener('input', () => {
+            const primary = this.detailState.billings.find((billing) => Number(billing.billing_no) === 0);
+            if (!primary?._autoCopied) return;
+            Object.assign(primary, this.billingFromCompanyForm());
+            this.refreshChildTables();
+          });
+        });
+      }
       document.getElementById('company-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.saveCompany(e.currentTarget);
@@ -343,7 +380,7 @@
         .map(
           (b, idx) => `
           <tr>
-            <td>${this.ctx.escapeHtml(b.billing_no || '保存時に自動採番')}</td>
+            <td>${this.ctx.escapeHtml(b.billing_no ?? '保存時に自動採番')}</td>
             <td>${this.ctx.escapeHtml(b.billing_print_name || '-')}</td>
             <td>${this.ctx.escapeHtml(`${b.billing_zip_code?`〒${b.billing_zip_code} `:''}${b.billing_address||''}`||'-')}</td>
             <td>${this.ctx.escapeHtml(b.billing_email || '-')}</td>
@@ -351,7 +388,7 @@
             <td>${this.ctx.escapeHtml(b.billing_summary_no || '-')}</td>
             <td>
               <button type="button" class="btn btn-ghost btn-small" data-edit-billing="${idx}">編集</button>
-              <button type="button" class="btn btn-danger btn-small" data-del-billing="${idx}">削除</button>
+              <button type="button" class="btn btn-danger btn-small" data-del-billing="${idx}" ${Number(b.billing_no) === 0 ? 'disabled title="請求先No.0は削除できません"' : ''}>削除</button>
             </td>
           </tr>`
         )
@@ -417,7 +454,9 @@
       );
       document.querySelectorAll('[data-del-billing]').forEach((btn) =>
         btn.addEventListener('click', () => {
-          this.detailState.billings.splice(Number(btn.getAttribute('data-del-billing')), 1);
+          const idx = Number(btn.getAttribute('data-del-billing'));
+          if (Number(this.detailState.billings[idx]?.billing_no) === 0) return;
+          this.detailState.billings.splice(idx, 1);
           this.refreshChildTables();
         })
       );
@@ -448,7 +487,7 @@
       host.innerHTML = this.kit.modalHtml(
         isNew ? '請求先追加' : '請求先編集',
         `<div class="form-grid">
-          <div><label>請求先No</label><input value="${this.ctx.escapeHtml(b.billing_no || '保存時に自動採番')}" disabled /></div>
+          <div><label>請求先No</label><input value="${this.ctx.escapeHtml(b.billing_no ?? '保存時に自動採番')}" disabled /></div>
           <div class="full"><label>請求先印字名称</label><input id="m_billing_print_name" value="${this.ctx.escapeHtml(b.billing_print_name || '')}" /></div>
           <div><label>請求先郵便番号</label><input id="m_billing_zip_code" value="${this.ctx.escapeHtml(b.billing_zip_code || '')}" /></div>
           <div><label>請求書送付方法</label><select id="m_invoice_send_method">${this.kit.codeOptions(this.codes.invoice_send_method,b.invoice_send_method)}</select></div>
@@ -459,10 +498,20 @@
           <div><label>担当者</label><input id="m_billing_manager" value="${this.ctx.escapeHtml(b.billing_manager || '')}" /></div>
           <div><label>取り纏めNo</label><input id="m_billing_summary_no" value="${this.ctx.escapeHtml(b.billing_summary_no || '')}" /></div>
         </div>`,
-        `<button type="button" class="btn" id="modal-save">保存</button>`,
+        `<button type="button" class="btn btn-secondary" id="copy-company-billing">企業情報からコピー</button><button type="button" class="btn" id="modal-save">保存</button>`,
         'modal-wide'
       );
       this.kit.bindModal();
+      document.getElementById('copy-company-billing')?.addEventListener('click', () => {
+        const copied = this.billingFromCompanyForm();
+        const mapping = {
+          billing_print_name: 'm_billing_print_name', billing_zip_code: 'm_billing_zip_code',
+          billing_address: 'm_billing_address', billing_phone: 'm_billing_phone',
+          billing_fax: 'm_billing_fax', invoice_send_method: 'm_invoice_send_method',
+          billing_manager: 'm_billing_manager',
+        };
+        Object.entries(mapping).forEach(([key, id]) => { const input = document.getElementById(id); if (input) input.value = copied[key] || ''; });
+      });
       document.getElementById('modal-save')?.addEventListener('click', () => {
         const row = {
           billing_id: b.billing_id,
@@ -476,6 +525,7 @@
           invoice_send_method: document.getElementById('m_invoice_send_method').value,
           billing_manager: document.getElementById('m_billing_manager').value,
           billing_summary_no: document.getElementById('m_billing_summary_no').value,
+          _autoCopied: false,
         };
         if (isNew) this.detailState.billings.push(row);
         else this.detailState.billings[idx] = row;
@@ -574,6 +624,8 @@
         closing_date_code: form.closing_date_code.value,
         payment_date_code: form.payment_date_code.value,
         contract_date: form.contract_date.value || null,
+        contract_status_code: form.contract_status_code.value || 'active',
+        operation_end_date: form.operation_end_date.value || null,
         business_content: form.business_content.value,
         bank_code: form.bank_code.value,
         bank_name: form.bank_name.value,

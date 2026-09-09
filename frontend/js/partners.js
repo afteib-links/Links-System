@@ -4,7 +4,7 @@
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
       this.ctx = ctx;
       this.ctx.renderLoading();
-      this.listState = { q: '', partner_category_code: '', employment_type_code: '', sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
+      this.listState = { q: '', partner_category_code: '', employment_type_code: '', includeEnded: false, sortKey: 'partner_id', sortOrder: 'asc', filters: {} };
       const [codes, fees, layout] = await Promise.all([
         this.kit.loadCodes(), this.ctx.api('/api/lookups/transfer-fees'), this.kit.loadAreaLayout('partners'),
       ]);
@@ -55,6 +55,8 @@
               .join(' / ') || '-',
         },
         { key: 'project_count', label: '案件数' },
+        { key: 'contract_status_code', label: '契約状況', getValue: (r) => this.kit.codeLabel(this.codes.contract_status, r.contract_status_code) },
+        { key: 'operation_end_date', label: '稼働終了日', getValue: (r) => this.kit.dateValue(r.operation_end_date) || '-' },
       ];
     },
 
@@ -64,6 +66,7 @@
         q: this.listState.q || '',
         partner_category_code: this.listState.partner_category_code || '',
         employment_type_code: this.listState.employment_type_code || '',
+        include_ended: this.listState.includeEnded ? '1' : '0',
       });
       const { res, data } = await this.ctx.api(`/api/partners?${params}`);
       if (!res.ok || !data?.ok) {
@@ -103,6 +106,7 @@
             <select id="cat">${this.kit.codeOptions(this.codes.partner_category, this.listState.partner_category_code)}</select>
             <select id="emp">${this.kit.codeOptions(this.codes.employment_type, this.listState.employment_type_code)}</select>
             <button type="button" class="btn" id="search">検索</button>
+            <label class="check-item"><input type="checkbox" id="partner-include-ended" ${this.listState.includeEnded ? 'checked' : ''}><span>終了しているものも表示</span></label>
             <button type="button" class="btn" id="new">＋ 新規</button>
           </div>
           ${table.html}
@@ -135,6 +139,7 @@
         this.listState.employment_type_code = document.getElementById('emp').value;
         this.showList();
       });
+      document.getElementById('partner-include-ended')?.addEventListener('change', (event) => { this.listState.includeEnded = event.target.checked; this.showList(); });
       document.getElementById('new')?.addEventListener('click', () => {
         this.kit.pushNav(() => this.showList());
         this.showDetail(null);
@@ -231,6 +236,8 @@
         blood_type: '',
         birth_date: '',
         work_start_date: '',
+        contract_status_code: 'active',
+        operation_end_date: '',
         contract_date: '',
         partner_category_code: '',
         employment_type_code: '',
@@ -292,6 +299,8 @@
               <div><label>血液型</label><input name="blood_type" value="${this.ctx.escapeHtml(partner.blood_type || '')}" /></div>
               <div><label>生年月日</label><input type="date" name="birth_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.birth_date))}" /></div>
               <div><label>稼働開始日</label><input type="date" name="work_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.work_start_date))}" /></div>
+              <div><label>契約状況区分</label><select name="contract_status_code">${this.kit.codeOptions(this.codes.contract_status, partner.contract_status_code || 'active')}</select></div>
+              <div><label>稼働終了日</label><input type="date" name="operation_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.operation_end_date))}" /></div>
               <div><label>契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.contract_date))}" /></div>
               <div><label>区分</label><select name="partner_category_code">${this.kit.codeOptions(this.codes.partner_category, partner.partner_category_code)}</select></div>
               <div><label>雇用区分</label><select name="employment_type_code">${this.kit.codeOptions(this.codes.employment_type, partner.employment_type_code)}</select></div>
@@ -405,6 +414,8 @@
         blood_type: form.blood_type.value,
         birth_date: form.birth_date.value || null,
         work_start_date: form.work_start_date.value || null,
+        contract_status_code: form.contract_status_code.value || 'active',
+        operation_end_date: form.operation_end_date.value || null,
         contract_date: form.contract_date.value || null,
         partner_category_code: form.partner_category_code.value,
         employment_type_code: form.employment_type_code.value,

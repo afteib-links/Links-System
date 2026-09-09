@@ -1089,6 +1089,22 @@ async function resetBusinessData() {
     await removeWhere('advance_payments', 'project_id', projectIds);
     await removeWhere('daily_report_confirmation_snapshots', 'daily_report_id', reportIds);
     await removeWhere('daily_report_audit_logs', 'daily_report_id', reportIds);
+    if (projectIds.length) {
+      const [closingWorkflows] = await conn.query(
+        `SELECT monthly_closing_workflow_id FROM monthly_closing_workflows WHERE project_id IN (${marks(projectIds)})`,
+        projectIds
+      );
+      await removeWhere(
+        'monthly_closing_reviewers',
+        'monthly_closing_workflow_id',
+        closingWorkflows.map((row) => row.monthly_closing_workflow_id)
+      );
+      await removeWhere('monthly_closing_workflows', 'project_id', projectIds);
+    }
+    await removeWhere('settlement_invalidation_requests', 'settlement_id', invoiceIds);
+    await removeWhere('settlement_invalidation_requests', 'settlement_id', paymentIds);
+    await removeWhere('invoice_consolidation_sources', 'parent_invoice_id', invoiceIds);
+    await removeWhere('invoice_consolidation_sources', 'source_invoice_id', invoiceIds);
     await removeWhere('daily_report_monthly_approvals', 'project_id', projectIds);
     await removeWhere('daily_report_submissions', 'project_id', projectIds);
     await removeWhere('daily_reports', 'daily_report_id', reportIds);
@@ -1118,8 +1134,8 @@ async function resetBusinessData() {
     await removeWhere('invoice_exclusions', 'company_id', companyIds);
     await removeWhere('settlement_deduction_rules', 'partner_id', partnerIds);
     await removeWhere('projects', 'project_id', projectIds);
-    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('base_projects', 'base_project_id', baseIds);
+    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('partners', 'partner_id', partnerIds);
     await removeWhere('companies', 'company_id', companyIds);
     await conn.commit();
@@ -1329,7 +1345,7 @@ async function seed() {
       const summaryGroup = index < 12 ? String(Math.floor(index / 3) + 1).padStart(2, '0') : no;
       const billingId = await insert(conn, 'company_billings', {
         company_id: companyId,
-        billing_no: 1,
+        billing_no: 0,
         billing_print_name: name,
         billing_address: `東京都サンプル区請求宛${index % 40 + 1}`,
         billing_phone: `03-${String(3000 + index).slice(-4)}-${String(4000 + index).slice(-4)}`,
@@ -1408,6 +1424,7 @@ async function seed() {
       const baseName = baseProjectName(index);
       const baseProjectId = await insert(conn, 'base_projects', {
         company_id: company.id,
+        billing_id: company.billingId,
         partner_id: null,
         template_name: baseName,
         default_manager: '業務管理部',

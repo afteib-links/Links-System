@@ -7,7 +7,7 @@
       this.companyFilter = options.company_id ? Number(options.company_id) : null;
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
-      this.baseListState = { sortKey: 'base_project_id', sortOrder: 'asc', filters: {} };
+      this.baseListState = { sortKey: 'base_project_id', sortOrder: 'asc', filters: {}, includeEnded: false };
       this.projectListState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
       this.codes = await this.kit.loadCodes();
       const [companies, partners, fees] = await Promise.all([
@@ -45,15 +45,28 @@
       return '個別案件（仮組）';
     },
 
+    durationValue(value) {
+      if (value === '' || value == null) return '';
+      const minutes = Math.round(Number(value) * 60);
+      return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+    },
+    durationDecimal(value, label) {
+      if (!value) return null;
+      const match = String(value).trim().match(/^(\d+):([0-5]\d)$/);
+      if (!match) throw new Error(`${label}はH:MM形式で入力してください`);
+      return (Number(match[1]) * 60 + Number(match[2])) / 60;
+    },
+
     workFieldsHtml(row) {
       return `
+        <div><label>開始時間</label><input type="time" name="execution_time_start" value="${this.ctx.escapeHtml(this.kit.timeValue(row.execution_time_start))}" /></div>
+        <div><label>終了時間</label><input type="time" name="execution_time_end" value="${this.ctx.escapeHtml(this.kit.timeValue(row.execution_time_end))}" /></div>
+        <div><label>基本勤務時間</label><input name="basic_work_hours" inputmode="numeric" placeholder="8:00" value="${this.ctx.escapeHtml(this.durationValue(row.basic_work_hours))}" /></div>
+        <div><label>拘束時間</label><input name="binding_time" inputmode="numeric" placeholder="9:00" value="${this.ctx.escapeHtml(this.durationValue(row.binding_time))}" /></div>
+        <div><label>休憩時間</label><input name="break_time" inputmode="numeric" placeholder="1:00" value="${this.ctx.escapeHtml(this.durationValue(row.break_time))}" /></div>
         <div><label>稼働形態</label><select name="work_mode_code">${this.kit.codeOptions(this.codes.work_mode, row.work_mode_code)}</select></div>
         <div><label>日報カウント区分</label><select name="daily_count_type">${this.kit.codeOptions(this.codes.daily_count || this.codes.daily_count_type, row.daily_count_type)}</select></div>
         <div><label>残業計算区分</label><select name="overtime_calc_type">${this.kit.codeOptions(this.codes.overtime_calc, row.overtime_calc_type)}</select></div>
-        <div><label>開始時刻</label><input type="time" name="execution_time_start" value="${this.ctx.escapeHtml(this.kit.timeValue(row.execution_time_start))}" /></div>
-        <div><label>終了時刻</label><input type="time" name="execution_time_end" value="${this.ctx.escapeHtml(this.kit.timeValue(row.execution_time_end))}" /></div>
-        <div><label>拘束時間</label><input name="binding_time" type="number" step="0.25" value="${this.ctx.escapeHtml(row.binding_time ?? '')}" /></div>
-        <div><label>休憩</label><input name="break_time" type="number" step="0.25" value="${this.ctx.escapeHtml(row.break_time ?? '')}" /></div>
       `;
     },
 
@@ -67,8 +80,6 @@
         </div>
         <div><label>分割単価</label><input name="installment_amount" type="number" step="0.01" value="${this.ctx.escapeHtml(row.installment_amount ?? '')}" /></div>
         ${isBase ? '' : `<div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">パートナー設定を使用</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(row.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${this.kit.money(fee.amount)}）</option>`).join('')}</select></div>`}
-        <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_start_date))}" /></div>
-        <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, row.closing_date)}</select></div>
       `;
     },
 
@@ -79,8 +90,9 @@
         overtime_calc_type: form.overtime_calc_type?.value || null,
         execution_time_start: form.execution_time_start?.value || null,
         execution_time_end: form.execution_time_end?.value || null,
-        binding_time: form.binding_time?.value || null,
-        break_time: form.break_time?.value || null,
+        basic_work_hours: this.durationDecimal(form.basic_work_hours?.value, '基本勤務時間'),
+        binding_time: this.durationDecimal(form.binding_time?.value, '拘束時間'),
+        break_time: this.durationDecimal(form.break_time?.value, '休憩時間'),
         payment_type: form.payment_type?.value || 'normal',
         installment_amount: form.installment_amount?.value || null,
         ...(form.transfer_fee_pattern_id ? { transfer_fee_pattern_id: form.transfer_fee_pattern_id.value || null } : {}),
@@ -130,6 +142,7 @@
         <td>${this.ctx.escapeHtml(project.partner_name || '-')}</td>
         <td>${this.ctx.escapeHtml(project.manager_name || '-')}</td>
         <td>${this.ctx.escapeHtml(project.business_type || '-')}</td>
+        <td>${this.ctx.escapeHtml(project.billing_no ? `No.${project.billing_no} ${project.billing_print_name || ''}` : '-')}</td>
         <td>${project.payment_type === 'installment' ? '分割' : '通常'}</td>
         <td>${this.ctx.escapeHtml(this.kit.codeLabel(this.codes.closing_date, project.closing_date))}</td>
         <td>${this.ctx.escapeHtml(this.kit.dateValue(project.operation_start_date) || '-')}</td>
@@ -139,8 +152,8 @@
         <h3 class="section-title">紐づく個別案件</h3>
         <div class="table-wrap">
           <table class="data-table data-table-compact" data-no-list-enhance>
-            <thead><tr><th>案件No</th><th>パートナー</th><th>担当</th><th>業種</th><th>支払区分</th><th>締日</th><th>運用開始日</th><th>操作</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="8">紐づく個別案件はありません</td></tr>'}</tbody>
+            <thead><tr><th>案件No</th><th>パートナー</th><th>担当</th><th>業種</th><th>請求先No</th><th>支払区分</th><th>締日</th><th>運用開始日</th><th>操作</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="9">紐づく個別案件はありません</td></tr>'}</tbody>
           </table>
         </div>
       </section>`;
@@ -198,6 +211,7 @@
       this.ctx.renderLoading();
       const params = new URLSearchParams();
       if (this.companyFilter) params.set('company_id', this.companyFilter);
+      if (this.baseListState.includeEnded) params.set('include_ended', '1');
       const { res, data } = await this.ctx.api(`/api/projects/base?${params}`);
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
@@ -213,10 +227,13 @@
         columns: [
           { key: 'base_project_id', label: 'No' },
           { key: 'company_name', label: '企業', getValue: (row) => row.company_name || row.company_id },
+          { key: 'billing_no', label: '請求先No', getValue: (row) => `No.${row.billing_no}` },
           { key: 'template_name', label: 'テンプレ名' },
           { key: 'default_manager', label: '担当' },
           { key: 'work_mode_code', label: '稼働形態', getValue: (row) => this.kit.codeLabel(this.codes.work_mode, row.work_mode_code) },
           { key: 'closing_date', label: '締日', getValue: (row) => this.kit.codeLabel(this.codes.closing_date, row.closing_date) },
+          { key: 'contract_status_code', label: '契約状況', getValue: (row) => this.kit.codeLabel(this.codes.contract_status, row.contract_status_code) },
+          { key: 'operation_end_date', label: '稼働終了日', getValue: (row) => this.kit.dateValue(row.operation_end_date) || '-' },
         ],
         rows: baseRows,
         layout: this.baseLayout,
@@ -249,6 +266,7 @@
                 .join('')}
             </select>
             <button type="button" class="btn" id="apply-filter">絞込</button>
+            <label class="check-item"><input type="checkbox" id="base-include-ended" ${this.baseListState.includeEnded ? 'checked' : ''}><span>終了しているものも表示</span></label>
             <button type="button" class="btn" id="new-base">＋ 基本案件</button>
           </div>
           <div id="base-list-root">${table.html}</div>
@@ -269,6 +287,7 @@
         this.companyFilter = v ? Number(v) : null;
         this.showBaseList();
       });
+      document.getElementById('base-include-ended')?.addEventListener('change', (event) => { this.baseListState.includeEnded = event.target.checked; this.showBaseList(); });
       document.getElementById('new-base')?.addEventListener('click', () => {
         this.kit.pushNav(() => this.showBaseList());
         this.showBaseDetail(null);
@@ -344,6 +363,7 @@
         base_project_id: null,
         version: 1,
         company_id: this.companyFilter || '',
+        billing_id: '',
         template_name: '',
         default_manager: '',
         business_type: '',
@@ -359,6 +379,8 @@
         payment_type: 'normal',
         installment_amount: '',
         operation_start_date: '',
+        contract_status_code: 'active',
+        operation_end_date: '',
         closing_date: '',
         price_sets: [],
       };
@@ -375,6 +397,11 @@
         }
         row = data.base_project;
       }
+      const billingResponse = row.company_id
+        ? await this.ctx.api(`/api/lookups/company-billings?company_id=${row.company_id}`)
+        : null;
+      this.baseBillings = billingResponse?.data?.billings || [];
+      if (!row.billing_id) row.billing_id = this.baseBillings.find((billing) => Number(billing.billing_no) === 0)?.billing_id || '';
       this.ctx.app.innerHTML = this.kit.shell(
         id ? `基本案件編集（No.${id}）` : '基本案件登録',
         `<section class="panel">
@@ -383,12 +410,16 @@
             <div class="form-sections">
               <section class="form-section-card"><h3>基本情報</h3><div class="form-grid form-grid-compact">
                 <div class="field-md"><label>企業（必須）</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id, { required:true })}</div>
+                <div class="field-md"><label>請求先No（必須）</label><div id="base-billing">${this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_print_name', row.billing_id, { required:true, formatLabel:(billing) => `No.${billing.billing_no} ${billing.billing_print_name || ''}` })}</div></div>
                 <div class="field-md"><label>テンプレ名（必須）</label><input name="template_name" required value="${this.ctx.escapeHtml(row.template_name || '')}" /></div>
                 <div class="field-md"><label>デフォルト担当</label><input name="default_manager" value="${this.ctx.escapeHtml(row.default_manager || '')}" /></div>
                 <div class="field-md"><label>業種</label><input name="business_type" value="${this.ctx.escapeHtml(row.business_type || '')}" /></div>
+                <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_start_date))}" /></div>
+                <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, row.closing_date)}</select></div>
+                <div><label>契約状況区分</label><select name="contract_status_code">${this.kit.codeOptions(this.codes.contract_status, row.contract_status_code || 'active')}</select></div>
+                <div><label>稼働終了日</label><input type="date" name="operation_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.operation_end_date))}" /></div>
               </div></section>
               <section class="form-section-card"><h3>勤務・稼働条件</h3><div class="form-grid form-grid-compact">
-                <div class="field-sm"><label>基本勤務時間</label><input name="basic_work_hours" type="number" step="0.25" value="${this.ctx.escapeHtml(row.basic_work_hours ?? '')}" /></div>
                 <div class="field-sm"><label>時間種別</label><select name="work_time_type">${this.kit.codeOptions(this.codes.work_time_type, row.work_time_type)}</select></div>
                 ${this.workFieldsHtml(row)}
               </div></section>
@@ -407,6 +438,16 @@
       );
       this.kit.bindShell({ onBack: () => this.showBaseList() });
       this.kit.bindSearchSelects(document.getElementById('base-form'));
+      document.querySelector('#base-form [name="company_id"]')?.addEventListener('change', async (event) => {
+        const companyId = Number(event.target.value || 0);
+        const result = companyId ? await this.ctx.api(`/api/lookups/company-billings?company_id=${companyId}`) : null;
+        this.baseBillings = result?.data?.billings || [];
+        const defaultBilling = this.baseBillings.find((billing) => Number(billing.billing_no) === 0);
+        const host = document.getElementById('base-billing');
+        if (!host) return;
+        host.innerHTML = this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_print_name', defaultBilling?.billing_id || '', { required:true, formatLabel:(billing) => `No.${billing.billing_no} ${billing.billing_print_name || ''}` });
+        this.kit.bindSearchSelects(host);
+      });
       document.getElementById('cancel')?.addEventListener('click', () => this.showBaseList());
       document.getElementById('create-from-base')?.addEventListener('click', async () => {
         const result = await this.ctx.api(`/api/projects/base/${id}/create-project`, {
@@ -426,14 +467,19 @@
       document.getElementById('base-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
+        let shared;
+        try { shared = this.pickShared(form); }
+        catch (error) { document.getElementById('form-error').textContent = error.message; return; }
         const payload = {
           company_id: Number(form.company_id.value),
+          billing_id: Number(form.billing_id.value),
           template_name: form.template_name.value.trim(),
           default_manager: form.default_manager.value,
           business_type: form.business_type.value,
-          basic_work_hours: form.basic_work_hours.value || null,
+          contract_status_code: form.contract_status_code.value || 'active',
+          operation_end_date: form.operation_end_date.value || null,
           work_time_type: form.work_time_type.value || null,
-          ...this.pickShared(form),
+          ...shared,
           version: row.version || 1,
         };
         const result = id
@@ -475,8 +521,9 @@
         columns: [
           { key: 'project_id', label: 'No' },
           { key: 'company_name', label: '企業', getValue: (row) => row.company_name || row.company_id },
+          { key: 'billing_no', label: '請求先No', getValue: (row) => row.billing_no ?? '-' },
           { key: 'partner_name', label: 'パートナー' },
-          { key: 'base_template_name', label: '基本案件' },
+          { key: 'base_template_name', label: '基本案件', getValue: (row) => `${row.base_template_name || '-'}${Number(row.base_price_set_count) ? '（基本データ）' : ''}` },
           { key: 'payment_type', label: '支払', getValue: (row) => row.payment_type === 'installment' ? '分割' : '通常', filterOptions: [{value:'通常',label:'通常'},{value:'分割',label:'分割'}], filterMode: 'exact' },
           { key: 'closing_date', label: '締日', getValue: (row) => this.kit.codeLabel(this.codes.closing_date, row.closing_date) },
         ],
@@ -596,6 +643,7 @@
         vehicle_owner_type: '',
         manager_name: '',
         business_type: '',
+        basic_work_hours: '',
         payment_type: 'normal',
         installment_amount: '',
         operation_start_date: '',
@@ -673,6 +721,8 @@
                 <div class="field-md"><label>パートナー</label>${this.kit.searchSelectHtml('partner_id', this.partners, 'partner_id', 'partner_name', project.partner_id)}</div>
                 <div class="field-md"><label>担当者</label><input name="manager_name" value="${this.ctx.escapeHtml(project.manager_name || '')}" /></div>
                 <div class="field-md"><label>業種</label><input name="business_type" value="${this.ctx.escapeHtml(project.business_type || '')}" /></div>
+                <div><label>運用開始日</label><input type="date" name="operation_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(project.operation_start_date))}" /></div>
+                <div><label>締日</label><select name="closing_date">${this.kit.codeOptions(this.codes.closing_date, project.closing_date)}</select></div>
               </div></section>
               <section class="form-section-card"><h3>車両</h3><div class="form-grid form-grid-compact">
                 <div class="field-sm"><label>車両所有元</label><select name="vehicle_owner_type" id="vehicle-owner-type"><option value="">（未選択）</option><option value="company" ${project.vehicle_owner_type === 'company' ? 'selected' : ''}>企業</option><option value="partner" ${project.vehicle_owner_type === 'partner' ? 'selected' : ''}>パートナー</option></select></div>
@@ -744,7 +794,8 @@
         replaceSearchSelect('template-picker', 'template_picker', this.baseProjects, 'base_project_id', 'template_name', '');
         const billingRes = cid ? await this.ctx.api(`/api/lookups/company-billings?company_id=${cid}`) : null;
         this.projectBillings = billingRes?.data?.billings || [];
-        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
+        const defaultBilling = this.projectBillings.find((billing) => Number(billing.billing_no) === 0);
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', defaultBilling?.billing_id || '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
         if (projectForm.vehicle_owner_type.value === 'company') await reloadVehicles();
       });
       projectForm.partner_id?.addEventListener('change', async () => {
@@ -774,7 +825,7 @@
         replaceSearchSelect('project-base', 'base_project_id', this.baseProjects, 'base_project_id', 'template_name', b.base_project_id);
         const billingRes = await this.ctx.api(`/api/lookups/company-billings?company_id=${b.company_id}`);
         this.projectBillings = billingRes.data?.billings || [];
-        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', b.billing_id || this.projectBillings.find((billing) => Number(billing.billing_no) === 0)?.billing_id || '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
         if (form.vehicle_owner_type.value === 'company') await reloadVehicles();
         form.manager_name.value = b.default_manager || '';
         form.business_type.value = b.business_type || '';
@@ -783,8 +834,9 @@
         form.overtime_calc_type.value = b.overtime_calc_type || '';
         form.execution_time_start.value = this.kit.timeValue(b.execution_time_start);
         form.execution_time_end.value = this.kit.timeValue(b.execution_time_end);
-        form.binding_time.value = b.binding_time ?? '';
-        form.break_time.value = b.break_time ?? '';
+        form.basic_work_hours.value = this.durationValue(b.basic_work_hours);
+        form.binding_time.value = this.durationValue(b.binding_time);
+        form.break_time.value = this.durationValue(b.break_time);
         form.payment_type.value = b.payment_type || 'normal';
         form.installment_amount.value = b.installment_amount ?? '';
         form.operation_start_date.value = this.kit.dateValue(b.operation_start_date);
@@ -794,16 +846,19 @@
       document.getElementById('project-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
+        let shared;
+        try { shared = this.pickShared(form); }
+        catch (error) { document.getElementById('form-error').textContent = error.message; return; }
         const payload = {
           company_id: Number(form.company_id.value),
-          billing_id: form.billing_id.value ? Number(form.billing_id.value) : null,
+          billing_id: Number(form.billing_id.value),
           base_project_id: form.base_project_id.value ? Number(form.base_project_id.value) : null,
           partner_id: form.partner_id.value ? Number(form.partner_id.value) : null,
           vehicle_id: form.vehicle_id.value ? Number(form.vehicle_id.value) : null,
           vehicle_owner_type: form.vehicle_id.value ? (form.vehicle_owner_type.value || null) : null,
           manager_name: form.manager_name.value,
           business_type: form.business_type.value,
-          ...this.pickShared(form),
+          ...shared,
           version: project.version || 1,
         };
         if (!id && form.rev_start?.value) {

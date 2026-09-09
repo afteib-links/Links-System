@@ -23,7 +23,8 @@ router.get('/companies', async (_req, res) => {
   try {
     const rows = await query(
       `SELECT company_id, company_name, closing_date_code
-       FROM companies WHERE is_deleted = 0
+       FROM companies WHERE is_deleted = 0 AND contract_status_code <> 'ended'
+         AND (operation_end_date IS NULL OR operation_end_date >= CURDATE())
        ORDER BY company_id ASC`
     );
     return res.json({ ok: true, companies: rows });
@@ -55,7 +56,8 @@ router.get('/partners', async (_req, res) => {
   try {
     const rows = await query(
       `SELECT partner_id, partner_name, partner_category_code, employment_type_code
-       FROM partners WHERE is_deleted = 0
+       FROM partners WHERE is_deleted = 0 AND contract_status_code <> 'ended'
+         AND (operation_end_date IS NULL OR operation_end_date >= CURDATE())
        ORDER BY partner_id ASC`
     );
     return res.json({ ok: true, partners: rows });
@@ -101,7 +103,7 @@ router.get('/projects', async (req, res) => {
 router.get('/base-projects', async (req, res) => {
   try {
     const companyId = Number(req.query.company_id || 0);
-    const where = ['is_deleted = 0'];
+    const where = ["is_deleted = 0", "contract_status_code <> 'ended'", '(operation_end_date IS NULL OR operation_end_date >= CURDATE())'];
     const params = [];
     if (companyId > 0) {
       where.push('company_id = ?');

@@ -42,6 +42,26 @@ async function main() {
       return { response, data };
     }
     const post = (route, body) => request(route, { method: 'POST', body: JSON.stringify(body) });
+    async function approveSettlementProjects(projectIds, ym) {
+      for (const projectId of projectIds) {
+        const submitted = await post('/api/daily-reports/monthly-approval', {
+          project_id: projectId,
+          target_year_month: ym,
+          action: 'submit',
+          acknowledge_warnings: true,
+        });
+        if (submitted.response.status !== 200) {
+          assert.equal(submitted.response.status, 409, submitted.data?.message || '月次承認依頼に失敗しました');
+          assert.ok(String(submitted.data?.message || '').includes('承認依頼中'), submitted.data?.message);
+        }
+        const approved = await post('/api/daily-reports/monthly-approval', {
+          project_id: projectId,
+          target_year_month: ym,
+          action: 'approve',
+        });
+        assert.equal(approved.response.status, 200, approved.data?.message || '月次承認に失敗しました');
+      }
+    }
     async function syncSource(kind, settlementId) {
       const diff = await request(`/api/settlements/${kind}/${settlementId}/source-diff`);
       assert.equal(diff.response.status, 200);
@@ -91,6 +111,7 @@ async function main() {
     const invoiceBefore = await request(`/api/settlements/invoice/${invoiceId}`);
     assert.ok(invoiceBefore.data.lines.every((line) => line.source_type === 'monthly_aggregate' || line.source_type === 'manual_adjustment'));
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/sales-review`, {})).response.status, 200);
+    await approveSettlementProjects([invoiceTarget.project_id], '2026-05');
     assert.equal((await post(`/api/settlements/invoice/${invoiceId}/finalize`, { cash_cycle_id: cashCycleId })).response.status, 200);
     const [finalInvoices] = await pool.query('SELECT total_amount,finalized_snapshot FROM invoices WHERE invoice_id=?', [invoiceId]);
     const invoiceSnapshot = parseJson(finalInvoices[0].finalized_snapshot);
@@ -126,6 +147,7 @@ async function main() {
     const zeroPaymentId = Number(zeroDraft.data.settlement_id);
     await syncSource('payment', zeroPaymentId);
     assert.equal((await post(`/api/settlements/payment/${zeroPaymentId}/sales-review`, {})).response.status, 200);
+    await approveSettlementProjects([zeroTarget.project_id], '2026-05');
     const zeroFinal = await post(`/api/settlements/payment/${zeroPaymentId}/finalize`, { cash_cycle_id: cashCycleId });
     assert.equal(zeroFinal.response.status, 200);
     assert.equal(Number(zeroFinal.data.total_amount), 0);
@@ -155,6 +177,7 @@ async function main() {
     const paymentId = Number(paymentDraft.data.settlement_id);
     await syncSource('payment', paymentId);
     assert.equal((await post(`/api/settlements/payment/${paymentId}/sales-review`, {})).response.status, 200);
+    await approveSettlementProjects([correctionTarget.project_id], '2026-05');
     const paymentFinal = await post(`/api/settlements/payment/${paymentId}/finalize`, { cash_cycle_id: cashCycleId });
     assert.equal(paymentFinal.response.status, 200);
     assert.ok(Number(paymentFinal.data.total_amount) > 1000);
@@ -173,6 +196,7 @@ async function main() {
     assert.equal(correction.response.status, 201);
     const correctionId = Number(correction.data.settlement_id);
     assert.equal((await post(`/api/settlements/payment/${correctionId}/sales-review`, {})).response.status, 200);
+    await approveSettlementProjects([correctionTarget.project_id], '2026-05');
     assert.equal((await post(`/api/settlements/payment/${correctionId}/finalize`, { cash_cycle_id: cashCycleId })).response.status, 200);
     const [adjustments] = await pool.query("SELECT direction,amount FROM cash_schedules WHERE source_type='adjustment' AND source_id=? AND status='planned'", [correctionId]);
     assert.equal(adjustments.length, 1);

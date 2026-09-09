@@ -38,10 +38,15 @@ function priceExtra() {
 async function seed(pool) {
   const [company] = await pool.execute(`INSERT INTO companies (company_name) VALUES ('休日CI匿名企業')`);
   const [partner] = await pool.execute(`INSERT INTO partners (partner_name) VALUES ('休日CI匿名パートナー')`);
+  const [billing] = await pool.execute(
+    `INSERT INTO company_billings (company_id, billing_no, billing_print_name)
+     VALUES (?, 0, '休日CI匿名企業')`,
+    [company.insertId]
+  );
   const [project] = await pool.execute(
-    `INSERT INTO projects (company_id, partner_id, manager_name, business_type)
-     VALUES (?, ?, '休日CI担当', '休日CI案件')`,
-    [company.insertId, partner.insertId]
+    `INSERT INTO projects (company_id, billing_id, partner_id, manager_name, business_type)
+     VALUES (?, ?, ?, '休日CI担当', '休日CI案件')`,
+    [company.insertId, billing.insertId, partner.insertId]
   );
   await pool.execute(
     `INSERT INTO price_sets
