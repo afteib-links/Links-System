@@ -2188,6 +2188,34 @@ label, .field-label { color: #344054; font-weight: 700; }
 .calc-type-chip, .weekday-chip { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
 .calc-type-chip small, .calc-unsupported { display:block; color:#a16207; font-size:11px; }
 .fee-item-actions { display:flex; gap:4px; flex-wrap:nowrap; }
+.fee-revision-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; padding:10px 12px; border:1px solid #d8e1e8; border-radius:10px; background:#f7fafc; }
+.fee-item-card { min-width:0; overflow:hidden; }
+.fee-weekdays { grid-column:1/-1; }
+.weekday-chip { border:1px solid #d0d5dd; border-radius:999px; padding:2px 7px; background:#fff; }
+.weekday-chip input { position:absolute; width:1px !important; height:1px !important; opacity:0; pointer-events:none; }
+.weekday-chip.is-selected.weekday-mon,
+.weekday-chip.is-selected.weekday-tue,
+.weekday-chip.is-selected.weekday-wed,
+.weekday-chip.is-selected.weekday-thu,
+.weekday-chip.is-selected.weekday-fri { color:#176b3a; border-color:#68b889; background:#dff4e7; }
+.weekday-chip.is-selected.weekday-sat { color:#175ca8; border-color:#74a9e6; background:#dcecff; }
+.weekday-chip.is-selected.weekday-sun,
+.weekday-chip.is-selected.weekday-holiday { color:#a13a43; border-color:#e9aab0; background:#fde7e9; }
+.weekday-chip.is-selected.weekday-project_holiday { color:#fff; border-color:#c52834; background:#d93441; }
+.weekday-chip.is-selected.weekday-all { color:#6b5600; border-color:#e0be32; background:#ffed8a; }
+.fee-rule-scroll { width:100%; overflow-x:auto; container-type:inline-size; padding-bottom:4px; }
+.fee-rule-grid-head,
+.fee-rule-row { display:grid; grid-template-columns:32px 74px 62px 70px 70px 68px 50cqw 50cqw; gap:3px; align-items:center; min-width:max-content; }
+.fee-rule-grid-head { padding:4px 0; color:#667085; font-size:11px; font-weight:700; border-bottom:1px solid #e4e7ec; }
+.fee-rule-row { padding:6px 0; border-bottom:1px solid #eef1f4; }
+.fee-rule-row > input,
+.fee-rule-row > select { min-width:0; width:100%; }
+.fee-row-actions { display:grid; grid-template-columns:repeat(2, 1fr); gap:2px; }
+.fee-row-actions button { min-width:0; padding:2px 3px; border:1px solid #d0d5dd; border-radius:4px; background:#fff; cursor:pointer; }
+.fee-rule-admin { grid-column:2/-1; display:grid; grid-template-columns:repeat(3,minmax(220px,1fr)); gap:6px; padding:6px; border-left:3px solid #8b5cf6; background:#f7f3ff; }
+.fee-rule-admin label { display:flex; flex-direction:column; gap:2px; font-size:11px; color:#5b4780; }
+.fee-profit-input { min-width:0; }
+.fee-profit-input .status-badge { font-size:9px; padding:1px 4px; }
 .fee-summary-names { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:6px 0 !important; }
 .fee-summary-names > div { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:6px; }
 .fee-summary-names label { white-space:nowrap; }

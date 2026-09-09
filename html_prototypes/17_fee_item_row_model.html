@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>料金登録（項目種別行モデル） - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .page-body { padding: 16px 20px; }
+  .ux-banner {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #1e3a5f;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  .meta-grid label { display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 2px; }
+  .meta-grid input { width: 100%; font-size: 13px; padding: 4px 6px; }
+  @media (max-width: 1100px) {
+    .meta-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .section-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .hint { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+  .warn { color: #b45309; font-size: 12px; margin: 6px 0 0; }
+
+  /* 3カード並び */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+  @media (max-width: 1280px) {
+    .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 820px) {
+    .cards-grid { grid-template-columns: 1fr; }
+  }
+
+  .fee-card {
+    background: #fff;
+    border: 1px solid var(--color-border-dark);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .fee-card-head {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--color-border);
+    background: #f1f5f9;
+    min-height: 52px;
+  }
+  .fee-card-title {
+    width: 38%;
+    min-width: 96px;
+    padding: 6px 8px;
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+  .fee-card-title .hint { font-size: 10px; }
+  .fee-card-title input {
+    font-size: 14px;
+    font-weight: 400;
+    border: 1px solid transparent;
+    background: transparent;
+    width: 100%;
+    padding: 2px 4px;
+    color: var(--color-text);
+  }
+  .fee-card-title input:focus {
+    background: #fff;
+    border-color: #93c5fd;
+    outline: none;
+  }
+  .fee-card-days-wrap {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+  }
+  .fee-card-days {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(2, 1fr);
+  }
+  .day-chip {
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+    color: #64748b;
+    background: #f8fafc;
+  }
+  .day-chip input { display: none; }
+  .day-chip.on {
+    background: #2563eb;
+    color: #fff;
+  }
+  .card-icon-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px;
+    border-left: 1px solid var(--color-border);
+    background: #f8fafc;
+  }
+  .icon-btn {
+    width: 24px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+  }
+  .icon-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .icon-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+  .icon-btn svg { width: 13px; height: 13px; }
+  .icon-btn[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1e293b;
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Excel風グリッド */
+  .excel-wrap { overflow-x: auto; }
+  .excel-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 15px;
+    font-weight: 400;
+  }
+  .excel-table th,
+  .excel-table td {
+    border: 1px solid #cbd5e1;
+    padding: 0;
+    vertical-align: middle;
+    background: #fff;
+  }
+  .excel-table th {
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 500;
+    font-size: 12px;
+    text-align: center;
+    padding: 3px 2px;
+  }
+  .excel-table td.cell-pad { padding: 0 1px; }
+  .excel-table input,
+  .excel-table select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 400;
+    padding: 1px 3px;
+    outline: none;
+    box-shadow: none;
+    border-radius: 0;
+    height: 26px;
+  }
+  .excel-table input:focus,
+  .excel-table select:focus {
+    background: #fffbeb;
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+  }
+  .excel-table .money-cell input {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding: 1px 2px;
+  }
+  .type-cell {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+  .type-cell select {
+    width: 6.2em;
+    flex: 0 0 auto;
+    padding-right: 0;
+  }
+  .row-ops {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    padding-left: 1px;
+  }
+  .row-ops .op-pair {
+    display: flex;
+    flex-direction: column;
+    width: 16px;
+  }
+  .row-ops button {
+    border: none;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0;
+    height: 13px;
+    width: 16px;
+  }
+  .row-ops button:hover { color: #1d4ed8; background: #eff6ff; }
+  .row-ops button.danger:hover { color: #dc2626; background: #fef2f2; }
+  .col-type { width: 10em; }
+  .col-money { width: 4.2em; }
+  .col-text { width: 20.5em; }
+  .col-custom { width: 10em; }
+  .row-extra {
+    background: #f8fafc;
+    padding: 4px 6px;
+    font-size: 13px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .row-extra .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .row-extra select,
+  .row-extra input {
+    width: 100%;
+    font-size: 13px;
+    padding: 2px 3px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    height: auto;
+  }
+  .tier-table { width: auto; border-collapse: collapse; margin-top: 4px; table-layout: fixed; }
+  .tier-table th, .tier-table td { border: 1px solid #cbd5e1; padding: 0 1px; font-size: 13px; }
+  .tier-table th { background: #f1f5f9; font-size: 11px; padding: 2px; text-align: center; }
+  .tier-table .col-km { width: 3.6em; }
+  .tier-table .col-yen { width: 4.2em; }
+  .tier-table .col-tier-act { width: 1.6em; text-align: center; }
+  .tier-table input {
+    width: 100%;
+    border: none;
+    font-size: 13px;
+    padding: 1px 2px;
+    height: 24px;
+    text-align: right;
+  }
+  .preview-box {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  .preview-box h3 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .preview-box pre {
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 11px;
+    overflow: auto;
+    max-height: 220px;
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理（現行）</a>
+    <a class="sidebar-item" href="16_unit_price_master_ux.html">単価入力UX案（旧）</a>
+    <a class="sidebar-item active" href="17_fee_item_row_model.html">料金登録・行モデル</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">案</div>
+    <div><div class="sidebar-user-name">計画26プロト</div><div class="sidebar-user-role">画面イメージ</div></div>
+  </div>
+</aside>
+
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">料金登録（項目種別行モデル）</h1>
+    <div class="flex gap-2 items-center">
+      <span class="badge badge-blue">プロトタイプ</span>
+      <button type="button" class="btn btn-outline btn-sm" id="resetBtn">サンプル再読込</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ux-banner">
+      計画26の画面イメージ。カード横3列・Excel風。行左の＋／×で追加・削除（×は確認）、▲▼で上下移動。金額はカンマ付き最大6桁。
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <label>金額データNo</label>
+        <input class="form-control" value="PS-20260401-001" readonly>
+      </div>
+      <div>
+        <label>名称</label>
+        <input class="form-control" id="metaName" value="首都圏配送便 2026年度単価">
+      </div>
+      <div>
+        <label>対象案件</label>
+        <input class="form-control" value="首都圏定期ルート配送便" readonly>
+      </div>
+      <div>
+        <label>適用開始</label>
+        <input class="form-control" type="date" value="2026-04-01">
+      </div>
+      <div>
+        <label>適用終了</label>
+        <input class="form-control" type="date" value="2027-03-31">
+      </div>
+    </div>
+
+    <div class="section-toolbar">
+      <p class="hint">不足控除は「時間単価」行を使用。カード右端アイコン＝コピー／削除。</p>
+      <button type="button" class="btn btn-primary btn-sm" id="addCardBtn">＋ 料金カード</button>
+    </div>
+
+    <div id="cardsArea" class="cards-grid"></div>
+    <p id="overlapWarn" class="warn" hidden></p>
+
+    <div class="preview-box">
+      <h3>保存イメージ（fee_items_v2 抜粋）</h3>
+      <pre id="jsonPreview"></pre>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  const DAYS = [
+    { code: 'mon', label: '月' },
+    { code: 'tue', label: '火' },
+    { code: 'wed', label: '水' },
+    { code: 'thu', label: '木' },
+    { code: 'fri', label: '金' },
+    { code: 'sat', label: '土' },
+    { code: 'sun', label: '日' },
+    { code: 'holiday', label: '祝' },
+    { code: 'project_holiday', label: '休' },
+    { code: 'all', label: 'ALL' }
+  ];
+
+  const ITEM_TYPES = [
+    { code: 'daily_basic', label: '基本日極' },
+    { code: 'hourly', label: '時間単価' },
+    { code: 'overtime', label: '時間外' },
+    { code: 'night', label: '深夜単価' },
+    { code: 'night_overtime', label: '深夜時間外' },
+    { code: 'unit', label: '単価' },
+    { code: 'distance', label: '距離単価' },
+    { code: 'table', label: 'テーブル' }
+  ];
+  const TYPE_LABEL = Object.fromEntries(ITEM_TYPES.map((t) => [t.code, t.label]));
+
+  const CORE_COLS = [
+    { id: 'item_type', label: '項目種別', kind: 'type', locked: true },
+    { id: 'billing', label: '請求額', kind: 'money' },
+    { id: 'payment', label: '支払額', kind: 'money' },
+    { id: 'billing_detail_name', label: '請求詳細名', kind: 'text' },
+    { id: 'payment_detail_name', label: '支払詳細名', kind: 'text' }
+  ];
+
+  function emptyDays() {
+    const o = {};
+    DAYS.forEach((d) => { o[d.code] = false; });
+    return o;
+  }
+
+  function row(item_type, billing, payment, billing_detail_name, payment_detail_name, extra = {}) {
+    return {
+      id: 'r_' + Math.random().toString(36).slice(2, 8),
+      item_type,
+      billing,
+      payment,
+      billing_detail_name,
+      payment_detail_name,
+      customs: {},
+      ...extra
+    };
+  }
+
+  function sampleCards() {
+    return [
+      {
+        id: 'c1',
+        name: '平日料金',
+        weekdays: { ...emptyDays(), mon: true, tue: true, wed: true, thu: true, fri: true },
+        rows: [
+          row('daily_basic', 25000, 22000, '{企業名} 日極', '{パートナー名} 日極'),
+          row('hourly', 2500, 2200, '{企業名} 時間', '{パートナー名} 時間'),
+          row('overtime', 2800, 2400, '{企業名} 時間外', '{パートナー名} 時間外'),
+          row('night', 3000, 2600, '{企業名} 深夜', '{パートナー名} 深夜')
+        ]
+      },
+      {
+        id: 'c2',
+        name: '休日料金',
+        weekdays: { ...emptyDays(), sat: true, sun: true, holiday: true, project_holiday: true },
+        rows: [
+          row('daily_basic', 32000, 28000, '{企業名} 休日日極', '{パートナー名} 休日日極'),
+          row('hourly', 3200, 2800, '{企業名} 休日時間', '{パートナー名} 休日時間'),
+          row('overtime', 4000, 3400, '{企業名} 休日時間外', '{パートナー名} 休日時間外')
+        ]
+      },
+      {
+        id: 'c3',
+        name: '作業単価',
+        weekdays: { ...emptyDays(), all: true },
+        rows: [
+          row('unit', 3000, 2000, 'キッティング', 'キッティング'),
+          row('unit', 5000, 4000, 'システム設定', 'システム設定'),
+          row('unit', 4000, 3000, 'アプリインストール', 'アプリインストール'),
+          row('unit', 6000, 5000, 'データコピー', 'データコピー')
+        ]
+      },
+      {
+        id: 'c4',
+        name: '距離超過',
+        weekdays: { ...emptyDays(), all: true },
+        rows: [
+          row('distance', 150, 120, '日次距離超過', '日次距離超過', {
+            distance: { mode: 'daily_excess', base_km: 50 }
+          }),
+          row('table', 0, 0, '長距離段階', '長距離段階', {
+            table: {
+              tier_mode: 'excess_unit',
+              tiers: [
+                { upTo: 100, billing: 0, payment: 0 },
+                { upTo: 200, billing: 120, payment: 100 },
+                { upTo: '', billing: 180, payment: 150 }
+              ]
+            }
+          })
+        ]
+      }
+    ];
+  }
+
+  let columns = CORE_COLS.map((c) => ({ ...c }));
+  let cards = sampleCards();
+  let uid = 20;
+
+  function nextId(prefix) {
+    uid += 1;
+    return prefix + uid;
+  }
+
+  function iconCopy() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  }
+  function iconTrash() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  }
+
+  function typeOptions(selected) {
+    return ITEM_TYPES.map(
+      (t) => `<option value="${t.code}" ${t.code === selected ? 'selected' : ''}>${t.label}</option>`
+    ).join('');
+  }
+
+  function dayHtml(card, ci) {
+    return DAYS.map((d) => {
+      const on = !!card.weekdays[d.code];
+      return `<label class="day-chip ${on ? 'on' : ''}" data-ci="${ci}" data-day="${d.code}">
+        <input type="checkbox" ${on ? 'checked' : ''}>${d.label}
+      </label>`;
+    }).join('');
+  }
+
+  function colClass(col) {
+    if (col.kind === 'type') return 'col-type';
+    if (col.kind === 'money') return 'col-money';
+    if (col.kind === 'text') return 'col-text';
+    return 'col-custom';
+  }
+
+  function headerCell(col) {
+    return `<th class="${colClass(col)}">${escapeHtml(col.label)}</th>`;
+  }
+
+  function formatMoney(n) {
+    return Number(n || 0).toLocaleString('ja-JP');
+  }
+
+  function cellHtml(col, r, ci, ri) {
+    if (col.kind === 'type') {
+      return `<td class="col-type cell-pad">
+        <div class="type-cell">
+          <div class="row-ops">
+            <div class="op-pair">
+              <button type="button" data-act="addRow" data-ci="${ci}" data-ri="${ri}" title="行追加">＋</button>
+              <button type="button" class="danger" data-act="delRow" data-ci="${ci}" data-ri="${ri}" title="行削除">×</button>
+            </div>
+            <div class="op-pair">
+              <button type="button" data-act="rowUp" data-ci="${ci}" data-ri="${ri}" title="上へ">▲</button>
+              <button type="button" data-act="rowDown" data-ci="${ci}" data-ri="${ri}" title="下へ">▼</button>
+            </div>
+          </div>
+          <select data-f="item_type" data-ci="${ci}" data-ri="${ri}">${typeOptions(r.item_type)}</select>
+        </div>
+      </td>`;
+    }
+    if (col.kind === 'money') {
+      const v = r[col.id] ?? 0;
+      return `<td class="col-money money-cell cell-pad">
+        <input type="text" inputmode="numeric" data-f="${col.id}" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(formatMoney(v))}">
+      </td>`;
+    }
+    if (col.kind === 'text') {
+      const v = r[col.id] ?? '';
+      return `<td class="col-text cell-pad">
+        <input type="text" maxlength="20" data-f="${col.id}" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(v)}">
+      </td>`;
+    }
+    const cv = (r.customs && r.customs[col.id]) || '';
+    return `<td class="col-custom cell-pad">
+      <input type="text" maxlength="20" data-f="custom" data-colid="${col.id}" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(cv)}">
+    </td>`;
+  }
+
+  function extraHtml(r, ci, ri) {
+    if (r.item_type === 'distance') {
+      const dist = r.distance || { mode: 'daily_excess', base_km: 0 };
+      return `<div class="row-extra">
+        <div class="pair">
+          <div>
+            <label class="hint">距離方式</label>
+            <select data-f="distMode" data-ci="${ci}" data-ri="${ri}">
+              <option value="daily_excess" ${dist.mode === 'daily_excess' ? 'selected' : ''}>日次超過</option>
+              <option value="monthly_excess" ${dist.mode === 'monthly_excess' ? 'selected' : ''}>月累計超過</option>
+            </select>
+          </div>
+          <div>
+            <label class="hint">基準km</label>
+            <input type="text" inputmode="numeric" data-f="distBase" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(formatMoney(dist.base_km || 0))}">
+          </div>
+        </div>
+      </div>`;
+    }
+    if (r.item_type === 'table') {
+      const tbl = r.table || { tier_mode: 'excess_unit', tiers: [{ upTo: '', billing: 0, payment: 0 }] };
+      const tiers = (tbl.tiers || []).map((t, ti) => `<tr>
+        <td class="col-km"><input type="text" inputmode="numeric" placeholder="—" data-f="tierUp" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.upTo === '' || t.upTo == null ? '' : escapeAttr(formatMoney(t.upTo))}"></td>
+        <td class="col-yen"><input type="text" inputmode="numeric" data-f="tierBill" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${escapeAttr(formatMoney(t.billing))}"></td>
+        <td class="col-yen"><input type="text" inputmode="numeric" data-f="tierPay" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${escapeAttr(formatMoney(t.payment))}"></td>
+        <td class="col-tier-act"><button type="button" class="row-ops danger" data-act="delTier" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" title="段階削除" style="font-size:12px">×</button></td>
+      </tr>`).join('');
+      return `<div class="row-extra">
+        <label class="hint">計算型</label>
+        <select data-f="tierMode" data-ci="${ci}" data-ri="${ri}">
+          <option value="excess_unit" ${tbl.tier_mode === 'excess_unit' ? 'selected' : ''}>超過×単価</option>
+          <option value="all_unit" ${tbl.tier_mode === 'all_unit' ? 'selected' : ''}>全距離×単価</option>
+          <option value="cumulative" ${tbl.tier_mode === 'cumulative' ? 'selected' : ''}>段階内累積</option>
+          <option value="fixed" ${tbl.tier_mode === 'fixed' ? 'selected' : ''}>固定額</option>
+        </select>
+        <table class="tier-table">
+          <thead><tr><th class="col-km">〜km</th><th class="col-yen">請求</th><th class="col-yen">支払</th><th class="col-tier-act"></th></tr></thead>
+          <tbody>${tiers}</tbody>
+        </table>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px" data-act="addTier" data-ci="${ci}" data-ri="${ri}">＋段階</button>
+      </div>`;
+    }
+    return '';
+  }
+
+  function cardHtml(card, ci) {
+    const heads = columns.map((c) => headerCell(c)).join('');
+    const body = card.rows.map((r, ri) => {
+      const cells = columns.map((c) => cellHtml(c, r, ci, ri)).join('');
+      const extra = extraHtml(r, ci, ri);
+      return `<tr>${cells}</tr>
+      ${extra ? `<tr><td colspan="${columns.length}" style="padding:0;border:none">${extra}</td></tr>` : ''}`;
+    }).join('');
+
+    return `<article class="fee-card" data-card="${ci}">
+      <div class="fee-card-head">
+        <div class="fee-card-title">
+          <span class="hint">料金名称</span>
+          <input type="text" maxlength="20" data-f="cardName" data-ci="${ci}" value="${escapeAttr(card.name)}" placeholder="例: 平日料金">
+        </div>
+        <div class="fee-card-days-wrap">
+          <div class="fee-card-days">${dayHtml(card, ci)}</div>
+          <div class="card-icon-actions">
+            <button type="button" class="icon-btn" data-act="dupCard" data-ci="${ci}" data-tip="カードコピー">${iconCopy()}</button>
+            <button type="button" class="icon-btn danger" data-act="delCard" data-ci="${ci}" data-tip="カード削除">${iconTrash()}</button>
+          </div>
+        </div>
+      </div>
+      <div class="excel-wrap">
+        <table class="excel-table">
+          <thead><tr>${heads}</tr></thead>
+          <tbody>${body || `<tr><td colspan="${columns.length}" class="hint" style="padding:6px"><button type="button" class="btn btn-ghost btn-sm" data-act="addRow" data-ci="${ci}" data-ri="-1">＋ 行を追加</button></td></tr>`}</tbody>
+        </table>
+      </div>
+    </article>`;
+  }
+
+  function overlapMessage() {
+    const map = {};
+    const conflicts = [];
+    cards.forEach((card) => {
+      if (card.weekdays.all) return;
+      DAYS.forEach((d) => {
+        if (d.code === 'all' || !card.weekdays[d.code]) return;
+        if (map[d.code] && map[d.code] !== card.name) {
+          conflicts.push(`${d.label}:「${map[d.code]}」と「${card.name}」`);
+        } else map[d.code] = card.name || '(無題)';
+      });
+    });
+    return conflicts;
+  }
+
+  function render() {
+    document.getElementById('cardsArea').innerHTML = cards.map(cardHtml).join('');
+    const conflicts = overlapMessage();
+    const warn = document.getElementById('overlapWarn');
+    if (conflicts.length) {
+      warn.hidden = false;
+      warn.textContent = '適用曜日の重複: ' + conflicts.join(' / ');
+    } else {
+      warn.hidden = true;
+    }
+    bind();
+    updatePreview();
+  }
+
+  function bind() {
+    document.querySelectorAll('.day-chip').forEach((el) => {
+      el.onclick = (e) => {
+        e.preventDefault();
+        const ci = Number(el.dataset.ci);
+        const day = el.dataset.day;
+        const card = cards[ci];
+        if (day === 'all') {
+          const next = !card.weekdays.all;
+          DAYS.forEach((d) => { card.weekdays[d.code] = false; });
+          card.weekdays.all = next;
+        } else {
+          card.weekdays.all = false;
+          card.weekdays[day] = !card.weekdays[day];
+        }
+        render();
+      };
+    });
+    document.querySelectorAll('[data-f]').forEach((el) => {
+      el.addEventListener('change', onField);
+      el.addEventListener('input', onField);
+      el.addEventListener('blur', onField);
+    });
+    document.querySelectorAll('[data-act]').forEach((el) => {
+      el.addEventListener('click', onAct);
+    });
+  }
+
+  function clampMoney(raw) {
+    const digits = String(raw || '').replace(/[^\d]/g, '').slice(0, 6);
+    return digits === '' ? 0 : Number(digits);
+  }
+
+  function onField(e) {
+    const el = e.target;
+    const f = el.dataset.f;
+    const ci = Number(el.dataset.ci);
+    if (f === 'cardName') {
+      cards[ci].name = el.value.slice(0, 20);
+      updatePreview();
+      return;
+    }
+    const ri = Number(el.dataset.ri);
+    const rowObj = cards[ci].rows[ri];
+    if (!rowObj) return;
+
+    if (f === 'item_type') {
+      rowObj.item_type = el.value;
+      if (rowObj.item_type === 'distance' && !rowObj.distance) rowObj.distance = { mode: 'daily_excess', base_km: 0 };
+      if (rowObj.item_type === 'table' && !rowObj.table) {
+        rowObj.table = { tier_mode: 'excess_unit', tiers: [{ upTo: '', billing: 0, payment: 0 }] };
+      }
+      render();
+      return;
+    }
+    if (f === 'billing' || f === 'payment') {
+      const n = clampMoney(el.value);
+      rowObj[f] = n;
+      if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(n);
+      updatePreview();
+      return;
+    }
+    if (f === 'billing_detail_name' || f === 'payment_detail_name') {
+      rowObj[f] = el.value.slice(0, 20);
+      updatePreview();
+      return;
+    }
+    if (f === 'custom') {
+      rowObj.customs = rowObj.customs || {};
+      rowObj.customs[el.dataset.colid] = el.value.slice(0, 20);
+      updatePreview();
+      return;
+    }
+    if (f === 'distMode') {
+      rowObj.distance = rowObj.distance || {};
+      rowObj.distance.mode = el.value;
+    }
+    if (f === 'distBase') {
+      rowObj.distance = rowObj.distance || {};
+      rowObj.distance.base_km = clampMoney(el.value);
+      if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(rowObj.distance.base_km);
+    }
+    if (f === 'tierMode') {
+      rowObj.table = rowObj.table || { tiers: [] };
+      rowObj.table.tier_mode = el.value;
+    }
+    if (f === 'tierUp' || f === 'tierBill' || f === 'tierPay') {
+      const ti = Number(el.dataset.ti);
+      const t = rowObj.table.tiers[ti];
+      if (!t) return;
+      if (f === 'tierUp') {
+        const raw = String(el.value || '').replace(/[^\d]/g, '');
+        t.upTo = raw === '' ? '' : Number(raw.slice(0, 6));
+        if (e.type === 'blur' || e.type === 'change') el.value = t.upTo === '' ? '' : formatMoney(t.upTo);
+      }
+      if (f === 'tierBill') {
+        t.billing = clampMoney(el.value);
+        if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(t.billing);
+      }
+      if (f === 'tierPay') {
+        t.payment = clampMoney(el.value);
+        if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(t.payment);
+      }
+    }
+    updatePreview();
+  }
+
+  function onAct(e) {
+    const el = e.currentTarget;
+    const act = el.dataset.act;
+    const ci = Number(el.dataset.ci);
+    const ri = Number(el.dataset.ri);
+
+    if (act === 'rowUp' && ri > 0) {
+      const a = cards[ci].rows;
+      [a[ri - 1], a[ri]] = [a[ri], a[ri - 1]];
+      render();
+      return;
+    }
+    if (act === 'rowDown' && ri < cards[ci].rows.length - 1) {
+      const a = cards[ci].rows;
+      [a[ri + 1], a[ri]] = [a[ri], a[ri + 1]];
+      render();
+      return;
+    }
+    if (act === 'addRow') {
+      const name = cards[ci].name || '料金';
+      const insertAt = Number.isFinite(ri) ? ri + 1 : cards[ci].rows.length;
+      cards[ci].rows.splice(insertAt, 0, row('unit', 0, 0, (name + ' 項目').slice(0, 20), (name + ' 項目').slice(0, 20)));
+      render();
+      return;
+    }
+    if (act === 'delRow') {
+      const label = cards[ci].rows[ri]?.billing_detail_name || cards[ci].rows[ri]?.item_type || 'この行';
+      if (!window.confirm(`「${label}」を削除しますか？`)) return;
+      cards[ci].rows.splice(ri, 1);
+      render();
+      return;
+    }
+    if (act === 'dupCard') {
+      const copy = JSON.parse(JSON.stringify(cards[ci]));
+      copy.id = nextId('c');
+      copy.name = ((copy.name || '料金') + 'コピー').slice(0, 20);
+      copy.rows.forEach((r) => { r.id = nextId('r'); });
+      cards.splice(ci + 1, 0, copy);
+      render();
+      return;
+    }
+    if (act === 'delCard') {
+      if (!window.confirm(`カード「${cards[ci].name || ''}」を削除しますか？`)) return;
+      cards.splice(ci, 1);
+      render();
+      return;
+    }
+    if (act === 'addTier') {
+      const rowObj = cards[ci].rows[ri];
+      rowObj.table = rowObj.table || { tier_mode: 'excess_unit', tiers: [] };
+      rowObj.table.tiers.push({ upTo: '', billing: 0, payment: 0 });
+      render();
+      return;
+    }
+    if (act === 'delTier') {
+      if (!window.confirm('この段階行を削除しますか？')) return;
+      cards[ci].rows[ri].table.tiers.splice(Number(el.dataset.ti), 1);
+      render();
+    }
+  }
+
+  function toV2() {
+    return {
+      schema: 'fee_items_v2',
+      columns: columns.map((c) => ({ id: c.id, label: c.label, kind: c.kind })),
+      fee_items: cards.map((c) => ({
+        id: c.id,
+        name: c.name,
+        weekdays: { ...c.weekdays },
+        rows: c.rows.map((r, j) => {
+          const out = {
+            id: r.id,
+            item_type: r.item_type,
+            billing: Number(r.billing || 0),
+            payment: Number(r.payment || 0),
+            billing_detail_name: (r.billing_detail_name || `${c.name} ${TYPE_LABEL[r.item_type] || ''}`).slice(0, 20),
+            payment_detail_name: (r.payment_detail_name || `${c.name} ${TYPE_LABEL[r.item_type] || ''}`).slice(0, 20),
+            sort_order: (j + 1) * 10,
+            customs: r.customs || {}
+          };
+          if (r.item_type === 'distance') out.distance = r.distance;
+          if (r.item_type === 'table') out.table = r.table;
+          return out;
+        })
+      }))
+    };
+  }
+
+  function updatePreview() {
+    document.getElementById('jsonPreview').textContent = JSON.stringify(toV2(), null, 2);
+  }
+
+  function escapeAttr(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  document.getElementById('addCardBtn').onclick = () => {
+    const w = emptyDays();
+    w.sun = true;
+    cards.push({
+      id: nextId('c'),
+      name: '新しい料金',
+      weekdays: w,
+      rows: [row('daily_basic', 0, 0, '', '')]
+    });
+    render();
+  };
+
+  document.getElementById('resetBtn').onclick = () => {
+    columns = CORE_COLS.map((c) => ({ ...c }));
+    cards = sampleCards();
+    uid = 20;
+    render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>

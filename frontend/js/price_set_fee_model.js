@@ -2,7 +2,7 @@
  * 金額データ: 料金項目（曜日チェック × 日極/時間マトリクス）↔ price_set_lines 変換
  */
 (() => {
-  const WEEKDAY_CODES = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
+  const WEEKDAY_CODES = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday', 'project_holiday', 'all'];
 
   const WEEKDAY_LABELS = {
     mon: '月',
@@ -13,8 +13,15 @@
     sat: '土',
     sun: '日',
     holiday: '祝',
-    all: '全日',
+    project_holiday: '休',
+    all: 'ALL',
   };
+
+  const ITEM_TYPES = [
+    ['daily_basic', '基本日極'], ['hourly', '時間単価'], ['overtime', '時間外'],
+    ['night', '深夜単価'], ['night_overtime', '深夜時間外'], ['unit', '単価'],
+    ['distance', '距離単価'], ['table', 'テーブル'],
+  ];
 
   function emptyWeekdays() {
     const w = {};
@@ -56,15 +63,76 @@
     return `fi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function nextRowId() {
+    return `fr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function normalizeRuleRow(row = {}, index = 0) {
+    return {
+      id: row.id || nextRowId(),
+      item_name: row.item_name || row.name || '',
+      item_type: row.item_type || 'daily_basic',
+      billing: row.billing ?? '',
+      payment: row.payment ?? '',
+      billing_detail_name: row.billing_detail_name || '',
+      payment_detail_name: row.payment_detail_name || '',
+      condition_expression: row.condition_expression || '',
+      billing_expression: row.billing_expression || '',
+      payment_expression: row.payment_expression || '',
+      has_admin_rule: Boolean(row.has_admin_rule),
+      rule_state: row.rule_state || 'active',
+      undefined_variables: [...(row.undefined_variables || [])],
+      sort_order: Number(row.sort_order ?? (index + 1) * 10),
+      lineIds: { ...(row.lineIds || {}) },
+    };
+  }
+
+  function blankRuleRow(name = '基本料金', itemType = 'daily_basic') {
+    return normalizeRuleRow({ item_name: name, item_type: itemType });
+  }
+
+  function legacyItemRows(item) {
+    const mapping = {
+      'daily|basic': 'daily_basic', 'hourly|basic': 'hourly', 'hourly|shortage': 'hourly',
+      'daily|overtime': 'overtime', 'hourly|overtime': 'overtime',
+      'daily|night': 'night', 'hourly|night': 'night',
+      'daily|night_overtime': 'night_overtime', 'hourly|night_overtime': 'night_overtime',
+      'distance|basic': 'distance', 'unit|basic': 'unit',
+    };
+    const rows = [];
+    Object.entries(item.matrix || {}).forEach(([calc, cells]) => {
+      Object.entries(cells || {}).forEach(([priceType, cell]) => {
+        const type = mapping[`${calc}|${priceType}`];
+        if (!type || (type === 'hourly' && priceType === 'shortage')) return;
+        if (!cellHasValue(cell)) return;
+        rows.push(normalizeRuleRow({
+          item_name: `${item.name || '料金'} ${ITEM_TYPES.find(([code]) => code === type)?.[1] || type}`,
+          item_type: type,
+          billing: cell.billing,
+          payment: cell.payment,
+          lineIds: cell.lineIds,
+        }, rows.length));
+      });
+    });
+    return rows.length ? rows : [blankRuleRow(item.name || '基本料金')];
+  }
+
+  function ensureRowsModel(item, index = 0) {
+    const normalized = normalizeItem(item, defaultPriceTypeCodes());
+    return {
+      ...normalized,
+      sort_order: Number(item.sort_order ?? (index + 1) * 10),
+      rows: Array.isArray(item.rows)
+        ? item.rows.map(normalizeRuleRow)
+        : legacyItemRows(normalized),
+    };
+  }
+
   function defaultFeeItemTemplates(codes) {
-    const pts = defaultPriceTypeCodes(codes);
-    const matrixStd = buildEmptyMatrix(pts);
     return [
       {
         id: nextItemId(),
         name: '平日',
-        mode: 'weekdays',
-        calc_types: ['daily', 'hourly'],
         weekdays: {
           mon: true,
           tue: true,
@@ -74,14 +142,14 @@
           sat: false,
           sun: false,
           holiday: false,
+          project_holiday: false,
+          all: false,
         },
-        matrix: JSON.parse(JSON.stringify(matrixStd)),
+        rows: [blankRuleRow('平日基本料金')],
       },
       {
         id: nextItemId(),
         name: '休日',
-        mode: 'weekdays',
-        calc_types: ['daily', 'hourly'],
         weekdays: {
           mon: false,
           tue: false,
@@ -91,18 +159,12 @@
           sat: true,
           sun: true,
           holiday: true,
+          project_holiday: false,
+          all: false,
         },
-        matrix: JSON.parse(JSON.stringify(matrixStd)),
+        rows: [blankRuleRow('休日基本料金')],
       },
-      {
-        id: nextItemId(),
-        name: '距離超過',
-        mode: 'distance',
-        calc_types: ['distance'],
-        weekdays: emptyWeekdays(),
-        matrix: buildDistanceMatrix(pts),
-      },
-    ];
+    ].map(ensureRowsModel);
   }
 
   function parseExtraData(raw) {
@@ -308,7 +370,8 @@
     const priceTypeCodes = defaultPriceTypeCodes(codes);
     const extra = parseExtraData(row.extra_data);
     if (extra?.fee_items?.length) {
-      const items = extra.fee_items.map((it) => normalizeItem(it, priceTypeCodes));
+      const items = extra.fee_items.map((it, index) => ensureRowsModel(it, index));
+      if (items.some((item) => Array.isArray(item.rows))) return items;
       attachLinesToItems(items, row.lines || []);
       return items;
     }
@@ -319,6 +382,30 @@
   }
 
   function itemsToLines(items) {
+    if ((items || []).some((item) => Array.isArray(item.rows))) {
+      const mapping = {
+        daily_basic: ['daily', 'basic'], hourly: ['hourly', 'basic'], overtime: ['hourly', 'overtime'],
+        night: ['hourly', 'night'], night_overtime: ['hourly', 'night_overtime'], unit: ['unit', 'basic'],
+        distance: ['distance', 'basic'], table: ['distance', 'basic'],
+      };
+      const lines = [];
+      let sort = 0;
+      (items || []).forEach((item) => {
+        const days = item.weekdays?.all ? ['all'] : WEEKDAY_CODES.filter((day) => day !== 'all' && item.weekdays?.[day]);
+        (item.rows || []).forEach((raw) => {
+          const row = normalizeRuleRow(raw);
+          const pair = mapping[row.item_type];
+          if (!pair) return;
+          const targets = pair[0] === 'distance' ? ['all'] : days;
+          targets.forEach((weekday) => lines.push({
+            price_set_line_id: row.lineIds?.[weekday] || null,
+            weekday_code: weekday, calc_type_code: pair[0], price_type_code: pair[1],
+            billing_unit_price: Number(row.billing || 0), payment_unit_price: Number(row.payment || 0), sort_order: sort++,
+          }));
+        });
+      });
+      return lines;
+    }
     const lines = [];
     let sort = 0;
     for (const item of items || []) {
@@ -355,20 +442,27 @@
       calc_types: [...(it.calc_types || [])],
       weekdays: { ...it.weekdays },
       matrix: JSON.parse(JSON.stringify(it.matrix)),
+      sort_order: it.sort_order,
+      rows: Array.isArray(it.rows) ? it.rows.map((row, index) => normalizeRuleRow(row, index)) : undefined,
     }));
   }
 
   function duplicateFeeItem(item, codes) {
     const priceTypeCodes = defaultPriceTypeCodes(codes);
-    const copy = normalizeItem(
+    const copy = ensureRowsModel(
       {
         ...item,
         id: nextItemId(),
         name: `${item.name || '項目'}（コピー）`,
         matrix: JSON.parse(JSON.stringify(item.matrix)),
-      },
-      priceTypeCodes
+        rows: (item.rows || []).map((row) => ({ ...row, id: nextRowId(), lineIds: {} })),
+      }
     );
+    if (Array.isArray(item.rows)) {
+      copy.rows = item.rows.map((row, index) => normalizeRuleRow({ ...row, id: nextRowId(), lineIds: {} }, index));
+      copy.sort_order = item.sort_order;
+      return copy;
+    }
     const clearIds = (matrix) => {
       Object.values(matrix).forEach((row) => {
         Object.values(row).forEach((cell) => {
@@ -392,9 +486,7 @@
     } else if (preset === 'weekend_holiday') {
       w.sat = w.sun = w.holiday = true;
     } else if (preset === 'all') {
-      WEEKDAY_CODES.forEach((c) => {
-        w[c] = true;
-      });
+      w.all = true;
     }
     item.weekdays = w;
     return item;
@@ -403,6 +495,7 @@
   window.LinksPriceSetFeeModel = {
     WEEKDAY_CODES,
     WEEKDAY_LABELS,
+    ITEM_TYPES,
     emptyWeekdays,
     emptyCell,
     defaultPriceTypeCodes,
@@ -415,5 +508,9 @@
     applyWeekdayPreset,
     cellHasValue,
     nextItemId,
+    nextRowId,
+    normalizeRuleRow,
+    blankRuleRow,
+    ensureRowsModel,
   };
 })();

@@ -18,6 +18,7 @@ const {
   nightInputMode,
 } = require('./price_calc_config');
 const { calculateDistanceSide } = require('./distance_calc');
+const { materializeFeeItem, isRowsModel } = require('./fee_item_rules');
 
 const DAY_TYPE_FALLBACK_ORDER = [
   'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
@@ -114,13 +115,17 @@ async function loadPriceSetContext(projectId, workDate) {
     [normYmd(workDate), Number(projectId)]
   );
   const holiday = holidays[0] || null;
+  const holidayState = {
+    is_holiday: holidays.some((row) => row.project_id == null),
+    is_project_holiday: holidays.some((row) => row.project_id != null),
+  };
   const items = Array.isArray(extra.fee_items) && extra.fee_items.length
     ? extra.fee_items
     : [legacyFeeItem(lines, workDate, Boolean(holiday))];
-  return { priceSet, lines, extra, items, config: normalizeConfig(extra), holiday };
+  return { priceSet, lines, extra, items, config: normalizeConfig(extra), holiday, holidayState };
 }
 
-async function buildDailyCalculationContext(projectId, workDate, selectedFeeItemId = null, isTraining = false) {
+async function buildDailyCalculationContext(projectId, workDate, selectedFeeItemId = null, isTraining = false, ruleData = {}) {
   if (!projectId || !workDate) return null;
   const context = await loadPriceSetContext(projectId, workDate);
   if (!context) return null;
@@ -129,7 +134,7 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
     workDate,
     selectedFeeItemId,
     isTraining,
-    Boolean(context.holiday)
+    context.holidayState
   );
   return {
     price_set_id: context.priceSet.price_set_id,
@@ -148,6 +153,8 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
           scope: context.holiday.project_id == null ? 'global' : 'project',
         }
       : null,
+    holiday_state: context.holidayState,
+    rule_data: ruleData || {},
     fee_items: context.items
       .filter((item) => feeItemHasSupportedCalc(item))
       .map((item) => ({ id: item.id, name: item.name || '料金項目' })),
@@ -176,15 +183,19 @@ async function applyDailyPriceCalc(data) {
     data.project_id,
     data.work_date,
     selectedIdForResolution,
-    Boolean(Number(data.is_training || 0))
+    Boolean(Number(data.is_training || 0)),
+    data
   );
   if (!context || !context.fee_item) {
-    data.applied_price_set_id = null;
+    data.applied_price_set_id = context?.price_set_id || null;
     data.calculated_billing_amount = 0;
     data.calculated_payment_amount = 0;
     data.calculation_detail = JSON.stringify({
       version: 1,
-      warnings: [{ code: 'price_set_missing', message: '適用可能な料金設定がありません' }],
+      warnings: [{
+        code: context ? 'fee_card_no_match' : 'price_set_missing',
+        message: context ? '曜日・休日条件に一致する料金カードがないため0円として要確認にしました' : '適用可能な料金設定がありません',
+      }],
     });
     return data;
   }
@@ -200,6 +211,8 @@ async function applyDailyPriceCalc(data) {
   const sideResults = {};
   const amountResults = {};
   const distanceResults = {};
+  const feeRuleWarnings = [];
+  const selectedRuleRows = {};
   const distanceKm = data.total_distance == null || data.total_distance === '' ? 0 : Number(data.total_distance);
   if (!Number.isInteger(distanceKm) || distanceKm < 0) throw validationError('走行距離は0以上の整数kmで入力してください');
   for (const side of ['billing', 'payment']) {
@@ -214,9 +227,23 @@ async function applyDailyPriceCalc(data) {
       rounding: context.rounding[side],
     });
     sideResults[side] = classified;
+    const variables = {
+      ...data,
+      work_date: normYmd(data.work_date),
+      weekday: context.day_type,
+      is_holiday: Boolean(context.holiday_state?.is_holiday),
+      is_project_holiday: Boolean(context.holiday_state?.is_project_holiday),
+      is_training: Boolean(Number(data.is_training || 0)),
+      is_absent: Boolean(Number(data.is_absent || 0)),
+      total_distance: distanceKm,
+      ...classified,
+    };
+    const materialized = materializeFeeItem(context.fee_item, variables, side);
+    feeRuleWarnings.push(...materialized.warnings.map((warning) => ({ ...warning, side })));
+    selectedRuleRows[side] = materialized.selected_rows;
     amountResults[side] = calculateSideAmounts({
       side,
-      item: context.fee_item,
+      item: materialized.item,
       classified,
       overrides: overrides[side] || {},
       rounding: context.rounding[side],
@@ -262,6 +289,8 @@ async function applyDailyPriceCalc(data) {
       billing_summary_template: context.billing_summary_template,
       payment_summary_template: context.payment_summary_template,
       selection_source: data.fee_item_selection_source,
+      model: isRowsModel(context.fee_item) ? 'fee_items_v2' : 'legacy_matrix',
+      selected_rows: selectedRuleRows,
     },
     day_type: context.day_type,
     holiday: context.holiday,
@@ -271,6 +300,7 @@ async function applyDailyPriceCalc(data) {
     billing: { ...sideResults.billing, amounts: amountResults.billing },
     payment: { ...sideResults.payment, amounts: amountResults.payment },
     distance: { billing: distanceResults.billing, payment: distanceResults.payment },
+    warnings: feeRuleWarnings,
     rate_override_reason: data.rate_override_reason || null,
   });
   return data;

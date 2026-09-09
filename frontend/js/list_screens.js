@@ -89,7 +89,7 @@
           key: 'list',
           label: 'リストエリア',
           columns: [
-            { key: 'price_set_no', label: 'No' },
+            { key: 'revision_code', label: '料金コード' },
             { key: 'price_set_name', label: '名称' },
             { key: 'company_name', label: '企業' },
             { key: 'link', label: '連携先' },

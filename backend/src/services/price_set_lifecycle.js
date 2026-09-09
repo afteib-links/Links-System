@@ -222,15 +222,47 @@ async function deepCopyPriceSets(conn, source, dest) {
     [Number(fromBase ? source.base_project_id : source.project_id)]
   );
   let copied = 0;
+  const seriesMap = new Map();
   for (const src of sets) {
     const priceSetNo = await allocatePriceSetNo(conn);
+    const sourceSeriesKey = Number(src.price_series_id || src.price_set_id);
+    let targetSeriesId = seriesMap.get(sourceSeriesKey);
+    if (!targetSeriesId) {
+      const companyId = dest.company_id != null ? Number(dest.company_id) : src.company_id;
+      const [maxRows] = await conn.query(
+        'SELECT COALESCE(MAX(series_number),0) AS max_no FROM price_series WHERE company_id <=> ? FOR UPDATE',
+        [companyId || null]
+      );
+      const seriesNumber = Number(maxRows[0]?.max_no || 0) + 1;
+      const seriesCode = `FEE-${String(companyId || 0).padStart(5, '0')}-${String(seriesNumber).padStart(4, '0')}`;
+      const [seriesResult] = await conn.query(
+        `INSERT INTO price_series
+          (company_id, series_number, series_code, price_series_name, base_project_id, project_id,
+           source_price_series_id, source_price_set_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          companyId || null, seriesNumber, seriesCode, src.price_set_name,
+          dest.base_project_id != null ? Number(dest.base_project_id) : null,
+          dest.project_id != null ? Number(dest.project_id) : null,
+          src.price_series_id || null, src.price_set_id,
+        ]
+      );
+      targetSeriesId = seriesResult.insertId;
+      seriesMap.set(sourceSeriesKey, targetSeriesId);
+    }
     const [result] = await conn.query(
       `INSERT INTO price_sets
-        (price_set_no, price_set_name, company_id, base_project_id, project_id,
+        (price_set_no, price_series_id, revision_no, revision_reason, is_current_revision,
+         source_price_set_id, price_set_name, company_id, base_project_id, project_id,
          apply_start_date, apply_end_date, note, extra_data)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         priceSetNo,
+        targetSeriesId,
+        Number(src.revision_no || 1),
+        src.revision_reason || '基本案件から作成',
+        Number(src.is_current_revision ?? 1),
+        src.price_set_id,
         src.price_set_name,
         dest.company_id != null ? Number(dest.company_id) : src.company_id,
         dest.base_project_id != null ? Number(dest.base_project_id) : null,
@@ -246,6 +278,9 @@ async function deepCopyPriceSets(conn, source, dest) {
       ]
     );
     await copyLines(conn, src.price_set_id, result.insertId);
+    if (Number(src.is_current_revision ?? 1)) {
+      await conn.query('UPDATE price_series SET source_price_set_id = ? WHERE price_series_id = ?', [src.price_set_id, targetSeriesId]);
+    }
     copied += 1;
   }
   return copied;
