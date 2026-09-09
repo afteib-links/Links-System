@@ -21,6 +21,8 @@ const COMPANY_FIELDS = [
   'closing_date_code',
   'payment_date_code',
   'contract_date',
+  'contract_status_code',
+  'operation_end_date',
   'business_content',
   'bank_code',
   'bank_name',
@@ -72,7 +74,7 @@ function normalizeBillings(list) {
   if (!Array.isArray(list)) return [];
   return list.map((row) => ({
     billing_id: row.billing_id ? Number(row.billing_id) : null,
-    billing_no: row.billing_no ? Number(row.billing_no) : null,
+    billing_no: row.billing_no === 0 || row.billing_no === '0' ? 0 : (row.billing_no ? Number(row.billing_no) : null),
     billing_print_name: row.billing_print_name || null,
     billing_zip_code: row.billing_zip_code || null,
     billing_address: row.billing_address || null,
@@ -106,7 +108,7 @@ async function fetchCompanyDetail(companyId) {
   const billings = await query(
     `SELECT * FROM company_billings
      WHERE company_id = ? AND is_deleted = 0
-     ORDER BY billing_id ASC`,
+     ORDER BY billing_no ASC, billing_id ASC`,
     [companyId]
   );
   const vehicles = await query(
@@ -224,17 +226,38 @@ async function syncManagerPeriods(conn, companyId, periods) {
   }
 }
 
-async function syncBillings(conn, companyId, billings) {
+async function syncBillings(conn, companyId, billings, companyData = {}) {
   const [existing] = await conn.query(
-    `SELECT billing_id FROM company_billings WHERE company_id = ? AND is_deleted = 0`,
+    `SELECT billing_id,billing_no FROM company_billings WHERE company_id = ? AND is_deleted = 0 FOR UPDATE`,
     [companyId]
   );
+  if (!existing.length && !billings.length) {
+    billings.push({
+      billing_id: null,
+      billing_no: 0,
+      billing_print_name: companyData.company_name || null,
+      billing_zip_code: companyData.zip_code || null,
+      billing_address: companyData.address || null,
+      billing_phone: companyData.contact || null,
+      billing_fax: companyData.fax || null,
+      billing_email: null,
+      invoice_send_method: companyData.invoice_send_method || null,
+      billing_manager: companyData.contract_manager || null,
+      billing_summary_no: null,
+    });
+  }
   const keepIds = new Set(
     billings.filter((b) => b.billing_id).map((b) => Number(b.billing_id))
   );
 
   for (const row of existing) {
     if (!keepIds.has(Number(row.billing_id))) {
+      if (Number(row.billing_no) === 0) {
+        const err = new Error('請求先No.0は企業の既定請求先のため削除できません');
+        err.status = 400;
+        err.code = 'validation_error';
+        throw err;
+      }
       await conn.query(
         `UPDATE projects SET billing_id = NULL, version = version + 1, updated_at = CURRENT_TIMESTAMP
          WHERE billing_id = ? AND is_deleted = 0`,
@@ -272,11 +295,10 @@ async function syncBillings(conn, companyId, billings) {
         ]
       );
     } else {
-      const [numberRows] = await conn.query(
-        `SELECT billing_no FROM company_billings WHERE company_id = ? FOR UPDATE`,
-        [companyId]
-      );
-      const billingNo = numberRows.reduce((max, row) => Math.max(max, Number(row.billing_no || 0)), 0) + 1;
+      const [numberRows] = await conn.query(`SELECT billing_no FROM company_billings WHERE company_id = ? FOR UPDATE`, [companyId]);
+      const billingNo = numberRows.length
+        ? numberRows.reduce((max, row) => Math.max(max, Number(row.billing_no || 0)), 0) + 1
+        : 0;
       await conn.query(
         `INSERT INTO company_billings
           (company_id, billing_no, billing_print_name, billing_zip_code, billing_address, billing_phone,
@@ -359,6 +381,7 @@ router.get('/', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const closing = String(req.query.closing_date_code || '').trim();
+    const includeEnded = String(req.query.include_ended || '') === '1';
     const sort = String(req.query.sort || 'company_id');
     const order = String(req.query.order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
@@ -371,6 +394,7 @@ router.get('/', async (req, res) => {
 
     const where = ['c.is_deleted = 0'];
     const params = [];
+    if (!includeEnded) where.push("c.contract_status_code <> 'ended' AND (c.operation_end_date IS NULL OR c.operation_end_date >= CURDATE())");
     if (q) {
       where.push('c.company_name LIKE ?');
       params.push(`%${q}%`);
@@ -383,6 +407,7 @@ router.get('/', async (req, res) => {
     const rows = await query(
       `SELECT c.company_id, c.office_no, c.office_name, c.company_name, c.company_name_kana,
               c.closing_date_code, c.payment_date_code,
+              c.contract_status_code, c.operation_end_date,
               COALESCE((SELECT cb.invoice_send_method FROM company_billings cb WHERE cb.company_id=c.company_id AND cb.is_deleted=0 ORDER BY cb.billing_id LIMIT 1),c.invoice_send_method) AS invoice_send_method,
               c.work_mode_code, c.our_manager, c.fax, c.invoice_send_address,
               c.version, c.updated_at,
@@ -465,7 +490,7 @@ router.post('/', async (req, res) => {
       cols.map((c) => data[c])
     );
     const companyId = result.insertId;
-    await syncBillings(conn, companyId, billings);
+    await syncBillings(conn, companyId, billings, data);
     await syncVehicles(conn, companyId, vehicles);
     await syncManagerPeriods(conn, companyId, managerPeriods);
     await conn.commit();
@@ -567,7 +592,7 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    await syncBillings(conn, id, billings);
+    await syncBillings(conn, id, billings, data);
     await syncVehicles(conn, id, vehicles);
     await syncManagerPeriods(conn, id, managerPeriods);
     await conn.commit();

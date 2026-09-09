@@ -30,6 +30,7 @@ const FEATURES = [
   { key: 'cash_management', label: '入出金管理・FB出力', group: 'billing' },
   { key: 'analytics', label: '収支分析', group: 'analysis' },
   { key: 'master_settings', label: 'マスター設定', group: 'settings' },
+  { key: 'help_settings', label: 'ヘルプ編集設定', group: 'settings' },
   { key: 'ui_builder', label: 'UIビルダー', group: 'settings' },
   { key: 'users', label: 'ユーザー管理', group: 'settings' },
 ];
@@ -53,6 +54,7 @@ const FEATURE_ROLE_MAP = {
   cash_management: ['admin', 'executive', 'soumu'],
   analytics: ['admin', 'executive', 'soumu'],
   master_settings: ['admin', 'system', 'soumu'],
+  help_settings: ['admin', 'system'],
   ui_builder: ['admin', 'system'],
   users: ['admin', 'system'],
 };

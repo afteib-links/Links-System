@@ -15,6 +15,8 @@ const PARTNER_FIELDS = [
   'blood_type',
   'birth_date',
   'work_start_date',
+  'contract_status_code',
+  'operation_end_date',
   'contract_date',
   'partner_category_code',
   'employment_type_code',
@@ -136,6 +138,7 @@ router.get('/', async (req, res) => {
     const q = String(req.query.q || '').trim();
     const category = String(req.query.partner_category_code || '').trim();
     const employment = String(req.query.employment_type_code || '').trim();
+    const includeEnded = String(req.query.include_ended || '') === '1';
     const sortMap = {
       partner_id: 'partner_id',
       partner_name: 'partner_name',
@@ -145,6 +148,7 @@ router.get('/', async (req, res) => {
     const order = String(req.query.order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
     const where = ['p.is_deleted = 0'];
+    if (!includeEnded) where.push("p.contract_status_code <> 'ended' AND (p.operation_end_date IS NULL OR p.operation_end_date >= CURDATE())");
     const params = [];
     if (q) {
       where.push('(p.partner_name LIKE ? OR p.partner_name_kana LIKE ? OR p.contact_phone LIKE ?)');
@@ -165,6 +169,7 @@ router.get('/', async (req, res) => {
               p.advance_payment_enabled, p.payment_output_code,
               p.transfer_fee_pattern_id,
               p.bank_name, p.branch_name, p.license_expiry_date, p.work_start_date,
+              p.contract_status_code, p.operation_end_date,
               p.blood_type, p.birth_date,
               p.accident_insurance_code, p.contractor_liability_code,
               p.cargo_insurance_code, p.g_association_code,

@@ -15,6 +15,7 @@ router.use(requireAuth, requirePermission('projects'));
 
 const BASE_FIELDS = [
   'company_id',
+  'billing_id',
   'partner_id',
   'vehicle_id',
   'template_name',
@@ -26,6 +27,8 @@ const BASE_FIELDS = [
   'installment_type',
   'installment_amount',
   'operation_start_date',
+  'contract_status_code',
+  'operation_end_date',
   'closing_date',
   'execution_time_start',
   'execution_time_end',
@@ -52,6 +55,7 @@ const PROJECT_FIELDS = [
   'vehicle_owner_type',
   'manager_name',
   'business_type',
+  'basic_work_hours',
   'payment_type',
   'installment_type',
   'installment_amount',
@@ -147,8 +151,13 @@ async function validateVehicleSelection(data) {
 
 async function validateBillingSelection(data) {
   if (!data.billing_id) {
-    data.billing_id = null;
-    return null;
+    const defaults = await query(
+      `SELECT billing_id FROM company_billings
+       WHERE company_id=? AND billing_no=0 AND is_deleted=0 LIMIT 1`,
+      [Number(data.company_id)]
+    );
+    if (!defaults.length) return '企業の請求先No.0が登録されていません';
+    data.billing_id = Number(defaults[0].billing_id);
   }
   const rows = await query(
     `SELECT billing_id FROM company_billings
@@ -173,9 +182,11 @@ async function fetchBase(id) {
     listPriceSetsForBase(id),
     query(
       `SELECT p.project_id, p.partner_id, p.manager_name, p.business_type,
-              p.payment_type, p.closing_date, p.operation_start_date, pt.partner_name
+              p.payment_type, p.closing_date, p.operation_start_date, pt.partner_name,
+              cb.billing_no, cb.billing_print_name
        FROM projects p
        LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       LEFT JOIN company_billings cb ON cb.billing_id = p.billing_id AND cb.is_deleted=0
        WHERE p.base_project_id = ? AND p.is_deleted = 0
        ORDER BY p.project_id ASC`,
       [id]
@@ -216,7 +227,12 @@ router.get('/base', async (req, res) => {
   try {
     const companyId = Number(req.query.company_id || 0);
     const q = String(req.query.q || '').trim();
-    const where = ['b.is_deleted = 0'];
+    const includeEnded = String(req.query.include_ended || '') === '1';
+    const where = ['b.is_deleted = 0', 'c.is_deleted = 0'];
+    if (!includeEnded) {
+      where.push("b.contract_status_code <> 'ended' AND (b.operation_end_date IS NULL OR b.operation_end_date >= CURDATE())");
+      where.push("c.contract_status_code <> 'ended' AND (c.operation_end_date IS NULL OR c.operation_end_date >= CURDATE())");
+    }
     const params = [];
     if (companyId > 0) {
       where.push('b.company_id = ?');
@@ -229,10 +245,11 @@ router.get('/base', async (req, res) => {
     const rows = await query(
       `SELECT b.base_project_id, b.company_id, b.template_name, b.default_manager,
               b.business_type, b.basic_work_hours, b.work_time_type, b.work_mode_code,
-              b.closing_date, b.version,
-              c.company_name
+              b.closing_date, b.contract_status_code, b.operation_end_date, b.version,
+              c.company_name, cb.billing_no, cb.billing_print_name
        FROM base_projects b
-       LEFT JOIN companies c ON c.company_id = b.company_id
+       JOIN companies c ON c.company_id = b.company_id
+       JOIN company_billings cb ON cb.billing_id=b.billing_id AND cb.is_deleted=0
        WHERE ${where.join(' AND ')}
        ORDER BY b.base_project_id ASC`,
       params
@@ -262,6 +279,8 @@ router.post('/base', async (req, res) => {
       return res.status(400).json({ ok: false, message: '企業とテンプレート名は必須です' });
     }
     data.template_name = String(data.template_name).trim();
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     const cols = Object.keys(data);
     const result = await query(
       `INSERT INTO base_projects (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
@@ -282,6 +301,8 @@ router.put('/base/:id', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'テンプレート名は必須です' });
     }
     data.template_name = String(data.template_name).trim();
+    const billingError = await validateBillingSelection(data);
+    if (billingError) return res.status(400).json({ ok:false, message:billingError });
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
     const sets = BASE_FIELDS.map((f) => `${f} = ?`);
     const params = BASE_FIELDS.map((f) => (data[f] !== undefined ? data[f] : null));
@@ -356,12 +377,13 @@ router.post('/base/:id/create-project', async (req, res) => {
     const data = {
       base_project_id: base.base_project_id,
       company_id: projectCompanyId,
-      billing_id: overrides.billing_id != null ? overrides.billing_id : null,
+      billing_id: overrides.billing_id != null ? overrides.billing_id : base.billing_id,
       partner_id: overrides.partner_id != null ? overrides.partner_id : base.partner_id,
       vehicle_id: vehicleId,
       vehicle_owner_type: vehicleOwnerType,
       manager_name: overrides.manager_name || base.default_manager,
       business_type: overrides.business_type || base.business_type,
+      basic_work_hours: overrides.basic_work_hours != null ? overrides.basic_work_hours : base.basic_work_hours,
       payment_type: overrides.payment_type || base.payment_type || 'normal',
       installment_type: overrides.installment_type || base.installment_type,
       installment_amount: overrides.installment_amount != null ? overrides.installment_amount : base.installment_amount,
@@ -482,11 +504,14 @@ router.get('/', async (req, res) => {
               p.manager_name, p.business_type, p.payment_type, p.installment_amount,
               p.transfer_fee_pattern_id,
               p.operation_start_date, p.closing_date, p.version,
-              c.company_name, pt.partner_name, b.template_name AS base_template_name
+              c.company_name, pt.partner_name, b.template_name AS base_template_name,
+              cb.billing_no,
+              (SELECT COUNT(*) FROM price_sets bps WHERE bps.base_project_id=p.base_project_id AND bps.project_id IS NULL AND bps.is_deleted=0) AS base_price_set_count
        FROM projects p
        LEFT JOIN companies c ON c.company_id = p.company_id
        LEFT JOIN partners pt ON pt.partner_id = p.partner_id
        LEFT JOIN base_projects b ON b.base_project_id = p.base_project_id
+       LEFT JOIN company_billings cb ON cb.billing_id = p.billing_id AND cb.is_deleted=0
        WHERE ${where.join(' AND ')}
        ORDER BY p.project_id ASC`,
       params

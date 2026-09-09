@@ -17,6 +17,7 @@
         projectId: null,
         priceId: null,
         selected: null,
+        includeEnded: false,
         sort: {
           company: ['name', 1],
           base: ['name', 1],
@@ -29,7 +30,7 @@
 
     async load() {
       this.ctx.renderLoading();
-      const { res, data } = await this.ctx.api('/api/base-management');
+      const { res, data } = await this.ctx.api(`/api/base-management?include_ended=${this.state.includeEnded ? '1' : '0'}`);
       if (!res.ok || !data?.ok) {
         this.ctx.app.innerHTML = this.kit.shell(
           '基本管理',
@@ -69,6 +70,7 @@
     company(id) { return this.data.companies.find((row) => Number(row.company_id) === Number(id)); },
     base(id) { return this.data.bases.find((row) => Number(row.base_project_id) === Number(id)); },
     project(id) { return this.data.projects.find((row) => Number(row.project_id) === Number(id)); },
+    hasBasePrices(baseId) { return this.data.prices.some((row) => Number(row.base_project_id) === Number(baseId) && !row.project_id); },
 
     breadcrumbs() {
       const selected = this.state.selected;
@@ -135,7 +137,7 @@
       const allBase = `<button type="button" class="bm-sort ${this.state.all && this.state.companyId ? 'is-active' : ''}" data-all="base" ${this.state.companyId ? '' : 'disabled'}>全対象</button>`;
       const body = `
         <section class="bm-screen" aria-label="基本管理">
-          <div class="bm-guide"><div class="bm-breadcrumb" id="bm-breadcrumb">${crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業'}</div><div><strong>クリック</strong>で詳細 <span>／</span> <strong>ダブルクリック</strong>で編集画面</div></div>
+          <div class="bm-guide"><div class="bm-breadcrumb" id="bm-breadcrumb">${crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業'}</div><div><label class="check-item bm-include-ended"><input type="checkbox" id="bm-include-ended" ${this.state.includeEnded ? 'checked' : ''}><span>終了しているものも表示</span></label><strong>クリック</strong>で詳細 <span>／</span> <strong>ダブルクリック</strong>で編集画面</div></div>
           <div class="bm-workspace">
             <div class="bm-browser">
               <div class="bm-heads">
@@ -177,7 +179,8 @@
       if (type === 'base') meta = `締日 ${this.closing(row.closing_date)}　${this.data.projects.filter((p) => Number(p.base_project_id) === id).length}案件`;
       if (type === 'project') meta = `${row.partner_name || 'パートナー未設定'}　締日 ${this.closing(row.closing_date)}`;
       if (type === 'price') meta = `適用開始 ${this.date(row.apply_start_date)}`;
-      return `<button type="button" class="bm-row ${selected ? 'is-selected' : ''}" data-type="${type}" data-id="${id}"><strong>${this.esc(this.nameOf(type, row))}</strong><span>${this.esc(meta)}</span><i aria-hidden="true">›</i></button>`;
+      const baseData = type === 'project' && this.hasBasePrices(row.base_project_id) ? '<em class="bm-base-data">基本データ</em>' : '';
+      return `<button type="button" class="bm-row ${selected ? 'is-selected' : ''}" data-type="${type}" data-id="${id}"><strong>${this.esc(this.nameOf(type, row))}${baseData}</strong><span>${this.esc(meta)}</span><i aria-hidden="true">›</i></button>`;
     },
 
     hierarchy() {
@@ -213,7 +216,8 @@
     allTable() {
       const cell = (type, row, rowspan, empty) => {
         const selected = row && this.state.selected?.type === type && this.idOf(type, this.state.selected.row) === this.idOf(type, row);
-        return `<td rowspan="${rowspan}" class="${row ? `bm-group-cell ${selected ? 'is-selected' : ''}` : 'bm-placeholder'}" ${row ? `data-type="${type}" data-id="${this.idOf(type, row)}"` : ''}>${row ? `<strong>${this.esc(this.nameOf(type, row))}</strong><span>${type === 'company' ? `締日 ${this.closing(row.closing_date_code)}` : type === 'price' ? `適用開始 ${this.date(row.apply_start_date)}` : `締日 ${this.closing(row.closing_date)}`}</span>` : this.esc(empty)}</td>`;
+        const baseData = type === 'project' && row && this.hasBasePrices(row.base_project_id) ? '<em class="bm-base-data">基本データ</em>' : '';
+        return `<td rowspan="${rowspan}" class="${row ? `bm-group-cell ${selected ? 'is-selected' : ''}` : 'bm-placeholder'}" ${row ? `data-type="${type}" data-id="${this.idOf(type, row)}"` : ''}>${row ? `<strong>${this.esc(this.nameOf(type, row))}${baseData}</strong><span>${type === 'company' ? `締日 ${this.closing(row.closing_date_code)}` : type === 'price' ? `適用開始 ${this.date(row.apply_start_date)}` : `締日 ${this.closing(row.closing_date)}`}</span>` : this.esc(empty)}</td>`;
       };
       const rows = this.hierarchy().map((item) => `<tr>
         ${item.companyFirst ? cell('company', item.company, item.companySpan, '') : ''}
@@ -337,10 +341,24 @@
           clearTimeout(this.clickTimer);
           this.edit(element.dataset.type, Number(element.dataset.id));
         });
+        element.addEventListener('pointerup', (event) => {
+          if (event.pointerType === 'mouse') return;
+          const now=Date.now(),previous=Number(element.dataset.lastTapAt||0);
+          element.dataset.lastTapAt=String(now);
+          if(now-previous>350)return;
+          clearTimeout(this.clickTimer);
+          element.dataset.lastTapAt='0';
+          this.edit(element.dataset.type,Number(element.dataset.id));
+        });
       });
     },
 
     bindControls() {
+      document.getElementById('bm-include-ended')?.addEventListener('change', (event) => {
+        this.state.includeEnded = event.target.checked;
+        Object.assign(this.state, { all: false, companyId: null, baseId: null, projectId: null, priceId: null, selected: null });
+        this.load();
+      });
       document.querySelectorAll('[data-sort-type]').forEach((button) => button.addEventListener('click', () => {
         const type = button.dataset.sortType;
         const key = button.dataset.sortKey;
@@ -349,12 +367,14 @@
         this.render();
       }));
       document.querySelector('[data-all="company"]')?.addEventListener('click', () => {
-        Object.assign(this.state, { all: true, companyId: null, baseId: null, projectId: null, priceId: null, selected: null });
+        const next = !(this.state.all && !this.state.companyId);
+        Object.assign(this.state, { all: next, companyId: null, baseId: null, projectId: null, priceId: null, selected: null });
         this.render();
       });
       document.querySelector('[data-all="base"]')?.addEventListener('click', () => {
         if (!this.state.companyId) return;
-        Object.assign(this.state, { all: true, baseId: null, projectId: null, priceId: null, selected: null });
+        const next = !(this.state.all && this.state.companyId);
+        Object.assign(this.state, { all: next, baseId: null, projectId: null, priceId: null, selected: null });
         this.render();
       });
     },

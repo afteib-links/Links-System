@@ -27,6 +27,7 @@
     { key: 'cash_management', label: '入出金管理・FB出力', desc: '予定・実績・銀行CSVを管理します', group: 'billing' },
     { key: 'analytics', label: '収支分析', desc: '担当者・企業・パートナーの収支を見ます', group: 'analysis' },
     { key: 'master_settings', label: 'マスター設定', desc: '担当者・区分・システム設定', group: 'settings' },
+    { key: 'help_settings', label: 'ヘルプ編集設定', desc: '各画面のヘルプ内容を編集します', group: 'settings' },
     { key: 'ui_builder', label: 'UIビルダー', desc: '画面レイアウトを編集します', group: 'settings' },
     { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },
   ];
@@ -55,6 +56,7 @@
     cash_management: ['admin', 'executive', 'soumu'],
     analytics: ['admin', 'executive', 'soumu'],
     master_settings: ['admin', 'system', 'soumu'],
+    help_settings: ['admin', 'system'],
     ui_builder: ['admin', 'system'],
     users: ['admin', 'system'],
   };
@@ -66,6 +68,31 @@
   const SIDEBAR_STORAGE_KEY = 'links.sidebar.collapsed';
   const MOBILE_SIDEBAR_QUERY = '(max-width: 760px)';
   let shellControlsCleanup = null;
+
+  const MENU_ICONS = {
+    base_management:'<path d="M4 5h16M4 12h16M4 19h16M8 3v4M12 10v4M16 17v4"/>',
+    companies:'<path d="M4 21V5h10v16M14 9h6v12M8 9h2m-2 4h2m-2 4h2m8-4h-2m2 4h-2"/>',
+    partners:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8m13 18v-2a4 4 0 0 0-3-3.87m-2-11.96a4 4 0 0 1 0 7.75"/>',
+    base_projects:'<path d="M3 7h18v13H3zM7 7V4h10v3M8 12h8"/>',
+    projects:'<path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"/>',
+    price_sets:'<path d="M12 2v20m5-16H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    office_work:'<path d="M9 3h6l1 3h3v15H5V6h3zM8 11h8m-8 4h8"/>',
+    daily_reports:'<path d="M6 2h9l4 4v16H6zM14 2v5h5M9 12h6m-6 4h6"/>',
+    daily_report_submissions:'<path d="M4 4h16v16H4zM8 12l3 3 5-6"/>',
+    advances:'<path d="M3 7h18v12H3zM7 11h4m6 4h.01"/>',
+    invoices:'<path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 8h6m-6 4h6m-6 4h4"/>',
+    payments:'<path d="M2 6h20v12H2zM6 10h5m7 4h.01"/>',
+    cash_management:'<path d="M3 10h18M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8M3 21h18"/>',
+    analytics:'<path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/>',
+    master_settings:'<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08V22h-4v-1.92A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H2v-4h2a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V2h4v2a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1h2v4h-2a1.7 1.7 0 0 0-.6 1z"/>',
+    help_settings:'<path d="M12 18h.01M9.1 9a3 3 0 1 1 4.8 2.4c-1.2.9-1.9 1.4-1.9 3.1M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/>',
+    ui_builder:'<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',
+    users:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8m12 18v-2a4 4 0 0 0-3-3.9"/>',
+    home:'<path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/>',
+  };
+  function menuIcon(key) {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MENU_ICONS[key] || MENU_ICONS.projects}</svg>`;
+  }
 
   async function api(path, options = {}) {
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -117,6 +144,7 @@
       const value = data.settings?.[key];
       if (/^#[0-9a-f]{6}$/i.test(value || '')) document.documentElement.style.setProperty(cssName, value);
     }
+    window.LinksStatusLabels = Object.fromEntries(Object.entries(data.settings || {}).filter(([key]) => key.startsWith('status_label_')).map(([key,value]) => [key.slice(13), value]));
   }
 
   function can(featureKey) {
@@ -173,9 +201,10 @@
     return `
       <header class="app-header app-topbar">
         <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true" aria-controls="app-sidebar">☰</button>
-        <div class="topbar-context"><span>運送業務基幹システム</span></div>
+        <button class="header-back-button" type="button" id="header-back" ${currentView === 'home' ? 'hidden' : ''}>← 戻る</button>
         <h1 class="topbar-page-title" title="${escapedTitle}">${escapedTitle}</h1>
         <div class="header-actions">
+          <button class="btn btn-ghost header-help-button" type="button" id="screen-help"><span aria-hidden="true">？</span><span class="header-help-label">ヘルプ</span></button>
           <div class="user-pill">
             <strong>${escapeHtml(currentUser.display_name)}</strong>
             <span>${escapeHtml(rolesText)}</span>
@@ -192,7 +221,7 @@
       if (!items.length) return '';
       return `<div class="sidebar-group"><div class="sidebar-group-label">${escapeHtml(group.label)}</div>${items.map((feature) => `
         <button type="button" class="sidebar-link ${activeKey === feature.key ? 'is-active' : ''}" data-nav-feature="${escapeHtml(feature.key)}" title="${escapeHtml(feature.label)}">
-          <span class="sidebar-icon" aria-hidden="true">${escapeHtml(feature.label.slice(0, 1))}</span>
+          <span class="sidebar-icon">${menuIcon(feature.key)}</span>
           <span class="sidebar-text">${escapeHtml(feature.label)}</span>
         </button>`).join('')}</div>`;
     }).join('');
@@ -202,7 +231,7 @@
       </button>
       <nav class="sidebar-nav">
         <button type="button" class="sidebar-link ${activeKey === 'home' ? 'is-active' : ''}" data-nav-home title="ホーム">
-          <span class="sidebar-icon" aria-hidden="true">⌂</span><span class="sidebar-text">ホーム</span>
+          <span class="sidebar-icon">${menuIcon('home')}</span><span class="sidebar-text">ホーム</span>
         </button>
         ${groups}
       </nav>
@@ -218,6 +247,8 @@
     const toggle = document.getElementById('sidebar-toggle');
     const backdrop = document.getElementById('sidebar-backdrop');
     const sidebar = document.getElementById('app-sidebar');
+    const back = document.getElementById('header-back');
+    const help = document.getElementById('screen-help');
     const isMobile = () => media.matches;
     const closeMobileMenu = () => {
       shell.classList.remove('mobile-menu-open');
@@ -266,6 +297,8 @@
       }
     };
     toggle?.addEventListener('click', handleToggle);
+    if (back) back.onclick = () => showHome();
+    help?.addEventListener('click', showScreenHelp);
     backdrop?.addEventListener('click', handleToggle);
     document.addEventListener('keydown', handleEscape);
     media.addEventListener('change', applyViewportState);
@@ -283,7 +316,67 @@
       media.removeEventListener('change', applyViewportState);
     };
     applyViewportState();
-    queueMicrotask(() => window.LinksDataTable?.enhancePlainTables(document));
+    queueMicrotask(() => {
+      window.LinksDataTable?.enhancePlainTables(document);
+      enhanceNumberInputs(document);
+      enhanceActionAreas(document);
+    });
+  }
+
+  function enhanceNumberInputs(root = document) {
+    root.querySelectorAll('input[type="number"]:not([data-number-stepper-ready])').forEach((input) => {
+      if (input.type === 'hidden' || input.disabled || input.readOnly) return;
+      input.dataset.numberStepperReady = '1';
+      const wrap = document.createElement('span');
+      wrap.className = 'number-stepper';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const change = (direction) => {
+        try { direction > 0 ? input.stepUp() : input.stepDown(); }
+        catch (_error) { input.value = String((Number(input.value) || 0) + direction * (Number(input.step) || 1)); }
+        input.dispatchEvent(new Event('input', { bubbles:true }));
+        input.dispatchEvent(new Event('change', { bubbles:true }));
+      };
+      const minus = document.createElement('button');
+      minus.type = 'button'; minus.className = 'number-stepper-button number-stepper-minus'; minus.textContent = '−'; minus.setAttribute('aria-label', '数値を減らす');
+      const plus = document.createElement('button');
+      plus.type = 'button'; plus.className = 'number-stepper-button number-stepper-plus'; plus.textContent = '＋'; plus.setAttribute('aria-label', '数値を増やす');
+      minus.addEventListener('click', () => change(-1));
+      plus.addEventListener('click', () => change(1));
+      wrap.insertBefore(minus, input);
+      wrap.appendChild(plus);
+    });
+  }
+
+  function enhanceActionAreas(root = document) {
+    root.querySelectorAll('.btn-row:not([data-action-area-ready]), .settlement-edit-actions:not([data-action-area-ready]), .ui-builder-actions:not([data-action-area-ready]), .office-head-actions:not([data-action-area-ready]), .advance-total-actions:not([data-action-area-ready])').forEach((area) => {
+      const actions = [...area.children].filter((element) => element.matches('button, a.btn'));
+      if (actions.length < 2) return;
+      area.dataset.actionAreaReady = '1';
+      area.classList.add('responsive-action-area');
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'btn responsive-action-toggle';
+      toggle.textContent = '操作';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.addEventListener('click', () => {
+        const opened = area.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+        toggle.textContent = opened ? '操作を閉じる' : '操作';
+      });
+      area.insertBefore(toggle, area.firstChild);
+    });
+  }
+
+  async function showScreenHelp() {
+    const { res, data } = await api(`/api/help/${encodeURIComponent(currentView)}`);
+    if (!res.ok || !data?.ok) return window.alert(data?.message || 'ヘルプを取得できませんでした');
+    const item = data.help || {};
+    document.getElementById('screen-help-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `<div class="modal-backdrop" id="screen-help-modal"><section class="modal-panel modal-wide" role="dialog" aria-modal="true" aria-labelledby="screen-help-title"><div class="modal-head"><h3 id="screen-help-title">${escapeHtml(item.help_title || 'ヘルプ')}</h3><button type="button" class="btn btn-ghost btn-small" data-help-close>閉じる</button></div><div class="modal-body help-content"><h3>この画面について</h3><p>${escapeHtml(item.overview_text || '').replaceAll('\n','<br>')}</p><h3>入力・操作と結果</h3><p>${escapeHtml(item.input_effect_text || '説明はまだ登録されていません。').replaceAll('\n','<br>')}</p></div><div class="modal-foot"><button type="button" class="btn" data-help-close>閉じる</button></div></section></div>`);
+    const modal = document.getElementById('screen-help-modal');
+    modal.querySelectorAll('[data-help-close]').forEach((button) => button.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
   }
 
   function bindLogout() {

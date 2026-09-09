@@ -96,6 +96,21 @@
     { key:'status_color_inactive', label:'取消・無効', defaultValue:'#6B7280' },
   ];
 
+  const STATUS_LABEL_SETTINGS = [
+    { key:'draft', label:'下書き' },
+    { key:'submitted', label:'承認待ち' },
+    { key:'awaiting_approval', label:'日報承認待ち' },
+    { key:'confirmed', label:'日次確認済み' },
+    { key:'sales_reviewed', label:'営業確認済み' },
+    { key:'approved', label:'承認済み' },
+    { key:'finalized', label:'最終確定済み' },
+    { key:'issued', label:'発行済み' },
+    { key:'paid', label:'支払済み' },
+    { key:'cancelled', label:'取消済み' },
+    { key:'active', label:'有効' },
+    { key:'inactive', label:'無効' },
+  ];
+
   const LinksMasterSettings = {
     async open(ctx) {
       this.kit = window.LinksFeatureKit.createFeatureKit(ctx);
@@ -736,6 +751,7 @@
       const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
       const submissionKeys = new Set(DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => setting.key));
       const statusColorKeys = new Set(STATUS_COLOR_SETTINGS.map((setting) => setting.key));
+      const statusLabelKeys = new Set(STATUS_LABEL_SETTINGS.map((setting) => `status_label_${setting.key}`));
       const values = new Map(allSettings.map((setting) => [setting.setting_key, setting.setting_value]));
       const logoSettingKey = 'document_issuer_logo_data_url';
       let currentLogoDataUrl = values.get(logoSettingKey) || '';
@@ -775,8 +791,12 @@
           <span class="color-setting-control"><input type="color" data-status-color="${setting.key}" value="${this.ctx.escapeHtml(value)}"><input class="color-setting-code" data-status-color-code="${setting.key}" value="${this.ctx.escapeHtml(value)}" maxlength="7"></span>
         </label>`;
       }).join('');
+      const statusLabelFields = STATUS_LABEL_SETTINGS.map((setting) => {
+        const settingKey = `status_label_${setting.key}`;
+        return `<label>${this.ctx.escapeHtml(setting.key)}<input data-status-label="${setting.key}" value="${this.ctx.escapeHtml(values.get(settingKey) ?? setting.label)}"></label>`;
+      }).join('');
       const rows = allSettings
-        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && !statusColorKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && !statusColorKeys.has(setting.setting_key) && !statusLabelKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
         .map(
           (s) => `
           <tr>
@@ -814,6 +834,12 @@
             <p class="muted">色だけに頼らず、ラベルと記号も併記します。ここで選んだ色は次回の画面表示から全機能へ反映されます。</p>
             <div class="form-grid form-grid-compact">${statusColorFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-status-colors">ステータス色を保存</button></div>
+          </section>
+          <section class="panel status-label-settings-panel">
+            <h3>ステータスの名称</h3>
+            <p class="muted">各画面の状態バーに表示する名称です。内部の状態コードは変更しません。</p>
+            <div class="form-grid form-grid-compact">${statusLabelFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-status-labels">ステータス名称を保存</button></div>
           </section>
           <section class="panel">
             <h3>請求・支払摘要の表示順</h3>
@@ -963,6 +989,14 @@
         const cssNames={status_color_neutral:'--status-neutral',status_color_working:'--status-working',status_color_waiting:'--status-waiting',status_color_complete:'--status-complete',status_color_attention:'--status-attention',status_color_inactive:'--status-inactive'};
         settings.forEach((setting)=>document.documentElement.style.setProperty(cssNames[setting.key],setting.value));
         this.ctx.showToast('ステータス色を保存して画面へ反映しました');
+      });
+      document.getElementById('save-status-labels')?.addEventListener('click', async () => {
+        const settings = STATUS_LABEL_SETTINGS.map((setting) => ({ ...setting, value:document.querySelector(`[data-status-label="${setting.key}"]`)?.value.trim() }));
+        if (settings.some((setting) => !setting.value)) return window.alert('ステータス名称は空欄にできません');
+        const results = await Promise.all(settings.map((setting) => this.ctx.api(`/api/master-settings/settings/status_label_${setting.key}`, { method:'PUT', body:JSON.stringify({ setting_value:setting.value, setting_label:`状態名称：${setting.key}` }) })));
+        if (results.some((result) => !result.res.ok)) return window.alert('ステータス名称の保存に失敗しました');
+        window.LinksStatusLabels = Object.fromEntries(settings.map((setting) => [setting.key, setting.value]));
+        this.ctx.showToast('ステータス名称を保存しました');
       });
       document.getElementById('save-price-matrix-settings')?.addEventListener('click', async () => {
         const settings = PRICE_MATRIX_SETTINGS.map((setting) => ({

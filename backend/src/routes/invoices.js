@@ -68,7 +68,7 @@ router.get('/targets', async (req, res) => {
     const projects = await query(
       `SELECT pr.project_id, pr.company_id, pr.closing_date AS project_closing_date,
               bp.template_name AS project_name, c.company_name, c.closing_date_code,
-              cb.billing_id, cb.billing_summary_no, cb.billing_print_name
+              cb.billing_id, cb.billing_no, cb.billing_summary_no, cb.billing_print_name
        FROM projects pr
        JOIN companies c ON c.company_id=pr.company_id AND c.is_deleted=0
        LEFT JOIN base_projects bp ON bp.base_project_id=pr.base_project_id
@@ -105,8 +105,7 @@ router.get('/targets', async (req, res) => {
     for (const project of projects) {
       const projectId=Number(project.project_id);
       const projectReports=reportsByProject.get(projectId)||[];
-      const eligible=approvedProjects.has(projectId)
-        ? projectReports.filter((row)=>row.status==='approved'&&row.billing_status==='none') : [];
+      const eligible=projectReports.filter((row)=>['confirmed','approved'].includes(row.status)&&row.billing_status==='none');
       const subtotal=eligible.reduce((sum,row)=>sum+effectiveBilling(row),0);
       const active=linkByProject.get(projectId);
       const taxSetting = await resolveTargetTax(project.company_id, new Set([projectId]));
@@ -114,11 +113,12 @@ router.get('/targets', async (req, res) => {
       let targetStatus='no_reports';
       if(active) targetStatus=active.status;
       else if(eligible.length) targetStatus='available';
-      else if(projectReports.length) targetStatus=approvedProjects.has(projectId)?'not_available':'awaiting_approval';
+      else if(projectReports.length) targetStatus=approvedProjects.has(projectId)?'not_available':'office_confirmation_required';
       targets.push({
         company_id: project.company_id,
         company_name: project.company_name,
         billing_id: project.billing_id || null,
+        billing_no: project.billing_no || null,
         billing_summary_no: project.billing_summary_no || null,
         billing_print_name: project.billing_print_name || project.company_name,
         project_id: projectId,
@@ -158,9 +158,14 @@ router.get('/', async (req, res) => {
       params.push(ym);
     }
     const rows = await query(
-      `SELECT i.*, c.company_name
+      `SELECT i.*, c.company_name, cb.billing_no, cb.billing_print_name,
+              (SELECT COUNT(*) FROM invoice_consolidation_sources s
+               WHERE s.parent_invoice_id=i.invoice_id AND s.released_at IS NULL) AS source_invoice_count,
+              (SELECT s.parent_invoice_id FROM invoice_consolidation_sources s
+               WHERE s.source_invoice_id=i.invoice_id AND s.released_at IS NULL LIMIT 1) AS consolidation_parent_invoice_id
        FROM invoices i
        LEFT JOIN companies c ON c.company_id = i.company_id
+       LEFT JOIN company_billings cb ON cb.billing_id=i.billing_id AND cb.is_deleted=0
        WHERE ${where.join(' AND ')}
        ORDER BY i.invoice_id DESC`,
       params

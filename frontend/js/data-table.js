@@ -164,7 +164,9 @@
     let filterTimer = null;
     el.querySelectorAll('.dt-filter').forEach((input) => {
       const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
-      input.addEventListener(eventName, () => {
+      let composing = false;
+      const applyFilter = () => {
+        if (composing) return;
         clearTimeout(filterTimer);
         filterTimer = setTimeout(() => {
           const filters = {};
@@ -173,7 +175,10 @@
           });
           handlers.onFilter?.(filters);
         }, 200);
-      });
+      };
+      input.addEventListener('compositionstart', () => { composing = true; clearTimeout(filterTimer); });
+      input.addEventListener('compositionend', () => { composing = false; applyFilter(); });
+      input.addEventListener(eventName, applyFilter);
     });
 
     const isInteractive = (target) => Boolean(target.closest('button, a, input, select, textarea, label, [role="button"]'));
@@ -192,6 +197,12 @@
       });
       row.addEventListener('dblclick', (event) => {
         if (!isInteractive(event.target)) handlers.onActivate?.(key);
+      });
+      row.addEventListener('pointerup', (event) => {
+        if(event.pointerType==='mouse'||isInteractive(event.target))return;
+        const now=Date.now(),previous=Number(row.dataset.lastTapAt||0);
+        row.dataset.lastTapAt=String(now);
+        if(now-previous<=350){row.dataset.lastTapAt='0';handlers.onActivate?.(key);}
       });
       row.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') handlers.onActivate?.(key);
@@ -278,6 +289,12 @@
         });
         const activate = () => row.querySelector('[data-open], [data-open-import], [data-input], [data-edit], [data-edit-base], [data-edit-user], [data-edit-staff], [data-edit-office], [data-edit-holiday], [data-edit-ps]')?.click();
         row.addEventListener('dblclick', (event) => { if (!interactive(event.target)) activate(); });
+        row.addEventListener('pointerup', (event) => {
+          if(event.pointerType==='mouse'||interactive(event.target))return;
+          const now=Date.now(),previous=Number(row.dataset.lastTapAt||0);
+          row.dataset.lastTapAt=String(now);
+          if(now-previous<=350){row.dataset.lastTapAt='0';activate();}
+        });
         row.addEventListener('keydown', (event) => { if (event.key === 'Enter') activate(); });
       });
     });

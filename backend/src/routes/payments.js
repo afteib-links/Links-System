@@ -132,7 +132,7 @@ router.get('/targets', async (req, res) => {
     const targets = [];
     for (const project of projects) {
       const projectId=Number(project.project_id),projectReports=reportsByProject.get(projectId)||[];
-      const eligible=approvedProjects.has(projectId)?projectReports.filter((row)=>row.status==='approved'&&row.payment_status==='none'):[];
+      const eligible=projectReports.filter((row)=>['confirmed','approved'].includes(row.status)&&row.payment_status==='none');
       const gross=eligible.reduce((sum,row)=>sum+effectivePayment(row),0);
       const ruleRows = await query(
         `SELECT rule_code, scope, display_name, amount
@@ -160,7 +160,7 @@ router.get('/targets', async (req, res) => {
       let targetStatus='no_reports';
       if(active)targetStatus=active.status;
       else if(eligible.length)targetStatus='available';
-      else if(projectReports.length)targetStatus=approvedProjects.has(projectId)?'not_available':'awaiting_approval';
+      else if(projectReports.length)targetStatus=approvedProjects.has(projectId)?'not_available':'office_confirmation_required';
       const target = {
         partner_id:Number(project.partner_id),partner_name:project.partner_name,
         partner_category_code:project.partner_category_code,payment_output_code:project.payment_output_code,

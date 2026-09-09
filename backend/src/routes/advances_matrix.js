@@ -45,7 +45,7 @@ async function matrixData(ym) {
   try {
     const [projects] = await conn.query(
       `SELECT p.project_id,p.company_id,p.partner_id,p.closing_date,p.installment_amount,p.operation_start_date,
-              p.business_type,p.manager_name,b.template_name,c.company_name,pt.partner_name,
+              p.business_type,p.manager_name,b.template_name,c.company_name,pt.partner_name,pt.advance_payment_enabled,
               pfp.transfer_fee_pattern_id project_fee_pattern_id,pfp.pattern_name project_fee_pattern_name,pfp.amount project_fee_amount,
               ptfp.transfer_fee_pattern_id partner_fee_pattern_id,ptfp.pattern_name partner_fee_pattern_name,ptfp.amount partner_fee_amount
        FROM projects p LEFT JOIN base_projects b ON b.base_project_id=p.base_project_id
@@ -96,7 +96,7 @@ async function matrixData(ym) {
           transfer_fee_pattern_name: fixed ? record.transfer_fee_pattern_name : fee.patternName,
           transfer_fee_base_amount: fixed ? Number(record.transfer_fee_base_amount || 0) : fee.amount,
           transfer_fee_amount: transferFee, transfer_fee_source: fee.source,
-          is_target: setting ? Boolean(setting.is_target) : true,
+          is_target: setting ? Boolean(setting.is_target) : Boolean(project.advance_payment_enabled),
           adjustment_reason: setting?.adjustment_reason || record?.adjustment_reason || '',
           setting_id: setting?.advance_cycle_setting_id || null, version: setting?.version || 0,
           advance_record_id: record?.advance_record_id || null,

@@ -41,7 +41,7 @@ router.get('/ui-settings', async (_req, res) => {
   try {
     const rows = await query(
       `SELECT setting_key, setting_value FROM system_settings
-       WHERE is_deleted = 0 AND setting_key LIKE 'status_color_%'`
+       WHERE is_deleted = 0 AND (setting_key LIKE 'status_color_%' OR setting_key LIKE 'status_label_%')`
     );
     return res.json({ ok:true, settings:Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value])) });
   } catch (err) {
