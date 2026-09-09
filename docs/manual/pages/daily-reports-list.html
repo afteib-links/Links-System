@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日報一覧 — Links-System 操作マニュアル</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>日報一覧</h1>
+      <p class="meta">操作マニュアル<br>日々の運用 → 日報</p>
+      <ol>
+        <li><a href="#role">この画面の役割</a></li>
+        <li><a href="#who">誰が・いつ</a></li>
+        <li><a href="#example">具体例</a></li>
+        <li><a href="#screen">画面イメージ</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#steps">操作手順</a></li>
+        <li><a href="#import">データ取り込み</a></li>
+        <li><a href="#notes">注釈・注意</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">A4で印刷</button>
+        <a class="cross-link" href="../index.html">ポータルへ</a>
+        <a class="cross-link" href="daily-reports-input.html">日報入力へ</a>
+      </div>
+    </nav>
+
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">日々の運用 → 日報</p>
+        <h1>日報一覧</h1>
+        <p>対象月の案件を探し、入力画面へ進むための一覧です。ここで勤務時間は入れません。</p>
+        <p>業務の流れでは「マスタ整備のあと、実績を入れる入口」にあたります。</p>
+      </header>
+
+      <section id="role">
+        <h2 class="chapter first">1. この画面の役割</h2>
+        <p>1行は <strong>個別案件 × 対象月</strong> です。その月に日報を入れる相手（企業・パートナー）と、入力の進み具合、月次承認の状態を確認します。</p>
+        <p>一覧から「入力」を開くと、その案件の1か月分グリッド（日報入力）へ進みます。</p>
+      </section>
+
+      <section id="who">
+        <h2 class="chapter">2. 誰が・いつ使うか</h2>
+        <table>
+          <thead><tr><th>誰</th><th>いつ</th></tr></thead>
+          <tbody>
+            <tr><td>総務・事務</td><td>FAXやメールの日報が届いた日。未入力や差戻しを片付けるとき</td></tr>
+            <tr><td>営業</td><td>担当案件の進捗を見るとき</td></tr>
+            <tr><td>承認担当（管理者・経営者など）</td><td>確認待ちや要対応の件数を見るとき</td></tr>
+            <tr><td>パートナー</td><td>自分に割り当てられた案件だけを見るとき（権限による）</td></tr>
+          </tbody>
+        </table>
+        <p>使える権限: 管理者 / システム担当者 / 経営者 / 総務 / 営業 / パートナー。企業ロールではメニューに出ません。</p>
+      </section>
+
+      <section id="example">
+        <h2 class="chapter">3. 具体例</h2>
+        <div class="example">
+          <p class="label">例1 — 未入力だけを片付ける</p>
+          <p>【検証】東都物流の案件で、2026年8月の日報がまだ無いとします。対象月を 2026年8月 にし、集計カード「未入力」をクリックします。一覧が未入力だけになるので、行の「入力」を押してグリッドへ進みます。</p>
+        </div>
+        <div class="example">
+          <p class="label">例2 — 締日が同じ案件だけ見る</p>
+          <p>5日締めの案件だけ先に入力したいときは、締日の選択を「5日」にして「絞り込み」を押します。データは消えず、表示だけが減ります。</p>
+        </div>
+      </section>
+
+      <section id="screen">
+        <h2 class="chapter">4. 画面イメージ</h2>
+        <p>左メニュー「日々の運用 → 日報」を開いたあとの画面です。オレンジの番号は下の表と対応します。</p>
+        <figure class="shot">
+          <div class="shot-frame">
+            <img src="../screenshots/13_daily_list.png" alt="日報一覧。月切替、取込、検索、集計カード、案件表">
+            <ol class="pins" aria-hidden="true">
+              <li style="left:48%;top:22%;">1</li>
+              <li style="left:90%;top:22%;">2</li>
+              <li style="left:42%;top:30%;">3</li>
+              <li style="left:50%;top:40%;">4</li>
+              <li style="left:50%;top:56%;">5</li>
+              <li style="left:93%;top:68%;">6</li>
+            </ol>
+          </div>
+          <figcaption>日報一覧（検証用キャプチャ）。番号は説明用です。</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th></th><th>場所</th><th>すること</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pin">1</span></td><td>対象月</td><td>前月 / 年月 / 翌月 / 表示。見る月を変える</td></tr>
+            <tr><td><span class="pin">2</span></td><td>データ取り込み</td><td>Excel または CSV の取込画面を開く（権限がある人だけ）</td></tr>
+            <tr><td><span class="pin">3</span></td><td>検索と絞り込み</td><td>案件・会社・パートナーの文字、締日、状態、入力あり/なし</td></tr>
+            <tr><td><span class="pin">4</span></td><td>集計カード</td><td>対象案件 / 未入力 / 作業中 / 確認待ち / 完了 / 要対応。クリックで状態だけ絞る</td></tr>
+            <tr><td><span class="pin">5</span></td><td>一覧表</td><td>案件No、案件名、企業、パートナー、締日、入力進捗、月次承認状態</td></tr>
+            <tr><td><span class="pin">6</span></td><td>入力ボタン</td><td>その案件の日報入力へ進む。行のダブルクリックでも同じ</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="fields">
+        <h2 class="chapter">5. 何をどこに入れるか</h2>
+        <p>この画面で「保存する勤務実績」はありません。探すための条件だけ入れます。</p>
+        <table>
+          <thead><tr><th>項目</th><th>入れる場所</th><th>例</th></tr></thead>
+          <tbody>
+            <tr><td>対象月</td><td>画面上部の年月</td><td>2026-08</td></tr>
+            <tr><td>キーワード</td><td>「案件・会社・パートナーを検索」</td><td>東都、山田</td></tr>
+            <tr><td>締日</td><td>締日の選択</td><td>5日、末日</td></tr>
+            <tr><td>月次の状態</td><td>状態の選択、またはカード</td><td>未入力、差戻し</td></tr>
+            <tr><td>入力の有無</td><td>入力状況</td><td>未入力</td></tr>
+            <tr><td>列ごとの絞込</td><td>見出し直下の「絞込」</td><td>案件名の一部</td></tr>
+          </tbody>
+        </table>
+        <p>列見出しをクリックすると並び順が変わります。操作列の副作用（削除など）はダブルクリックでは起きません。</p>
+      </section>
+
+      <section id="steps">
+        <h2 class="chapter">6. 操作手順</h2>
+        <ol class="steps">
+          <li>アプリにログインする</li>
+          <li>左メニューの「日々の運用」から <strong>日報</strong> をクリックする</li>
+          <li>対象月を合わせ、「表示」をクリックする</li>
+          <li>必要ならカードまたは検索で件数を絞る</li>
+          <li>対象行をダブルクリックする、または右端の <strong>入力</strong> をクリックする</li>
+        </ol>
+        <p>次の画面は <a href="daily-reports-input.html">日報入力</a> です。</p>
+      </section>
+
+      <section id="import">
+        <h2 class="chapter">7. データ取り込み（一覧からのサブ画面）</h2>
+        <p>紙やExcelの内容をまとめて下書きへ載せるときは、一覧右上の「データ取り込み」を使います。管理者と総務だけが操作できます。</p>
+        <figure class="shot">
+          <div class="shot-frame">
+            <img src="../screenshots/15_daily_import.png" alt="日報データ取り込み。対象月、ファイル選択、履歴表">
+            <ol class="pins" aria-hidden="true">
+              <li style="left:38%;top:38%;">1</li>
+              <li style="left:62%;top:38%;">2</li>
+              <li style="left:22%;top:48%;">3</li>
+              <li style="left:50%;top:72%;">4</li>
+            </ol>
+          </div>
+          <figcaption>日報データ取り込み。列の対応を決めたあと、選択行を下書き日報へ反映します。</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th></th><th>場所</th><th>すること</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pin">1</span></td><td>対象年月</td><td>取り込む月を指定する</td></tr>
+            <tr><td><span class="pin">2</span></td><td>ファイル</td><td><code>.xlsx</code> または <code>.csv</code>（50MBまで）を選ぶ</td></tr>
+            <tr><td><span class="pin">3</span></td><td>アップロードして確認</td><td>原本を保存し、列の対応と内容確認へ進む</td></tr>
+            <tr><td><span class="pin">4</span></td><td>取込履歴</td><td>同じ月の過去取込と状態を見る</td></tr>
+          </tbody>
+        </table>
+        <div class="warn">
+          <strong>注意。</strong> ファイルに書かれた請求額・支払額は使いません。反映後もシステムの料金設定で再計算します。確認済み・承認済みの日報は上書きしません。同じ内容の二重取込は警告が出ます。
+        </div>
+      </section>
+
+      <section id="notes">
+        <h2 class="chapter">8. 注釈・注意</h2>
+        <div class="note">
+          <strong>注釈。</strong> 集計カードは絞り込みです。件数を減らしてもデータは削除されません。もう一度同じカードを押すと絞り込みが外れます。
+        </div>
+        <div class="note">
+          <strong>注釈。</strong> 「データ取り込み」が無い場合は、権限が管理者・総務ではありません。経営者は原本の閲覧側です。
+        </div>
+        <div class="warn">
+          <strong>注意。</strong> 隣のメニュー「日報提出」は、パートナーから届いた日報の受領確認です。この一覧の入力進捗とは連動しません。
+        </div>
+      </section>
+
+      <nav class="page-nav no-print">
+        <a href="../index.html">ポータルへ</a>
+        <a href="daily-reports-input.html">次へ: 日報入力</a>
+      </nav>
+
+      <footer class="colophon">
+        <p>Links-System 操作マニュアル / 日報一覧 / 画像は検証用です。</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

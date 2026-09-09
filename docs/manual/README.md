@@ -1,49 +1,35 @@
-<<<<<<< HEAD
-# Links-System 画面俯瞰マニュアル
+# Links-System 操作マニュアル（HTML）
 
-利用者向けの **全体像確認用** HTML マニュアルです。詳細な運用手順ではなく、「どの画面で、何をすると何が起きるか」を全機能分まとめています。
-
-## 開き方
-
-1. リポジトリ内の [`index.html`](index.html) をブラウザで開く  
-   （Chrome / Edge 推奨。画像は `仕様MD/画面一覧/` と `docs/mockups/` を相対参照します）
-2. または NAS 上で `docs/manual/index.html` を共有フォルダから開く
-
-アプリ本体（`:8080`）とは別ファイルです。ログイン不要です。
-
-## 印刷（A4）
-
-1. ブラウザで `index.html` を開く
-2. 左メニューの「A4で印刷」または `Ctrl+P` / `Cmd+P`
-3. 用紙: **A4**、余白: 標準、背景グラフィック: オフでよい
-4. 章ごとに改ページします。画面画像は1枚がページ内に収まるよう縮小されます
-
-PDF 化する場合も、同じ印刷ダイアログから「PDFに保存」を選びます。
-
-## 画像について
-
-- 現行メニューに対応する画面は、主に [`仕様MD/画面一覧/`](../../仕様MD/画面一覧/) のキャプチャを掲載しています。
-- キャプチャは差分洗い出し用のため、**現行 SPA と見た目が異なる場合があります**。本文の操作説明は現行コード（`frontend/js/`）を正とします。
-- 画面一覧にあっても現行メニューに無い機能（収支分析・総振FB・入金消込など）は「未提供」として末尾に分けています。
-
-## 対象外
-
-- NAS / Docker の起動手順（[`docs/NAS_Docker導入・運用手順.md`](../NAS_Docker導入・運用手順.md)）
-- 計算式の詳細（`仕様MD/04_calculation_logic.md`）
-- 開発・AI 運用ルール
-=======
-# Links-System マニュアル（HTML）
+未経験者向けの操作説明です。機能ごとにHTMLを分け、一覧と詳細入力がある機能はページを分けます。
 
 | ファイル | 対象 |
 |----------|------|
-| [`index.html`](index.html) | 利用者向け。全画面の「すると → どうなる」 |
-| [`developer.html`](developer.html) | 開発者向け。機能説明・設定の入力方法・記入例（3件以上） |
-
-どちらも同じ [`manual.css`](manual.css) で画面閲覧と **A4印刷** ができます。画像は [`screenshots/`](screenshots/)（現行SPA）。
+| [`index.html`](index.html) | ポータル。システムの考え方と目次 |
+| [`pages/daily-reports-list.html`](pages/daily-reports-list.html) | 日報一覧（確認用見本） |
+| [`pages/daily-reports-input.html`](pages/daily-reports-input.html) | 日報入力（確認用見本） |
+| [`developer.html`](developer.html) | 開発者向け。起動・設定・記入例 |
 
 ## 開き方
 
-ブラウザで HTML を開きます（Chrome / Edge 推奨）。アプリ本体へのログインは不要です。
+1. [`index.html`](index.html) を Chrome または Edge で開く
+2. または NAS の共有フォルダから `docs/manual/index.html` を開く
+
+アプリ本体（`:8080`）へのログインは不要です。計算の詳細は [`仕様MD/09_日報・精算・帳票_業務要件.md`](../../仕様MD/09_日報・精算・帳票_業務要件.md) を参照します。
+
+## ページの約束
+
+各機能ページは次の順で書きます。
+
+1. この画面の役割
+2. 誰が・いつ使うか
+3. 具体例
+4. 画面イメージと番号コールアウト
+5. 何をどこに入れるか
+6. 操作手順
+7. 注釈・注意
+8. 前後の画面リンク
+
+画像は [`screenshots/`](screenshots/) の現行SPAキャプチャです。番号はCSSで重ねます。実顧客データは載せません。
 
 ## 印刷（A4）
 
@@ -57,5 +43,4 @@ npx playwright install chromium   # 初回のみ
 UI_BASE_URL=http://127.0.0.1:8080 npm run capture:manual
 ```
 
-Cloud Agent ではポートが `3000` です。実顧客データはリポジトリへ入れないでください。
->>>>>>> bab91a98b97f02205a7ea4a42a08dcf742e6b41c
+Cloud Agent ではポートが `3000` です。
