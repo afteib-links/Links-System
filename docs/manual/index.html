@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Links-System 操作マニュアル</title>
+  <title>Links-System の使い方</title>
   <link rel="stylesheet" href="manual.css">
 </head>
 <body>
@@ -11,130 +11,100 @@
   <div class="layout">
     <nav class="toc" aria-label="目次">
       <h1>Links-System</h1>
-      <p class="meta">操作マニュアル<br>2026-09-09 / 未経験者向け</p>
+      <p class="meta">社内向けの使い方<br>2026年9月</p>
       <ol>
-        <li><a href="#ch-concept">このシステムの考え方</a></li>
-        <li><a href="#ch-flow">業務の流れ</a></li>
-        <li><a href="#ch-howto">この資料の見方</a></li>
-        <li><a href="#ch-toc">機能ごとのページ</a></li>
-        <li><a href="#ch-open">開き方</a></li>
+        <li><a href="#intro">はじめに</a></li>
+        <li><a href="#look">画面の場所</a></li>
+        <li><a href="#flow">仕事の順番</a></li>
+        <li><a href="#now">いま読めるページ</a></li>
       </ol>
       <div class="print-actions no-print">
-        <button type="button" onclick="window.print()">A4で印刷</button>
-        <a class="cross-link" href="pages/daily-reports-list.html">日報一覧へ</a>
-        <a class="cross-link" href="developer.html">開発者向けマニュアルへ</a>
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="pages/daily-reports-list.html">日報の一覧へ</a>
+        <a class="cross-link" href="developer.html">開発者向け</a>
       </div>
     </nav>
 
     <main class="doc" id="doc">
       <header class="cover">
-        <p class="eyebrow">運送業務基幹システム</p>
-        <h1>Links-System<br>操作マニュアル</h1>
-        <p>初めて使う人が、画面を見ながら「何をどこに入れるか」を確認するための資料です。</p>
-        <p>今回の確認用見本は <strong>日報</strong>（一覧1ページ・入力1ページ）です。ほかの機能は同じ型で後から足します。</p>
-        <p>対象版: 現行SPA（左サイドバー） / 作成日: 2026-09-09</p>
-        <p class="no-print">開発者向け（起動・設定・記入例）は <a href="developer.html">developer.html</a> です。</p>
+        <p class="eyebrow">運送の仕事をまとめるシステム</p>
+        <h1>Links-System の使い方</h1>
       </header>
 
-      <section id="ch-concept">
-        <h2 class="chapter first">1. このシステムの考え方</h2>
-        <p>Links-System は、運送・作業の代行会社が、現場の実績から請求・支払までを一本化する業務システムです。紙やExcelで分かれていた「いつ誰が何をしたか」と「いくら請求・支払するか」を、同じ案件の流れで扱います。</p>
-        <p>中心になるのは <strong>日報</strong> です。日報は勤務時間のメモではなく、請求額と支払額の根拠です。同じ勤務実績を使い、請求先企業向けの単価とパートナー向けの単価は別々に計算します。</p>
+      <section id="intro">
+        <h2 class="chapter first">はじめに</h2>
+        <p class="lead">現場の日報を入れると、そこから請求と支払がつながるように作っています。紙やExcelで別々に持っていた「いつ、誰が、何をしたか」と「いくらになるか」を、同じ案件の流れで見ます。</p>
+        <p>いちばん大事なのは日報です。メモではなく、請求と支払の根拠になります。同じ勤務でも、お客さま向けの単価とパートナー向けの単価は別です。画面に出る金額は、ファイルに書いてあった合計ではなく、案件の料金設定から計算し直した結果です。</p>
+
+        <div class="pair">
+          <figure class="shot">
+            <img src="screenshots/crops/login.png" alt="ログイン画面。ログインIDとパスワード">
+            <figcaption>最初に出る画面です。社内でもらったIDとパスワードで入ります。</figcaption>
+          </figure>
+          <div class="copy">
+            <h3>入るところ</h3>
+            <p>ブラウザで社内のアドレスを開くと、この画面になります。間違えると入れません。パスワードの目のアイコンは、入力中の文字を見せるだけです。</p>
+            <p>入れたら、次はホームです。左にメニュー、右に今月の進み具合が出ます。</p>
+          </div>
+        </div>
+
+        <figure class="shot">
+          <img src="screenshots/crops/home-main.png" alt="ログイン直後のホーム。進捗カード">
+          <figcaption>ログインしたあとのホーム。カードを押すと、その仕事の画面へ進みます。</figcaption>
+        </figure>
+      </section>
+
+      <section id="look">
+        <h2>画面の場所</h2>
+        <p>仕事は左のメニューから選びます。日報は「日々の運用」の中です。権限によって、出ないメニューがあります（企業の人には日報は出ません）。</p>
+        <div class="menu-row">
+          <img src="screenshots/crops/menu.png" alt="左メニュー。ホーム、マスタ、日々の運用、精算、設定">
+          <div>
+            <p>上から、マスタ（会社・人・案件・単価）→ 日々の運用（日報）→ 精算（先払・請求・支払・入出金）→ 設定、の順です。</p>
+            <p>「日報」と「日報提出」は別です。日報は勤務内容の入力、日報提出は届いた紙やメールの受領チェックです。入力した件数だけでは、提出済みになりません。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="flow">
+        <h2>仕事の順番</h2>
+        <p>だいたい、この順で進みます。途中を飛ばすと、次の画面に案件が出なかったり、請求の確定ができなかったりします。</p>
+        <div class="thumbs">
+          <a href="pages/daily-reports-list.html">
+            <img src="screenshots/crops/list-main.png" alt="日報一覧">
+            <span>1. 日報の一覧で月と案件を選ぶ</span>
+          </a>
+          <a href="pages/daily-reports-input.html">
+            <img src="screenshots/crops/grid-main.png" alt="日報入力">
+            <span>2. 日付ごとに時間と経費を入れる</span>
+          </a>
+          <div class="thumb">
+            <img src="screenshots/17_invoices_list.png" alt="請求一覧">
+            <span>3. 承認のあと、請求・支払へ（準備中）</span>
+          </div>
+        </div>
+        <p>マスタ（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）が先です。案件が無い月は、日報の一覧が空になります。月次承認が終わるまで、請求・支払の本番確定には使いません。</p>
+      </section>
+
+      <section id="now">
+        <h2>いま読めるページ</h2>
+        <p>いまは日報だけ、画面つきで書いてあります。ほかの機能は、同じ書き方で足していきます。</p>
         <table>
-          <thead><tr><th>層</th><th>意味（利用者向け）</th></tr></thead>
+          <thead><tr><th>読みたいこと</th><th>ページ</th></tr></thead>
           <tbody>
-            <tr><td>実績</td><td>日付、開始・終了、休憩、距離、経費など、現場で起きたこと</td></tr>
-            <tr><td>計算ルール</td><td>案件に紐づく料金セット。曜日や休日で候補が選ばれる</td></tr>
-            <tr><td>確認・承認</td><td>入力者が日ごとに確認し、案件×月でまとめて承認する</td></tr>
-            <tr><td>精算</td><td>承認済み日報から請求・支払を作り、帳票と入出金へ進む</td></tr>
+            <tr><th>案件を探す・進捗を見る</th><td><a href="pages/daily-reports-list.html">日報の一覧</a></td></tr>
+            <tr><th>時間や距離を入れる</th><td><a href="pages/daily-reports-input.html">日報の入力</a></td></tr>
           </tbody>
         </table>
-        <div class="note">
-          <strong>注釈。</strong> 画面に出る金額は、取込ファイルや手書きの合計額ではなく、システムが案件の料金設定から再計算した結果です。
-        </div>
-      </section>
-
-      <section id="ch-flow">
-        <h2 class="chapter">2. 業務の流れ</h2>
-        <div class="flow">マスタ整備（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）
-→ 日報一覧で対象月・案件を選ぶ
-→ 日報入力（代理入力または Excel/CSV 取込）
-→ 日次確認 → 月次承認
-→（分割案件なら）先払
-→ 請求 / 支払の下書き → 確認 → 最終確定・PDF
-→ 入出金の予定・実績</div>
-        <p>ログイン後は左メニューが機能の入口です。マスタが無い案件は日報に出ません。日報が未承認の月は、請求・支払の本番確定の根拠になりません。</p>
-        <div class="warn">
-          <strong>注意。</strong> メニューの「日報」と「日報提出」は別物です。日報は勤務内容の入力、日報提出はパートナーから届いた紙・メールの受領チェックです。入力した件数から提出済みにはなりません。
-        </div>
-      </section>
-
-      <section id="ch-howto">
-        <h2 class="chapter">3. この資料の見方</h2>
-        <p>機能ごとにHTMLを分けています。一覧で探す画面と、詳細を入れる画面は別ページです。各ページは次の順です。</p>
-        <ol class="steps">
-          <li>この画面の役割</li>
-          <li>誰が・いつ使うか</li>
-          <li>具体例（架空の検証用データ）</li>
-          <li>画面イメージ（オレンジの番号は説明用）</li>
-          <li>何をどこに入れるか</li>
-          <li>操作手順</li>
-          <li>注釈・注意</li>
-        </ol>
-        <p>青枠は補足、橙枠は誤操作を防ぐ注意です。画面画像は検証用の匿名データです。実在の顧客名・口座は使いません。</p>
-      </section>
-
-      <section id="ch-toc">
-        <h2 class="chapter">4. 機能ごとのページ</h2>
-        <table class="catalog">
-          <thead><tr><th>機能</th><th>ページ</th><th>状態</th></tr></thead>
-          <tbody>
-            <tr><td>ログイン / ホーム</td><td>—</td><td class="wait">準備中</td></tr>
-            <tr><td>企業マスタ</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>パートナーマスタ</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>基本案件</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>個別案件</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>金額データ</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr>
-              <td>日報</td>
-              <td>
-                <a href="pages/daily-reports-list.html">一覧</a>
-                ／
-                <a href="pages/daily-reports-input.html">入力</a>
-              </td>
-              <td class="ready">確認用見本</td>
-            </tr>
-            <tr><td>日報提出</td><td>1画面</td><td class="wait">準備中（日報とは別機能）</td></tr>
-            <tr><td>先払い</td><td>1画面</td><td class="wait">準備中</td></tr>
-            <tr><td>請求</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>支払</td><td>一覧 / 詳細</td><td class="wait">準備中</td></tr>
-            <tr><td>入出金管理・FB出力</td><td>1画面</td><td class="wait">準備中</td></tr>
-            <tr><td>収支分析</td><td>1画面</td><td class="wait">準備中</td></tr>
-            <tr><td>マスター設定 / UIビルダー / ユーザー</td><td>—</td><td class="wait">準備中</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section id="ch-open">
-        <h2 class="chapter">5. 開き方</h2>
-        <p>このHTMLはアプリ本体ではありません。ブラウザでファイルを開くだけで読めます。社内LANのアプリは通常 <code>http://&lt;NASのIP&gt;:8080</code> です。操作そのものはアプリ側で行います。</p>
-        <ol class="steps">
-          <li>このポータルから対象の機能ページを開く</li>
-          <li>画面イメージの番号と表を照合する</li>
-          <li>アプリにログインし、左メニューから同じ機能を開いて手順どおり操作する</li>
-        </ol>
-        <div class="note">
-          <strong>注釈。</strong> 左メニューに出る機能は権限で変わります。企業ロールでは日報は出ません。取込ボタンは管理者・総務だけです。
-        </div>
+        <p>このHTMLは説明用です。実際の操作はアプリ側（社内LANなら <code>http://&lt;NASのIP&gt;:8080</code>）で行います。画面の数字は検証用で、実在のお客さまではありません。</p>
       </section>
 
       <nav class="page-nav no-print">
         <span></span>
-        <a href="pages/daily-reports-list.html">次へ: 日報一覧</a>
+        <a href="pages/daily-reports-list.html">日報の一覧を見る</a>
       </nav>
-
       <footer class="colophon">
-        <p>Links-System 操作マニュアル / 計算式・NAS起動手順は対象外です。</p>
+        <p>計算の細かい式や、NASの起動手順はこの冊子の対象外です。</p>
       </footer>
     </main>
   </div>

@@ -3,187 +3,149 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>日報入力 — Links-System 操作マニュアル</title>
+  <title>日報の入力 — 使い方</title>
   <link rel="stylesheet" href="../manual.css">
 </head>
 <body>
   <a class="skip" href="#doc">本文へ</a>
   <div class="layout">
     <nav class="toc" aria-label="目次">
-      <h1>日報入力</h1>
-      <p class="meta">操作マニュアル<br>案件×月のグリッド</p>
+      <h1>日報の入力</h1>
+      <p class="meta">一覧の「入力」から開く画面</p>
       <ol>
-        <li><a href="#role">この画面の役割</a></li>
-        <li><a href="#who">誰が・いつ</a></li>
-        <li><a href="#example">具体例</a></li>
-        <li><a href="#screen">画面イメージ</a></li>
-        <li><a href="#fields">何をどこに入れるか</a></li>
-        <li><a href="#expand">行の詳細</a></li>
-        <li><a href="#steps">操作手順</a></li>
-        <li><a href="#notes">注釈・注意</a></li>
+        <li><a href="#look">開くとこう見えます</a></li>
+        <li><a href="#top">上のボタン</a></li>
+        <li><a href="#day">1日分の入れ方</a></li>
+        <li><a href="#fax">FAXが来たとき</a></li>
+        <li><a href="#night">日付をまたぐとき</a></li>
+        <li><a href="#more">▶ で開くところ</a></li>
+        <li><a href="#ok">確認と承認</a></li>
+        <li><a href="#care">気をつけること</a></li>
       </ol>
       <div class="print-actions no-print">
-        <button type="button" onclick="window.print()">A4で印刷</button>
-        <a class="cross-link" href="daily-reports-list.html">日報一覧へ</a>
-        <a class="cross-link" href="../index.html">ポータルへ</a>
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="daily-reports-list.html">一覧へ戻る</a>
+        <a class="cross-link" href="../index.html">はじめに</a>
       </div>
     </nav>
 
     <main class="doc" id="doc">
       <header class="cover">
-        <p class="eyebrow">日々の運用 → 日報 → 入力</p>
-        <h1>日報入力</h1>
-        <p>1つの個別案件について、対象月の毎日の実績を入れる画面です。入力した内容が請求・支払の根拠になります。</p>
-        <p>業務の流れでは「実績入力 → 日次確認 → 月次承認」にあたります。</p>
+        <p class="eyebrow">日報 → 入力</p>
+        <h1>日報の入力</h1>
       </header>
 
-      <section id="role">
-        <h2 class="chapter first">1. この画面の役割</h2>
-        <p>画面タイトルは「日報入力（案件#番号 / 年月）」です。表の1行が、その日の作業です。同じ日に作業を分けるときは行を追加します。</p>
-        <p>開始・終了・休憩・距離・経費を入れると、稼働・超過・不足と金額は自動で出ます。計算の中身を手で組み立てる必要はありません。</p>
-      </section>
-
-      <section id="who">
-        <h2 class="chapter">2. 誰が・いつ使うか</h2>
-        <table>
-          <thead><tr><th>誰</th><th>いつ</th></tr></thead>
-          <tbody>
-            <tr><td>総務・事務</td><td>手書き日報やFAXを代理入力するとき。毎日または締め前にまとめて</td></tr>
-            <tr><td>パートナー</td><td>自分の案件の実績を入れるとき（権限がある場合）</td></tr>
-            <tr><td>承認担当</td><td>月次承認や差戻しをするとき。金額確認で内訳を見るとき</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section id="example">
-        <h2 class="chapter">3. 具体例</h2>
-        <div class="example">
-          <p class="label">例1 — FAXの1日分を代理入力する</p>
-          <p>2026年8月3日（月）、開始 8:00、終了 17:00、休憩 1:00、距離 120 km、通行料 1,500 円と書いてあるとします。該当日の行に同じ値を入れ、「行保存」または「一括保存」します。稼働時間は自動計算されます。問題なければ状態バッジをクリックして、その日を確認済みにします。</p>
-        </div>
-        <div class="example">
-          <p class="label">例2 — 夜勤で日付をまたぐ</p>
-          <p>勤務日の 20:00 から翌朝 4:00 までの場合、終了は翌日の 4:00 ではなく <code>28:00</code> と入れます（勤務日基準。最大 <code>47:59</code>）。翌日の行へ分けません。</p>
-        </div>
-        <div class="example">
-          <p class="label">例3 — 月末に承認依頼する</p>
-          <p>対象月の日を確認し終えたら、上部の「月次承認依頼」を押します。未確認の日が残っていても警告のあと続行できます。承認担当は同じ画面の「月次承認」または「差戻し」を使います。請求・支払は、月次承認のあとに別メニューで進めます。</p>
-        </div>
-      </section>
-
-      <section id="screen">
-        <h2 class="chapter">4. 画面イメージ</h2>
-        <p>一覧の「入力」から開いたグリッドです。土曜は薄い青、日曜・祝日は薄い赤です。</p>
+      <section id="look">
+        <h2 class="chapter first">開くとこう見えます</h2>
+        <p class="lead"><a href="daily-reports-list.html">一覧</a> で案件の「入力」を押すと、その案件の1か月が日付の表になります。タイトルは「日報入力（案件#番号 / 年月）」です。</p>
+        <p>1行が1日の作業です。開始・終了・休憩・距離・経費を入れると、稼働や超過、金額は自動で出ます。計算を組み立てる必要はありません。</p>
         <figure class="shot">
-          <div class="shot-frame">
-            <img src="../screenshots/14_daily_grid.png" alt="日報入力グリッド。月次操作と日付ごとの入力列">
-            <ol class="pins" aria-hidden="true">
-              <li style="left:78%;top:20%;">1</li>
-              <li style="left:20%;top:42%;">2</li>
-              <li style="left:28%;top:48%;">3</li>
-              <li style="left:48%;top:48%;">4</li>
-              <li style="left:72%;top:48%;">5</li>
-              <li style="left:86%;top:48%;">6</li>
-            </ol>
-          </div>
-          <figcaption>日報入力（検証用キャプチャ）。キャプチャ時点のボタン配置と現行画面が少し違うことがあります。操作の正は本文です。</figcaption>
+          <img src="../screenshots/crops/grid-main.png" alt="日報入力の全体。上に操作、下に日付の表">
+          <figcaption>日付が縦に並びます。土曜は薄い青、日曜・祝日は薄い赤です。</figcaption>
+        </figure>
+        <p>事務が手書きやFAXを代わりに入れる画面です。パートナー権限があれば自分の案件も入れられます。承認する人は、月末に同じ画面で中身を見て承認します。</p>
+      </section>
+
+      <section id="top">
+        <h2>上のボタン</h2>
+        <figure class="shot">
+          <img src="../screenshots/crops/grid-toolbar.png" alt="稼働日数などの集計と、承認依頼・一括保存などのボタン">
+          <figcaption>左が今月の集計、右が保存と承認のボタンです。</figcaption>
         </figure>
         <table>
-          <thead><tr><th></th><th>場所</th><th>すること</th></tr></thead>
+          <thead><tr><th>ボタン</th><th>押すと</th></tr></thead>
           <tbody>
-            <tr><td><span class="pin">1</span></td><td>上部の操作</td><td>月次承認依頼 / 承認 / 差戻し、一括保存、データ取り込み、金額確認、一括表示、一覧へ</td></tr>
-            <tr><td><span class="pin">2</span></td><td>▶</td><td>その行の詳細（料金区分・深夜・契約単価・コメント）を開く</td></tr>
-            <tr><td><span class="pin">3</span></td><td>不要・研修</td><td>休む日は「不要」。研修日は「研修」にチェック</td></tr>
-            <tr><td><span class="pin">4</span></td><td>開始・終了・休憩</td><td>時刻を入れる。左右の − / ＋ で刻み増減。ダブルクリックで案件の基本時刻</td></tr>
-            <tr><td><span class="pin">5</span></td><td>距離・通行料・駐車料・交通費</td><td>距離は整数 km。経費は円</td></tr>
-            <tr><td><span class="pin">6</span></td><td>状態</td><td>クリックでその日の確認 / 確認解除。右の ＋ で同じ日に作業行を追加</td></tr>
+            <tr><th>一括保存</th><td>見えている月をまとめて残す。スクロール位置はそのまま</td></tr>
+            <tr><th>月次承認依頼</th><td>入力側が「見てください」と出す。未確認の日があると警告が出るが、続行できる</td></tr>
+            <tr><th>月次承認 / 差戻し</th><td>承認する人用。差戻しは指摘を残して入力側へ返す</td></tr>
+            <tr><th>金額確認</th><td>計算結果を見るだけ。請求の確定や振込ではない</td></tr>
+            <tr><th>一括表示</th><td>各日の詳細をまとめて開く</td></tr>
+            <tr><th>一覧へ</th><td>案件の一覧に戻る</td></tr>
           </tbody>
         </table>
-        <p>稼働・超過・不足（請求）と日別の請求合計・支払合計は自動表示です。手入力しません。</p>
       </section>
 
-      <section id="fields">
-        <h2 class="chapter">5. 何をどこに入れるか（表の列）</h2>
+      <section id="day">
+        <h2>1日分の入れ方</h2>
+        <p>表の左から順に、日付 → 不要 / 研修 → 開始・終了・休憩 →（自動の稼働・超過・不足）→ 距離・通行料・駐車料・交通費 → 状態、です。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/grid-times.png" alt="開始・終了・休憩の時刻欄と、土曜日曜の色">
+          <figcaption>時刻は − / ＋ でも動かせます。ダブルクリックすると、案件に登録した基本時刻が入ります。</figcaption>
+        </figure>
         <table>
-          <thead><tr><th>項目</th><th>入れる場所</th><th>入れ方の例</th><th>自動か手入力か</th></tr></thead>
+          <thead><tr><th>入れるもの</th><th>入れ方</th></tr></thead>
           <tbody>
-            <tr><td>不要</td><td>チェック</td><td>稼働しない日</td><td>手入力。出勤日数から除外</td></tr>
-            <tr><td>研修</td><td>チェック</td><td>研修として数える日</td><td>手入力。料金は研修区分を使う</td></tr>
-            <tr><td>開始 / 終了</td><td>時刻欄</td><td><code>08:00</code>、<code>17:00</code>、<code>28:00</code></td><td>手入力。<code>8.00</code> や全角も変換される</td></tr>
-            <tr><td>休憩</td><td>時刻欄</td><td><code>1:00</code>（合計。回数に分けない）</td><td>手入力</td></tr>
-            <tr><td>稼働 / 超過 / 不足</td><td>灰色の表示</td><td>—</td><td>自動。直接書き換えない</td></tr>
-            <tr><td>距離</td><td>数値</td><td><code>120</code>（km。整数）</td><td>手入力。メーター差は使わない</td></tr>
-            <tr><td>通行料 / 駐車料 / 交通費</td><td>数値</td><td><code>1500</code></td><td>手入力。領収書が必要な経費は行詳細側</td></tr>
-            <tr><td>状態</td><td>バッジ</td><td>下書き → 確認済み</td><td>クリック操作</td></tr>
+            <tr><th>不要</th><td>その日は動かない、という印。出勤日数に入りません</td></tr>
+            <tr><th>研修</th><td>研修として数える日。料金は研修の区分を使います</td></tr>
+            <tr><th>開始 / 終了</th><td><code>08:00</code> のように。全角や <code>8.00</code> でも、外れたときに直ります</td></tr>
+            <tr><th>休憩</th><td>1日の合計。<code>1:00</code>。回数に分けて登録しません</td></tr>
+            <tr><th>距離</th><td>整数の km。メーターの開始・終了は使いません</td></tr>
+            <tr><th>通行料など</th><td>円。空欄のままでも保存できます（下書き）</td></tr>
+            <tr><th>稼働 / 超過 / 不足</th><td>手で書き換えません</td></tr>
+            <tr><th>状態</th><td>バッジをクリックすると、その日の確認／確認解除です</td></tr>
           </tbody>
         </table>
+        <p>同じ日に作業を分けるときは、行の ＋ です。左の ▶ は、その日の料金やコメントを開きます。</p>
       </section>
 
-      <section id="expand">
-        <h2 class="chapter">6. 行の詳細（▶ で開く）</h2>
-        <p>通常の日は表だけで足ります。料金の種類を変える、深夜休憩を入れる、その日だけ単価を変える、行のメモを残すときは ▶ を開きます。</p>
+      <section id="fax">
+        <h2>FAXが来たとき</h2>
+        <div class="example">
+          <p class="label">例：8月3日、8:00〜17:00、休憩1時間、120km、通行料1,500円</p>
+          <p>3日の行に、開始 8:00、終了 17:00、休憩 1:00、距離 120、通行料 1500 と入れます。「行保存」か上の「一括保存」を押します。稼働時間は自動です。問題なければ状態のバッジを押して、その日を確認済みにします。</p>
+        </div>
+      </section>
+
+      <section id="night">
+        <h2>日付をまたぐとき</h2>
+        <div class="example">
+          <p class="label">例：20時に出て、翌朝4時まで</p>
+          <p>終了は翌日の行の 4:00 ではなく、勤務日の行に <code>28:00</code> と入れます。翌日へ分けません。入れられるのは <code>47:59</code> までです。</p>
+        </div>
+      </section>
+
+      <section id="more">
+        <h2>▶ で開くところ</h2>
+        <p>普通の日は表だけで足ります。料金の種類を変える、深夜の休憩を入れる、その日だけ単価を変える、行のメモを残すときに開きます。</p>
         <table>
-          <thead><tr><th>ブロック</th><th>入れるもの</th><th>メモ</th></tr></thead>
+          <thead><tr><th>中身</th><th>入れるもの</th></tr></thead>
           <tbody>
-            <tr><td>料金区分</td><td>料金名の選択</td><td>曜日・休日から自動候補。手動変更できる。自動/手動の別が表示される</td></tr>
-            <tr><td>深夜時間</td><td>深夜帯内休憩、必要なら深夜時間調整</td><td>請求と支払で深夜帯が違うときだけ欄が分かれる</td></tr>
-            <tr><td>契約料金</td><td>空欄のままが通常。一時変更するときだけ数値</td><td>灰色の「元:」は契約単価。変更理由が必須。マスタは変わらない</td></tr>
-            <tr><td>計算結果</td><td>（表示のみ）</td><td>請求・支払の内訳の見方。確定ボタンではない</td></tr>
-            <tr><td>行コメント</td><td>その日の補足</td><td>月全体の連絡は別のメモ欄がある場合がある</td></tr>
-            <tr><td>行保存 / この日を確認</td><td>ボタン</td><td>確認後は金額関連がロック。直すときは確認解除</td></tr>
+            <tr><th>料金区分</th><td>料金の名前。曜日や休日から候補が出ますが、手で変えてよいです</td></tr>
+            <tr><th>深夜時間</th><td>深夜帯に入った休憩など。請求と支払で深夜の時間が違うときだけ欄が分かれます</td></tr>
+            <tr><th>契約料金</th><td>普段は空欄。灰色の「元:」が契約の単価です。その行だけ変えるときは数字と理由</td></tr>
+            <tr><th>計算結果</th><td>見るだけです</td></tr>
+            <tr><th>行コメント</th><td>その日の補足</td></tr>
           </tbody>
         </table>
-        <div class="note">
-          <strong>注釈。</strong> 「金額確認」は月の計算結果を点検する表示です。請求確定や振込ではありません。
-        </div>
+        <p>一時的に単価を変えても、料金マスタや他の日は変わりません。料金の種類を変えると、保存前でも金額の表示が新しい単価になります。前の種類に付けた一時単価は引き継ぎません。</p>
       </section>
 
-      <section id="steps">
-        <h2 class="chapter">7. 操作手順</h2>
-        <h3>毎日の入力</h3>
-        <ol class="steps">
-          <li><a href="daily-reports-list.html">日報一覧</a> から対象案件の「入力」を開く</li>
-          <li>対象日の開始・終了・休憩、必要なら距離と経費を入れる</li>
-          <li>時刻欄をダブルクリックすると、案件に登録した基本時刻が入る</li>
-          <li>「行保存」または上部の「一括保存」を押す</li>
-          <li>内容が正しければ状態バッジ（または「この日を確認」）で日次確認する</li>
-        </ol>
-        <h3>月の締め</h3>
-        <ol class="steps">
-          <li>未確認の日が無いか見る。上部に稼働日数などの集計が出る</li>
-          <li>「月次承認依頼」を押す。未確認が残ると警告が出る。続行できる</li>
-          <li>承認担当が内容を見て「月次承認」する。問題があれば差戻し、行に指摘を残す</li>
-          <li>差戻し後は修正して、直した日を再確認してから再申請する</li>
-          <li>「一覧へ」で月次一覧に戻る。請求・支払は精算メニューへ進む</li>
-        </ol>
+      <section id="ok">
+        <h2>確認と承認</h2>
+        <p>毎日の終わりに、その日を確認します。確認すると、時間や金額に効く欄はロックされます。直すときは確認を外してから直し、もう一度確認します。備考など一部は、確認したままでも直せます。</p>
+        <p>月の終わりに「月次承認依頼」です。未確認の日が残っていても、警告のあと進められます。承認する人は内容を見て「月次承認」か「差戻し」です。部分的な承認はありません。差戻しのあとは直した日を再確認して、もう一度依頼します。</p>
+        <p>承認が終わったら、請求・支払は精算のメニューへ進みます。</p>
       </section>
 
-      <section id="notes">
-        <h2 class="chapter">8. 注釈・注意</h2>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">
+          月次承認済みは、その案件のその月がまとめてロックされます。直すには承認の取消し（権限と理由が要ります）。あとからマスタの単価を変えても、確認済み・承認済みの中身は変わりません。
+        </div>
+        <div class="warn">
+          「日報提出」の提出済みは、この画面の入力件数からは付きません。届いたかどうかは別メニューです。
+        </div>
         <div class="note">
-          <strong>注釈。</strong> 休憩は1日の合計です。10時〜10時15分と12時〜13時のように区間登録しません。
-        </div>
-        <div class="note">
-          <strong>注釈。</strong> 料金種類を変えると、保存前でもその行の金額表示が新しい単価で更新されます。前の料金に対する一時単価は引き継ぎません。
-        </div>
-        <div class="warn">
-          <strong>注意。</strong> 日次確認済みの間は、時間・距離・単価など金額に効く項目を直せません。直すときは確認を外してから編集し、もう一度確認します。備考など一部は確認後も直せます。
-        </div>
-        <div class="warn">
-          <strong>注意。</strong> 月次承認済みは案件×月の全体がロックされます。訂正は承認の取消し（権限と理由が必要）のあとです。承認後にマスタ単価を変えても、過去の確認済み内容は変わりません。
-        </div>
-        <div class="warn">
-          <strong>注意。</strong> 「日報提出」の提出済みチェックは、この画面の入力件数から自動では付きません。受領管理は別メニューです。
+          キャプチャに「機能一覧へ」とあっても、いまの画面では出ません。戻るときは「一覧へ」か「戻る」です。
         </div>
       </section>
 
       <nav class="page-nav no-print">
-        <a href="daily-reports-list.html">日報一覧へ</a>
-        <a href="../index.html">ポータルへ</a>
+        <a href="daily-reports-list.html">日報の一覧へ</a>
+        <a href="../index.html">はじめに戻る</a>
       </nav>
-
       <footer class="colophon">
-        <p>Links-System 操作マニュアル / 日報入力 / 計算式の詳細は仕様書を参照します。</p>
+        <p>計算の細かい式は仕様書側です。</p>
       </footer>
     </main>
   </div>
