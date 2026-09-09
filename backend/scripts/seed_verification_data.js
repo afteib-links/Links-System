@@ -1329,7 +1329,7 @@ async function seed() {
       const summaryGroup = index < 12 ? String(Math.floor(index / 3) + 1).padStart(2, '0') : no;
       const billingId = await insert(conn, 'company_billings', {
         company_id: companyId,
-        billing_no: 1,
+        billing_no: 0,
         billing_print_name: name,
         billing_address: `東京都サンプル区請求宛${index % 40 + 1}`,
         billing_phone: `03-${String(3000 + index).slice(-4)}-${String(4000 + index).slice(-4)}`,
@@ -1408,6 +1408,7 @@ async function seed() {
       const baseName = baseProjectName(index);
       const baseProjectId = await insert(conn, 'base_projects', {
         company_id: company.id,
+        billing_id: company.billingId,
         partner_id: null,
         template_name: baseName,
         default_manager: '業務管理部',
