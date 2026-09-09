@@ -232,28 +232,30 @@
   .row-ops {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 2px;
     flex: 0 0 auto;
+    padding-left: 1px;
   }
   .row-ops .op-pair {
     display: flex;
     flex-direction: column;
-    width: 14px;
+    width: 16px;
   }
   .row-ops button {
     border: none;
     background: transparent;
-    color: #64748b;
+    color: #475569;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 12px;
+    font-weight: 600;
     line-height: 1;
     padding: 0;
-    height: 12px;
-    width: 14px;
+    height: 13px;
+    width: 16px;
   }
-  .row-ops button:hover { color: #1d4ed8; }
-  .row-ops button.danger:hover { color: #dc2626; }
-  .col-type { width: 9.4em; }
+  .row-ops button:hover { color: #1d4ed8; background: #eff6ff; }
+  .row-ops button.danger:hover { color: #dc2626; background: #fef2f2; }
+  .col-type { width: 10em; }
   .col-money { width: 4.2em; }
   .col-text { width: 20.5em; }
   .col-custom { width: 10em; }
