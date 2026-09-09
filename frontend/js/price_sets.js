@@ -275,10 +275,10 @@
         const distance = settings.distance_rules[side];
         return `<fieldset class="night-setting-card">
           <legend>${label}</legend>
-          <label>日次基準時間
+          <label class="night-field-standard">日次基準時間
             <input id="standard-${side}-minutes" inputmode="numeric" placeholder="8:00" value="${this.ctx.escapeHtml(this.formatDurationMinutes(workRule.standard_minutes))}" />
           </label>
-          <label>深夜帯（複数はカンマ区切り）
+          <label class="night-field-period">深夜帯（複数はカンマ区切り）
             <input id="night-${side}-periods" value="${this.ctx.escapeHtml(this.periodsText(rule.periods))}" placeholder="22:00-29:00" />
           </label>
           <label>深夜 <select id="night-${side}-mode">${modeOptions(rule.night_mode)}</select></label>
@@ -302,8 +302,8 @@
             <option value="excess_distance" ${(!distance.tier_mode || distance.tier_mode === 'excess_distance') ? 'selected' : ''}>該当段階単価×超過距離</option>
             <option value="progressive" ${distance.tier_mode === 'progressive' ? 'selected' : ''}>各段階内距離の累積</option>
           </select></label>
-          <label class="full">段階JSON（上限なしはnull、例: [{"upper_distance":100,"unit_price":10},{"upper_distance":null,"unit_price":20}]）
-            <textarea id="distance-${side}-tiers" rows="2">${this.ctx.escapeHtml(JSON.stringify(distance.tiers || []))}</textarea></label>
+          <label class="night-field-tiers">段階JSON（上限なしはnull）
+            <textarea id="distance-${side}-tiers" rows="1" title='例: [{"upper_distance":100,"unit_price":10},{"upper_distance":null,"unit_price":20}]'>${this.ctx.escapeHtml(JSON.stringify(distance.tiers || []))}</textarea></label>
         </fieldset>`;
       };
       return `<div class="night-settings-grid">
@@ -469,26 +469,32 @@
         ? `<span class="status-badge status-warning" title="${this.ctx.escapeHtml((row.undefined_variables || []).join(', '))}">下書き</span>`
         : (!admin && row.has_admin_rule ? '<span class="status-badge">管理者設定済み</span>' : '');
       const adminRules = admin ? `
-        <div class="fee-rule-admin full-row">
+        <div class="fee-rule-admin" data-rule-panel="${itemIdx}:${rowIdx}" hidden>
           <label>適用条件<input data-row-f="condition_expression" value="${this.ctx.escapeHtml(row.condition_expression || '')}" placeholder="例: total_distance > 100 AND work_minutes >= 480"></label>
           <label>請求計算式<input data-row-f="billing_expression" value="${this.ctx.escapeHtml(row.billing_expression || '')}" placeholder="空欄なら請求額を使用"></label>
           <label>支払計算式<input data-row-f="payment_expression" value="${this.ctx.escapeHtml(row.payment_expression || '')}" placeholder="空欄なら支払額を使用"></label>
         </div>` : '';
+      const ruleButton = admin
+        ? `<button type="button" class="fee-rule-toggle" data-toggle-rule="${itemIdx}:${rowIdx}" aria-expanded="false">適用条件</button>`
+        : `<button type="button" class="fee-rule-toggle" disabled>${row.has_admin_rule ? '管理者設定済み' : '適用条件'}</button>`;
       return `
         <div class="fee-rule-row" data-fee-row="${rowIdx}">
-          <div class="fee-row-actions">
-            <button type="button" title="行追加" data-add-row="${itemIdx}:${rowIdx}">＋</button>
-            <button type="button" title="行削除" data-del-row="${itemIdx}:${rowIdx}">×</button>
-            <button type="button" title="上へ" data-up-row="${itemIdx}:${rowIdx}">▲</button>
-            <button type="button" title="下へ" data-down-row="${itemIdx}:${rowIdx}">▼</button>
+          <div class="fee-rule-main">
+            <div class="fee-row-actions">
+              <button type="button" title="行追加" data-add-row="${itemIdx}:${rowIdx}">＋</button>
+              <button type="button" title="行削除" data-del-row="${itemIdx}:${rowIdx}">×</button>
+              <button type="button" title="上へ" data-up-row="${itemIdx}:${rowIdx}">▲</button>
+              <button type="button" title="下へ" data-down-row="${itemIdx}:${rowIdx}">▼</button>
+            </div>
+            <input data-row-f="item_name" value="${this.ctx.escapeHtml(row.item_name || '')}" placeholder="料金項目名">
+            <select data-row-f="item_type">${this.feeTypeOptions(row.item_type)}</select>
+            <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(row.billing))}"></span>
+            <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(row.payment))}"></span>
+            <div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(row.billing, row.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-row-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(row.billing, row.payment))}"><span>%</span>${ruleBadge}</div>
+            <input data-row-f="billing_detail_name" value="${this.ctx.escapeHtml(row.billing_detail_name || '')}" placeholder="請求詳細名">
+            <input data-row-f="payment_detail_name" value="${this.ctx.escapeHtml(row.payment_detail_name || '')}" placeholder="支払詳細名">
+            ${ruleButton}
           </div>
-          <input data-row-f="item_name" value="${this.ctx.escapeHtml(row.item_name || '')}" placeholder="料金項目名">
-          <select data-row-f="item_type">${this.feeTypeOptions(row.item_type)}</select>
-          <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(row.billing))}"></span>
-          <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(row.payment))}"></span>
-          <div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(row.billing, row.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-row-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(row.billing, row.payment))}"><span>%</span>${ruleBadge}</div>
-          <input data-row-f="billing_detail_name" value="${this.ctx.escapeHtml(row.billing_detail_name || '')}" placeholder="請求詳細名">
-          <input data-row-f="payment_detail_name" value="${this.ctx.escapeHtml(row.payment_detail_name || '')}" placeholder="支払詳細名">
           ${adminRules}
         </div>`;
     },
@@ -513,7 +519,7 @@
             </div>
           </div>
           <div class="fee-rule-scroll">
-            <div class="fee-rule-grid-head"><span>操作</span><span>料金項目名</span><span>項目種別</span><span>請求額</span><span>支払額</span><span>利益率</span><span>請求詳細名</span><span>支払詳細名</span></div>
+            <div class="fee-rule-grid-head"><span>操作</span><span>料金項目名</span><span>項目種別</span><span>請求額</span><span>支払額</span><span>利益率</span><span>請求詳細名</span><span>支払詳細名</span><span>条件</span></div>
             ${rows || '<p class="hint">料金行がありません。</p>'}
           </div>
         </article>`;
@@ -735,6 +741,14 @@
         }
         card.querySelectorAll('.weekday-chip').forEach((chip) => chip.classList.toggle('is-selected', chip.querySelector('input').checked));
       }));
+      document.querySelectorAll('[data-toggle-rule]').forEach((button) => button.addEventListener('click', () => {
+        const panel = document.querySelector(`[data-rule-panel="${button.getAttribute('data-toggle-rule')}"]`);
+        if (!panel) return;
+        const opening = panel.hidden;
+        panel.hidden = !opening;
+        button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        button.textContent = opening ? '条件を閉じる' : '適用条件';
+      }));
       document.querySelectorAll('.fee-rule-row input[data-row-f="billing"],.fee-rule-row input[data-row-f="payment"]').forEach((inp) => {
         inp.addEventListener('input', () => {
           const cell = inp.closest('.fee-rule-row');
@@ -883,21 +897,20 @@
 
       this.ctx.app.innerHTML = this.kit.shell(
         id ? `金額データ編集（No.${id}）` : '金額データ新規',
-        `${revisionToolbar}<section class="panel">
+        `${revisionToolbar}<section class="panel price-set-editor">
           <p class="error" id="form-error"></p>
           <form id="ps-form">
-            <div class="form-sections"><section class="form-section-card"><h3>基本情報・適用期間</h3><div class="form-grid form-grid-compact">
-              <div><label>名称（必須）</label><input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></div>
-              <div><label>企業</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id)}</div>
+            <div class="form-sections"><section class="form-section-card price-set-basic-card"><div class="price-set-basic-grid">
               <div><label>適用開始（必須）</label><input type="date" name="apply_start_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></div>
               <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
-              <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
+              <div><label>企業</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id)}</div>
+              <div><label>名称（必須）</label><input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></div>
             </div></section>
-            <section class="form-section-card">
+            <section class="form-section-card price-set-night-card">
             <div class="section-head"><h3 class="section-title">勤務・深夜・丸め条件</h3></div>
             ${this.nightSettingsHtml()}
             </section>
-            <section class="form-section-card">
+            <section class="form-section-card price-set-fee-card">
             ${id ? this.importBarHtml(id) : ''}
             <div class="section-head">
               <h3 class="section-title">料金カード（上から優先）</h3>
@@ -906,7 +919,8 @@
             <div id="fee-coverage-warning">${this.feeCoverageWarningHtml()}</div>
             <p class="hint">請求詳細名・支払詳細名は保存のみです。帳票への反映は後続作業で行います。</p>
             <div id="fee-items-area" class="fee-items-stack">${this.feeItemsAreaHtml()}</div>
-            </section></div>
+            </section>
+            <section class="form-section-card price-set-note-card"><label>備考<input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></label></section></div>
             <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
@@ -915,12 +929,15 @@
           </form>
         </section>
         <style>
-          .fee-items-stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
-          .fee-item-card { border: 1px solid var(--border, #ccc); padding: 0.75rem; }
-          .fee-item-head { display: grid; grid-template-columns: minmax(120px, 1fr) auto; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+          .price-set-basic-grid { display:grid; grid-template-columns:160px 160px minmax(220px,1fr) minmax(240px,1.15fr); gap:10px; align-items:end; }
+          .price-set-basic-grid label, .price-set-note-card label { display:flex; flex-direction:column; gap:4px; font-weight:700; }
+          .price-set-basic-grid input, .price-set-basic-grid select, .price-set-note-card input { width:100%; margin:0; }
+          .fee-items-stack { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.65rem; margin-top:0.5rem; }
+          .fee-item-card { border:1px solid var(--border,#ccc); padding:0.65rem !important; border-radius:7px; box-shadow:0 1px 2px rgba(16,24,40,.05); }
+          .fee-item-head { display:grid !important; grid-template-columns:minmax(120px,1fr) auto !important; gap:0.45rem !important; align-items:center; margin-bottom:0.45rem !important; }
           .fee-item-name { flex: 1; font-weight: 600; }
-          .fee-weekdays { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; align-items: center; margin-bottom: 0.5rem; }
-          .weekday-chip { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.9rem; }
+          .fee-weekdays { grid-column:1/-1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; width:100%; }
+          .weekday-chip { display:flex; justify-content:center; min-height:34px; padding:5px 3px; border-radius:6px; font-size:0.9rem; }
           .weekday-quick { display: flex; gap: 0.25rem; flex-wrap: wrap; }
           .fee-matrix-pair { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; }
           .fee-matrix-pair input { width: 100%; max-width: 7rem; }
@@ -931,15 +948,20 @@
           .fee-auto-error { min-height: 1.2rem; margin: 0.25rem 0; }
           .fee-matrix-wide th, .fee-matrix-wide td { vertical-align: top; }
           .fee-import-bar { margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-          .night-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-          .night-setting-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; border: 1px solid var(--border, #ccc); }
-          .night-setting-card > label:first-of-type { grid-column: 1 / -1; }
-          .night-setting-card label { display: flex; flex-direction: column; gap: 0.2rem; }
+          .price-set-night-card { padding:10px 16px !important; }
+          .price-set-night-card > h3 { margin:0 0 5px; }
+          .night-settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.55rem; margin-bottom:0; }
+          .night-setting-card { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px 6px; border:1px solid var(--border,#ccc); padding:6px 8px 8px; }
+          .night-setting-card label { display:flex; flex-direction:column; gap:2px; min-width:0; font-size:11px; }
+          .night-setting-card input, .night-setting-card select, .night-setting-card textarea { width:100%; min-width:0; min-height:30px; padding:4px 6px; }
+          .night-setting-card .night-field-standard { max-width:4.5rem; }
+          .night-setting-card .night-field-period { grid-column:span 2; }
+          .night-setting-card .night-field-tiers { grid-column:span 2; }
           .hint { color: var(--muted, #666); font-size: 0.9rem; }
-          @media (min-width: 1680px) { .fee-items-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
           @media (max-width: 1100px) { .fee-items-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+          @media (max-width: 900px) { .price-set-basic-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
           @media (max-width: 900px) { .night-settings-grid { grid-template-columns: 1fr; } }
-          @media (max-width: 680px) { .fee-items-stack { grid-template-columns: 1fr; } }
+          @media (max-width: 680px) { .fee-items-stack,.price-set-basic-grid { grid-template-columns:1fr; } .night-setting-card { grid-template-columns:repeat(2,minmax(0,1fr)); } .night-setting-card .night-field-tiers { grid-column:1/-1; } }
         </style>`,
         { onBack: () => this.showList() }
       );
