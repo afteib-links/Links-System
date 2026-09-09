@@ -169,17 +169,6 @@
     pointer-events: none;
   }
 
-  .fee-card-tools {
-    display: flex;
-    gap: 4px;
-    padding: 4px 6px;
-    background: #fff;
-    border-bottom: 1px solid var(--color-border);
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .fee-card-tools .btn { padding: 3px 8px; font-size: 11px; }
-
   /* Excel風グリッド */
   .excel-wrap { overflow-x: auto; }
   .excel-table {
@@ -187,7 +176,7 @@
     min-width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
   }
   .excel-table th,
@@ -203,38 +192,21 @@
     font-weight: 500;
     font-size: 12px;
     text-align: center;
-    padding: 4px 2px;
-    position: relative;
+    padding: 3px 2px;
   }
-  .excel-table th .col-tools {
-    display: flex;
-    justify-content: center;
-    gap: 1px;
-    margin-top: 2px;
-  }
-  .excel-table th .col-tools button {
-    border: none;
-    background: transparent;
-    color: #64748b;
-    cursor: pointer;
-    font-size: 10px;
-    line-height: 1;
-    padding: 0 2px;
-  }
-  .excel-table th .col-tools button:hover { color: #1d4ed8; }
-  .excel-table td.cell-pad { padding: 2px; }
+  .excel-table td.cell-pad { padding: 0 1px; }
   .excel-table input,
   .excel-table select {
     width: 100%;
     border: none;
     background: transparent;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
-    padding: 3px 4px;
+    padding: 1px 3px;
     outline: none;
     box-shadow: none;
     border-radius: 0;
-    height: 28px;
+    height: 26px;
   }
   .excel-table input:focus,
   .excel-table select:focus {
@@ -242,61 +214,83 @@
     outline: 2px solid #2563eb;
     outline-offset: -2px;
   }
-  .excel-table .money-cell input { text-align: right; font-variant-numeric: tabular-nums; }
+  .excel-table .money-cell input {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding: 1px 2px;
+  }
   .type-cell {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 1px;
   }
   .type-cell select {
     width: 6.2em;
     flex: 0 0 auto;
     padding-right: 0;
   }
-  .row-move {
+  .row-ops {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 0 0 auto;
+  }
+  .row-ops .op-pair {
     display: flex;
     flex-direction: column;
-    width: 16px;
+    width: 14px;
   }
-  .row-move button {
+  .row-ops button {
     border: none;
     background: transparent;
     color: #64748b;
     cursor: pointer;
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1;
     padding: 0;
     height: 12px;
+    width: 14px;
   }
-  .row-move button:hover { color: #1d4ed8; }
-  .col-type { width: 7.6em; }
-  .col-money { width: 5.2em; }
+  .row-ops button:hover { color: #1d4ed8; }
+  .row-ops button.danger:hover { color: #dc2626; }
+  .col-type { width: 9.4em; }
+  .col-money { width: 4.2em; }
   .col-text { width: 20.5em; }
   .col-custom { width: 10em; }
-  .col-act { width: 2.2em; text-align: center; }
   .row-extra {
     background: #f8fafc;
-    padding: 6px 8px;
-    font-size: 12px;
+    padding: 4px 6px;
+    font-size: 13px;
     border-top: 1px solid #e2e8f0;
   }
   .row-extra .pair {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 4px;
   }
   .row-extra select,
   .row-extra input {
     width: 100%;
-    font-size: 12px;
-    padding: 3px 4px;
+    font-size: 13px;
+    padding: 2px 3px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: 3px;
     height: auto;
   }
-  .tier-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  .tier-table th, .tier-table td { border: 1px solid #cbd5e1; padding: 2px 4px; font-size: 11px; }
-  .tier-table th { background: #f1f5f9; }
+  .tier-table { width: auto; border-collapse: collapse; margin-top: 4px; table-layout: fixed; }
+  .tier-table th, .tier-table td { border: 1px solid #cbd5e1; padding: 0 1px; font-size: 13px; }
+  .tier-table th { background: #f1f5f9; font-size: 11px; padding: 2px; text-align: center; }
+  .tier-table .col-km { width: 3.6em; }
+  .tier-table .col-yen { width: 4.2em; }
+  .tier-table .col-tier-act { width: 1.6em; text-align: center; }
+  .tier-table input {
+    width: 100%;
+    border: none;
+    font-size: 13px;
+    padding: 1px 2px;
+    height: 24px;
+    text-align: right;
+  }
   .preview-box {
     margin-top: 14px;
     padding: 10px 12px;
@@ -348,7 +342,7 @@
 
   <div class="page-body">
     <div class="ux-banner">
-      計画26の画面イメージ。カードは横3列想定。入力はExcel風セル。項目種別6文字／詳細名全角20／金額最大6桁。列は見出しの◀▶で移動、＋列で追加。
+      計画26の画面イメージ。カード横3列・Excel風。行左の＋／×で追加・削除（×は確認）、▲▼で上下移動。金額はカンマ付き最大6桁。
     </div>
 
     <div class="meta-grid">
@@ -376,10 +370,7 @@
 
     <div class="section-toolbar">
       <p class="hint">不足控除は「時間単価」行を使用。カード右端アイコン＝コピー／削除。</p>
-      <div class="flex gap-2">
-        <button type="button" class="btn btn-ghost btn-sm" id="addColBtn">＋ 列</button>
-        <button type="button" class="btn btn-primary btn-sm" id="addCardBtn">＋ 料金カード</button>
-      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="addCardBtn">＋ 料金カード</button>
     </div>
 
     <div id="cardsArea" class="cards-grid"></div>
@@ -542,22 +533,27 @@
     return 'col-custom';
   }
 
-  function headerCell(col, idx) {
-    const move = `<div class="col-tools">
-      <button type="button" data-act="colLeft" data-coli="${idx}" title="左へ">◀</button>
-      <button type="button" data-act="colRight" data-coli="${idx}" title="右へ">▶</button>
-      ${col.kind === 'custom' ? `<button type="button" data-act="colDel" data-coli="${idx}" title="列削除">×</button>` : ''}
-    </div>`;
-    return `<th class="${colClass(col)}">${escapeHtml(col.label)}${move}</th>`;
+  function headerCell(col) {
+    return `<th class="${colClass(col)}">${escapeHtml(col.label)}</th>`;
+  }
+
+  function formatMoney(n) {
+    return Number(n || 0).toLocaleString('ja-JP');
   }
 
   function cellHtml(col, r, ci, ri) {
     if (col.kind === 'type') {
       return `<td class="col-type cell-pad">
         <div class="type-cell">
-          <div class="row-move">
-            <button type="button" data-act="rowUp" data-ci="${ci}" data-ri="${ri}" title="上へ">▲</button>
-            <button type="button" data-act="rowDown" data-ci="${ci}" data-ri="${ri}" title="下へ">▼</button>
+          <div class="row-ops">
+            <div class="op-pair">
+              <button type="button" data-act="addRow" data-ci="${ci}" data-ri="${ri}" title="行追加">＋</button>
+              <button type="button" class="danger" data-act="delRow" data-ci="${ci}" data-ri="${ri}" title="行削除">×</button>
+            </div>
+            <div class="op-pair">
+              <button type="button" data-act="rowUp" data-ci="${ci}" data-ri="${ri}" title="上へ">▲</button>
+              <button type="button" data-act="rowDown" data-ci="${ci}" data-ri="${ri}" title="下へ">▼</button>
+            </div>
           </div>
           <select data-f="item_type" data-ci="${ci}" data-ri="${ri}">${typeOptions(r.item_type)}</select>
         </div>
@@ -566,7 +562,7 @@
     if (col.kind === 'money') {
       const v = r[col.id] ?? 0;
       return `<td class="col-money money-cell cell-pad">
-        <input type="text" inputmode="numeric" maxlength="6" data-f="${col.id}" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(String(v))}">
+        <input type="text" inputmode="numeric" data-f="${col.id}" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(formatMoney(v))}">
       </td>`;
     }
     if (col.kind === 'text') {
@@ -595,7 +591,7 @@
           </div>
           <div>
             <label class="hint">基準km</label>
-            <input type="number" data-f="distBase" data-ci="${ci}" data-ri="${ri}" value="${dist.base_km || 0}">
+            <input type="text" inputmode="numeric" data-f="distBase" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(formatMoney(dist.base_km || 0))}">
           </div>
         </div>
       </div>`;
@@ -603,10 +599,10 @@
     if (r.item_type === 'table') {
       const tbl = r.table || { tier_mode: 'excess_unit', tiers: [{ upTo: '', billing: 0, payment: 0 }] };
       const tiers = (tbl.tiers || []).map((t, ti) => `<tr>
-        <td><input type="number" placeholder="上限なし" data-f="tierUp" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.upTo}"></td>
-        <td><input type="number" data-f="tierBill" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.billing}"></td>
-        <td><input type="number" data-f="tierPay" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.payment}"></td>
-        <td><button type="button" class="btn btn-ghost btn-sm" data-act="delTier" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}">削</button></td>
+        <td class="col-km"><input type="text" inputmode="numeric" placeholder="—" data-f="tierUp" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.upTo === '' || t.upTo == null ? '' : escapeAttr(formatMoney(t.upTo))}"></td>
+        <td class="col-yen"><input type="text" inputmode="numeric" data-f="tierBill" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${escapeAttr(formatMoney(t.billing))}"></td>
+        <td class="col-yen"><input type="text" inputmode="numeric" data-f="tierPay" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${escapeAttr(formatMoney(t.payment))}"></td>
+        <td class="col-tier-act"><button type="button" class="row-ops danger" data-act="delTier" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" title="段階削除" style="font-size:12px">×</button></td>
       </tr>`).join('');
       return `<div class="row-extra">
         <label class="hint">計算型</label>
@@ -617,7 +613,7 @@
           <option value="fixed" ${tbl.tier_mode === 'fixed' ? 'selected' : ''}>固定額</option>
         </select>
         <table class="tier-table">
-          <thead><tr><th>〜km</th><th>請求</th><th>支払</th><th></th></tr></thead>
+          <thead><tr><th class="col-km">〜km</th><th class="col-yen">請求</th><th class="col-yen">支払</th><th class="col-tier-act"></th></tr></thead>
           <tbody>${tiers}</tbody>
         </table>
         <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px" data-act="addTier" data-ci="${ci}" data-ri="${ri}">＋段階</button>
@@ -627,12 +623,12 @@
   }
 
   function cardHtml(card, ci) {
-    const heads = columns.map((c, i) => headerCell(c, i)).join('') + '<th class="col-act"></th>';
+    const heads = columns.map((c) => headerCell(c)).join('');
     const body = card.rows.map((r, ri) => {
       const cells = columns.map((c) => cellHtml(c, r, ci, ri)).join('');
       const extra = extraHtml(r, ci, ri);
-      return `<tr>${cells}<td class="col-act cell-pad"><button type="button" class="icon-btn danger" data-act="delRow" data-ci="${ci}" data-ri="${ri}" data-tip="行削除" style="width:20px;height:20px;margin:2px auto;display:flex">×</button></td></tr>
-      ${extra ? `<tr><td colspan="${columns.length + 1}" style="padding:0;border:none">${extra}</td></tr>` : ''}`;
+      return `<tr>${cells}</tr>
+      ${extra ? `<tr><td colspan="${columns.length}" style="padding:0;border:none">${extra}</td></tr>` : ''}`;
     }).join('');
 
     return `<article class="fee-card" data-card="${ci}">
@@ -649,14 +645,10 @@
           </div>
         </div>
       </div>
-      <div class="fee-card-tools">
-        <button type="button" class="btn btn-ghost btn-sm" data-act="addRow" data-ci="${ci}">＋ 行</button>
-        <span class="hint">見出し◀▶で列移動</span>
-      </div>
       <div class="excel-wrap">
         <table class="excel-table">
           <thead><tr>${heads}</tr></thead>
-          <tbody>${body || `<tr><td colspan="${columns.length + 1}" class="hint" style="padding:10px">行なし</td></tr>`}</tbody>
+          <tbody>${body || `<tr><td colspan="${columns.length}" class="hint" style="padding:8px">行なし（＋で追加）</td></tr>`}</tbody>
         </table>
       </div>
     </article>`;
@@ -712,6 +704,7 @@
     document.querySelectorAll('[data-f]').forEach((el) => {
       el.addEventListener('change', onField);
       el.addEventListener('input', onField);
+      el.addEventListener('blur', onField);
     });
     document.querySelectorAll('[data-act]').forEach((el) => {
       el.addEventListener('click', onAct);
@@ -748,7 +741,7 @@
     if (f === 'billing' || f === 'payment') {
       const n = clampMoney(el.value);
       rowObj[f] = n;
-      if (el.value !== String(n)) el.value = String(n);
+      if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(n);
       updatePreview();
       return;
     }
@@ -769,7 +762,8 @@
     }
     if (f === 'distBase') {
       rowObj.distance = rowObj.distance || {};
-      rowObj.distance.base_km = Number(el.value || 0);
+      rowObj.distance.base_km = clampMoney(el.value);
+      if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(rowObj.distance.base_km);
     }
     if (f === 'tierMode') {
       rowObj.table = rowObj.table || { tiers: [] };
@@ -779,9 +773,19 @@
       const ti = Number(el.dataset.ti);
       const t = rowObj.table.tiers[ti];
       if (!t) return;
-      if (f === 'tierUp') t.upTo = el.value === '' ? '' : Number(el.value);
-      if (f === 'tierBill') t.billing = clampMoney(el.value);
-      if (f === 'tierPay') t.payment = clampMoney(el.value);
+      if (f === 'tierUp') {
+        const raw = String(el.value || '').replace(/[^\d]/g, '');
+        t.upTo = raw === '' ? '' : Number(raw.slice(0, 6));
+        if (e.type === 'blur' || e.type === 'change') el.value = t.upTo === '' ? '' : formatMoney(t.upTo);
+      }
+      if (f === 'tierBill') {
+        t.billing = clampMoney(el.value);
+        if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(t.billing);
+      }
+      if (f === 'tierPay') {
+        t.payment = clampMoney(el.value);
+        if (e.type === 'blur' || e.type === 'change') el.value = formatMoney(t.payment);
+      }
     }
     updatePreview();
   }
@@ -791,30 +795,7 @@
     const act = el.dataset.act;
     const ci = Number(el.dataset.ci);
     const ri = Number(el.dataset.ri);
-    const coli = Number(el.dataset.coli);
 
-    if (act === 'colLeft' && coli > 0) {
-      const t = columns[coli - 1];
-      columns[coli - 1] = columns[coli];
-      columns[coli] = t;
-      render();
-      return;
-    }
-    if (act === 'colRight' && coli < columns.length - 1) {
-      const t = columns[coli + 1];
-      columns[coli + 1] = columns[coli];
-      columns[coli] = t;
-      render();
-      return;
-    }
-    if (act === 'colDel') {
-      const col = columns[coli];
-      if (col && col.kind === 'custom') {
-        columns.splice(coli, 1);
-        render();
-      }
-      return;
-    }
     if (act === 'rowUp' && ri > 0) {
       const a = cards[ci].rows;
       [a[ri - 1], a[ri]] = [a[ri], a[ri - 1]];
@@ -829,11 +810,14 @@
     }
     if (act === 'addRow') {
       const name = cards[ci].name || '料金';
-      cards[ci].rows.push(row('unit', 0, 0, (name + ' 項目').slice(0, 20), (name + ' 項目').slice(0, 20)));
+      const insertAt = Number.isFinite(ri) ? ri + 1 : cards[ci].rows.length;
+      cards[ci].rows.splice(insertAt, 0, row('unit', 0, 0, (name + ' 項目').slice(0, 20), (name + ' 項目').slice(0, 20)));
       render();
       return;
     }
     if (act === 'delRow') {
+      const label = cards[ci].rows[ri]?.billing_detail_name || cards[ci].rows[ri]?.item_type || 'この行';
+      if (!window.confirm(`「${label}」を削除しますか？`)) return;
       cards[ci].rows.splice(ri, 1);
       render();
       return;
@@ -848,6 +832,7 @@
       return;
     }
     if (act === 'delCard') {
+      if (!window.confirm(`カード「${cards[ci].name || ''}」を削除しますか？`)) return;
       cards.splice(ci, 1);
       render();
       return;
@@ -860,6 +845,7 @@
       return;
     }
     if (act === 'delTier') {
+      if (!window.confirm('この段階行を削除しますか？')) return;
       cards[ci].rows[ri].table.tiers.splice(Number(el.dataset.ti), 1);
       render();
     }
@@ -917,18 +903,6 @@
       name: '新しい料金',
       weekdays: w,
       rows: [row('daily_basic', 0, 0, '', '')]
-    });
-    render();
-  };
-
-  document.getElementById('addColBtn').onclick = () => {
-    const n = columns.filter((c) => c.kind === 'custom').length + 1;
-    const label = window.prompt('追加する列名（全角20文字まで）', `追加列${n}`);
-    if (!label) return;
-    columns.push({
-      id: 'custom_' + nextId('x'),
-      label: label.slice(0, 20),
-      kind: 'custom'
     });
     render();
   };
