@@ -40,7 +40,9 @@ function feeItemMatchesDate(item, workDate, holidayState = false) {
     : { is_holiday: Boolean(holidayState), is_project_holiday: false };
   const weekday = jsWeekdayCode(workDate);
   if (item.weekdays?.all) return true;
-  if (state.is_project_holiday) return Boolean(item.weekdays?.project_holiday);
+  if (state.is_project_holiday) {
+    return Boolean(item.weekdays?.project_holiday || (!Array.isArray(item.rows) && item.weekdays?.holiday));
+  }
   if (state.is_holiday) return Boolean(item.weekdays?.holiday);
   return Boolean(item.weekdays?.[weekday] || (item.weekdays?.weekday && !['sat', 'sun'].includes(weekday)));
 }

@@ -37,6 +37,8 @@ test('案件休日・ALL・カード順の選択規則を適用する', () => {
   assert.equal(resolveFeeItem(items, '2026-08-31', null, false, { is_project_holiday: true }).item.id, 'rest');
   assert.equal(resolveFeeItem(items, '2026-09-01', null, false, {}).item.id, 'all');
   assert.equal(resolveFeeItem([{ ...items[2], id: 'first' }, { ...items[2], id: 'second' }], '2026-09-01').item.id, 'first');
+  const legacy = [{ id: 'legacy-holiday', mode: 'weekdays', weekdays: { holiday: true } }];
+  assert.equal(resolveFeeItem(legacy, '2026-08-31', null, false, { is_project_holiday: true }).item.id, 'legacy-holiday');
 });
 
 test('新規案件相当の深夜帯・丸め既定値を補完する', () => {
