@@ -28,6 +28,17 @@ test('登録休日は実際の曜日より休日料金を優先し、手動選�
   assert.equal(manual.source, 'manual');
 });
 
+test('案件休日・ALL・カード順の選択規則を適用する', () => {
+  const items = [
+    { id: 'weekday', rows: [{ item_type: 'daily_basic' }], weekdays: { mon: true } },
+    { id: 'rest', rows: [{ item_type: 'daily_basic' }], weekdays: { project_holiday: true } },
+    { id: 'all', rows: [{ item_type: 'daily_basic' }], weekdays: { all: true } },
+  ];
+  assert.equal(resolveFeeItem(items, '2026-08-31', null, false, { is_project_holiday: true }).item.id, 'rest');
+  assert.equal(resolveFeeItem(items, '2026-09-01', null, false, {}).item.id, 'all');
+  assert.equal(resolveFeeItem([{ ...items[2], id: 'first' }, { ...items[2], id: 'second' }], '2026-09-01').item.id, 'first');
+});
+
 test('新規案件相当の深夜帯・丸め既定値を補完する', () => {
   const config = normalizeConfig({});
   assert.deepEqual(config.night_rules.billing.periods, [{ start: '22:00', end: '29:00' }]);

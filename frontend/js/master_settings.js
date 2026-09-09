@@ -1,6 +1,7 @@
 (() => {
   const CODE_CATEGORIES = [
     { key: 'price_type', label: '料金種別' },
+    { key: 'fee_item_type', label: '料金項目種別' },
     { key: 'overtime_calc', label: '残業計算区分' },
     { key: 'price_calc_type', label: '料金計算区分' },
   ];

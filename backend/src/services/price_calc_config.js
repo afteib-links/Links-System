@@ -33,19 +33,26 @@ function dayTypesForWorkDate(workDate, isHoliday = false) {
   return ['weekday', code];
 }
 
-function feeItemMatchesDate(item, workDate, isHoliday = false) {
+function feeItemMatchesDate(item, workDate, holidayState = false) {
   if (!feeItemHasSupportedCalc(item)) return false;
-  if (isHoliday) return Boolean(item.weekdays?.holiday || item.weekdays?.all);
+  const state = typeof holidayState === 'object'
+    ? holidayState
+    : { is_holiday: Boolean(holidayState), is_project_holiday: false };
   const weekday = jsWeekdayCode(workDate);
-  return Boolean(
-    item.weekdays?.[weekday] ||
-    item.weekdays?.all ||
-    (item.weekdays?.weekday && !['sat', 'sun'].includes(weekday))
-  );
+  if (item.weekdays?.all) return true;
+  if (state.is_project_holiday) return Boolean(item.weekdays?.project_holiday);
+  if (state.is_holiday) return Boolean(item.weekdays?.holiday);
+  return Boolean(item.weekdays?.[weekday] || (item.weekdays?.weekday && !['sat', 'sun'].includes(weekday)));
 }
 
 function feeItemHasSupportedCalc(item) {
   if (!item || item.mode === 'distance') return false;
+  if (Array.isArray(item.rows)) {
+    return item.rows.some((row) =>
+      row?.rule_state !== 'draft' &&
+      ['daily_basic', 'hourly', 'overtime', 'night', 'night_overtime'].includes(String(row?.item_type || ''))
+    );
+  }
   const calcTypes = Array.isArray(item.calc_types) && item.calc_types.length
     ? item.calc_types
     : Object.keys(item.matrix || {}).length
@@ -54,7 +61,7 @@ function feeItemHasSupportedCalc(item) {
   return calcTypes.some((type) => type === 'daily' || type === 'hourly');
 }
 
-function resolveFeeItem(items, workDate, selectedId, isTraining = false, isHoliday = false) {
+function resolveFeeItem(items, workDate, selectedId, isTraining = false, holidayState = false) {
   if (selectedId) {
     const selected = items.find((item) => String(item.id) === String(selectedId) && feeItemHasSupportedCalc(item));
     if (selected) return { item: selected, source: 'manual' };
@@ -63,8 +70,8 @@ function resolveFeeItem(items, workDate, selectedId, isTraining = false, isHolid
     const training = items.find((item) => feeItemHasSupportedCalc(item) && String(item.name || '').includes('研修'));
     if (training) return { item: training, source: 'auto' };
   }
-  const matched = items.find((item) => feeItemMatchesDate(item, workDate, isHoliday));
-  return { item: matched || items.find((item) => feeItemHasSupportedCalc(item)) || null, source: 'auto' };
+  const matched = items.find((item) => feeItemMatchesDate(item, workDate, holidayState));
+  return { item: matched || null, source: 'auto' };
 }
 
 function normalizeConfig(extraData) {
