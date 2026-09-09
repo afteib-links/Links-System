@@ -1089,6 +1089,22 @@ async function resetBusinessData() {
     await removeWhere('advance_payments', 'project_id', projectIds);
     await removeWhere('daily_report_confirmation_snapshots', 'daily_report_id', reportIds);
     await removeWhere('daily_report_audit_logs', 'daily_report_id', reportIds);
+    if (projectIds.length) {
+      const [closingWorkflows] = await conn.query(
+        `SELECT monthly_closing_workflow_id FROM monthly_closing_workflows WHERE project_id IN (${marks(projectIds)})`,
+        projectIds
+      );
+      await removeWhere(
+        'monthly_closing_reviewers',
+        'monthly_closing_workflow_id',
+        closingWorkflows.map((row) => row.monthly_closing_workflow_id)
+      );
+      await removeWhere('monthly_closing_workflows', 'project_id', projectIds);
+    }
+    await removeWhere('settlement_invalidation_requests', 'settlement_id', invoiceIds);
+    await removeWhere('settlement_invalidation_requests', 'settlement_id', paymentIds);
+    await removeWhere('invoice_consolidation_sources', 'parent_invoice_id', invoiceIds);
+    await removeWhere('invoice_consolidation_sources', 'source_invoice_id', invoiceIds);
     await removeWhere('daily_report_monthly_approvals', 'project_id', projectIds);
     await removeWhere('daily_report_submissions', 'project_id', projectIds);
     await removeWhere('daily_reports', 'daily_report_id', reportIds);
