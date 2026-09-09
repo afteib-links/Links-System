@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>マスター設定 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>マスター設定</h1>
+      <p class="meta">左メニュー<br>設定 → マスター設定</p>
+      <ol>
+        <li><a href="#look">ハブ</a></li>
+        <li><a href="#system">システム設定の例</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">設定 → マスター設定</p>
+        <h1>マスター設定</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">ハブ</h2>
+        <p class="lead">担当者、事業所、採番、区分、祝日、振込手数料、銀行CSV、振込元口座など、会社全体の土台です。管理者・システム担当者・総務が使います。各カードの「？」がヘルプです。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/master-hub-main.png" alt="マスター設定のハブ">
+          <figcaption>使いたいマスタのカードを開きます。</figcaption>
+        </figure>
+      </section>
+      <section id="system">
+        <h2>システム設定の例</h2>
+        <figure class="shot">
+          <img src="../screenshots/crops/master-system-form.png" alt="システム設定">
+          <figcaption>日報の文字サイズや土曜・休日の色、増減の刻みはここで変えます。全案件共通です。</figcaption>
+        </figure>
+        <p>祝日と案件休日は、日報の色と料金の自動候補に使います。同じ日に両方あるときは、案件独自が判定の根拠です。適用する料金区分は1つだけです。</p>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">ここを変えると、これから入力する日報や帳票の見た目・候補に効きます。過去の確認済み日報や発行済みPDFは、当時の内容のままです。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="analytics.html">収支分析へ</a>
+        <a href="ui-builder.html">UIビルダーへ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

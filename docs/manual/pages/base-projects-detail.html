@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基本案件の詳細 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>基本案件の詳細</h1>
+      <p class="meta">ひな形の中身を入れる画面</p>
+      <ol>
+        <li><a href="#look">開くとこう見えます</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">マスタ → 基本案件 → 編集</p>
+        <h1>基本案件の詳細</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">開くとこう見えます</h2>
+        <p class="lead">企業、テンプレ名、開始・終了の目安、締日、休憩などをひな形として持ちます。下に、このひな形から作った個別案件の一覧も出ます。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/base-form.png" alt="基本案件の入力">
+          <figcaption>企業とテンプレ名は必須です。開始・終了時刻は、あとで日報のダブルクリックに使います。</figcaption>
+        </figure>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>企業</th><td>必須。名前の一部で探せます</td></tr>
+            <tr><th>テンプレ名</th><td>必須。一覧に出る仕事の名前</td></tr>
+            <tr><th>開始 / 終了 / 休憩</th><td>日報入力の初期値</td></tr>
+            <tr><th>締日</th><td>請求・日報提出・先払のサイクルの元</td></tr>
+            <tr><th>支払区分</th><td>通常か分割。分割は先払い画面に出ます</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="note">金額（単価）は金額データ側です。ひな形だけでは日報の計算は動きません。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="base-projects-list.html">基本案件の一覧へ</a>
+        <a href="projects-list.html">個別案件へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

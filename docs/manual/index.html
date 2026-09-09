@@ -16,10 +16,11 @@
         <li><a href="#intro">はじめに</a></li>
         <li><a href="#look">画面の場所</a></li>
         <li><a href="#flow">仕事の順番</a></li>
-        <li><a href="#now">いま読めるページ</a></li>
+        <li><a href="#now">ページ一覧</a></li>
       </ol>
       <div class="print-actions no-print">
         <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="pages/companies-list.html">企業マスタへ</a>
         <a class="cross-link" href="pages/daily-reports-list.html">日報の一覧へ</a>
         <a class="cross-link" href="developer.html">開発者向け</a>
       </div>
@@ -78,22 +79,33 @@
             <img src="screenshots/crops/grid-main.png" alt="日報入力">
             <span>2. 日付ごとに時間と経費を入れる</span>
           </a>
-          <div class="thumb">
-            <img src="screenshots/17_invoices_list.png" alt="請求一覧">
-            <span>3. 承認のあと、請求・支払へ（準備中）</span>
-          </div>
+          <a href="pages/invoices-list.html">
+            <img src="screenshots/crops/invoices-list.png" alt="請求一覧">
+            <span>3. 承認のあと、請求・支払へ</span>
+          </a>
         </div>
-        <p>マスタ（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）が先です。案件が無い月は、日報の一覧が空になります。月次承認が終わるまで、請求・支払の本番確定には使いません。</p>
+        <p>マスタ（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）が先です。横断して見たいときは <a href="pages/base-management.html">基本管理</a> と <a href="pages/office-work.html">事務作業</a> もあります。案件が無い月は、日報の一覧が空になります。月次承認が終わるまで、請求・支払の本番確定には使いません。</p>
       </section>
 
       <section id="now">
-        <h2>いま読めるページ</h2>
-        <p>いまは日報だけ、画面つきで書いてあります。ほかの機能は、同じ書き方で足していきます。</p>
+        <h2>ページ一覧</h2>
+        <p>画面つきで書いてあります。一覧と詳細がある機能は、ページが分かれています。</p>
         <table>
           <thead><tr><th>読みたいこと</th><th>ページ</th></tr></thead>
           <tbody>
-            <tr><th>案件を探す・進捗を見る</th><td><a href="pages/daily-reports-list.html">日報の一覧</a></td></tr>
-            <tr><th>時間や距離を入れる</th><td><a href="pages/daily-reports-input.html">日報の入力</a></td></tr>
+            <tr><th>会社の台帳</th><td><a href="pages/companies-list.html">企業 一覧</a> / <a href="pages/companies-detail.html">詳細</a></td></tr>
+            <tr><th>ドライバー・外注</th><td><a href="pages/partners-list.html">パートナー 一覧</a> / <a href="pages/partners-detail.html">詳細</a></td></tr>
+            <tr><th>仕事のひな形</th><td><a href="pages/base-projects-list.html">基本案件 一覧</a> / <a href="pages/base-projects-detail.html">詳細</a></td></tr>
+            <tr><th>動いている契約</th><td><a href="pages/projects-list.html">個別案件 一覧</a> / <a href="pages/projects-detail.html">詳細</a></td></tr>
+            <tr><th>単価</th><td><a href="pages/price-sets-list.html">金額データ 一覧</a> / <a href="pages/price-sets-detail.html">詳細</a></td></tr>
+            <tr><th>横断してたどる</th><td><a href="pages/base-management.html">基本管理</a> / <a href="pages/office-work.html">事務作業</a></td></tr>
+            <tr><th>日報</th><td><a href="pages/daily-reports-list.html">一覧</a> / <a href="pages/daily-reports-input.html">入力</a> / <a href="pages/daily-report-submissions.html">提出</a></td></tr>
+            <tr><th>先払い</th><td><a href="pages/advances.html">先払い</a></td></tr>
+            <tr><th>請求</th><td><a href="pages/invoices-list.html">一覧</a> / <a href="pages/invoices-detail.html">詳細</a></td></tr>
+            <tr><th>支払</th><td><a href="pages/payments-list.html">一覧</a> / <a href="pages/payments-detail.html">詳細</a></td></tr>
+            <tr><th>入出金</th><td><a href="pages/cash-management.html">入出金管理・FB出力</a></td></tr>
+            <tr><th>収支</th><td><a href="pages/analytics.html">収支分析</a></td></tr>
+            <tr><th>設定</th><td><a href="pages/master-settings.html">マスター設定</a> / <a href="pages/ui-builder.html">UIビルダー</a> / <a href="pages/users.html">ユーザー</a></td></tr>
           </tbody>
         </table>
         <p>このHTMLは説明用です。実際の操作はアプリ側（社内LANなら <code>http://&lt;NASのIP&gt;:8080</code>）で行います。画面の数字は検証用で、実在のお客さまではありません。</p>
@@ -101,7 +113,7 @@
 
       <nav class="page-nav no-print">
         <span></span>
-        <a href="pages/daily-reports-list.html">日報の一覧を見る</a>
+        <a href="pages/companies-list.html">マスタから読む</a>
       </nav>
       <footer class="colophon">
         <p>計算の細かい式や、NASの起動手順はこの冊子の対象外です。</p>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>パートナーマスタの詳細 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>パートナーの詳細</h1>
+      <p class="meta">一覧の「編集」から開く画面</p>
+      <ol>
+        <li><a href="#look">開くとこう見えます</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">マスタ → パートナーマスタ → 編集</p>
+        <h1>パートナーの詳細</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">開くとこう見えます</h2>
+        <p class="lead">1人分の台帳です。支払の口座、免許、保険、先払い対象、持ち車両をここで持ちます。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/partners-form.png" alt="パートナーの入力フォーム">
+          <figcaption>名称は必須です。口座名義カナは振込ファイル用です。</figcaption>
+        </figure>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>名称</th><td>必須。日報や支払に出る名前</td></tr>
+            <tr><th>振込手数料</th><td>パターンを選ぶ。未設定は0円</td></tr>
+            <tr><th>先払い対象</th><td>付けると先払い画面の候補になる</td></tr>
+            <tr><th>確定申告など</th><td>支払の控除の前提。空のままだと後で困る項目がある</td></tr>
+            <tr><th>口座</th><td>銀行コード4桁、支店3桁、名義カナ</td></tr>
+            <tr><th>車両</th><td>パートナー持ちの車。案件の車両候補になる</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">口座番号や実名の検証データ以外を、マニュアル用の画面キャプチャへ残さないでください。アプリ側の実データも、リポジトリには入れません。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="partners-list.html">パートナーの一覧へ</a>
+        <a href="base-projects-list.html">基本案件へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

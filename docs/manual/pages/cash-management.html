@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>入出金管理 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>入出金管理・FB出力</h1>
+      <p class="meta">左メニュー<br>精算 → 入出金管理・FB出力</p>
+      <ol>
+        <li><a href="#look">まず、この画面</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#use">よくある使い方</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">精算 → 入出金管理・FB出力</p>
+        <h1>入出金管理・FB出力</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">まず、この画面</h2>
+        <p class="lead">管理回ごとの入金・出金の予定と実績です。カレンダーと一覧を切り替えます。管理者・経営者・総務が使います。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/cash-main.png" alt="入出金のカレンダーと一覧">
+          <figcaption>月を合わせ、カレンダーか一覧で予定を見ます。請求・支払・先払の確定から予定が乗ります。</figcaption>
+        </figure>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>実績</th><td>入金した・振り込んだ日と金額</td></tr>
+            <tr><th>調整台帳</th><td>口座の期首残高や、自動では乗らない調整。請求・支払・先払の自動反映とは別</td></tr>
+            <tr><th>CSV</th><td>銀行向けの出金ファイル。正式FBは後続</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="use">
+        <h2>よくある使い方</h2>
+        <div class="example">
+          <p class="label">25日回の振込を出す</p>
+          <p>対象月と回を合わせ、出金予定を確認してCSVを出力します。土日祝は営業日にずれます。</p>
+        </div>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">確定を取り消すと、まだ動いていない予定は消えます。再確定しても同じ予定は復活せず、新しい予定になります。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="payments-detail.html">支払へ</a>
+        <a href="analytics.html">収支分析へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基本管理 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>基本管理</h1>
+      <p class="meta">左メニュー<br>マスタ → 基本管理</p>
+      <ol>
+        <li><a href="#look">この画面の役割</a></li>
+        <li><a href="#use">使い方</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">マスタ → 基本管理</p>
+        <h1>基本管理</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">この画面の役割</h2>
+        <p class="lead">企業 → 基本案件 → 個別案件 → 金額データを、列を並べてたどる画面です。台帳そのものを細かく直すというより、「この会社のこの仕事はどれか」を見失わないための入口です。</p>
+        <p>いまのところ専用のキャプチャは無いので、見た目は企業・案件の一覧に近い列が横に並びます。列の行をクリックすると、次の列が絞られます。</p>
+      </section>
+      <section id="use">
+        <h2>使い方</h2>
+        <p>左の企業を選ぶ → その会社の基本案件 → 個別案件 → 金額データ、の順です。選んだ行の編集は、それぞれのマスタ画面でも開けます。</p>
+        <div class="example">
+          <p class="label">例：東都物流の単価を確認する</p>
+          <p>企業で東都物流を選び、基本案件、個別案件と進み、金額データを開きます。</p>
+        </div>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="note">権限は企業マスタと同じ系統（管理者・システム担当者・総務）です。詳細の入力項目は、企業・案件・金額データの各ページを見てください。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="price-sets-detail.html">金額データへ</a>
+        <a href="office-work.html">事務作業へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

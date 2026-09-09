@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>請求の一覧 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>請求の一覧</h1>
+      <p class="meta">左メニュー<br>精算 → 請求</p>
+      <ol>
+        <li><a href="#look">まず、この画面</a></li>
+        <li><a href="#make">下書きを作る</a></li>
+        <li><a href="#open">作成済みを開く</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">精算 → 請求</p>
+        <h1>請求の一覧</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">まず、この画面</h2>
+        <p class="lead">上段が「今月の案件（請求対象）」、下段が「すでに作った請求書」です。月次承認済みの日報が、本番の根拠になります。管理者・経営者・総務・営業・企業権限（自社分）が使えます。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/invoices-main.png" alt="請求対象と作成済み一覧">
+          <figcaption>対象月を合わせて、請求可能な案件から下書きを作ります。</figcaption>
+        </figure>
+      </section>
+      <section id="make">
+        <h2>下書きを作る</h2>
+        <p>1件なら行の「下書き作成」。複数件はチェックして「選択案件から請求書を作成」です。まとめられるのは、請求先・取纏番号・締日が同じ案件だけです。</p>
+        <div class="example">
+          <p class="label">同じ請求先の2案件を1枚にする</p>
+          <p>両方にチェックを付けて作成します。条件が違うと警告が出て作れません。</p>
+        </div>
+      </section>
+      <section id="open">
+        <h2>作成済みを開く</h2>
+        <p>下の表の「開く」が <a href="invoices-detail.html">請求書の詳細</a> です。状態で絞れます（作成中、営業確認済み、最終確定、取消済み）。</p>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="note">日報がまだでも行は出ます。ただし本番確定はできません。税のエラーが出ている行は下書きできません。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="advances.html">先払いへ</a>
+        <a href="invoices-detail.html">請求書の詳細へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>
