@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日報提出 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>日報提出</h1>
+      <p class="meta">左メニュー<br>日々の運用 → 日報提出</p>
+      <ol>
+        <li><a href="#look">まず、この画面</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#use">よくある使い方</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">日々の運用 → 日報提出</p>
+        <h1>日報提出</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">まず、この画面</h2>
+        <p class="lead">パートナーから届いた日報の<strong>受領</strong>を、案件×月3回で見る画面です。勤務時間の入力ではありません。日報の入力件数からは自動で「提出済み」になりません。</p>
+        <figure class="shot">
+          <img src="../screenshots/26_submissions.png" alt="日報提出のマトリクス">
+          <figcaption>先払いと同じ骨格の表です。掲載は画面イメージです。左はパートナー名が主、企業名は補助です。</figcaption>
+        </figure>
+        <p>管理者・システム担当者・総務・営業・経営者。パートナーや企業の権限には出ません。</p>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>提出トグル</th><td>ONにすると提出日へ今日が入る。OFFで空</td></tr>
+            <tr><th>提出日</th><td>届いた日。未来は不可。手でも直せます</td></tr>
+            <tr><th>遅延日数</th><td>自動。0〜365で手修正可。トグルや提出日を変えると自動に戻る</td></tr>
+            <tr><th>猶予日</th><td>全社共通。期限は提出予定日＋猶予日</td></tr>
+          </tbody>
+        </table>
+        <p>提出予定日は、対象期間の最終日の翌日（暦日。土日祝の繰りはありません）。3サイクルとも入力対象で、「不要」セルはありません。</p>
+      </section>
+      <section id="use">
+        <h2>よくある使い方</h2>
+        <div class="example">
+          <p class="label">FAXが届いたらトグルをON</p>
+          <p>該当するサイクルの提出をONにします。提出日が今日でよければそのままで、違う日なら提出日だけ直します。</p>
+        </div>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">日報入力とデータはつながっていません。入力が終わっていても、こちらをONにしなければ未提出のままです。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="daily-reports-input.html">日報の入力へ</a>
+        <a href="advances.html">先払いへ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

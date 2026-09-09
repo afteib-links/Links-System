@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>企業マスタの詳細 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>企業の詳細</h1>
+      <p class="meta">一覧の「編集」から開く画面</p>
+      <ol>
+        <li><a href="#look">開くとこう見えます</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#more">請求先・車両・担当</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">マスタ → 企業マスタ → 編集</p>
+        <h1>企業の詳細</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">開くとこう見えます</h2>
+        <p class="lead">1社分の台帳です。請求書に出す宛名・住所、会社の車両、担当の履歴もここに持ちます。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/companies-form.png" alt="企業の入力フォーム">
+          <figcaption>上に基本情報、下に口座や請求先など、カードに分かれています。</figcaption>
+        </figure>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>企業名</th><td>必須。請求や案件の候補に出る名前</td></tr>
+            <tr><th>企業名カナ / 事業所名</th><td>探すとき用。事業所は空でもよい</td></tr>
+            <tr><th>郵便番号・住所・連絡先・FAX</th><td>送付状や連絡用</td></tr>
+            <tr><th>基本締日 / 基本支払日</th><td>案件を作るときの初期値</td></tr>
+            <tr><th>口座</th><td>銀行コード4桁、支店3桁、名義。入金の話をするときの台帳</td></tr>
+          </tbody>
+        </table>
+        <p>保存してから、同じ画面で請求先・車両・担当を足します。</p>
+      </section>
+      <section id="more">
+        <h2>請求先・車両・担当</h2>
+        <p>請求先は、請求書の印字名称と送付方法です。取り纏めNoが同じ案件は、あとで請求をまとめられます。車両は会社持ちの車。担当は期間つきです。担当を変えると、前の人の終了日が自動で入ります。</p>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">請求書を出したあとに宛名を直しても、発行済みPDFは変わりません。新しい請求から新しい名前になります。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="companies-list.html">企業の一覧へ</a>
+        <a href="partners-list.html">パートナーへ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>

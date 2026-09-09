@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日報の一覧 — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>日報の一覧</h1>
+      <p class="meta">左メニュー<br>日々の運用 → 日報</p>
+      <ol>
+        <li><a href="#look">まず、この画面</a></li>
+        <li><a href="#month">月を変える</a></li>
+        <li><a href="#find">探す・絞る</a></li>
+        <li><a href="#open">入力へ進む</a></li>
+        <li><a href="#use">よくある使い方</a></li>
+        <li><a href="#import">Excelから入れる</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+        <a class="cross-link" href="daily-reports-input.html">入力画面へ</a>
+      </div>
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+      </div>
+    </nav>
+
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">日々の運用 → 日報</p>
+        <h1>日報の一覧</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">まず、この画面</h2>
+        <p class="lead">ログインしたら、左の「日々の運用」から <strong>日報</strong> を押します。出てくるのがこの一覧です。ここでは時間は入れません。入れる案件を探す画面です。</p>
+        <p>1行が「この案件の、この月」です。企業名、パートナー、締日、何日分入っているか、月の承認がどこまでかが並びます。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/list-main.png" alt="日報一覧の全体。月切替、カード、案件の表">
+          <figcaption>日報を開いたところ。検証用の画面です。キャプチャによっては、いまの画面とボタンが少し違うことがあります（「機能一覧へ」は現行では出ません）。</figcaption>
+        </figure>
+        <p>総務や事務が、届いたFAXを片付けるときにいちばん使います。営業は担当案件の進み具合、承認する人は「確認待ち」や「要対応」の件数を見ます。パートナー権限なら、自分の案件だけ出ます。</p>
+      </section>
+
+      <section id="month">
+        <h2>月を変える</h2>
+        <div class="pair">
+          <figure class="shot">
+            <img src="../screenshots/crops/list-month.png" alt="前月、年月、表示、翌月">
+            <figcaption>画面の上。見る月を合わせて「表示」を押します。</figcaption>
+          </figure>
+          <div class="copy">
+            <p>「前月」「翌月」でひとつずつ動かすか、年月を直接入れて <strong>表示</strong> を押します。入れただけでは表は変わりません。</p>
+            <p>右端の <strong>データ取り込み</strong> は、ExcelやCSVをまとめて載せる入口です。管理者と総務にだけ出ます。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="find">
+        <h2>探す・絞る</h2>
+        <figure class="shot">
+          <img src="../screenshots/crops/list-cards.png" alt="検索欄と未入力などのカード">
+          <figcaption>名前で探す欄と、件数のカード。カードを押すと、その状態だけ残ります。</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>検索</th><td>案件・会社・パートナーの名前の一部</td></tr>
+            <tr><th>締日 / 状態 / 入力状況</th><td>5日締めだけ、未入力だけ、など</td></tr>
+            <tr><th>絞り込み</th><td>上の条件を表に反映する</td></tr>
+            <tr><th>対象案件〜要対応</th><td>件数のカード。もう一度押すと絞り込みが外れる</td></tr>
+          </tbody>
+        </table>
+        <p>カードを押してもデータは消えません。表示が減るだけです。「作業中」は入力中と申請できるもの、「要対応」は差戻しと訂正中です。</p>
+      </section>
+
+      <section id="open">
+        <h2>入力へ進む</h2>
+        <div class="pair">
+          <figure class="shot">
+            <img src="../screenshots/crops/list-row.png" alt="1件分の行と右端の入力ボタン">
+            <figcaption>1件の行。右端の「入力」が、その月の日別画面です。</figcaption>
+          </figure>
+          <div class="copy">
+            <p>見たい行をダブルクリックするか、右の <strong>入力</strong> を押します。次は <a href="daily-reports-input.html">日付ごとの入力</a> です。</p>
+            <p>列の見出しをクリックすると並びが変わります。見出しのすぐ下の「絞込」は、その列だけさらに狭めます。</p>
+          </div>
+        </div>
+        <figure class="shot">
+          <img src="../screenshots/crops/list-table.png" alt="案件一覧表の列">
+          <figcaption>列は案件No、案件名、企業、パートナー、締日、入力進捗、月次承認状態、操作です。</figcaption>
+        </figure>
+      </section>
+
+      <section id="use">
+        <h2>よくある使い方</h2>
+        <div class="example">
+          <p class="label">未入力だけ片付ける</p>
+          <p>2026年8月を出して、「未入力」のカードを押します。残った行の「入力」から、届いた日報を入れていきます。</p>
+        </div>
+        <div class="example">
+          <p class="label">5日締めだけ先に見る</p>
+          <p>締日を「5日」にして「絞り込み」です。ほかの案件は隠れるだけで、消えてはいません。</p>
+        </div>
+      </section>
+
+      <section id="import">
+        <h2>Excelから入れるとき</h2>
+        <p>手入力ではなくファイルで載せるときは、一覧の「データ取り込み」です。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/import-form.png" alt="対象年月、ファイル選択、アップロードして確認">
+          <figcaption>対象の月を合わせ、xlsx か csv を選んで「アップロードして確認」です。</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>対象年月</th><td>載せる月</td></tr>
+            <tr><th>ファイル</th><td><code>.xlsx</code> または <code>.csv</code>（50MBまで）</td></tr>
+            <tr><th>アップロードして確認</th><td>原本を残し、列の対応を決めてから下書きへ</td></tr>
+            <tr><th>取込履歴</th><td>同じ月に、以前取り込んだもの</td></tr>
+          </tbody>
+        </table>
+        <div class="warn">
+          ファイルに書いてある請求額・支払額は使いません。載ったあとも、こちらの料金設定で計算し直します。すでに確認済み・承認済みの日は上書きしません。同じ内容をもう一度入れると警告が出ます。
+        </div>
+      </section>
+
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="note">
+          「データ取り込み」が見当たらない人は、管理者・総務ではありません。経営者は原本を見る側です。
+        </div>
+        <div class="warn">
+          隣のメニュー「日報提出」は、届いたかどうかのチェックです。この一覧の入力進捗とは連動しません。
+        </div>
+      </section>
+
+      <nav class="page-nav no-print">
+        <a href="../index.html">はじめに戻る</a>
+        <a href="daily-reports-input.html">日報の入力へ</a>
+      </nav>
+      <footer class="colophon">
+        <p>画面は検証用です。</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

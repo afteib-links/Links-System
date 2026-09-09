@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>先払い — 使い方</title>
+  <link rel="stylesheet" href="../manual.css">
+</head>
+<body>
+  <a class="skip" href="#doc">本文へ</a>
+  <div class="layout">
+    <nav class="toc" aria-label="目次">
+      <h1>先払い</h1>
+      <p class="meta">左メニュー<br>精算 → 先払い</p>
+      <ol>
+        <li><a href="#look">まず、この画面</a></li>
+        <li><a href="#fields">何をどこに入れるか</a></li>
+        <li><a href="#use">よくある使い方</a></li>
+        <li><a href="#care">気をつけること</a></li>
+      </ol>
+      <div class="print-actions no-print">
+        <button type="button" onclick="window.print()">印刷する</button>
+        <a class="cross-link" href="../index.html">はじめに戻る</a>
+      </div>
+
+      <p class="toc-group">ほかのページ</p>
+      <div class="more">
+        <a href="../index.html">はじめに</a>
+        <a href="companies-list.html">企業</a>
+        <a href="partners-list.html">パートナー</a>
+        <a href="base-projects-list.html">基本案件</a>
+        <a href="projects-list.html">個別案件</a>
+        <a href="price-sets-list.html">金額データ</a>
+        <a href="base-management.html">基本管理</a>
+        <a href="office-work.html">事務作業</a>
+        <a href="daily-reports-list.html">日報一覧</a>
+        <a href="daily-reports-input.html">日報入力</a>
+        <a href="daily-report-submissions.html">日報提出</a>
+        <a href="advances.html">先払い</a>
+        <a href="invoices-list.html">請求</a>
+        <a href="payments-list.html">支払</a>
+        <a href="cash-management.html">入出金</a>
+        <a href="analytics.html">収支分析</a>
+        <a href="master-settings.html">マスター設定</a>
+        <a href="ui-builder.html">UIビルダー</a>
+        <a href="users.html">ユーザー</a>
+      </div>
+    </nav>
+    <main class="doc" id="doc">
+      <header class="cover">
+        <p class="eyebrow">精算 → 先払い</p>
+        <h1>先払い</h1>
+      </header>
+
+      <section id="look">
+        <h2 class="chapter first">まず、この画面</h2>
+        <p class="lead">支払区分が分割の個別案件を、月の3グループで見ます。稼働0日でも出ます。管理者・経営者・総務が使います。</p>
+        <figure class="shot">
+          <img src="../screenshots/crops/advances.png" alt="先払い画面の全体">
+          <figcaption>締日グループごとに、対象期間・日数・前払額・手数料・状態が並びます。</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="../screenshots/crops/advances-top.png" alt="先払いの上の操作">
+          <figcaption>月を合わせて、選択した行の支払予定を作ります。</figcaption>
+        </figure>
+      </section>
+      <section id="fields">
+        <h2>何をどこに入れるか</h2>
+        <table>
+          <thead><tr><th>ここ</th><th>何をするか</th></tr></thead>
+          <tbody>
+            <tr><th>前払額</th><td>初期値は確認済み日報の日数×前払単価。変えるときは理由</td></tr>
+            <tr><th>手数料</th><td>変えるときは理由</td></tr>
+            <tr><th>選択分の支払予定を作成</th><td>チェックした行の予定を作る／更新する</td></tr>
+            <tr><th>CSV出力</th><td>そのグループの銀行向けファイル</td></tr>
+            <tr><th>前払条件</th><td>案件ごとの単価と適用開始。画面下の「＋ 前払条件」</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="use">
+        <h2>よくある使い方</h2>
+        <div class="example">
+          <p class="label">上旬グループの予定を作る</p>
+          <p>対象月を出し、上旬の行をチェックして「支払予定を作成・更新」します。実行済みの行はロックされます。</p>
+        </div>
+      </section>
+      <section id="care">
+        <h2>気をつけること</h2>
+        <div class="warn">ここは案件に紐づく先払いです。パートナー個人の立替返済（分割債権）とは別です。混ぜて登録しません。</div>
+        <div class="note">分割案件が無い月は空の表になります。</div>
+      </section>
+    
+      <nav class="page-nav no-print">
+        <a href="daily-report-submissions.html">日報提出へ</a>
+        <a href="invoices-list.html">請求へ</a>
+      </nav>
+      <footer class="colophon"><p>画面は検証用です。キャプチャと現行のボタンが少し違うことがあります。</p></footer>
+    </main>
+  </div>
+</body>
+</html>
