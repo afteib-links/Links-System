@@ -648,7 +648,7 @@
       <div class="excel-wrap">
         <table class="excel-table">
           <thead><tr>${heads}</tr></thead>
-          <tbody>${body || `<tr><td colspan="${columns.length}" class="hint" style="padding:8px">行なし（＋で追加）</td></tr>`}</tbody>
+          <tbody>${body || `<tr><td colspan="${columns.length}" class="hint" style="padding:6px"><button type="button" class="btn btn-ghost btn-sm" data-act="addRow" data-ci="${ci}" data-ri="-1">＋ 行を追加</button></td></tr>`}</tbody>
         </table>
       </div>
     </article>`;
