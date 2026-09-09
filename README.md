@@ -78,6 +78,11 @@ Dockerfile
 仕様MD/           業務・画面仕様
 ```
 
+## 大規模な業務検証データ
+
+企業100件・パートナー130名・個別案件120件の検証データは、既存DBを消さずに専用DBへ生成します。
+Windows localhost・独立Docker・NASへのパッケージ移送は [業務検証データ手順](docs/development/BUSINESS_VERIFICATION_DATA.md) を参照してください。
+
 ## 停止
 
 ```bash

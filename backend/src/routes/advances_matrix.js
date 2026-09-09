@@ -68,7 +68,7 @@ async function matrixData(ym) {
       recordRows.forEach((row) => records.set(`${row.project_id}:${row.group_code}`, row));
       const [reportRows] = await conn.query(
         `SELECT project_id,work_date FROM daily_reports WHERE project_id IN (${marks}) AND work_date BETWEEN ? AND ?
-         AND status IN ('confirmed','approved') AND is_deleted=0 GROUP BY project_id,work_date`,
+         AND status IN ('confirmed','approved') AND is_deleted=0 AND is_absent=0 AND work_hours>0 GROUP BY project_id,work_date`,
         [...ids, monthDay(shiftMonth(ym, -1), 26), monthDay(ym, 'end')]
       );
       reportRows.forEach((row) => {
@@ -202,7 +202,7 @@ async function calculatedCell(conn, project, ym, groupCode) {
   const period = periodForCycle(ym, project.closing_date, groupCode);
   const [days] = await conn.query(
     `SELECT COUNT(DISTINCT work_date) cnt FROM daily_reports WHERE project_id=? AND work_date BETWEEN ? AND ?
-     AND status IN ('confirmed','approved') AND is_deleted=0`, [project.project_id, period.start, period.end]
+     AND status IN ('confirmed','approved') AND is_deleted=0 AND is_absent=0 AND work_hours>0`, [project.project_id, period.start, period.end]
   );
   const workDays = Number(days[0]?.cnt || 0); const unitPrice = Number(project.installment_amount || 0);
   return { period, workDays, unitPrice, calculated: unitPrice * workDays, feePattern: feeFromProject(project) };

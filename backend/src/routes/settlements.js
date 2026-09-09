@@ -68,6 +68,10 @@ async function approvedSnapshotReports(conn, reports, ym) {
         ...row,
         monthly_approval_id: Number(approval.monthly_approval_id),
         monthly_approval_version: Number(approval.approval_version),
+        // Anchor the monthly charge to one immutable source row so selecting separate
+        // subsets of an approved month cannot charge the same month twice.
+        monthly_distance_results: Number(row.daily_report_id) === Number(snapshot.reports[0]?.daily_report_id)
+          ? snapshot.monthly_distance_results || {} : {},
       });
     }
   }
@@ -345,7 +349,7 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
     await conn.query(`INSERT INTO settlement_workflows (settlement_type,settlement_id,drafted_by_user_id) VALUES (?,?,?)`,[kind,settlementId,req.session.user.user_id]);
     await recalculateDraft(conn,kind,settlementId);
     await conn.commit(); return res.status(201).json({ok:true, settlement_id:settlementId, status:'draft'});
-  } catch(err) { await conn.rollback(); return res.status(400).json({ok:false,message:err.message}); } finally { conn.release(); }
+  } catch(err) { try { await conn.rollback(); } catch (_) { /* Preserve the original DB error after connection failure. */ } return res.status(400).json({ok:false,message:err.message}); } finally { conn.release(); }
 });
 
 router.post('/:kind/:id/lines', requireRole('admin','soumu'), async(req,res)=>{
@@ -753,6 +757,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
     const year=Number(String(header.target_year_month).slice(0,4));
     const settings=await documentSettings(conn);
     const recipient=await documentRecipient(conn,kind,header);
+    const attendance=types.includes('salary_statement')?await require('../services/settlement_attendance').settlementAttendance(conn,kind,id):undefined;
     for(const type of types){
       const number=await nextDocumentNumber(conn,type,year);
       const document={
@@ -771,6 +776,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
         company_name:header.company_name,
         partner_name:header.partner_name,
         recipient,
+        attendance,
         ...settings,
       };
       // 帳票側で日報明細から詳細／案件集約を組み立てるため、集約前の正本明細を渡す。
@@ -785,7 +791,13 @@ router.post('/:kind/:id/finalize', requireRole('admin','executive'), async (req,
     const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';
     await conn.query(`UPDATE daily_reports d JOIN ${linkTable} l ON l.daily_report_id=d.daily_report_id SET d.${kind==='invoice'?'billing_status':'payment_status'}=?,d.version=d.version+1 WHERE l.${idFor(kind)}=?`,[kind==='invoice'?'billed':'paid',id]);
     await conn.commit(); return res.json({ok:true,status:'finalized',total_amount:header.total_amount});
-  } catch(err){await conn.rollback();for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}return res.status(400).json({ok:false,message:err.message});} finally {conn.release();}
+  } catch(err){
+    let rollbackConfirmed=false;
+    try{await conn.rollback();rollbackConfirmed=true;}catch(_rollbackError){/* The commit outcome may be unknown after connection loss. */}
+    // Do not remove a potentially committed document when the DB outcome is unknown.
+    if(rollbackConfirmed)for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}
+    return res.status(400).json({ok:false,message:err.message});
+  } finally {conn.release();}
 });
 
 router.post('/:kind/:id/cancel', requireRole('admin','soumu','executive'), async(req,res)=>{
