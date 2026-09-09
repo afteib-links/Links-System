@@ -1134,8 +1134,8 @@ async function resetBusinessData() {
     await removeWhere('invoice_exclusions', 'company_id', companyIds);
     await removeWhere('settlement_deduction_rules', 'partner_id', partnerIds);
     await removeWhere('projects', 'project_id', projectIds);
-    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('base_projects', 'base_project_id', baseIds);
+    await removeWhere('company_billings', 'company_id', companyIds);
     await removeWhere('partners', 'partner_id', partnerIds);
     await removeWhere('companies', 'company_id', companyIds);
     await conn.commit();
