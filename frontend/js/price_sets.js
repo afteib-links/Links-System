@@ -512,10 +512,10 @@
             <input type="text" class="fee-item-name" data-item="${itemIdx}" value="${this.ctx.escapeHtml(item.name || '')}" placeholder="料金項目名" />
             <div class="fee-weekdays">${weekdayChecks}</div>
             <div class="fee-item-actions">
-              <button type="button" class="btn btn-ghost btn-small" data-up-item="${itemIdx}" title="優先順位を上げる">▲</button>
-              <button type="button" class="btn btn-ghost btn-small" data-down-item="${itemIdx}" title="優先順位を下げる">▼</button>
-              <button type="button" class="btn btn-ghost btn-small" data-dup-item="${itemIdx}">項目コピー</button>
-              <button type="button" class="btn btn-danger btn-small" data-del-item="${itemIdx}">削除</button>
+              <button type="button" class="fee-card-action" data-up-item="${itemIdx}" title="優先順位を上げる" aria-label="優先順位を上げる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5-6 5 6" /></svg></button>
+              <button type="button" class="fee-card-action" data-down-item="${itemIdx}" title="優先順位を下げる" aria-label="優先順位を下げる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 6 5-6" /></svg></button>
+              <button type="button" class="fee-card-action fee-card-action-copy" data-dup-item="${itemIdx}" title="料金カードをコピー" aria-label="料金カードをコピー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="10" height="11" rx="1" /><path d="M15 8V5H5v11h3" /></svg></button>
+              <button type="button" class="fee-card-action fee-card-action-delete" data-del-item="${itemIdx}" title="料金カードを削除" aria-label="料金カードを削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13M10 10v6m4-6v6" /></svg></button>
             </div>
           </div>
           <div class="fee-rule-scroll">
@@ -958,7 +958,10 @@
           .night-setting-card .night-field-period { grid-column:span 2; }
           .night-setting-card .night-field-tiers { grid-column:span 2; }
           .hint { color: var(--muted, #666); font-size: 0.9rem; }
-          @media (max-width: 1100px) { .fee-items-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+          @media (max-width: 1100px) {
+            .fee-items-stack { grid-template-columns:1fr; }
+            .fee-item-head { grid-template-columns:minmax(0,1fr) auto !important; }
+          }
           @media (max-width: 900px) { .price-set-basic-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
           @media (max-width: 900px) { .night-settings-grid { grid-template-columns: 1fr; } }
           @media (max-width: 680px) { .fee-items-stack,.price-set-basic-grid { grid-template-columns:1fr; } .night-setting-card { grid-template-columns:repeat(2,minmax(0,1fr)); } .night-setting-card .night-field-tiers { grid-column:1/-1; } }

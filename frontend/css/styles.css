@@ -2212,21 +2212,29 @@ label, .field-label { color: #344054; font-weight: 700; }
 .fee-calc-types, .fee-weekdays, .weekday-quick { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; margin:0 !important; }
 .calc-type-chip, .weekday-chip { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
 .calc-type-chip small, .calc-unsupported { display:block; color:#a16207; font-size:11px; }
-.fee-item-actions { display:flex; gap:4px; flex-wrap:nowrap; }
+.fee-item-name { grid-column:1; grid-row:1; }
+.fee-item-actions { grid-column:2; grid-row:1; display:flex; justify-content:flex-end; gap:6px; flex-wrap:nowrap; }
+.fee-card-action { width:34px; height:34px; padding:6px; display:inline-grid; place-items:center; border:1px solid #b8c6d8; border-radius:7px; background:#fff; color:#23405f; cursor:pointer; }
+.fee-card-action:hover { border-color:#7f96b1; background:#edf3f9; }
+.fee-card-action svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+.fee-card-action-copy { border-color:#d9a900; background:#ffd84d; color:#674b00; }
+.fee-card-action-copy:hover { border-color:#bd8b00; background:#f6c927; }
+.fee-card-action-delete { border-color:#c92735; background:#e63e4d; color:#fff; }
+.fee-card-action-delete:hover { border-color:#a71d29; background:#c92e3b; }
 .fee-revision-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; padding:10px 12px; border:1px solid #d8e1e8; border-radius:10px; background:#f7fafc; }
 .fee-item-card { min-width:0; overflow:hidden; }
-.fee-weekdays { grid-column:1/-1; }
+.fee-weekdays { grid-column:1/-1; grid-row:2; }
 .weekday-chip { border:1px solid #d0d5dd; border-radius:999px; padding:2px 7px; background:#fff; }
 .weekday-chip input { position:absolute; width:1px !important; height:1px !important; opacity:0; pointer-events:none; }
 .weekday-chip.is-selected.weekday-mon,
 .weekday-chip.is-selected.weekday-tue,
 .weekday-chip.is-selected.weekday-wed,
 .weekday-chip.is-selected.weekday-thu,
-.weekday-chip.is-selected.weekday-fri { color:#176b3a; border-color:#68b889; background:#dff4e7; }
-.weekday-chip.is-selected.weekday-sat { color:#175ca8; border-color:#74a9e6; background:#dcecff; }
+.weekday-chip.is-selected.weekday-fri { color:#fff; border-color:#22a447; background:#34c759; }
+.weekday-chip.is-selected.weekday-sat { color:#fff; border-color:#086ccf; background:#1683ea; }
 .weekday-chip.is-selected.weekday-sun,
-.weekday-chip.is-selected.weekday-holiday { color:#a13a43; border-color:#e9aab0; background:#fde7e9; }
-.weekday-chip.is-selected.weekday-project_holiday { color:#fff; border-color:#c52834; background:#d93441; }
+.weekday-chip.is-selected.weekday-holiday { color:#8f1722; border-color:#ed7f89; background:#ffb8bd; }
+.weekday-chip.is-selected.weekday-project_holiday { color:#fff; border-color:#d51f2e; background:#ff3b46; }
 .weekday-chip.is-selected.weekday-all { color:#6b5600; border-color:#e0be32; background:#ffed8a; }
 .fee-rule-scroll { width:100%; overflow-x:auto; container-type:inline-size; padding-bottom:4px; }
 .fee-rule-grid-head,
@@ -2327,8 +2335,16 @@ label, .field-label { color: #344054; font-weight: 700; }
   .fee-item-head { grid-template-columns:minmax(150px,1fr) minmax(220px,1fr); }
   .fee-item-actions { justify-content:flex-end; }
 }
+@media (max-width:1100px) {
+  .fee-rule-grid-head,
+  .fee-rule-main { grid-template-columns:32px 110px 84px 92px 92px 76px 50cqw 50cqw 90px; }
+  .fee-row-actions { grid-template-columns:repeat(2,1fr); }
+  .fee-row-actions [data-add-row],
+  .fee-row-actions [data-del-row] { display:none; }
+}
 @media (max-width:760px) {
-  .fee-item-head, .fee-summary-names { grid-template-columns:1fr !important; }
+  .fee-item-head { grid-template-columns:minmax(0,1fr) auto !important; }
+  .fee-summary-names { grid-template-columns:1fr !important; }
   .fee-summary-names > div { grid-template-columns:1fr; }
   .daily-list-topbar { align-items:stretch; }
   .daily-list-topbar .dr-import-entry { margin-left:0; }

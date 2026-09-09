@@ -30,6 +30,19 @@ test('料金カードはExcel型3列で行末から適用条件を展開する',
   assert.match(css, /border-right:1px solid #d8e0e8/);
 });
 
+test('タブレット以下は横長1列カードにして操作と曜日を明確にする', () => {
+  const ui = read('frontend/js/price_sets.js');
+  const css = read('frontend/css/styles.css');
+  assert.match(ui, /@media \(max-width: 1100px\)[\s\S]{0,180}fee-items-stack \{ grid-template-columns:1fr/);
+  assert.match(css, /@media \(max-width:1100px\)[\s\S]{0,420}\[data-add-row\],[\s\S]{0,80}\[data-del-row\] \{ display:none/);
+  assert.match(ui, /title="料金カードをコピー" aria-label="料金カードをコピー"/);
+  assert.match(ui, /title="料金カードを削除" aria-label="料金カードを削除"/);
+  assert.match(css, /fee-card-action-copy[\s\S]{0,100}background:#ffd84d/);
+  assert.match(css, /fee-card-action-delete[\s\S]{0,100}background:#e63e4d/);
+  assert.match(css, /weekday-fri \{ color:#fff; border-color:#22a447; background:#34c759/);
+  assert.match(css, /weekday-sat \{ color:#fff; border-color:#086ccf; background:#1683ea/);
+});
+
 test('勤務・深夜・丸め条件を4列化し日次基準時間を最小幅にする', () => {
   const ui = read('frontend/js/price_sets.js');
   assert.match(ui, /night-setting-card \{ display:grid; grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
