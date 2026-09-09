@@ -202,6 +202,7 @@
       <header class="app-header app-topbar">
         <button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-label="メニューを折り畳む" aria-expanded="true" aria-controls="app-sidebar">☰</button>
         <button class="header-back-button" type="button" id="header-back" ${currentView === 'home' ? 'hidden' : ''}>← 戻る</button>
+        <div class="topbar-context"><span>運送業務基幹システム</span></div>
         <h1 class="topbar-page-title" title="${escapedTitle}">${escapedTitle}</h1>
         <div class="header-actions">
           <button class="btn btn-ghost header-help-button" type="button" id="screen-help"><span aria-hidden="true">？</span><span class="header-help-label">ヘルプ</span></button>
