@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('請求先Noは企業内0始まりで採番され案件から選択できる', () => {
   const migration = read('db/migrations/030_billing_numbers_settlement_drafts_status_colors.sql');
-  const workflowMigration = read('db/migrations/032_billing_consolidation_and_closing_workflow.sql');
+  const workflowMigration = read('db/migrations/033_billing_consolidation_and_closing_workflow.sql');
   const companies = read('backend/src/routes/companies.js');
   const projects = read('backend/src/routes/projects.js');
   const projectUi = read('frontend/js/projects.js');
@@ -58,7 +58,7 @@ test('見本PDF・明細追加・状態色・スマホ操作を実データUIへ
 });
 
 test('取りまとめ請求・統合承認・発行無効履歴を保持する', () => {
-  const migration = read('db/migrations/032_billing_consolidation_and_closing_workflow.sql');
+  const migration = read('db/migrations/033_billing_consolidation_and_closing_workflow.sql');
   const settlements = read('backend/src/routes/settlements.js');
   const dailyReports = read('backend/src/routes/daily_reports.js');
   const invoiceUi = read('frontend/js/invoices.js');
@@ -85,7 +85,7 @@ test('ダブルタップと入力中の局所計算を提供する', () => {
 });
 
 test('契約終了の通常除外・共通ヘルプ・相手先別帳票番号を追加する', () => {
-  const migration = read('db/migrations/031_contract_lifecycle_and_help.sql');
+  const migration = read('db/migrations/032_contract_lifecycle_and_help.sql');
   const appUi = read('frontend/js/app.js');
   assert.match(migration, /contract_status_code/);
   assert.match(migration, /operation_end_date/);
