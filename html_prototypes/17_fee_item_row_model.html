@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>料金登録（項目種別行モデル） - LinksSys</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .ux-banner {
+    background: linear-gradient(90deg, #eff6ff, #f8fafc);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1e3a5f;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+  }
+  .meta-grid label { display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px; }
+  .meta-grid input { width: 100%; }
+  .section-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .fee-card {
+    background: #fff;
+    border: 2px solid #94a3b8;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.05);
+  }
+  .fee-card-head {
+    display: flex;
+    border-bottom: 2px solid #94a3b8;
+    background: #dfe5f0;
+    min-height: 64px;
+  }
+  .fee-card-title {
+    width: 42%;
+    min-width: 160px;
+    padding: 10px 14px;
+    border-right: 2px solid #94a3b8;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+  .fee-card-title input {
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    background: transparent;
+    width: 100%;
+  }
+  .fee-card-title input:focus {
+    background: #fff;
+    border-color: #93c5fd;
+    outline: none;
+  }
+  .fee-card-days {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    background: #e2e8f0;
+  }
+  .day-chip {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    border-right: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    cursor: pointer;
+    user-select: none;
+    color: #334155;
+    background: #e2e8f0;
+  }
+  .day-chip input { display: none; }
+  .day-chip.on {
+    background: #4f70b5;
+    color: #fff;
+  }
+  .fee-card-actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .fee-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .fee-table th {
+    background: #dbe2ee;
+    padding: 10px 8px;
+    text-align: left;
+    font-size: 12px;
+    color: #334155;
+    border-bottom: 1px solid #cbd5e1;
+    border-right: 1px solid #cbd5e1;
+    white-space: nowrap;
+  }
+  .fee-table td {
+    padding: 8px;
+    border-bottom: 1px solid #cbd5e1;
+    border-right: 1px solid #cbd5e1;
+    vertical-align: top;
+  }
+  .fee-table th:last-child,
+  .fee-table td:last-child { border-right: none; }
+  .fee-table input[type="text"],
+  .fee-table input[type="number"],
+  .fee-table select {
+    width: 100%;
+    font-size: 13px;
+  }
+  .fee-table .money-cell input { text-align: right; }
+  .row-extra {
+    background: #f8fafc;
+    padding: 10px 12px;
+    border-bottom: 1px solid #cbd5e1;
+    font-size: 12px;
+  }
+  .row-extra .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 800px) {
+    .fee-card-head { flex-direction: column; }
+    .fee-card-title { width: 100%; border-right: none; border-bottom: 1px solid #94a3b8; }
+    .row-extra .pair { grid-template-columns: 1fr; }
+    .fee-table { display: block; overflow-x: auto; }
+  }
+  .warn {
+    color: #b45309;
+    font-size: 12px;
+    margin: 8px 0 0;
+  }
+  .hint { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+  .tier-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .tier-table th, .tier-table td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 12px; }
+  .tier-table th { background: #f1f5f9; }
+  .preview-box {
+    margin-top: 20px;
+    padding: 14px;
+    background: #fff;
+    border: 1px dashed #93c5fd;
+    border-radius: 8px;
+  }
+  .preview-box h3 { font-size: 14px; margin-bottom: 8px; }
+  .preview-box pre {
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+    overflow: auto;
+    max-height: 280px;
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <div class="sidebar-logo-text">LinksSys</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">マスタ管理</div>
+    <a class="sidebar-item" href="07_price_master.html">金額データ管理（現行）</a>
+    <a class="sidebar-item" href="16_unit_price_master_ux.html">単価入力UX案（旧）</a>
+    <a class="sidebar-item active" href="17_fee_item_row_model.html">料金登録・行モデル</a>
+    <div class="sidebar-section-label">業務管理</div>
+    <a class="sidebar-item" href="08_daily_report.html">日報管理</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user-avatar">案</div>
+    <div><div class="sidebar-user-name">計画26プロト</div><div class="sidebar-user-role">画面イメージ</div></div>
+  </div>
+</aside>
+
+<div class="main-content">
+  <header class="page-header">
+    <h1 class="page-title">料金登録（項目種別行モデル）</h1>
+    <div class="flex gap-2 items-center">
+      <span class="badge badge-blue">プロトタイプ</span>
+      <button type="button" class="btn btn-outline btn-sm" id="resetBtn">サンプル再読込</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ux-banner">
+      <strong>計画26の画面イメージ（操作可・本番未接続）。</strong>
+      カード＝料金名称＋適用曜日。行＝項目種別／請求額／支払額／請求詳細名／支払詳細名。マトリクス列は追加しません。
+      距離・テーブル行だけ下に付帯条件が開きます。
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <label>金額データNo</label>
+        <input class="form-control" value="PS-20260401-001" readonly>
+      </div>
+      <div>
+        <label>名称</label>
+        <input class="form-control" id="metaName" value="首都圏配送便 2026年度単価">
+      </div>
+      <div>
+        <label>対象案件（サンプル）</label>
+        <input class="form-control" value="首都圏定期ルート配送便" readonly>
+      </div>
+      <div>
+        <label>適用開始</label>
+        <input class="form-control" type="date" value="2026-04-01">
+      </div>
+      <div>
+        <label>適用終了</label>
+        <input class="form-control" type="date" value="2027-03-31">
+      </div>
+    </div>
+
+    <div class="section-toolbar">
+      <p class="hint">日報の料金区分＝カードの料金名称。不足控除は「時間単価」行を使います（不足行は出しません）。</p>
+      <button type="button" class="btn btn-primary btn-sm" id="addCardBtn">＋ 料金カード</button>
+    </div>
+
+    <div id="cardsArea"></div>
+    <p id="overlapWarn" class="warn" hidden></p>
+
+    <div class="preview-box">
+      <h3>保存イメージ（fee_items_v2 抜粋・操作に追従）</h3>
+      <pre id="jsonPreview"></pre>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  const DAYS = [
+    { code: 'mon', label: '月' },
+    { code: 'tue', label: '火' },
+    { code: 'wed', label: '水' },
+    { code: 'thu', label: '木' },
+    { code: 'fri', label: '金' },
+    { code: 'sat', label: '土' },
+    { code: 'sun', label: '日' },
+    { code: 'holiday', label: '祝' },
+    { code: 'project_holiday', label: '休' },
+    { code: 'all', label: 'ALL' }
+  ];
+
+  const ITEM_TYPES = [
+    { code: 'daily_basic', label: '基本日極' },
+    { code: 'hourly', label: '時間単価' },
+    { code: 'overtime', label: '時間外' },
+    { code: 'night', label: '深夜単価' },
+    { code: 'night_overtime', label: '深夜時間外単価' },
+    { code: 'unit', label: '単価' },
+    { code: 'distance', label: '距離単価' },
+    { code: 'table', label: 'テーブル単価' }
+  ];
+
+  const TYPE_LABEL = Object.fromEntries(ITEM_TYPES.map((t) => [t.code, t.label]));
+
+  function emptyDays() {
+    const o = {};
+    DAYS.forEach((d) => { o[d.code] = false; });
+    return o;
+  }
+
+  function sampleCards() {
+    return [
+      {
+        id: 'c1',
+        name: '平日料金',
+        weekdays: { ...emptyDays(), mon: true, tue: true, wed: true, thu: true, fri: true },
+        rows: [
+          row('daily_basic', 25000, 22000, '{企業名} 日極', '{パートナー名} 日極'),
+          row('hourly', 2500, 2200, '{企業名} 時間', '{パートナー名} 時間'),
+          row('overtime', 2800, 2400, '{企業名} 時間外', '{パートナー名} 時間外'),
+          row('night', 3000, 2600, '{企業名} 深夜', '{パートナー名} 深夜')
+        ]
+      },
+      {
+        id: 'c2',
+        name: '休日料金',
+        weekdays: { ...emptyDays(), sat: true, sun: true, holiday: true, project_holiday: true },
+        rows: [
+          row('daily_basic', 32000, 28000, '{企業名} 休日日極', '{パートナー名} 休日日極'),
+          row('hourly', 3200, 2800, '{企業名} 休日時間', '{パートナー名} 休日時間'),
+          row('overtime', 4000, 3400, '{企業名} 休日時間外', '{パートナー名} 休日時間外')
+        ]
+      },
+      {
+        id: 'c3',
+        name: '作業単価',
+        weekdays: { ...emptyDays(), all: true },
+        rows: [
+          row('unit', 3000, 2000, 'キッティング', 'キッティング'),
+          row('unit', 5000, 4000, 'システム設定', 'システム設定'),
+          row('unit', 4000, 3000, 'アプリインストール', 'アプリインストール'),
+          row('unit', 6000, 5000, 'データコピー', 'データコピー')
+        ]
+      },
+      {
+        id: 'c4',
+        name: '距離超過',
+        weekdays: { ...emptyDays(), all: true },
+        rows: [
+          {
+            ...row('distance', 150, 120, '日次距離超過', '日次距離超過'),
+            distance: { mode: 'daily_excess', base_km: 50 }
+          },
+          {
+            ...row('table', 0, 0, '長距離段階', '長距離段階'),
+            table: {
+              tier_mode: 'excess_unit',
+              tiers: [
+                { upTo: 100, billing: 0, payment: 0 },
+                { upTo: 200, billing: 120, payment: 100 },
+                { upTo: '', billing: 180, payment: 150 }
+              ]
+            }
+          }
+        ]
+      }
+    ];
+  }
+
+  function row(item_type, billing, payment, billing_detail_name, payment_detail_name) {
+    return {
+      id: 'r_' + Math.random().toString(36).slice(2, 8),
+      item_type,
+      billing,
+      payment,
+      billing_detail_name,
+      payment_detail_name
+    };
+  }
+
+  let cards = sampleCards();
+  let uid = 20;
+
+  function nextId(prefix) {
+    uid += 1;
+    return prefix + uid;
+  }
+
+  function typeOptions(selected) {
+    return ITEM_TYPES.map(
+      (t) => `<option value="${t.code}" ${t.code === selected ? 'selected' : ''}>${t.label}</option>`
+    ).join('');
+  }
+
+  function dayHtml(card, ci) {
+    return DAYS.map((d) => {
+      const on = !!card.weekdays[d.code];
+      return `<label class="day-chip ${on ? 'on' : ''}" data-ci="${ci}" data-day="${d.code}">
+        <input type="checkbox" ${on ? 'checked' : ''}>${d.label}
+      </label>`;
+    }).join('');
+  }
+
+  function extraHtml(r, ci, ri) {
+    if (r.item_type === 'distance') {
+      const dist = r.distance || { mode: 'daily_excess', base_km: 0 };
+      return `<div class="row-extra" data-extra="${ci}-${ri}">
+        <div class="pair">
+          <div>
+            <label class="hint">距離方式</label>
+            <select data-f="distMode" data-ci="${ci}" data-ri="${ri}">
+              <option value="daily_excess" ${dist.mode === 'daily_excess' ? 'selected' : ''}>日次超過</option>
+              <option value="monthly_excess" ${dist.mode === 'monthly_excess' ? 'selected' : ''}>月累計超過</option>
+            </select>
+          </div>
+          <div>
+            <label class="hint">基準km</label>
+            <input type="number" data-f="distBase" data-ci="${ci}" data-ri="${ri}" value="${dist.base_km || 0}">
+          </div>
+        </div>
+        <p class="hint" style="margin-top:6px">上の請求額・支払額＝超過1kmあたりの単価です。</p>
+      </div>`;
+    }
+    if (r.item_type === 'table') {
+      const tbl = r.table || { tier_mode: 'excess_unit', tiers: [{ upTo: '', billing: 0, payment: 0 }] };
+      const tiers = (tbl.tiers || []).map((t, ti) => `<tr>
+        <td><input type="number" placeholder="上限なし" data-f="tierUp" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.upTo}"></td>
+        <td><input type="number" data-f="tierBill" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.billing}"></td>
+        <td><input type="number" data-f="tierPay" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}" value="${t.payment}"></td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-act="delTier" data-ci="${ci}" data-ri="${ri}" data-ti="${ti}">削除</button></td>
+      </tr>`).join('');
+      return `<div class="row-extra" data-extra="${ci}-${ri}">
+        <label class="hint">計算型</label>
+        <select data-f="tierMode" data-ci="${ci}" data-ri="${ri}">
+          <option value="excess_unit" ${tbl.tier_mode === 'excess_unit' ? 'selected' : ''}>超過距離 × 段階単価</option>
+          <option value="all_unit" ${tbl.tier_mode === 'all_unit' ? 'selected' : ''}>全距離 × 段階単価</option>
+          <option value="cumulative" ${tbl.tier_mode === 'cumulative' ? 'selected' : ''}>段階内累積</option>
+          <option value="fixed" ${tbl.tier_mode === 'fixed' ? 'selected' : ''}>段階固定額</option>
+        </select>
+        <table class="tier-table">
+          <thead><tr><th>〜km</th><th>請求</th><th>支払</th><th></th></tr></thead>
+          <tbody>${tiers}</tbody>
+        </table>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px" data-act="addTier" data-ci="${ci}" data-ri="${ri}">＋ 段階行</button>
+      </div>`;
+    }
+    return '';
+  }
+
+  function cardHtml(card, ci) {
+    const bodyRows = card.rows.map((r, ri) => {
+      const extra = extraHtml(r, ci, ri);
+      return `<tr>
+        <td style="min-width:140px">
+          <select data-f="item_type" data-ci="${ci}" data-ri="${ri}">${typeOptions(r.item_type)}</select>
+        </td>
+        <td class="money-cell" style="min-width:100px"><input type="number" data-f="billing" data-ci="${ci}" data-ri="${ri}" value="${r.billing}"></td>
+        <td class="money-cell" style="min-width:100px"><input type="number" data-f="payment" data-ci="${ci}" data-ri="${ri}" value="${r.payment}"></td>
+        <td style="min-width:160px"><input type="text" data-f="billing_detail_name" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(r.billing_detail_name)}"></td>
+        <td style="min-width:160px"><input type="text" data-f="payment_detail_name" data-ci="${ci}" data-ri="${ri}" value="${escapeAttr(r.payment_detail_name)}"></td>
+        <td style="width:70px;white-space:nowrap">
+          <button type="button" class="btn btn-ghost btn-sm" data-act="delRow" data-ci="${ci}" data-ri="${ri}">削除</button>
+        </td>
+      </tr>
+      ${extra ? `<tr><td colspan="6" style="padding:0;border-bottom:none">${extra}</td></tr>` : ''}`;
+    }).join('');
+
+    return `<article class="fee-card" data-card="${ci}">
+      <div class="fee-card-head">
+        <div class="fee-card-title">
+          <span class="hint">料金名称</span>
+          <input type="text" data-f="cardName" data-ci="${ci}" value="${escapeAttr(card.name)}" placeholder="例: 平日料金">
+        </div>
+        <div class="fee-card-days">${dayHtml(card, ci)}</div>
+      </div>
+      <div class="fee-card-actions">
+        <span class="hint">適用曜日（ALLは他を解除）</span>
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="addRow" data-ci="${ci}">＋ 行</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="dupCard" data-ci="${ci}">カードコピー</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="delCard" data-ci="${ci}">カード削除</button>
+      </div>
+      <table class="fee-table">
+        <thead>
+          <tr>
+            <th>項目種別</th>
+            <th>請求額</th>
+            <th>支払額</th>
+            <th>請求詳細名</th>
+            <th>支払詳細名</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows || '<tr><td colspan="6" class="hint" style="padding:16px">行がありません。「＋ 行」で追加してください。</td></tr>'}</tbody>
+      </table>
+    </article>`;
+  }
+
+  function overlapMessage() {
+    const map = {};
+    const conflicts = [];
+    cards.forEach((card) => {
+      DAYS.forEach((d) => {
+        if (d.code === 'all') return;
+        if (!card.weekdays[d.code]) return;
+        if (card.weekdays.all) return;
+        if (map[d.code] && map[d.code] !== card.name) {
+          conflicts.push(`${d.label}:「${map[d.code]}」と「${card.name}」`);
+        } else {
+          map[d.code] = card.name || '(無題)';
+        }
+      });
+    });
+    return conflicts;
+  }
+
+  function render() {
+    document.getElementById('cardsArea').innerHTML = cards.map(cardHtml).join('');
+    const conflicts = overlapMessage();
+    const warn = document.getElementById('overlapWarn');
+    if (conflicts.length) {
+      warn.hidden = false;
+      warn.textContent = '適用曜日の重複: ' + conflicts.join(' / ');
+    } else {
+      warn.hidden = true;
+      warn.textContent = '';
+    }
+    bind();
+    updatePreview();
+  }
+
+  function bind() {
+    document.querySelectorAll('.day-chip').forEach((el) => {
+      el.onclick = (e) => {
+        e.preventDefault();
+        const ci = Number(el.dataset.ci);
+        const day = el.dataset.day;
+        const card = cards[ci];
+        if (day === 'all') {
+          const next = !card.weekdays.all;
+          DAYS.forEach((d) => { card.weekdays[d.code] = false; });
+          card.weekdays.all = next;
+        } else {
+          card.weekdays.all = false;
+          card.weekdays[day] = !card.weekdays[day];
+        }
+        render();
+      };
+    });
+
+    document.querySelectorAll('[data-f]').forEach((el) => {
+      el.addEventListener('change', onField);
+      el.addEventListener('input', onField);
+    });
+
+    document.querySelectorAll('[data-act]').forEach((el) => {
+      el.addEventListener('click', onAct);
+    });
+  }
+
+  function onField(e) {
+    const el = e.target;
+    const f = el.dataset.f;
+    const ci = Number(el.dataset.ci);
+    if (f === 'cardName') {
+      cards[ci].name = el.value;
+      updatePreview();
+      return;
+    }
+    const ri = Number(el.dataset.ri);
+    const row = cards[ci].rows[ri];
+    if (!row) return;
+    if (f === 'item_type') {
+      row.item_type = el.value;
+      if (row.item_type === 'distance' && !row.distance) row.distance = { mode: 'daily_excess', base_km: 0 };
+      if (row.item_type === 'table' && !row.table) {
+        row.table = { tier_mode: 'excess_unit', tiers: [{ upTo: '', billing: 0, payment: 0 }] };
+      }
+      render();
+      return;
+    }
+    if (f === 'billing' || f === 'payment') row[f] = Number(el.value || 0);
+    if (f === 'billing_detail_name' || f === 'payment_detail_name') row[f] = el.value;
+    if (f === 'distMode') {
+      row.distance = row.distance || {};
+      row.distance.mode = el.value;
+    }
+    if (f === 'distBase') {
+      row.distance = row.distance || {};
+      row.distance.base_km = Number(el.value || 0);
+    }
+    if (f === 'tierMode') {
+      row.table = row.table || { tiers: [] };
+      row.table.tier_mode = el.value;
+    }
+    if (f === 'tierUp' || f === 'tierBill' || f === 'tierPay') {
+      const ti = Number(el.dataset.ti);
+      row.table = row.table || { tiers: [] };
+      const t = row.table.tiers[ti];
+      if (!t) return;
+      if (f === 'tierUp') t.upTo = el.value === '' ? '' : Number(el.value);
+      if (f === 'tierBill') t.billing = Number(el.value || 0);
+      if (f === 'tierPay') t.payment = Number(el.value || 0);
+    }
+    updatePreview();
+  }
+
+  function onAct(e) {
+    const el = e.currentTarget;
+    const act = el.dataset.act;
+    const ci = Number(el.dataset.ci);
+    const ri = Number(el.dataset.ri);
+    if (act === 'addRow') {
+      const name = cards[ci].name || '料金';
+      cards[ci].rows.push(row('unit', 0, 0, name + ' 項目', name + ' 項目'));
+      render();
+      return;
+    }
+    if (act === 'delRow') {
+      cards[ci].rows.splice(ri, 1);
+      render();
+      return;
+    }
+    if (act === 'dupCard') {
+      const copy = JSON.parse(JSON.stringify(cards[ci]));
+      copy.id = nextId('c');
+      copy.name = (copy.name || '料金') + '（コピー）';
+      copy.rows.forEach((r) => { r.id = nextId('r'); });
+      cards.splice(ci + 1, 0, copy);
+      render();
+      return;
+    }
+    if (act === 'delCard') {
+      cards.splice(ci, 1);
+      render();
+      return;
+    }
+    if (act === 'addTier') {
+      const rowObj = cards[ci].rows[ri];
+      rowObj.table = rowObj.table || { tier_mode: 'excess_unit', tiers: [] };
+      rowObj.table.tiers.push({ upTo: '', billing: 0, payment: 0 });
+      render();
+      return;
+    }
+    if (act === 'delTier') {
+      const ti = Number(el.dataset.ti);
+      cards[ci].rows[ri].table.tiers.splice(ti, 1);
+      render();
+    }
+  }
+
+  function toV2() {
+    return {
+      schema: 'fee_items_v2',
+      fee_items: cards.map((c, i) => ({
+        id: c.id,
+        name: c.name,
+        weekdays: { ...c.weekdays },
+        rows: c.rows.map((r, j) => {
+          const out = {
+            id: r.id,
+            item_type: r.item_type,
+            billing: Number(r.billing || 0),
+            payment: Number(r.payment || 0),
+            billing_detail_name: r.billing_detail_name || `${c.name} ${TYPE_LABEL[r.item_type] || r.item_type}`,
+            payment_detail_name: r.payment_detail_name || `${c.name} ${TYPE_LABEL[r.item_type] || r.item_type}`,
+            sort_order: (j + 1) * 10
+          };
+          if (r.item_type === 'distance') out.distance = r.distance;
+          if (r.item_type === 'table') out.table = r.table;
+          return out;
+        })
+      }))
+    };
+  }
+
+  function updatePreview() {
+    document.getElementById('jsonPreview').textContent = JSON.stringify(toV2(), null, 2);
+  }
+
+  function escapeAttr(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
+  document.getElementById('addCardBtn').onclick = () => {
+    const w = emptyDays();
+    w.sun = true;
+    cards.push({
+      id: nextId('c'),
+      name: '新しい料金',
+      weekdays: w,
+      rows: [row('daily_basic', 0, 0, '', '')]
+    });
+    render();
+  };
+
+  document.getElementById('resetBtn').onclick = () => {
+    cards = sampleCards();
+    uid = 20;
+    render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
