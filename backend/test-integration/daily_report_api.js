@@ -24,10 +24,15 @@ async function seedAnonymousProject(pool) {
   const [partner] = await pool.execute(
     `INSERT INTO partners (partner_name) VALUES ('CI匿名パートナー')`
   );
+  const [billing] = await pool.execute(
+    `INSERT INTO company_billings (company_id, billing_no, billing_print_name)
+     VALUES (?, 0, 'CI匿名企業')`,
+    [company.insertId]
+  );
   const [project] = await pool.execute(
-    `INSERT INTO projects (company_id, partner_id, manager_name, business_type)
-     VALUES (?, ?, 'CI担当', 'CI日報結合試験')`,
-    [company.insertId, partner.insertId]
+    `INSERT INTO projects (company_id, billing_id, partner_id, manager_name, business_type)
+     VALUES (?, ?, ?, 'CI担当', 'CI日報結合試験')`,
+    [company.insertId, billing.insertId, partner.insertId]
   );
   return {
     companyId: Number(company.insertId),

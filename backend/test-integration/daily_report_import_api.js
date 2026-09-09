@@ -20,6 +20,7 @@ async function main() {
   const pool = getPool();
   let server;
   let companyId;
+  let billingId;
   let partnerId;
   let projectId;
   let batchId;
@@ -29,9 +30,14 @@ async function main() {
     companyId = Number(company.insertId);
     const [partner] = await pool.query("INSERT INTO partners (partner_name) VALUES ('IMPORT-CI匿名パートナー')");
     partnerId = Number(partner.insertId);
+    const [billing] = await pool.query(
+      "INSERT INTO company_billings (company_id,billing_no,billing_print_name) VALUES (?,0,'IMPORT-CI匿名企業')",
+      [companyId]
+    );
+    billingId = Number(billing.insertId);
     const [project] = await pool.query(
-      "INSERT INTO projects (company_id,partner_id,manager_name,business_type,operation_start_date) VALUES (?,?, 'IMPORT-CI担当','IMPORT-CI案件','2026-09-01')",
-      [companyId, partnerId]
+      "INSERT INTO projects (company_id,billing_id,partner_id,manager_name,business_type,operation_start_date) VALUES (?,?,?, 'IMPORT-CI担当','IMPORT-CI案件','2026-09-01')",
+      [companyId, billing.insertId, partnerId]
     );
     projectId = Number(project.insertId);
 
@@ -109,6 +115,7 @@ async function main() {
       await pool.query('DELETE FROM daily_reports WHERE daily_report_id=?', [reportId]);
     }
     if (projectId) await pool.query('DELETE FROM projects WHERE project_id=?', [projectId]);
+    if (billingId) await pool.query('DELETE FROM company_billings WHERE billing_id=?', [billingId]);
     if (companyId) await pool.query('DELETE FROM companies WHERE company_id=?', [companyId]);
     if (partnerId) await pool.query('DELETE FROM partners WHERE partner_id=?', [partnerId]);
     await pool.end();
