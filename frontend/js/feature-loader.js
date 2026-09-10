@@ -3,6 +3,7 @@
   const pending = new Map();
   const common = [['feature-kit', 'LinksFeatureKit'], ['data-table', 'LinksDataTable'], ['list_screens', 'LinksListScreens']];
   const modules = {
+    test_data: [['test_data', 'LinksTestData']],
     base_management: [['base_management', 'LinksBaseManagement']],
     companies: [['companies', 'LinksCompanies']],
     partners: [['partners', 'LinksPartners']],

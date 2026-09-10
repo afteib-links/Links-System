@@ -118,6 +118,7 @@ async function createApp() {
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/base-management', baseManagementRoutes);
   app.use('/api/help', helpRoutes);
+  app.use('/api/test-data', require('./routes/test_data').createRouter());
 
   // ロール／機能権限の動作確認用
   app.get('/api/admin/ping', requireAuth, requireRole('admin'), (req, res) => {
