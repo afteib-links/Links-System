@@ -5,6 +5,12 @@
     overtime_multiplier: 1.25,
     night_multiplier: 1.35,
     night_overtime_multiplier: 1.6,
+    weekday_color: '#34C759',
+    saturday_color: '#1683EA',
+    sunday_holiday_color: '#FFB8BD',
+    project_holiday_color: '#FF3B46',
+    billing_amount_color: '#1D4ED8',
+    payment_amount_color: '#C65D00',
   });
 
   const LinksPriceSets = {
@@ -275,10 +281,10 @@
         const distance = settings.distance_rules[side];
         return `<fieldset class="night-setting-card">
           <legend>${label}</legend>
-          <label>日次基準時間
+          <label class="night-field-standard">日次基準時間
             <input id="standard-${side}-minutes" inputmode="numeric" placeholder="8:00" value="${this.ctx.escapeHtml(this.formatDurationMinutes(workRule.standard_minutes))}" />
           </label>
-          <label>深夜帯（複数はカンマ区切り）
+          <label class="night-field-period">深夜帯（複数はカンマ区切り）
             <input id="night-${side}-periods" value="${this.ctx.escapeHtml(this.periodsText(rule.periods))}" placeholder="22:00-29:00" />
           </label>
           <label>深夜 <select id="night-${side}-mode">${modeOptions(rule.night_mode)}</select></label>
@@ -302,8 +308,8 @@
             <option value="excess_distance" ${(!distance.tier_mode || distance.tier_mode === 'excess_distance') ? 'selected' : ''}>該当段階単価×超過距離</option>
             <option value="progressive" ${distance.tier_mode === 'progressive' ? 'selected' : ''}>各段階内距離の累積</option>
           </select></label>
-          <label class="full">段階JSON（上限なしはnull、例: [{"upper_distance":100,"unit_price":10},{"upper_distance":null,"unit_price":20}]）
-            <textarea id="distance-${side}-tiers" rows="2">${this.ctx.escapeHtml(JSON.stringify(distance.tiers || []))}</textarea></label>
+          <label class="night-field-tiers">段階JSON（上限なしはnull）
+            <textarea id="distance-${side}-tiers" rows="1" title='例: [{"upper_distance":100,"unit_price":10},{"upper_distance":null,"unit_price":20}]'>${this.ctx.escapeHtml(JSON.stringify(distance.tiers || []))}</textarea></label>
         </fieldset>`;
       };
       return `<div class="night-settings-grid">
@@ -469,26 +475,32 @@
         ? `<span class="status-badge status-warning" title="${this.ctx.escapeHtml((row.undefined_variables || []).join(', '))}">下書き</span>`
         : (!admin && row.has_admin_rule ? '<span class="status-badge">管理者設定済み</span>' : '');
       const adminRules = admin ? `
-        <div class="fee-rule-admin full-row">
+        <div class="fee-rule-admin" data-rule-panel="${itemIdx}:${rowIdx}" hidden>
           <label>適用条件<input data-row-f="condition_expression" value="${this.ctx.escapeHtml(row.condition_expression || '')}" placeholder="例: total_distance > 100 AND work_minutes >= 480"></label>
           <label>請求計算式<input data-row-f="billing_expression" value="${this.ctx.escapeHtml(row.billing_expression || '')}" placeholder="空欄なら請求額を使用"></label>
           <label>支払計算式<input data-row-f="payment_expression" value="${this.ctx.escapeHtml(row.payment_expression || '')}" placeholder="空欄なら支払額を使用"></label>
         </div>` : '';
+      const ruleButton = admin
+        ? `<button type="button" class="fee-rule-toggle" data-toggle-rule="${itemIdx}:${rowIdx}" aria-expanded="false">適用条件</button>`
+        : `<button type="button" class="fee-rule-toggle" disabled>${row.has_admin_rule ? '管理者設定済み' : '適用条件'}</button>`;
       return `
         <div class="fee-rule-row" data-fee-row="${rowIdx}">
-          <div class="fee-row-actions">
-            <button type="button" title="行追加" data-add-row="${itemIdx}:${rowIdx}">＋</button>
-            <button type="button" title="行削除" data-del-row="${itemIdx}:${rowIdx}">×</button>
-            <button type="button" title="上へ" data-up-row="${itemIdx}:${rowIdx}">▲</button>
-            <button type="button" title="下へ" data-down-row="${itemIdx}:${rowIdx}">▼</button>
+          <div class="fee-rule-main">
+            <div class="fee-row-actions">
+              <button type="button" title="行追加" data-add-row="${itemIdx}:${rowIdx}">＋</button>
+              <button type="button" title="行削除" data-del-row="${itemIdx}:${rowIdx}">×</button>
+              <button type="button" title="上へ" data-up-row="${itemIdx}:${rowIdx}">▲</button>
+              <button type="button" title="下へ" data-down-row="${itemIdx}:${rowIdx}">▼</button>
+            </div>
+            <input data-row-f="item_name" value="${this.ctx.escapeHtml(row.item_name || '')}" placeholder="料金項目名">
+            <select data-row-f="item_type">${this.feeTypeOptions(row.item_type)}</select>
+            <span class="money-input-wrap"><input class="money-input" inputmode="numeric" data-row-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(row.billing))}"></span>
+            <span class="money-input-wrap"><input class="money-input" inputmode="numeric" data-row-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(row.payment))}"></span>
+            <div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(row.billing, row.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-row-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(row.billing, row.payment))}"><span>%</span>${ruleBadge}</div>
+            <input data-row-f="billing_detail_name" value="${this.ctx.escapeHtml(row.billing_detail_name || '')}" placeholder="請求詳細名">
+            <input data-row-f="payment_detail_name" value="${this.ctx.escapeHtml(row.payment_detail_name || '')}" placeholder="支払詳細名">
+            ${ruleButton}
           </div>
-          <input data-row-f="item_name" value="${this.ctx.escapeHtml(row.item_name || '')}" placeholder="料金項目名">
-          <select data-row-f="item_type">${this.feeTypeOptions(row.item_type)}</select>
-          <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="billing" value="${this.ctx.escapeHtml(this.moneyInputValue(row.billing))}"></span>
-          <span class="money-input-wrap"><span>￥</span><input class="money-input" inputmode="numeric" data-row-f="payment" value="${this.ctx.escapeHtml(this.moneyInputValue(row.payment))}"></span>
-          <div class="fee-profit-input"><input class="${this.profitWarningClass(this.profitRateValue(row.billing, row.payment)).trim()}" type="number" min="0" max="100" step="0.1" data-row-f="profit" value="${this.ctx.escapeHtml(this.profitRateValue(row.billing, row.payment))}"><span>%</span>${ruleBadge}</div>
-          <input data-row-f="billing_detail_name" value="${this.ctx.escapeHtml(row.billing_detail_name || '')}" placeholder="請求詳細名">
-          <input data-row-f="payment_detail_name" value="${this.ctx.escapeHtml(row.payment_detail_name || '')}" placeholder="支払詳細名">
           ${adminRules}
         </div>`;
     },
@@ -506,14 +518,14 @@
             <input type="text" class="fee-item-name" data-item="${itemIdx}" value="${this.ctx.escapeHtml(item.name || '')}" placeholder="料金項目名" />
             <div class="fee-weekdays">${weekdayChecks}</div>
             <div class="fee-item-actions">
-              <button type="button" class="btn btn-ghost btn-small" data-up-item="${itemIdx}" title="優先順位を上げる">▲</button>
-              <button type="button" class="btn btn-ghost btn-small" data-down-item="${itemIdx}" title="優先順位を下げる">▼</button>
-              <button type="button" class="btn btn-ghost btn-small" data-dup-item="${itemIdx}">項目コピー</button>
-              <button type="button" class="btn btn-danger btn-small" data-del-item="${itemIdx}">削除</button>
+              <button type="button" class="fee-card-action" data-up-item="${itemIdx}" title="優先順位を上げる" aria-label="優先順位を上げる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5-6 5 6" /></svg></button>
+              <button type="button" class="fee-card-action" data-down-item="${itemIdx}" title="優先順位を下げる" aria-label="優先順位を下げる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 6 5-6" /></svg></button>
+              <button type="button" class="fee-card-action fee-card-action-copy" data-dup-item="${itemIdx}" title="料金カードをコピー" aria-label="料金カードをコピー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="10" height="11" rx="1" /><path d="M15 8V5H5v11h3" /></svg></button>
+              <button type="button" class="fee-card-action fee-card-action-delete" data-del-item="${itemIdx}" title="料金カードを削除" aria-label="料金カードを削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13M10 10v6m4-6v6" /></svg></button>
             </div>
           </div>
           <div class="fee-rule-scroll">
-            <div class="fee-rule-grid-head"><span>操作</span><span>料金項目名</span><span>項目種別</span><span>請求額</span><span>支払額</span><span>利益率</span><span>請求詳細名</span><span>支払詳細名</span></div>
+            <div class="fee-rule-grid-head"><span>操作</span><span>料金項目名</span><span>項目種別</span><span>請求額</span><span>支払額</span><span>利益率</span><span>請求詳細名</span><span>支払詳細名</span><span>条件</span></div>
             ${rows || '<p class="hint">料金行がありません。</p>'}
           </div>
         </article>`;
@@ -735,6 +747,14 @@
         }
         card.querySelectorAll('.weekday-chip').forEach((chip) => chip.classList.toggle('is-selected', chip.querySelector('input').checked));
       }));
+      document.querySelectorAll('[data-toggle-rule]').forEach((button) => button.addEventListener('click', () => {
+        const panel = document.querySelector(`[data-rule-panel="${button.getAttribute('data-toggle-rule')}"]`);
+        if (!panel) return;
+        const opening = panel.hidden;
+        panel.hidden = !opening;
+        button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        button.textContent = opening ? '条件を閉じる' : '適用条件';
+      }));
       document.querySelectorAll('.fee-rule-row input[data-row-f="billing"],.fee-rule-row input[data-row-f="payment"]').forEach((inp) => {
         inp.addEventListener('input', () => {
           const cell = inp.closest('.fee-rule-row');
@@ -749,6 +769,29 @@
         inp.addEventListener('blur', () => {
           inp.value = this.moneyInputValue(inp.value);
           this.updateProfitInput(inp.closest('.fee-rule-row'));
+        });
+      });
+      document.querySelectorAll('.fee-rule-main [data-row-f]').forEach((control) => {
+        control.addEventListener('keydown', (event) => {
+          if (!event.ctrlKey || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+          const row = control.closest('.fee-rule-row');
+          const card = control.closest('[data-fee-item]');
+          if (!row || !card) return;
+          const field = control.dataset.rowF;
+          const rowControls = [...row.querySelectorAll('[data-row-f]')];
+          const rows = [...card.querySelectorAll('.fee-rule-row')];
+          let target = null;
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            const offset = event.key === 'ArrowLeft' ? -1 : 1;
+            target = rowControls[rowControls.indexOf(control) + offset];
+          } else {
+            const offset = event.key === 'ArrowUp' ? -1 : 1;
+            target = rows[rows.indexOf(row) + offset]?.querySelector(`[data-row-f="${field}"]`);
+          }
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
+          if (typeof target.select === 'function') target.select();
         });
       });
       document.querySelectorAll('.fee-rule-row input[data-row-f="profit"]').forEach((inp) => {
@@ -872,41 +915,46 @@
       };
 
       const revisionIndex = revisions.findIndex((revision) => Number(revision.price_set_id) === Number(id));
-      const revisionToolbar = id ? `<div class="fee-revision-toolbar">
-        <strong>${this.ctx.escapeHtml(row.revision_code || row.price_set_no || '')}</strong>
-        <span>改定 ${row.revision_no || 1}/${revisions.length || 1}</span>
+      const revisionSummary = `改定 ${row.revision_no || 1}/${revisions.length || 1}`;
+      const revisionTitle = row.revision_code
+        ? `No.${id}　${row.revision_code}　${revisionSummary}`
+        : `No.${id}`;
+      const revisionControls = id ? `
         <button type="button" class="btn btn-ghost btn-small" id="prev-revision" ${revisionIndex <= 0 ? 'disabled' : ''}>← 前版</button>
         <button type="button" class="btn btn-ghost btn-small" id="next-revision" ${revisionIndex < 0 || revisionIndex >= revisions.length - 1 ? 'disabled' : ''}>次版 →</button>
-        ${Number(row.is_current_revision) ? '<button type="button" class="btn btn-small" id="create-revision">料金改定</button>' : '<span class="status-badge">履歴版</span>'}
-        ${Number(row.is_current_revision) && row.base_project_id && !row.project_id ? '<button type="button" class="btn btn-ghost btn-small" id="propagate-revision">個別案件へ反映</button>' : ''}
-      </div>` : '';
+        ${Number(row.is_current_revision) ? '<button type="button" class="btn btn-small" id="create-revision">料金改定</button>' : '<span class="status-badge">履歴版</span>'}` : '';
+      const revisionToolbar = `<div class="fee-revision-toolbar">
+        ${revisionControls}
+        <div class="price-set-meta-fields">
+          <label>適用開始（必須）<input type="date" name="apply_start_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></label>
+          <label>適用終了<input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></label>
+          <label>企業${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id)}</label>
+          <label>名称（必須）<input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></label>
+        </div>
+        ${id && Number(row.is_current_revision) && row.base_project_id && !row.project_id ? '<button type="button" class="btn btn-ghost btn-small" id="propagate-revision">個別案件へ反映</button>' : ''}
+      </div>`;
 
       this.ctx.app.innerHTML = this.kit.shell(
-        id ? `金額データ編集（No.${id}）` : '金額データ新規',
-        `${revisionToolbar}<section class="panel">
+        id ? `金額データ編集（${revisionTitle}）` : '金額データ新規',
+        `<section class="panel price-set-editor" style="--fee-weekday-color:${this.ctx.escapeHtml(this.calculationSettings.weekday_color)};--fee-saturday-color:${this.ctx.escapeHtml(this.calculationSettings.saturday_color)};--fee-sunday-holiday-color:${this.ctx.escapeHtml(this.calculationSettings.sunday_holiday_color)};--fee-project-holiday-color:${this.ctx.escapeHtml(this.calculationSettings.project_holiday_color)};--fee-billing-color:${this.ctx.escapeHtml(this.calculationSettings.billing_amount_color)};--fee-payment-color:${this.ctx.escapeHtml(this.calculationSettings.payment_amount_color)}">
           <p class="error" id="form-error"></p>
           <form id="ps-form">
-            <div class="form-sections"><section class="form-section-card"><h3>基本情報・適用期間</h3><div class="form-grid form-grid-compact">
-              <div><label>名称（必須）</label><input name="price_set_name" required value="${this.ctx.escapeHtml(row.price_set_name || '')}" /></div>
-              <div><label>企業</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id)}</div>
-              <div><label>適用開始（必須）</label><input type="date" name="apply_start_date" required value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_start_date))}" /></div>
-              <div><label>適用終了</label><input type="date" name="apply_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(row.apply_end_date))}" /></div>
-              <div class="full"><label>備考</label><input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></div>
-            </div></section>
-            <section class="form-section-card">
+            ${revisionToolbar}
+            <div class="form-sections"><section class="form-section-card price-set-night-card">
             <div class="section-head"><h3 class="section-title">勤務・深夜・丸め条件</h3></div>
             ${this.nightSettingsHtml()}
             </section>
-            <section class="form-section-card">
-            ${id ? this.importBarHtml(id) : ''}
+            <section class="form-section-card price-set-fee-card">
             <div class="section-head">
               <h3 class="section-title">料金カード（上から優先）</h3>
-              <button type="button" class="btn btn-ghost" id="add-fee-item">＋ 料金カード</button>
+              <button type="button" class="btn btn-ghost fee-add-card-button" id="add-fee-item">＋ 料金カード</button>
             </div>
+            <div id="fee-items-area" class="fee-items-stack">${this.feeItemsAreaHtml()}</div>
+            ${id ? this.importBarHtml(id) : ''}
             <div id="fee-coverage-warning">${this.feeCoverageWarningHtml()}</div>
             <p class="hint">請求詳細名・支払詳細名は保存のみです。帳票への反映は後続作業で行います。</p>
-            <div id="fee-items-area" class="fee-items-stack">${this.feeItemsAreaHtml()}</div>
-            </section></div>
+            </section>
+            <section class="form-section-card price-set-note-card"><label>備考<input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></label></section></div>
             <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
@@ -915,12 +963,20 @@
           </form>
         </section>
         <style>
-          .fee-items-stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
-          .fee-item-card { border: 1px solid var(--border, #ccc); padding: 0.75rem; }
-          .fee-item-head { display: grid; grid-template-columns: minmax(120px, 1fr) auto; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+          .price-set-meta-fields { display:grid; grid-template-columns:145px 145px minmax(320px,2fr) minmax(220px,1fr); flex:1 1 850px; gap:8px; margin:0; }
+          .price-set-meta-fields label { display:flex; flex-direction:column; gap:3px; font-weight:700; white-space:nowrap; }
+          .price-set-meta-fields input, .price-set-meta-fields select { width:100%; margin:0; }
+          .price-set-note-card label { display:flex; flex-direction:column; gap:4px; font-weight:700; }
+          .price-set-note-card input { width:100%; margin:0; }
+          .price-set-fee-card { padding-top:6px !important; }
+          .price-set-fee-card .section-head { min-height:0; margin:0 0 4px; }
+          .price-set-fee-card .section-title { margin:0; line-height:1.15; }
+          .fee-items-stack { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.65rem; margin-top:0.15rem; }
+          .fee-item-card { border:1px solid var(--border,#ccc); padding:0.35rem 0.55rem !important; border-radius:7px; box-shadow:0 1px 2px rgba(16,24,40,.05); }
+          .fee-item-head { display:grid !important; grid-template-columns:minmax(120px,1fr) auto !important; gap:0.3rem !important; align-items:center; margin-bottom:2px !important; }
           .fee-item-name { flex: 1; font-weight: 600; }
-          .fee-weekdays { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; align-items: center; margin-bottom: 0.5rem; }
-          .weekday-chip { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.9rem; }
+          .fee-weekdays { grid-column:1/-1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; width:100%; }
+          .weekday-chip { display:flex; justify-content:center; min-height:26px; padding:1px 3px; border-radius:6px; font-size:0.9rem; }
           .weekday-quick { display: flex; gap: 0.25rem; flex-wrap: wrap; }
           .fee-matrix-pair { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; }
           .fee-matrix-pair input { width: 100%; max-width: 7rem; }
@@ -930,18 +986,29 @@
           .fee-profit-input input.profit-below-threshold { color: #b42318; border-color: #d92d20; background: #fef3f2; font-weight: 700; }
           .fee-auto-error { min-height: 1.2rem; margin: 0.25rem 0; }
           .fee-matrix-wide th, .fee-matrix-wide td { vertical-align: top; }
-          .fee-import-bar { margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-          .night-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-          .night-setting-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; border: 1px solid var(--border, #ccc); }
-          .night-setting-card > label:first-of-type { grid-column: 1 / -1; }
-          .night-setting-card label { display: flex; flex-direction: column; gap: 0.2rem; }
+          .fee-add-card-button { border-color:#9cc7ee !important; background:#e7f3ff !important; color:#175c96 !important; }
+          .fee-add-card-button:hover { background:#d5eaff !important; }
+          .fee-import-bar { margin:0.5rem 0 0.25rem; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+          .price-set-night-card { padding:2px 8px !important; }
+          .price-set-night-card .section-head { margin:0; min-height:0; }
+          .price-set-night-card .section-title { margin:0; line-height:1.1; }
+          .night-settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin:0; }
+          .night-setting-card { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:3px 5px; border:1px solid var(--border,#ccc); padding:2px 4px 4px; }
+          .night-setting-card legend { line-height:1; padding:0 3px; }
+          .night-setting-card label { display:flex; flex-direction:column; gap:1px; min-width:0; font-size:11px; line-height:1.05; }
+          .night-setting-card input, .night-setting-card select, .night-setting-card textarea { width:100%; min-width:0; min-height:24px; height:24px; margin:0; padding:1px 4px; }
+          .night-setting-card .night-field-standard { max-width:none; }
+          .night-setting-card .night-field-period { grid-column:auto; }
+          .night-setting-card .night-field-tiers { grid-column:span 2; }
           .hint { color: var(--muted, #666); font-size: 0.9rem; }
-          @media (min-width: 1680px) { .fee-items-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-          @media (max-width: 1100px) { .fee-items-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+          @media (max-width: 1100px) {
+            .fee-items-stack { grid-template-columns:1fr; }
+            .fee-item-head { grid-template-columns:minmax(0,1fr) auto !important; }
+          }
           @media (max-width: 900px) { .night-settings-grid { grid-template-columns: 1fr; } }
-          @media (max-width: 680px) { .fee-items-stack { grid-template-columns: 1fr; } }
+          @media (max-width: 680px) { .fee-items-stack { grid-template-columns:1fr; } .night-setting-card { grid-template-columns:repeat(2,minmax(0,1fr)); } .night-setting-card .night-field-tiers { grid-column:1/-1; } }
         </style>`,
-        { onBack: () => this.showList() }
+        { onBack: () => this.showList(), showHistoryBack: false }
       );
       this.kit.bindShell({ onBack: () => this.showList() });
       this.kit.bindSearchSelects(document.getElementById('ps-form'));
@@ -995,7 +1062,8 @@
           this.collectFeeItemsFromDom();
           for (const item of this.detailState.items || []) {
             if (!(item.rows || []).length) throw new Error(`${item.name || '料金カード'}の料金行を1つ以上設定してください`);
-            if (!Fee().WEEKDAY_CODES.some((weekday) => item.weekdays?.[weekday])) {
+            const needsWeekday = (item.rows || []).some((feeRow) => !['distance', 'table'].includes(feeRow.item_type));
+            if (needsWeekday && !Fee().WEEKDAY_CODES.some((weekday) => item.weekdays?.[weekday])) {
               throw new Error(`${item.name || '料金項目'}の曜日を1つ以上選択してください`);
             }
           }
@@ -1055,11 +1123,8 @@
             }
           }
         }
-        if (this.returnTo) {
-          await this.returnTo();
-          return;
-        }
-        await this.showList(this.detailState.id ? '更新しました' : '登録しました');
+        await this.showDetail(result.data.price_set.price_set_id);
+        this.ctx.showToast(id ? '更新しました' : '登録しました');
       });
     },
   };

@@ -71,6 +71,15 @@
     { key: 'price_matrix_night_overtime_multiplier', label: '深夜超過倍率', defaultValue: '1.6', step: '0.01' },
   ];
 
+  const PRICE_SCREEN_COLOR_SETTINGS = [
+    { key:'price_screen_weekday_color', label:'月～金', defaultValue:'#34C759' },
+    { key:'price_screen_saturday_color', label:'土曜日', defaultValue:'#1683EA' },
+    { key:'price_screen_sunday_holiday_color', label:'日曜日・祝日', defaultValue:'#FFB8BD' },
+    { key:'price_screen_project_holiday_color', label:'休', defaultValue:'#FF3B46' },
+    { key:'price_screen_billing_amount_color', label:'請求額', defaultValue:'#1D4ED8' },
+    { key:'price_screen_payment_amount_color', label:'支払額', defaultValue:'#C65D00' },
+  ];
+
   const DAILY_REPORT_SETTINGS = [
     { key: 'daily_report_input_font_size_px', label: '入力文字サイズ（px）', type: 'number', defaultValue: '16', min: '12', max: '24', step: '1' },
     { key: 'daily_report_reference_text_color', label: '未入力欄の文字色', type: 'color', defaultValue: '#A7B0BE' },
@@ -748,6 +757,7 @@
       const { res, data } = await this.ctx.api('/api/master-settings/settings');
       const allSettings = data?.settings || [];
       const priceMatrixKeys = new Set(PRICE_MATRIX_SETTINGS.map((setting) => setting.key));
+      const priceScreenColorKeys = new Set(PRICE_SCREEN_COLOR_SETTINGS.map((setting) => setting.key));
       const dailyReportKeys = new Set(DAILY_REPORT_SETTINGS.map((setting) => setting.key));
       const submissionKeys = new Set(DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => setting.key));
       const statusColorKeys = new Set(STATUS_COLOR_SETTINGS.map((setting) => setting.key));
@@ -761,6 +771,12 @@
             <input type="number" min="0" step="${setting.step}" data-price-matrix-setting="${setting.key}" value="${this.ctx.escapeHtml(values.get(setting.key) ?? setting.defaultValue)}" />
           </label>`
       ).join('');
+      const priceScreenColorFields = PRICE_SCREEN_COLOR_SETTINGS.map((setting) => {
+        const value = values.get(setting.key) ?? setting.defaultValue;
+        return `<label>${this.ctx.escapeHtml(setting.label)}
+          <span class="color-setting-control"><input type="color" data-price-screen-color="${setting.key}" value="${this.ctx.escapeHtml(value)}"><input class="color-setting-code" data-price-screen-color-code="${setting.key}" value="${this.ctx.escapeHtml(value)}" maxlength="7"></span>
+        </label>`;
+      }).join('');
       const submissionFields = DAILY_REPORT_SUBMISSION_SETTINGS.map((setting) => {
         const value = values.get(setting.key) ?? setting.defaultValue;
         return `<label>${this.ctx.escapeHtml(setting.label)}
@@ -796,7 +812,7 @@
         return `<label>${this.ctx.escapeHtml(setting.key)}<input data-status-label="${setting.key}" value="${this.ctx.escapeHtml(values.get(settingKey) ?? setting.label)}"></label>`;
       }).join('');
       const rows = allSettings
-        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && !statusColorKeys.has(setting.setting_key) && !statusLabelKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
+        .filter((setting) => !priceMatrixKeys.has(setting.setting_key) && !priceScreenColorKeys.has(setting.setting_key) && !dailyReportKeys.has(setting.setting_key) && !submissionKeys.has(setting.setting_key) && !statusColorKeys.has(setting.setting_key) && !statusLabelKeys.has(setting.setting_key) && setting.setting_key !== logoSettingKey)
         .map(
           (s) => `
           <tr>
@@ -816,6 +832,12 @@
             <p class="muted">金額データの自動計算と利益率警告に共通で使用します。</p>
             <div class="form-grid form-grid-compact">${priceMatrixFields}</div>
             <div class="btn-row"><button type="button" class="btn" id="save-price-matrix-settings">料金自動計算設定を保存</button></div>
+          </section>
+          <section class="panel price-screen-color-settings-panel">
+            <h3>金額データ入力画面の色</h3>
+            <p class="muted">曜日ボタンの色と、請求額・支払額の文字色を設定します。</p>
+            <div class="form-grid form-grid-compact">${priceScreenColorFields}</div>
+            <div class="btn-row"><button type="button" class="btn" id="save-price-screen-colors">金額データの色を保存</button></div>
           </section>
           <section class="panel daily-report-settings-panel">
             <h3>日報入力画面</h3>
@@ -980,6 +1002,22 @@
           if (/^#[0-9a-f]{6}$/i.test(code.value || '')) picker.value = code.value;
           else code.value = picker.value.toUpperCase();
         });
+      });
+      PRICE_SCREEN_COLOR_SETTINGS.forEach((setting) => {
+        const picker = document.querySelector(`[data-price-screen-color="${setting.key}"]`);
+        const code = document.querySelector(`[data-price-screen-color-code="${setting.key}"]`);
+        picker?.addEventListener('input', () => { code.value = picker.value.toUpperCase(); });
+        code?.addEventListener('change', () => {
+          if (/^#[0-9a-f]{6}$/i.test(code.value || '')) picker.value = code.value;
+          else code.value = picker.value.toUpperCase();
+        });
+      });
+      document.getElementById('save-price-screen-colors')?.addEventListener('click', async () => {
+        const settings = PRICE_SCREEN_COLOR_SETTINGS.map((setting) => ({ ...setting, value:document.querySelector(`[data-price-screen-color="${setting.key}"]`)?.value }));
+        if (settings.some((setting) => !/^#[0-9a-f]{6}$/i.test(setting.value || ''))) return window.alert('色は#RRGGBB形式で入力してください');
+        const results = await Promise.all(settings.map((setting) => this.ctx.api(`/api/master-settings/settings/${setting.key}`, { method:'PUT', body:JSON.stringify({ setting_value:setting.value.toUpperCase(), setting_label:`金額データ：${setting.label}の色` }) })));
+        if (results.some((result) => !result.res.ok)) return window.alert('金額データの色設定を保存できませんでした');
+        this.ctx.showToast('金額データの色を保存しました');
       });
       document.getElementById('save-status-colors')?.addEventListener('click', async () => {
         const settings = STATUS_COLOR_SETTINGS.map((setting) => ({ ...setting, value:document.querySelector(`[data-status-color="${setting.key}"]`)?.value }));
