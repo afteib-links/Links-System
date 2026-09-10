@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Capture live SPA screenshots for docs/manual/.
+ * Capture live SPA screenshots for 利用マニュアル/.
  * Usage: UI_BASE_URL=http://127.0.0.1:3000 node scripts/capture_manual_screens.js
  */
 const fs = require('fs');
@@ -8,10 +8,20 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const BASE = process.env.UI_BASE_URL || 'http://127.0.0.1:3000';
-const OUT = path.resolve(__dirname, '../../docs/manual/screenshots');
+const OUT = path.resolve(__dirname, '../../利用マニュアル/screenshots');
 const YM = process.env.MANUAL_YM || '2026-08';
 const LOGIN_ID = process.env.ADMIN_LOGIN_ID || 'admin';
 const PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234';
+
+function localBrowserPath() {
+  if (process.env.MANUAL_BROWSER_PATH) return process.env.MANUAL_BROWSER_PATH;
+  if (process.platform !== 'win32') return null;
+  return [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  ].find((candidate) => fs.existsSync(candidate)) || null;
+}
 
 async function waitMain(page) {
   await page.locator('.app-main').waitFor({ timeout: 20000 });
@@ -64,12 +74,16 @@ async function login(page) {
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch({ headless: true });
+  const executablePath = localBrowserPath();
+  const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(20000);
 
   await login(page);
   await shot(page, '02_home');
+
+  await openFeature(page, 'base_management');
+  await shot(page, 'base_management');
 
   await openFeature(page, 'companies');
   await shot(page, '03_companies_list');
@@ -103,6 +117,12 @@ async function main() {
     await shot(page, '15_daily_import');
   }
 
+  await openFeature(page, 'office_work');
+  await shot(page, 'office_work');
+
+  await openFeature(page, 'daily_report_submissions');
+  await shot(page, 'daily_report_submissions');
+
   await openFeature(page, 'advances');
   await setMonth(page, 'advance-month');
   await shot(page, '16_advances');
@@ -121,6 +141,9 @@ async function main() {
   await setMonth(page, 'cash-month');
   await shot(page, '21_cash_management');
 
+  await openFeature(page, 'analytics');
+  await shot(page, 'analytics');
+
   await openFeature(page, 'master_settings');
   await shot(page, '22_master_settings_hub');
   if (await page.locator('[data-hub="settings"]').count()) {
@@ -131,6 +154,9 @@ async function main() {
 
   await openFeature(page, 'ui_builder');
   await shot(page, '24_ui_builder');
+
+  await openFeature(page, 'help_settings');
+  await shot(page, 'help_settings');
 
   await openFeature(page, 'users');
   await shot(page, '25_users');

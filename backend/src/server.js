@@ -159,6 +159,22 @@ async function createApp() {
   });
 
   const frontendDir = path.resolve(__dirname, '../../frontend');
+  const manualDir = path.resolve(__dirname, '../../利用マニュアル');
+
+  // 利用マニュアルはログイン方法も確認できるよう、社内LAN内では認証なしで配信する。
+  // SPAフォールバックより前に置き、/manual/* をアプリの index.html へ流さない。
+  app.use(
+    '/manual',
+    express.static(manualDir, {
+      etag: false,
+      lastModified: false,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+      },
+    })
+  );
+
   app.use(
     express.static(frontendDir, {
       etag: false,

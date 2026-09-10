@@ -205,6 +205,7 @@
         <div class="topbar-context"><span>運送業務基幹システム</span></div>
         <h1 class="topbar-page-title" title="${escapedTitle}">${escapedTitle}</h1>
         <div class="header-actions">
+          <a class="btn btn-ghost header-manual-link" href="/manual/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">冊</span><span class="header-manual-label">利用マニュアル</span></a>
           <button class="btn btn-ghost header-help-button" type="button" id="screen-help"><span aria-hidden="true">？</span><span class="header-help-label">ヘルプ</span></button>
           <div class="user-pill">
             <strong>${escapeHtml(currentUser.display_name)}</strong>
