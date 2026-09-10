@@ -1560,6 +1560,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   white-space: nowrap;
 }
 .app-topbar .header-actions { flex: 0 0 auto; min-width: 0; }
+.app-topbar .header-manual-link { display:inline-flex; align-items:center; gap:5px; min-height:38px; text-decoration:none; white-space:nowrap; }
 .app-topbar .user-pill strong { color: var(--ink); }
 .app-topbar .user-pill span { color: var(--muted); opacity: 1; }
 .app-topbar .btn-secondary { color: var(--ink); border-color: var(--line-strong); background: #fff; }
@@ -1974,6 +1975,8 @@ label, .field-label { color: #344054; font-weight: 700; }
   .header-back-button { padding:7px 9px; }
   .header-help-button { width:38px; padding:0; }
   .header-help-label { display:none; }
+  .header-manual-link { width:38px; padding:0; justify-content:center; }
+  .header-manual-label { display:none; }
   .app-topbar .header-actions { width:auto; min-width:0; margin-left:auto; gap:6px; justify-content:flex-end; }
   .app-topbar .user-pill { min-width:0; max-width:42vw; text-align:right; }
   .app-topbar .user-pill strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

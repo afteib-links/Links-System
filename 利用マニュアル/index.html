@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Links-Systemを初めて使う方向けの、画面と業務例で学べる利用マニュアルです。">
+  <title>Links-System 利用マニュアル</title>
+  <link rel="stylesheet" href="manual.css">
+  <script src="manual.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#manual-main">本文へ移動</a>
+  <header class="manual-header no-print">
+    <a class="brand" href="#top" aria-label="利用マニュアルの先頭へ"><span>L</span> Links-System 利用マニュアル</a>
+    <nav aria-label="マニュアル操作">
+      <button type="button" data-action="overview">全体を見る</button>
+      <button type="button" data-action="print-chapter">この章を印刷</button>
+      <button type="button" class="primary" data-action="print-all">全体を印刷</button>
+    </nav>
+  </header>
+
+  <div class="manual-shell" id="top">
+    <aside class="manual-sidebar no-print" aria-label="章一覧">
+      <p class="sidebar-label">はじめての方</p>
+      <a href="#overview" data-nav="overview">概要と仕事の流れ</a>
+      <a href="#roles" data-nav="roles">担当別の使い方</a>
+      <a href="#differences" data-nav="differences">似ている機能の違い</a>
+      <p class="sidebar-label">マスタ</p>
+      <a href="#base_management" data-nav="base_management">基本管理</a>
+      <a href="#companies" data-nav="companies">企業マスタ</a>
+      <a href="#partners" data-nav="partners">パートナーマスタ</a>
+      <a href="#base_projects" data-nav="base_projects">基本案件</a>
+      <a href="#projects" data-nav="projects">個別案件</a>
+      <a href="#price_sets" data-nav="price_sets">金額データ管理</a>
+      <p class="sidebar-label">日々の運用</p>
+      <a href="#office_work" data-nav="office_work">事務作業</a>
+      <a href="#daily_reports" data-nav="daily_reports">日報</a>
+      <a href="#daily_report_submissions" data-nav="daily_report_submissions">日報提出</a>
+      <p class="sidebar-label">精算・分析</p>
+      <a href="#advances" data-nav="advances">先払い</a>
+      <a href="#invoices" data-nav="invoices">請求</a>
+      <a href="#payments" data-nav="payments">支払</a>
+      <a href="#cash_management" data-nav="cash_management">入出金管理</a>
+      <a href="#analytics" data-nav="analytics">収支分析</a>
+      <p class="sidebar-label">設定</p>
+      <a href="#master_settings" data-nav="master_settings">マスター設定</a>
+      <a href="#help_settings" data-nav="help_settings">ヘルプ編集設定</a>
+      <a href="#ui_builder" data-nav="ui_builder">UIビルダー</a>
+      <a href="#users" data-nav="users">ユーザー管理</a>
+    </aside>
+
+    <main id="manual-main" tabindex="-1">
+      <article class="manual-chapter intro-chapter" id="overview" data-chapter="overview">
+        <p class="eyebrow">はじめて利用する方へ</p>
+        <h1>Links-Systemの仕事を、画面と流れで理解する</h1>
+        <p class="lead">Links-Systemは、運送業務の「取引先・案件・料金・日報・請求・支払・入出金・収支」を同じ案件でつなぐ社内Webシステムです。中心になるのは日報です。日報に登録した実績が、承認後の請求と支払の根拠になります。</p>
+        <div class="start-grid">
+          <section class="start-card"><span>1</span><h2>登録する</h2><p>企業、パートナー、案件、金額データを準備します。</p></section>
+          <section class="start-card"><span>2</span><h2>日々入力する</h2><p>日報の受領を確認し、勤務実績と経費を入力します。</p></section>
+          <section class="start-card"><span>3</span><h2>月次で確定する</h2><p>日報を承認し、請求・支払を確認して帳票を発行します。</p></section>
+          <section class="start-card"><span>4</span><h2>お金を管理する</h2><p>入出金予定と実績を管理し、収支を分析します。</p></section>
+        </div>
+
+        <section aria-labelledby="login-heading">
+          <h2 id="login-heading">最初のログイン</h2>
+          <div class="screen-and-copy">
+            <button class="screen-shot" type="button" data-zoom="screenshots/01_login.png" aria-label="ログイン画面を拡大">
+              <img src="screenshots/01_login.png" alt="ログインIDとパスワードを入力するログイン画面">
+              <span>画像を拡大</span>
+            </button>
+            <div>
+              <ol class="steps">
+                <li>社内から案内されたURLをChromeまたはEdgeで開きます。</li>
+                <li>ログインIDとパスワードを入力し、「ログイン」を押します。</li>
+                <li>ホームが開いたら、左メニューまたは進捗カードから仕事を選びます。</li>
+              </ol>
+              <p class="note"><strong>メニューが見つからない場合：</strong>故障とは限りません。担当に付与された権限によって表示される機能が異なります。必要な機能がない場合は管理者へ確認してください。</p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="flow-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">クリックして確認</p><h2 id="flow-heading">機能がつながる業務フロー</h2></div>
+            <button type="button" class="quiet no-print" data-action="clear-flow">選択解除</button>
+          </div>
+          <p>機能を選ぶと、前に必要な仕事と、その結果を使う次の仕事が色付きで表示されます。</p>
+          <div class="flow-map" aria-label="Links-Systemの機能関連図">
+            <section class="flow-lane"><h3>準備</h3><div>
+              <button type="button" data-flow="companies" data-links="base_management,base_projects,projects,invoices">企業</button>
+              <button type="button" data-flow="partners" data-links="base_management,projects,payments,advances">パートナー</button>
+              <button type="button" data-flow="base_projects" data-links="companies,projects,price_sets,base_management">基本案件</button>
+              <button type="button" data-flow="projects" data-links="companies,partners,base_projects,price_sets,daily_reports">個別案件</button>
+              <button type="button" data-flow="price_sets" data-links="base_projects,projects,daily_reports,invoices,payments">金額データ</button>
+              <button type="button" data-flow="base_management" data-links="companies,base_projects,projects,price_sets">基本管理</button>
+            </div></section>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <section class="flow-lane"><h3>日々の運用</h3><div>
+              <button type="button" data-flow="daily_report_submissions" data-links="partners,projects,daily_reports,office_work">日報提出</button>
+              <button type="button" data-flow="daily_reports" data-links="projects,price_sets,daily_report_submissions,office_work,invoices,payments">日報</button>
+              <button type="button" data-flow="office_work" data-links="daily_report_submissions,daily_reports,invoices,payments">事務作業</button>
+            </div></section>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <section class="flow-lane"><h3>精算</h3><div>
+              <button type="button" data-flow="advances" data-links="projects,payments,cash_management">先払い</button>
+              <button type="button" data-flow="invoices" data-links="companies,daily_reports,cash_management,analytics">請求</button>
+              <button type="button" data-flow="payments" data-links="partners,daily_reports,advances,cash_management,analytics">支払</button>
+              <button type="button" data-flow="cash_management" data-links="advances,invoices,payments,analytics">入出金管理</button>
+            </div></section>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <section class="flow-lane"><h3>確認</h3><div>
+              <button type="button" data-flow="analytics" data-links="invoices,payments,cash_management">収支分析</button>
+              <button type="button" data-flow="master_settings" data-links="daily_reports,advances,cash_management">マスター設定</button>
+              <button type="button" data-flow="help_settings" data-links="master_settings,ui_builder,users">ヘルプ編集</button>
+              <button type="button" data-flow="ui_builder" data-links="master_settings,users">UIビルダー</button>
+              <button type="button" data-flow="users" data-links="master_settings,help_settings,ui_builder">ユーザー</button>
+            </div></section>
+          </div>
+          <div class="flow-result" aria-live="polite" data-flow-result>機能を選択すると、ここに役割と前後関係が表示されます。</div>
+        </section>
+      </article>
+
+      <article class="manual-chapter intro-chapter" id="roles" data-chapter="roles">
+        <p class="eyebrow">自分に必要な章を探す</p><h1>担当別の使い方</h1>
+        <div class="role-grid">
+          <section><h2>総務・事務</h2><p>企業・パートナー・案件を準備し、届いた日報を入力します。月末は事務作業で漏れを確認して、請求・支払・入出金へ進みます。</p></section>
+          <section><h2>営業</h2><p>担当案件と料金を確認し、日報や請求・支払の内容を承認します。担当外の案件は権限により表示されません。</p></section>
+          <section><h2>管理者・経営者</h2><p>確定、取消、入出金、収支を確認します。全社設定やユーザー権限の変更は影響範囲を確認して行います。</p></section>
+          <section><h2>企業・パートナー</h2><p>企業は自社の請求、パートナーは自分の日報・支払を確認します。社内用のマスタや他社情報は表示されません。</p></section>
+        </div>
+        <p class="warning"><strong>共通の注意：</strong>一覧で絞り込んでもデータは削除されません。確定・取消・実行の操作は履歴や帳票に影響するため、対象月と相手先を必ず確認してください。</p>
+      </article>
+
+      <article class="manual-chapter intro-chapter" id="differences" data-chapter="differences">
+        <p class="eyebrow">重複して見える理由</p><h1>似ている機能の使い分け</h1>
+        <p class="lead">同じ案件名や金額が複数画面に出るのは、二重登録のためではありません。同じデータを「準備」「進捗確認」「確定」「銀行実行」など別の目的で安全に扱うため、画面を分けています。</p>
+        <div class="difference-list">
+          <section><h2>基本管理 と 各マスタ</h2><p><strong>基本管理</strong>は企業から金額までの関係をたどる入口です。<strong>各マスタ</strong>は情報を登録・編集する正本です。関係確認は基本管理、修正は各マスタを使います。</p></section>
+          <section><h2>基本案件 と 個別案件</h2><p><strong>基本案件</strong>は何度も使う仕事のひな形、<strong>個別案件</strong>は担当者・期間・請求先を持つ実際の契約です。基本案件の後の変更が、既存契約を勝手に変えないよう分けています。</p></section>
+          <section><h2>個別案件 と 金額データ</h2><p><strong>個別案件</strong>は契約と稼働の条件、<strong>金額データ</strong>は期間ごとの請求・支払単価です。単価改定の履歴を残し、過去の確定金額を守るため分離しています。</p></section>
+          <section><h2>ホーム・事務作業・各一覧</h2><p><strong>ホーム</strong>は全体の入口、<strong>事務作業</strong>は工程を横断する進捗確認、<strong>各一覧</strong>は入力・承認・確定を行う場所です。</p></section>
+          <section><h2>日報 と 日報提出</h2><p><strong>日報</strong>は勤務実績と金額計算の根拠、<strong>日報提出</strong>はFAX・紙・メールが届いた事実の管理です。入力件数だけで受領済みにはなりません。</p></section>
+          <section><h2>請求 と 支払</h2><p>同じ承認済み日報を使いますが、<strong>請求</strong>は企業から受け取る売上、<strong>支払</strong>はパートナーへ支払う原価・控除です。単価と帳票も別に固定します。</p></section>
+          <section><h2>先払い・支払・入出金管理</h2><p><strong>先払い</strong>は月途中の前払い、<strong>支払</strong>は月次の最終精算、<strong>入出金管理</strong>は銀行で動かす予定と実績です。同じ支出でも処理段階が違います。</p></section>
+          <section><h2>マスター設定・ヘルプ編集・UIビルダー・ユーザー</h2><p>順に、業務値、画面説明、一覧の見え方、利用権限を管理します。設定変更の影響範囲を限定するため、別機能になっています。</p></section>
+          <section><h2>画面ヘルプ と 利用マニュアル</h2><p><strong>画面ヘルプ</strong>は今開いている画面の短い説明、<strong>利用マニュアル</strong>は業務の前後関係や運用例まで学ぶ資料です。</p></section>
+        </div>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="base_management" data-chapter="base_management">
+        <div class="chapter-head"><div><p class="eyebrow">マスタを横断する</p><h1>基本管理</h1></div><span class="role-badge">管理者・システム・総務</span></div>
+        <p class="purpose">企業 → 基本案件 → 個別案件 → 金額データを列でたどり、「この会社のこの仕事に、どの料金がつながっているか」を確認する入口です。登録の正本ではなく、関係を見失わないために作られています。</p>
+        <figure><img src="screenshots/base_management.png" alt="企業から金額データまでを横断する基本管理画面"><figcaption>上位を選ぶと下位が絞られます。編集は対象をダブルクリックして各マスタへ進みます。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 料金のつながりを調べる</h3><p>企業を選び、基本案件、個別案件、金額データの順に選びます。右のプレビューで適用期間と単価を確認します。</p></section>
+          <section><h3>2. 下位がない登録を探す</h3><p>「全対象」で表示し、個別案件や金額データが空の行を確認します。必要なら該当マスタへ移動して登録します。</p></section>
+          <section><h3>3. 問い合わせから契約を特定する</h3><p>企業名を起点に関連案件を絞り、対象の個別案件をダブルクリックして契約詳細を開きます。</p></section>
+        </div><p class="connection"><strong>使い分け：</strong>ここでは関係を確認し、企業名や契約条件そのものの修正は企業・案件・金額データの各画面で行います。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="companies" data-chapter="companies">
+        <div class="chapter-head"><div><p class="eyebrow">取引先の正本</p><h1>企業マスタ</h1></div><span class="role-badge">管理者・システム・総務</span></div>
+        <p class="purpose">請求先となる企業の基本情報、請求先、車両、担当を管理します。請求書の宛先や案件選択に使われるため、表記を統一します。</p>
+        <figure><img src="screenshots/03_companies_list.png" alt="企業マスタの一覧画面"><figcaption>一覧で対象企業を探し、詳細で住所・請求先・担当などを編集します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 新規取引先を登録する</h3><p>「新規登録」から正式名称、略称、住所、締日などを入力します。保存後、既定の請求先No.0を確認します。</p></section>
+          <section><h3>2. 部門別の請求先を追加する</h3><p>企業詳細の請求先欄で企業情報をコピーし、部門名・住所・取纏No.を変更して保存します。</p></section>
+          <section><h3>3. 契約終了企業を整理する</h3><p>契約状況と終了日を設定します。通常一覧から隠れても履歴や過去帳票は残ります。</p></section>
+        </div><p class="connection"><strong>次につながる：</strong>基本案件・個別案件の所属企業と、請求書の宛先になります。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="partners" data-chapter="partners">
+        <div class="chapter-head"><div><p class="eyebrow">委託先・稼働者の正本</p><h1>パートナーマスタ</h1></div><span class="role-badge">管理者・システム・総務</span></div>
+        <p class="purpose">業務を担当するパートナーの連絡先、振込先、契約状態を管理します。個別案件への割当と支払の相手先になります。</p>
+        <figure><img src="screenshots/05_partners_list.png" alt="パートナーマスタの一覧画面"><figcaption>個人情報や口座情報は権限のある担当者だけが取り扱います。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 新しいパートナーを登録する</h3><p>氏名・名称、連絡先、所属、契約状態を登録し、個別案件から選べる状態にします。</p></section>
+          <section><h3>2. 振込先を変更する</h3><p>詳細で銀行・支店・口座を確認して変更します。確定済み帳票や実績は過去時点の情報を維持します。</p></section>
+          <section><h3>3. 稼働終了者を通常一覧から外す</h3><p>契約状況を終了にして終了日を登録します。必要時は「終了しているものも表示」で再確認できます。</p></section>
+        </div><p class="connection"><strong>次につながる：</strong>個別案件、日報、先払い、支払の対象になります。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="base_projects" data-chapter="base_projects">
+        <div class="chapter-head"><div><p class="eyebrow">仕事のひな形</p><h1>基本案件</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
+        <p class="purpose">繰り返し使う業務条件のテンプレートです。ここから個別案件を作ると、属性と料金一式がコピーされ、実契約側を独立して編集できます。</p>
+        <figure><img src="screenshots/08_base_projects_detail.png" alt="基本案件の詳細画面"><figcaption>基本時刻や企業、締日など、個別案件を作るときの初期値を整えます。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 定期便のひな形を作る</h3><p>企業、業務名、基本時刻、締日を登録し、標準の金額データを用意します。</p></section>
+          <section><h3>2. 似た業務を複製する</h3><p>既存の基本案件をコピーし、名称や時刻だけを変更します。元のひな形は変わりません。</p></section>
+          <section><h3>3. 新年度の標準条件を用意する</h3><p>今後作る契約向けに基本案件を更新します。既に作成済みの個別案件は自動変更されないため、必要なら個別に改定します。</p></section>
+        </div><p class="connection"><strong>なぜ個別案件と分かれる：</strong>ひな形の改定で稼働中・過去の契約条件が変わらないようにするためです。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="projects" data-chapter="projects">
+        <div class="chapter-head"><div><p class="eyebrow">実際に動く契約</p><h1>個別案件</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
+        <p class="purpose">誰が、どの企業の、どの期間・条件の仕事を担当するかを管理します。日報・請求・支払は個別案件単位でつながります。</p>
+        <figure><img src="screenshots/10_projects_detail.png" alt="個別案件の詳細画面"><figcaption>基本案件から作成し、担当パートナー、契約期間、請求先を実契約に合わせます。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 新しい契約を開始する</h3><p>基本案件から個別案件を作り、パートナー、開始日、請求先、支払区分を確認して保存します。</p></section>
+          <section><h3>2. 担当者を交代する</h3><p>契約境界を確認し、必要に応じて元案件を終了して新しい案件をコピー作成します。過去日報の担当は維持します。</p></section>
+          <section><h3>3. 同条件の案件を追加する</h3><p>個別案件をコピーし、担当パートナーや期間だけを変更します。料金も独立した系列として保持されます。</p></section>
+        </div><p class="connection"><strong>前後関係：</strong>企業・パートナー・基本案件を参照し、金額データと日報の親になります。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="price_sets" data-chapter="price_sets">
+        <div class="chapter-head"><div><p class="eyebrow">請求と支払の条件</p><h1>金額データ管理</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
+        <p class="purpose">適用期間ごとの料金カードを管理します。同じ勤務実績でも、企業へ請求する単価とパートナーへ支払う単価を別々に持ちます。</p>
+        <figure><img src="screenshots/12_price_sets_detail.png" alt="金額データの編集画面"><figcaption>曜日・料金項目・請求額・支払額を確認し、適用開始日を基準に履歴を残します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 初回料金を登録する</h3><p>適用開始日、名称、平日・休日などの料金カードを登録し、請求額と支払額をそれぞれ入力します。</p></section>
+          <section><h3>2. 休日・深夜料金を分ける</h3><p>対象曜日と項目種別を確認して専用行を追加します。同じ時間を複数料金へ重複計上しない構成にします。</p></section>
+          <section><h3>3. 10月から単価を改定する</h3><p>現在のセットを「コピーして改定」し、適用開始日を10月1日にして金額を変更します。過去版は上書きしません。</p></section>
+        </div><p class="connection"><strong>なぜ案件と分かれる：</strong>料金改定履歴を残し、確認済み・承認済み・発行済みの金額を後日の変更から守るためです。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="office_work" data-chapter="office_work">
+        <div class="chapter-head"><div><p class="eyebrow">月次進捗の横断確認</p><h1>事務作業</h1></div><span class="role-badge">管理者・総務・営業・経営者</span></div>
+        <p class="purpose">企業やパートナーを起点に、日報・請求・支払の進み具合を一画面で確認します。ここで本体を入力するのではなく、遅れている工程を見つけて各機能へ移動します。</p>
+        <figure><img src="screenshots/office_work.png" alt="日報・請求・支払の状態を横断する事務作業画面"><figcaption>対象月と状態を確認し、気になる工程から実処理画面へ進みます。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 未入力の日報を先に片付ける</h3><p>対象月を合わせ、日報が未入力の企業・案件を絞り、日報画面へ移動します。</p></section>
+          <section><h3>2. 営業確認待ちを担当別に見る</h3><p>担当企業を選び、請求・支払の確認待ちを見つけて該当詳細へ進みます。</p></section>
+          <section><h3>3. 月末の処理漏れを確認する</h3><p>日報、請求、支払の状態を横並びで見て、前工程が止まっている案件から順に対応します。</p></section>
+        </div><p class="connection"><strong>ホームや一覧との違い：</strong>ホームは全体概要、事務作業は複数工程の追跡、各機能一覧は実際の入力・承認を行う場所です。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="daily_reports" data-chapter="daily_reports">
+        <div class="chapter-head"><div><p class="eyebrow">請求・支払の根拠</p><h1>日報</h1></div><span class="role-badge">管理者・総務・営業・パートナー・経営者</span></div>
+        <p class="purpose">案件ごとに勤務日、開始・終了、休憩、距離、経費を入力します。料金設定を使って請求側と支払側を再計算し、日次確認と月次承認を行います。</p>
+        <figure><img src="screenshots/14_daily_grid.png" alt="1か月の日報入力グリッド"><figcaption>1行が1日の作業です。自動計算欄は直接変更せず、必要な場合は理由付き調整を使います。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. FAXの日報を手入力する</h3><p>8:00～17:00、休憩1:00、距離120km、通行料1,500円を同じ日の行へ入力して保存し、内容確認後に日次確認を付けます。</p></section>
+          <section><h3>2. Excelをまとめて取り込む</h3><p>一覧の「データ取り込み」でファイルと列対応を確認します。外部ファイルの金額は採用せず、システムの料金で再計算します。</p></section>
+          <section><h3>3. 翌朝までの勤務と臨時単価を登録する</h3><p>20時～翌4時は20:00～28:00と入力します。その日だけ単価を変える場合は詳細を開き、変更額と理由を登録します。</p></section>
+        </div><p class="connection"><strong>次につながる：</strong>月次承認済みの日報が請求・支払の本番確定の根拠になります。日報提出の受領状態とは別管理です。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="daily_report_submissions" data-chapter="daily_report_submissions">
+        <div class="chapter-head"><div><p class="eyebrow">原本が届いたかを管理</p><h1>日報提出</h1></div><span class="role-badge">管理者・システム・総務・営業・経営者</span></div>
+        <p class="purpose">パートナーから紙・FAX・メール等の日報が届いた事実を、案件ごとの月3サイクルで記録します。勤務実績の入力画面ではありません。</p>
+        <figure><img src="screenshots/daily_report_submissions.png" alt="日報提出を3サイクルで確認する画面"><figcaption>提出済みは日報入力件数から自動設定されません。届いた原本を確認して記録します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 上旬分のFAXが届いた</h3><p>対象月と案件を確認し、1回目の提出をONにします。実際の到着日が今日でなければ提出日を直します。</p></section>
+          <section><h3>2. 提出予定日を過ぎた案件を確認する</h3><p>遅延表示を絞り、パートナーへ確認します。受領していないものを推測でONにしません。</p></section>
+          <section><h3>3. 提出日を訂正する</h3><p>対象サイクルを開き、原本や受信記録と照合して正しい日付へ変更します。</p></section>
+        </div><p class="connection"><strong>なぜ日報と分かれる：</strong>「資料が届いたこと」と「内容を入力・承認したこと」を混同せず、未着と未入力を別々に追えるようにするためです。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="advances" data-chapter="advances">
+        <div class="chapter-head"><div><p class="eyebrow">月途中の前払い</p><h1>先払い</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
+        <p class="purpose">支払区分が分割の個別案件について、月3サイクルの先払い予定・手数料・実績を管理します。月次支払の前に渡した金額として、後の支払へ反映されます。</p>
+        <figure><img src="screenshots/16_advances.png" alt="先払いを3サイクルで管理する画面"><figcaption>稼働0日でも対象案件は表示されます。対象月・サイクル・案件を必ず確認します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 上旬グループの予定を作る</h3><p>対象月の1回目を選び、対象案件と金額・手数料を確認して「支払予定を作成・更新」します。</p></section>
+          <section><h3>2. 例外金額へ変更する</h3><p>元値を確認し、変更額と理由を入力して予定を更新します。変更履歴が残ります。</p></section>
+          <section><h3>3. 未実行予定を取り消す</h3><p>対象と理由を確認して作成取消を行います。実行済みの場合は直接消さず、返金・訂正の予定で扱います。</p></section>
+        </div><p class="connection"><strong>支払との違い：</strong>先払いは月途中の支給、支払は月次総額から先払い・手数料・控除を差し引く最終精算です。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="invoices" data-chapter="invoices">
+        <div class="chapter-head"><div><p class="eyebrow">企業から受け取る金額</p><h1>請求</h1></div><span class="role-badge">管理者・経営者・総務・営業・企業</span></div>
+        <p class="purpose">日報の請求側計算を月額明細にまとめ、営業確認・一括承認・帳票発行を行います。請求先や条件が一致する案件は取りまとめられます。</p>
+        <figure><img src="screenshots/18_invoices_detail.png" alt="請求の明細と承認状態を確認する画面"><figcaption>対象を選んで下書きを作り、明細・承認・発行状態を確認します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 1案件の請求書を作る</h3><p>対象月・企業・案件を確認して下書きを作り、日報から再反映、明細確認、営業確認依頼へ進みます。</p></section>
+          <section><h3>2. 同じ請求先の2案件をまとめる</h3><p>請求先・取纏No.・締日などの条件が一致する案件を選び、1枚の請求へまとめます。条件が違う場合は分けます。</p></section>
+          <section><h3>3. 発行後の誤りを訂正する</h3><p>理由を入力して発行を無効化し、訂正下書きを作ります。旧番号は再利用せず、新しい番号で再発行します。</p></section>
+        </div><p class="connection"><strong>支払との違い：</strong>請求は企業向けの売上です。同じ日報でも支払側とは単価、調整、相手先、帳票が異なります。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="payments" data-chapter="payments">
+        <div class="chapter-head"><div><p class="eyebrow">パートナーへ渡す金額</p><h1>支払</h1></div><span class="role-badge">管理者・経営者・総務・営業・パートナー</span></div>
+        <p class="purpose">日報の支払側計算を月額明細にまとめ、先払い、振込手数料、定額控除を反映して最終振込額を確定します。</p>
+        <figure><img src="screenshots/20_payments_detail.png" alt="支払の明細と控除を確認する画面"><figcaption>下書きの内訳と控除を確認し、承認後に支払帳票を発行します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 通常の月次支払を作る</h3><p>対象案件の下書きを作り、日報明細、支払単価、控除を確認して営業確認へ進みます。</p></section>
+          <section><h3>2. 先払い済み金額を精算する</h3><p>先払い実績と手数料が控除側に反映されていることを確認し、月次総額との差額を最終振込額とします。</p></section>
+          <section><h3>3. 控除しきれない金額を繰り越す</h3><p>支払額を超える控除がある場合、0円未満の振込にせず、未控除分が次回繰越になっていることを確認します。</p></section>
+        </div><p class="connection"><strong>入出金管理との違い：</strong>支払は精算内容と帳票を確定する場所、入出金管理は銀行で実行する予定と実績を扱う場所です。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="cash_management" data-chapter="cash_management">
+        <div class="chapter-head"><div><p class="eyebrow">銀行で動く予定と実績</p><h1>入出金管理・FB出力</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
+        <p class="purpose">請求入金、通常支払、先払いなどを管理回・予定・実績に分けて確認し、銀行CSVを出力します。CSV出力だけでは実行済みになりません。</p>
+        <figure><img src="screenshots/21_cash_management.png" alt="入出金予定を一覧とカレンダーで管理する画面"><figcaption>業務上の管理回、銀行予定日、実際の実行日を分けて記録します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 25日回の振込予定を確認する</h3><p>対象月と25日回を選び、出金予定、口座、金額を確認します。休日の場合は営業日調整後の日付を確認します。</p></section>
+          <section><h3>2. 銀行CSVを出力する</h3><p>公開済みの銀行設定と振込元口座を選び、対象予定からCSVを出力します。出力後の状態は「出力済み」です。</p></section>
+          <section><h3>3. 銀行処理後に実績を登録する</h3><p>銀行の結果と照合し、実行日・実績を登録します。CSVを作っただけで実行済みにしません。</p></section>
+        </div><p class="connection"><strong>現在の範囲：</strong>銀行別CSVと予定・実績管理が利用できます。銀行サービス仕様が未確定の設定は、銀行取込用として公開しません。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="analytics" data-chapter="analytics">
+        <div class="chapter-head"><div><p class="eyebrow">結果を比べる</p><h1>収支分析</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
+        <p class="purpose">請求と支払の結果を担当者、企業、パートナーなどの切り口で比較し、利益率や稼働日を確認します。元データを変更する画面ではありません。</p>
+        <figure><img src="screenshots/analytics.png" alt="一覧表・利益率・稼働日を切り替える収支分析画面"><figcaption>数字に違和感がある場合は、元の案件・日報・請求・支払へ戻って確認します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 営業担当者別の状況を見る</h3><p>対象月を選び、一覧表で担当者ごとの請求、支払、差額を比較します。</p></section>
+          <section><h3>2. 利益率が低い企業を確認する</h3><p>企業別利益率を並べ替え、基準を下回る企業の案件・料金を確認します。</p></section>
+          <section><h3>3. 稼働日の偏りを調べる</h3><p>稼働日表で企業・パートナーの出勤日数を見て、日報の未入力や契約条件を確認します。</p></section>
+        </div><p class="connection"><strong>注意：</strong>分析は結果を見る機能です。修正は分析値を直接書き換えず、原因となる元データの画面で行います。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="master_settings" data-chapter="master_settings">
+        <div class="chapter-head"><div><p class="eyebrow">会社共通の業務値</p><h1>マスター設定</h1></div><span class="role-badge">管理者・システム・総務</span></div>
+        <p class="purpose">担当者、事業所、採番、区分、祝日、振込手数料、銀行CSV、振込元口座、画面色など、全社で共通利用する設定を管理します。</p>
+        <figure><img src="screenshots/22_master_settings_hub.png" alt="マスター設定の機能カード一覧"><figcaption>変更前に、カードのヘルプで影響する画面と登録方法を確認します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 来年の祝日を登録する</h3><p>祝日マスターへ日付と名称を登録します。日報の行色と休日料金候補に影響します。</p></section>
+          <section><h3>2. 振込元口座を追加する</h3><p>銀行情報と口座を登録し、入出金管理で選べることを確認します。公開前のCSV設定は下書きで検証します。</p></section>
+          <section><h3>3. 日報入力の見え方を調整する</h3><p>入力文字サイズ、曜日色、時間・距離・経費の増減単位を変更し、日報画面で確認します。</p></section>
+        </div><p class="connection"><strong>他の設定画面との違い：</strong>業務上の値はここ、説明文はヘルプ編集、一覧列はUIビルダー、利用者と権限はユーザー管理です。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="help_settings" data-chapter="help_settings">
+        <div class="chapter-head"><div><p class="eyebrow">画面内の短い説明</p><h1>ヘルプ編集設定</h1></div><span class="role-badge">管理者・システム</span></div>
+        <p class="purpose">各画面上部の「ヘルプ」で表示する概要と、入力がどこへ影響するかの説明を編集します。業務全体を教える利用マニュアルとは役割が違います。</p>
+        <figure><img src="screenshots/help_settings.png" alt="画面ごとのヘルプ内容を編集する画面"><figcaption>短く、現在の画面だけで理解できる説明を登録します。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 新しいボタンの説明を追加する</h3><p>対象機能を選び、画面概要と操作結果を更新します。専門用語だけで説明しないようにします。</p></section>
+          <section><h3>2. 誤解されやすい入力の影響を書く</h3><p>例えば「CSV出力では実行済みにならない」など、その画面で特に必要な注意を追記します。</p></section>
+          <section><h3>3. 公開前に表示を確認する</h3><p>保存後、対象画面の「ヘルプ」を開き、改行、用語、対象画面が正しいか確認します。</p></section>
+        </div><p class="connection"><strong>利用マニュアルとの違い：</strong>ヘルプはその場の短い案内です。機能間の流れ、担当別運用、具体例はこの利用マニュアルで説明します。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="ui_builder" data-chapter="ui_builder">
+        <div class="chapter-head"><div><p class="eyebrow">一覧の見え方を統一</p><h1>UIビルダー</h1></div><span class="role-badge">管理者・システム</span></div>
+        <p class="purpose">主な一覧で表示する列と並び順を会社共通で設定します。データの中身は変えず、必要な情報を見つけやすくします。</p>
+        <figure><img src="screenshots/24_ui_builder.png" alt="一覧の表示列を設定するUIビルダー"><figcaption>保存した構成は同じ一覧を使う全利用者へ反映されます。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 企業一覧に締日を表示する</h3><p>企業一覧を選び、締日の列を表示対象へ追加して保存します。</p></section>
+          <section><h3>2. よく見る列を左へ移す</h3><p>対象一覧で列順を変更し、画面幅の狭い端末でも重要列が先に見えるようにします。</p></section>
+          <section><h3>3. 既定表示へ戻す</h3><p>運用に合わなかった場合は既定構成へ戻し、対象一覧で全列と操作列を確認します。</p></section>
+        </div><p class="connection"><strong>マスター設定との違い：</strong>UIビルダーは見え方だけを変更します。締日、区分、色などの業務値はマスター設定で変更します。</p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="users" data-chapter="users">
+        <div class="chapter-head"><div><p class="eyebrow">利用者と権限</p><h1>ユーザー管理</h1></div><span class="role-badge">管理者・システム</span></div>
+        <p class="purpose">ログインする人のID、表示名、所属、複数の権限、有効・無効を管理します。権限によってメニューと参照できる範囲が変わります。</p>
+        <figure><img src="screenshots/25_users.png" alt="ユーザー一覧と権限を管理する画面"><figcaption>必要最小限の権限を付与し、使わなくなったアカウントは無効にします。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 新入社員のIDを作る</h3><p>ログインID、表示名、初期パスワード、所属、担当業務に必要な権限を登録します。</p></section>
+          <section><h3>2. 総務と営業の両方を担当する</h3><p>必要な複数権限を付与し、再ログイン後に対象メニューと担当範囲を確認します。</p></section>
+          <section><h3>3. 退職者の利用を止める</h3><p>ユーザーを物理削除せず無効にします。過去の操作履歴に残る担当者情報は維持されます。</p></section>
+        </div><p class="connection"><strong>注意：</strong>画面が表示されない問題は、まずユーザーの権限と所属範囲を確認します。</p>
+      </article>
+
+      <footer class="manual-footer">
+        <p>画面例は匿名の検証データです。実在する企業・パートナー・口座情報ではありません。</p>
+        <p>更新日：2026年9月10日</p>
+      </footer>
+    </main>
+  </div>
+
+  <dialog class="image-dialog" data-image-dialog>
+    <button type="button" class="dialog-close" data-action="close-image" aria-label="画像を閉じる">×</button>
+    <img src="" alt="拡大した画面イメージ" data-dialog-image>
+    <p data-dialog-caption></p>
+  </dialog>
+</body>
+</html>

@@ -8,6 +8,7 @@ const { localUrl } = require('./middleware/local_url');
 
 const port = Number(process.env.APP_PORT || 8080);
 const frontendDir = path.resolve(__dirname, '../../frontend');
+const manualDir = path.resolve(__dirname, '../../利用マニュアル');
 
 const noCache = (res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -29,6 +30,15 @@ app.use((req, res, next) => {
       'プレビューモードです。ログインするには Docker で `docker compose up --build -d` を実行してください。',
   });
 });
+
+app.use(
+  '/manual',
+  express.static(manualDir, {
+    etag: false,
+    lastModified: false,
+    setHeaders: noCache,
+  })
+);
 
 app.use(
   express.static(frontendDir, {

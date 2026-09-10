@@ -15,6 +15,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY backend ./backend
 COPY frontend ./frontend
+COPY ["利用マニュアル", "./利用マニュアル"]
 COPY db ./db
 
 RUN mkdir -p /app/uploads /app/pdf
