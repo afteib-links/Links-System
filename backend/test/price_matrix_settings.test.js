@@ -18,6 +18,7 @@ test('料金マトリクス設定は有効な共通設定を読み込む', () =>
     { setting_key: SETTING_KEYS.night_overtime_multiplier, setting_value: '1.7' },
   ]);
   assert.deepEqual(settings, {
+    ...DEFAULT_PRICE_MATRIX_SETTINGS,
     profit_warning_percent: 12.5,
     overtime_multiplier: 1.3,
     night_multiplier: 1.4,
@@ -32,4 +33,13 @@ test('料金マトリクス設定は不正な値を既定値へ戻す', () => {
   ]);
   assert.equal(settings.profit_warning_percent, 10);
   assert.equal(settings.overtime_multiplier, 1.25);
+});
+
+test('金額データ画面の色は有効なカラーコードだけを使う', () => {
+  const settings = normalizePriceMatrixSettings([
+    { setting_key: SETTING_KEYS.billing_amount_color, setting_value: '#123abc' },
+    { setting_key: SETTING_KEYS.payment_amount_color, setting_value: 'orange' },
+  ]);
+  assert.equal(settings.billing_amount_color, '#123ABC');
+  assert.equal(settings.payment_amount_color, DEFAULT_PRICE_MATRIX_SETTINGS.payment_amount_color);
 });

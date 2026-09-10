@@ -15,7 +15,7 @@ test('金額データの基本情報を指定順で上部へ置き備考を最�
   const note = ui.indexOf('price-set-note-card');
   assert.ok(start >= 0 && start < end && end < company && company < name);
   assert.ok(note > name);
-  assert.match(ui, /price-set-basic-grid/);
+  assert.match(ui, /price-set-meta-fields/);
 });
 
 test('料金カードはExcel型3列で行末から適用条件を展開する', () => {
@@ -39,15 +39,22 @@ test('タブレット以下は横長1列カードにして操作と曜日を明�
   assert.match(ui, /title="料金カードを削除" aria-label="料金カードを削除"/);
   assert.match(css, /fee-card-action-copy[\s\S]{0,100}background:#ffd84d/);
   assert.match(css, /fee-card-action-delete[\s\S]{0,100}background:#e63e4d/);
-  assert.match(css, /weekday-fri \{ color:#fff; border-color:#22a447; background:#34c759/);
-  assert.match(css, /weekday-sat \{ color:#fff; border-color:#086ccf; background:#1683ea/);
+  assert.match(css, /weekday-fri \{ color:#fff; border-color:var\(--fee-weekday-color/);
+  assert.match(css, /weekday-sat \{ color:#fff; border-color:var\(--fee-saturday-color/);
 });
 
-test('勤務・深夜・丸め条件を4列化し日次基準時間を最小幅にする', () => {
+test('勤務・深夜・丸め条件を5列化して縦余白を抑える', () => {
   const ui = read('frontend/js/price_sets.js');
-  assert.match(ui, /night-setting-card \{ display:grid; grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(ui, /night-setting-card \.night-field-standard \{ max-width:4\.5rem/);
+  assert.match(ui, /night-setting-card \{ display:grid; grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(ui, /night-setting-card \.night-field-standard \{ max-width:none/);
   assert.match(ui, /night-setting-card \.night-field-tiers \{ grid-column:span 2/);
-  assert.match(ui, /price-set-night-card \{ padding:10px 16px/);
+  assert.match(ui, /price-set-night-card \{ padding:2px 8px/);
   assert.match(ui, /class="night-field-standard">日次基準時間/);
+});
+
+test('料金セルはCtrl＋カーソル移動でき、保存後も編集画面を維持する', () => {
+  const ui = read('frontend/js/price_sets.js');
+  assert.match(ui, /event\.ctrlKey/);
+  assert.match(ui, /\['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'\]/);
+  assert.match(ui, /await this\.showDetail\(result\.data\.price_set\.price_set_id\)/);
 });
