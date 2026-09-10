@@ -1,124 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Links-System の使い方</title>
-  <link rel="stylesheet" href="manual.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=../../利用マニュアル/index.html">
+  <title>利用マニュアルは移動しました</title>
 </head>
 <body>
-  <a class="skip" href="#doc">本文へ</a>
-  <div class="layout">
-    <nav class="toc" aria-label="目次">
-      <h1>Links-System</h1>
-      <p class="meta">社内向けの使い方<br>2026年9月</p>
-      <ol>
-        <li><a href="#intro">はじめに</a></li>
-        <li><a href="#look">画面の場所</a></li>
-        <li><a href="#flow">仕事の順番</a></li>
-        <li><a href="#now">ページ一覧</a></li>
-      </ol>
-      <div class="print-actions no-print">
-        <button type="button" onclick="window.print()">印刷する</button>
-        <a class="cross-link" href="pages/companies-list.html">企業マスタへ</a>
-        <a class="cross-link" href="pages/daily-reports-list.html">日報の一覧へ</a>
-        <a class="cross-link" href="developer.html">開発者向け</a>
-      </div>
-    </nav>
-
-    <main class="doc" id="doc">
-      <header class="cover">
-        <p class="eyebrow">運送の仕事をまとめるシステム</p>
-        <h1>Links-System の使い方</h1>
-      </header>
-
-      <section id="intro">
-        <h2 class="chapter first">はじめに</h2>
-        <p class="lead">現場の日報を入れると、そこから請求と支払がつながるように作っています。紙やExcelで別々に持っていた「いつ、誰が、何をしたか」と「いくらになるか」を、同じ案件の流れで見ます。</p>
-        <p>いちばん大事なのは日報です。メモではなく、請求と支払の根拠になります。同じ勤務でも、お客さま向けの単価とパートナー向けの単価は別です。画面に出る金額は、ファイルに書いてあった合計ではなく、案件の料金設定から計算し直した結果です。</p>
-
-        <div class="pair">
-          <figure class="shot">
-            <img src="screenshots/crops/login.png" alt="ログイン画面。ログインIDとパスワード">
-            <figcaption>最初に出る画面です。社内でもらったIDとパスワードで入ります。</figcaption>
-          </figure>
-          <div class="copy">
-            <h3>入るところ</h3>
-            <p>ブラウザで社内のアドレスを開くと、この画面になります。間違えると入れません。パスワードの目のアイコンは、入力中の文字を見せるだけです。</p>
-            <p>入れたら、次はホームです。左にメニュー、右に今月の進み具合が出ます。</p>
-          </div>
-        </div>
-
-        <figure class="shot">
-          <img src="screenshots/crops/home-main.png" alt="ログイン直後のホーム。進捗カード">
-          <figcaption>ログインしたあとのホーム。カードを押すと、その仕事の画面へ進みます。</figcaption>
-        </figure>
-      </section>
-
-      <section id="look">
-        <h2>画面の場所</h2>
-        <p>仕事は左のメニューから選びます。日報は「日々の運用」の中です。権限によって、出ないメニューがあります（企業の人には日報は出ません）。</p>
-        <div class="menu-row">
-          <img src="screenshots/crops/menu.png" alt="左メニュー。ホーム、マスタ、日々の運用、精算、設定">
-          <div>
-            <p>上から、マスタ（会社・人・案件・単価）→ 日々の運用（日報）→ 精算（先払・請求・支払・入出金）→ 設定、の順です。</p>
-            <p>「日報」と「日報提出」は別です。日報は勤務内容の入力、日報提出は届いた紙やメールの受領チェックです。入力した件数だけでは、提出済みになりません。</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="flow">
-        <h2>仕事の順番</h2>
-        <p>だいたい、この順で進みます。途中を飛ばすと、次の画面に案件が出なかったり、請求の確定ができなかったりします。</p>
-        <div class="thumbs">
-          <a href="pages/daily-reports-list.html">
-            <img src="screenshots/crops/list-main.png" alt="日報一覧">
-            <span>1. 日報の一覧で月と案件を選ぶ</span>
-          </a>
-          <a href="pages/daily-reports-input.html">
-            <img src="screenshots/crops/grid-main.png" alt="日報入力">
-            <span>2. 日付ごとに時間と経費を入れる</span>
-          </a>
-          <a href="pages/invoices-list.html">
-            <img src="screenshots/crops/invoices-list.png" alt="請求一覧">
-            <span>3. 承認のあと、請求・支払へ</span>
-          </a>
-        </div>
-        <p>マスタ（企業 → パートナー → 基本案件 → 個別案件 → 金額データ）が先です。横断して見たいときは <a href="pages/base-management.html">基本管理</a> と <a href="pages/office-work.html">事務作業</a> もあります。案件が無い月は、日報の一覧が空になります。月次承認が終わるまで、請求・支払の本番確定には使いません。</p>
-      </section>
-
-      <section id="now">
-        <h2>ページ一覧</h2>
-        <p>画面つきで書いてあります。一覧と詳細がある機能は、ページが分かれています。</p>
-        <table>
-          <thead><tr><th>読みたいこと</th><th>ページ</th></tr></thead>
-          <tbody>
-            <tr><th>会社の台帳</th><td><a href="pages/companies-list.html">企業 一覧</a> / <a href="pages/companies-detail.html">詳細</a></td></tr>
-            <tr><th>ドライバー・外注</th><td><a href="pages/partners-list.html">パートナー 一覧</a> / <a href="pages/partners-detail.html">詳細</a></td></tr>
-            <tr><th>仕事のひな形</th><td><a href="pages/base-projects-list.html">基本案件 一覧</a> / <a href="pages/base-projects-detail.html">詳細</a></td></tr>
-            <tr><th>動いている契約</th><td><a href="pages/projects-list.html">個別案件 一覧</a> / <a href="pages/projects-detail.html">詳細</a></td></tr>
-            <tr><th>単価</th><td><a href="pages/price-sets-list.html">金額データ 一覧</a> / <a href="pages/price-sets-detail.html">詳細</a></td></tr>
-            <tr><th>横断してたどる</th><td><a href="pages/base-management.html">基本管理</a> / <a href="pages/office-work.html">事務作業</a></td></tr>
-            <tr><th>日報</th><td><a href="pages/daily-reports-list.html">一覧</a> / <a href="pages/daily-reports-input.html">入力</a> / <a href="pages/daily-report-submissions.html">提出</a></td></tr>
-            <tr><th>先払い</th><td><a href="pages/advances.html">先払い</a></td></tr>
-            <tr><th>請求</th><td><a href="pages/invoices-list.html">一覧</a> / <a href="pages/invoices-detail.html">詳細</a></td></tr>
-            <tr><th>支払</th><td><a href="pages/payments-list.html">一覧</a> / <a href="pages/payments-detail.html">詳細</a></td></tr>
-            <tr><th>入出金</th><td><a href="pages/cash-management.html">入出金管理・FB出力</a></td></tr>
-            <tr><th>収支</th><td><a href="pages/analytics.html">収支分析</a></td></tr>
-            <tr><th>設定</th><td><a href="pages/master-settings.html">マスター設定</a> / <a href="pages/ui-builder.html">UIビルダー</a> / <a href="pages/users.html">ユーザー</a></td></tr>
-          </tbody>
-        </table>
-        <p>このHTMLは説明用です。実際の操作はアプリ側（社内LANなら <code>http://&lt;NASのIP&gt;:8080</code>）で行います。画面の数字は検証用で、実在のお客さまではありません。</p>
-      </section>
-
-      <nav class="page-nav no-print">
-        <span></span>
-        <a href="pages/companies-list.html">マスタから読む</a>
-      </nav>
-      <footer class="colophon">
-        <p>計算の細かい式や、NASの起動手順はこの冊子の対象外です。</p>
-      </footer>
-    </main>
-  </div>
+  <p>利用者向けマニュアルは <a href="../../利用マニュアル/index.html">利用マニュアル</a> へ移動しました。</p>
 </body>
 </html>
