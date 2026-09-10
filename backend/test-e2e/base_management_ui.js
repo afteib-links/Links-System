@@ -39,8 +39,14 @@ async function main() {
               closing_date_code: 'end',
             })),
           ],
-          base_projects: [{ base_project_id: 11, company_id: 1, template_name: '定期便', closing_date: 'end' }],
-          projects: [{ project_id: 21, base_project_id: 11, company_id: 1, partner_id: 31, partner_name: 'パートナーA', closing_date: 'end' }],
+          base_projects: [
+            { base_project_id: 11, company_id: 1, template_name: '定期便', closing_date: 'end' },
+            { base_project_id: 12, company_id: 1, template_name: '新規候補', closing_date: 'end' },
+          ],
+          projects: [
+            { project_id: 21, base_project_id: 11, company_id: 1, partner_id: 31, partner_name: 'パートナーA', closing_date: 'end' },
+            { project_id: 22, base_project_id: 11, company_id: 1, partner_id: 32, partner_name: 'パートナーB', closing_date: 'end' },
+          ],
           price_sets: [{ price_set_id: 41, price_set_no: 'PS-001', price_set_name: '通常料金', company_id: 1, project_id: 21, apply_start_date: '2026-09-01', line_count: 3, billing_unit_total: 75000, payment_unit_total: 60000 }],
         };
       }
@@ -59,8 +65,24 @@ async function main() {
     assert.ok(companyScroll.scrollHeight > companyScroll.clientHeight, 'スマホで企業一覧に縦スクロールが必要');
     assert.ok(companyScroll.scrollTop > 0, 'スマホで企業一覧を最下部まで縦スクロールできる');
     await page.setViewportSize({ width: 1600, height: 900 });
+    await page.evaluate(() => {
+      window.__baseManagementCreate = null;
+      window.LinksBaseManagement.ctx.openFeature = (feature, options) => { window.__baseManagementCreate = { feature, options }; };
+    });
+    await page.locator('[data-list="company"] [data-id="2"]').click();
+    await page.locator('[data-list="base"] [data-create-type="base"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'base_projects', options: { new: true, company_id: 2 } });
+    await page.locator('[data-list="company"] [data-id="1"]').click();
+    await page.locator('[data-list="base"] [data-id="12"]').click();
+    await page.locator('[data-list="project"] [data-create-type="project"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'projects', options: { new: true, company_id: 1, base_project_id: 12 } });
+    await page.locator('[data-list="price"] [data-create-type="price"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'price_sets', options: { new_with_owner: true, company_id: 1, base_project_id: 12, project_id: null } });
     await page.locator('[data-list="company"] [data-id="1"]').click();
     await page.locator('[data-list="base"] [data-id="11"]').click();
+    await page.locator('[data-list="project"] [data-id="22"]').click();
+    await page.locator('[data-list="price"] [data-create-type="price"][data-project-id="22"]').click();
+    assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'price_sets', options: { new_with_owner: true, company_id: 1, base_project_id: null, project_id: 22 } });
     await page.locator('[data-list="project"] [data-id="21"]').click();
     await page.locator('[data-list="price"] [data-id="41"]').click();
     await page.getByText('請求単価合計').waitFor();

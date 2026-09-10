@@ -162,10 +162,22 @@
       return `<div class="bm-columns">${['company', 'base', 'project', 'price'].map((type) => `<div class="bm-list" data-list="${type}">${this.listRows(type)}</div>`).join('')}</div>`;
     },
 
+    createButton(type, label, context = {}) {
+      const attrs = [
+        ['company-id', context.companyId],
+        ['base-id', context.baseId],
+        ['project-id', context.projectId],
+      ].filter(([, value]) => value).map(([key, value]) => ` data-${key}="${Number(value)}"`).join('');
+      return `<button type="button" class="bm-empty-action" data-create-type="${type}"${attrs}><strong>${this.esc(label)}</strong><span>＋ 新規登録</span></button>`;
+    },
+
     listRows(type) {
       const rows = this.sorted(type);
       if (!rows.length) {
-        const empty = type === 'base' ? (this.state.companyId ? '基本案件なし' : '企業を選択してください') : type === 'project' ? (this.state.baseId ? '個別案件なし' : '基本案件を選択してください') : type === 'price' ? ((this.state.projectId || this.state.baseId) ? '金額データなし' : '個別案件を選択してください') : '企業がありません';
+        if (type === 'base' && this.state.companyId) return this.createButton('base', '基本案件なし', { companyId: this.state.companyId });
+        if (type === 'project' && this.state.baseId) return this.createButton('project', '個別案件なし', { companyId: this.state.companyId, baseId: this.state.baseId });
+        if (type === 'price' && (this.state.projectId || this.state.baseId)) return this.createButton('price', '金額データなし', { companyId: this.state.companyId, baseId: this.state.baseId, projectId: this.state.projectId });
+        const empty = type === 'base' ? '企業を選択してください' : type === 'project' ? '基本案件を選択してください' : type === 'price' ? '個別案件を選択してください' : '企業がありません';
         return `<div class="bm-empty">${this.esc(empty)}</div>`;
       }
       return rows.map((row) => this.rowButton(type, row)).join('');
@@ -214,16 +226,16 @@
     },
 
     allTable() {
-      const cell = (type, row, rowspan, empty) => {
+      const cell = (type, row, rowspan, emptyHtml) => {
         const selected = row && this.state.selected?.type === type && this.idOf(type, this.state.selected.row) === this.idOf(type, row);
         const baseData = type === 'project' && row && this.hasBasePrices(row.base_project_id) ? '<em class="bm-base-data">基本データ</em>' : '';
-        return `<td rowspan="${rowspan}" class="${row ? `bm-group-cell ${selected ? 'is-selected' : ''}` : 'bm-placeholder'}" ${row ? `data-type="${type}" data-id="${this.idOf(type, row)}"` : ''}>${row ? `<strong>${this.esc(this.nameOf(type, row))}${baseData}</strong><span>${type === 'company' ? `締日 ${this.closing(row.closing_date_code)}` : type === 'price' ? `適用開始 ${this.date(row.apply_start_date)}` : `締日 ${this.closing(row.closing_date)}`}</span>` : this.esc(empty)}</td>`;
+        return `<td rowspan="${rowspan}" class="${row ? `bm-group-cell ${selected ? 'is-selected' : ''}` : 'bm-placeholder'}" ${row ? `data-type="${type}" data-id="${this.idOf(type, row)}"` : ''}>${row ? `<strong>${this.esc(this.nameOf(type, row))}${baseData}</strong><span>${type === 'company' ? `締日 ${this.closing(row.closing_date_code)}` : type === 'price' ? `適用開始 ${this.date(row.apply_start_date)}` : `締日 ${this.closing(row.closing_date)}`}</span>` : emptyHtml}</td>`;
       };
       const rows = this.hierarchy().map((item) => `<tr>
         ${item.companyFirst ? cell('company', item.company, item.companySpan, '') : ''}
-        ${item.baseFirst ? cell('base', item.base, item.baseSpan, '基本案件なし') : ''}
-        ${item.projectFirst ? cell('project', item.project, item.projectSpan, '個別案件なし') : ''}
-        ${cell('price', item.price, 1, '金額データなし')}
+        ${item.baseFirst ? cell('base', item.base, item.baseSpan, this.createButton('base', '基本案件なし', { companyId: item.company?.company_id })) : ''}
+        ${item.projectFirst ? cell('project', item.project, item.projectSpan, item.base ? this.createButton('project', '個別案件なし', { companyId: item.company?.company_id, baseId: item.base?.base_project_id }) : '個別案件なし') : ''}
+        ${cell('price', item.price, 1, item.project || item.base ? this.createButton('price', '金額データなし', { companyId: item.company?.company_id, baseId: item.base?.base_project_id, projectId: item.project?.project_id }) : '金額データなし')}
       </tr>`).join('');
       return `<div class="bm-all-wrap"><table class="bm-all-table"><colgroup><col><col><col><col></colgroup><tbody>${rows || '<tr><td colspan="4" class="bm-empty">対象データがありません</td></tr>'}</tbody></table></div>`;
     },
@@ -306,6 +318,15 @@
       return this.ctx.openFeature('price_sets', { price_set_id: id });
     },
 
+    create(type, context) {
+      const companyId = Number(context.companyId || 0) || null;
+      const baseId = Number(context.baseId || 0) || null;
+      const projectId = Number(context.projectId || 0) || null;
+      if (type === 'base') return this.ctx.openFeature('base_projects', { new: true, company_id: companyId });
+      if (type === 'project') return this.ctx.openFeature('projects', { new: true, company_id: companyId, base_project_id: baseId });
+      return this.ctx.openFeature('price_sets', { new_with_owner: true, company_id: companyId, base_project_id: projectId ? null : baseId, project_id: projectId });
+    },
+
     updateSelection(changedType = null) {
       const downstream = changedType === 'company' ? ['base', 'project', 'price'] : changedType === 'base' ? ['project', 'price'] : changedType === 'project' ? ['price'] : [];
       downstream.forEach((type) => {
@@ -351,6 +372,10 @@
           this.edit(element.dataset.type,Number(element.dataset.id));
         });
       });
+      root.querySelectorAll('[data-create-type]').forEach((button) => button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.create(button.dataset.createType, button.dataset);
+      }));
     },
 
     bindControls() {
