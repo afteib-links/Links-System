@@ -1,0 +1,45 @@
+# Standalone verification environment. Never combine with production compose files.
+name: links-test-data-tool
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${TEST_TOOL_ROOT_PASSWORD:?Set a dedicated root password}
+      MARIADB_DATABASE: links_verification_tool_control
+      MARIADB_USER: test_tool
+      MARIADB_PASSWORD: ${TEST_TOOL_DB_PASSWORD:?Set a dedicated database password}
+    volumes:
+      - test_tool_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      LINKS_ENV: verification
+      TEST_DATA_TOOL_ENABLED: "true"
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: links_verification_tool_control
+      DB_USER: test_tool
+      DB_PASSWORD: ${TEST_TOOL_DB_PASSWORD:?Set a dedicated database password}
+      SESSION_SECRET: ${TEST_TOOL_SESSION_SECRET:?Set a dedicated session secret}
+      ADMIN_LOGIN_ID: test-admin
+      ADMIN_PASSWORD: ${TEST_TOOL_ADMIN_PASSWORD:?Set a dedicated admin password}
+      APP_PORT: 3000
+      TZ: Asia/Tokyo
+    ports:
+      - "${TEST_TOOL_BIND_IP:-127.0.0.1}:${TEST_TOOL_PORT:-8088}:3000"
+    volumes:
+      - test_tool_uploads:/app/uploads
+      - test_tool_pdf:/app/pdf
+volumes:
+  test_tool_db:
+  test_tool_uploads:
+  test_tool_pdf:

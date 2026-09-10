@@ -495,6 +495,11 @@
   }
 
   async function showHome() {
+    featureCatalog = featureCatalog.filter(f => f.key !== 'test_data');
+    if (currentUser?.roles?.includes('admin')) {
+      const capability = await api('/api/test-data/meta');
+      if (capability.res.ok && capability.data?.ok) featureCatalog.push({ key: 'test_data', label: '検証データ作成', desc: '日報サンプルから検証パターンを設計します', group: 'settings' });
+    }
     currentView = 'home';
     app.innerHTML = `<div class="app-shell">${sidebarHtml('home')}<div class="app-frame">${headerHtml('業務ダッシュボード')}
       <main class="app-main dashboard-main"><p class="muted" data-dashboard-loading role="status">業務状況を読み込み中…</p></main></div></div>`;
