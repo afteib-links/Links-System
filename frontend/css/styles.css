@@ -2410,6 +2410,10 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-row span,.bm-group-cell span { display:block; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#315b82; font-size:14px; }
 .bm-row i { position:absolute; right:12px; top:31px; color:#91aac3; font-size:26px; font-style:normal; }
 .bm-empty { padding:36px 14px; color:#71869b; font-size:14px; text-align:center; }
+.bm-empty-action { width:calc(100% - 24px); min-height:72px; margin:12px; padding:12px; border:1px dashed #6f9fe3; border-radius:8px; background:#f4f8ff; color:#174f9e; font:inherit; text-align:center; cursor:pointer; }
+.bm-empty-action:hover,.bm-empty-action:focus-visible { border-style:solid; border-color:#1769e8; background:#eaf3ff; outline:none; }
+.bm-empty-action strong { display:block; font-size:15px; }
+.bm-empty-action span { display:block; margin-top:5px; color:#0754dc; font-size:13px; font-weight:800; }
 .bm-all-wrap { flex:1 1 0; height:calc(100% - 96px); min-height:0; overflow-x:hidden; overflow-y:scroll; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
 .bm-all-table { width:1120px; table-layout:fixed; border-collapse:collapse; }
 .bm-all-table col { width:280px; }
@@ -2418,7 +2422,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-group-cell { cursor:pointer; background:#fff; }
 .bm-group-cell:hover { background:#f2f7ff; }
 .bm-group-cell.is-selected { box-shadow:inset 4px 0 #1769e8; background:#eaf3ff; color:#0754dc; }
-.bm-placeholder { color:#71869b; background:#fafbfd; font-size:14px; }
+.bm-placeholder { padding:0 !important; color:#71869b; background:#fafbfd; font-size:14px; text-align:center; }
 .bm-preview { min-width:0; min-height:0; height:100%; display:flex; flex-direction:column; overflow:hidden; background:#f8fafc; }
 .bm-preview-title { flex:0 0 56px; padding:17px 14px; border-bottom:1px solid #9eb3ce; background:#f7f9fc; font-size:16px; font-weight:800; }
 #bm-preview-body { flex:1 1 0; min-height:0; overflow-x:hidden; overflow-y:scroll; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; padding:12px; }

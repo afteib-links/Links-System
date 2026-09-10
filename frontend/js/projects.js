@@ -6,6 +6,7 @@
       this.ctx.renderLoading();
       this.companyFilter = options.company_id ? Number(options.company_id) : null;
       this.partnerFilter = options.partner_id ? Number(options.partner_id) : null;
+      this.prefillBaseProjectId = options.base_project_id ? Number(options.base_project_id) : null;
       this.tab = options.tab || (options.featureKey === 'base_projects' ? 'base' : 'projects');
       this.baseListState = { sortKey: 'base_project_id', sortOrder: 'asc', filters: {}, includeEnded: false };
       this.projectListState = { sortKey: 'project_id', sortOrder: 'asc', filters: {} };
@@ -24,6 +25,11 @@
       ]);
       this.baseLayout = window.LinksListScreens?.areaLayout(baseLayout, 'list') || null;
       this.projectLayout = window.LinksListScreens?.areaLayout(projectLayout, 'list') || null;
+      if (options.new) {
+        if (this.tab === 'base') await this.showBaseDetail(null);
+        else await this.showProjectDetail(null);
+        return;
+      }
       if (options.base_project_id) {
         this.tab = 'base';
         await this.showBaseDetail(Number(options.base_project_id));
@@ -637,7 +643,7 @@
         version: 1,
         company_id: this.companyFilter || '',
         billing_id: '',
-        base_project_id: '',
+        base_project_id: this.prefillBaseProjectId || '',
         partner_id: this.partnerFilter || '',
         vehicle_id: '',
         vehicle_owner_type: '',
@@ -708,7 +714,7 @@
               !id
                 ? `<section class="form-section-card"><div class="toolbar">
               <label>基本案件テンプレート</label>
-              <div id="template-picker">${this.kit.searchSelectHtml('template_picker', this.baseProjects, 'base_project_id', 'template_name', '')}</div>
+              <div id="template-picker">${this.kit.searchSelectHtml('template_picker', this.baseProjects, 'base_project_id', 'template_name', project.base_project_id)}</div>
               <button type="button" class="btn btn-ghost" id="apply-template">テンプレ反映</button>
             </div></section>`
                 : ''

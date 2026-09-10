@@ -21,4 +21,14 @@ test('基本管理画面は全対象・階層別編集・欠損表示を備え�
   for (const target of ['companies', 'base_projects', 'projects', 'price_sets']) {
     assert.match(source, new RegExp(`openFeature\\('${target}'`));
   }
+  assert.match(source, /data-create-type/);
+  assert.match(source, /new: true/);
+  assert.match(source, /new_with_owner: true/);
+});
+
+test('案件画面は基本管理からの新規登録と親案件の初期選択を受け取る', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../../frontend/js/projects.js'), 'utf8');
+  assert.match(source, /if \(options\.new\)/);
+  assert.match(source, /prefillBaseProjectId/);
+  assert.match(source, /base_project_id: this\.prefillBaseProjectId \|\| ''/);
 });
