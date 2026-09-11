@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912e';
+  const version = '20260912f';
   const pending = new Map();
   const common = [['feature-kit', 'LinksFeatureKit'], ['data-table', 'LinksDataTable'], ['list_screens', 'LinksListScreens']];
   const modules = {

@@ -8,15 +8,17 @@ const imports = require('../services/test_data/imports');
 const { loadRegisteredCatalog } = require('../services/test_data/registered_masters');
 const { createGenerationService } = require('../services/test_data/generation');
 const { createMonthlyGenerationService } = require('../services/test_data/monthly_generation');
+const { createSettlementGenerationService } = require('../services/test_data/settlement_generation');
 
 function enabled(env = process.env) {
   return env.LINKS_ENV === 'verification' && env.TEST_DATA_TOOL_ENABLED === 'true' && env.NODE_ENV !== 'production'
     && /^links_verification_tool_[a-z0-9_]+$/.test(env.DB_NAME || '');
 }
-function createRouter(runQuery = query, env = process.env, suppliedGeneration = null, suppliedMonthly = null) {
+function createRouter(runQuery = query, env = process.env, suppliedGeneration = null, suppliedMonthly = null, suppliedSettlement = null) {
   const router = express.Router();
   const generation = suppliedGeneration || createGenerationService({ runQuery });
   const monthly = suppliedMonthly || createMonthlyGenerationService({ runQuery });
+  const settlement = suppliedSettlement || createSettlementGenerationService({ runQuery });
   router.use((req, res, next) => enabled(env) ? next() : res.sendStatus(404));
   router.use(requireAuth, requireRole('admin'));
   router.use((req, res, next) => {
@@ -32,7 +34,7 @@ function createRouter(runQuery = query, env = process.env, suppliedGeneration = 
     const r = rows[0]; return { id: r.draft_id, revision: r.revision, config: JSON.parse(r.payload_json), approvedHash: r.approved_hash };
   };
   router.get('/meta', (req, res) => res.json({ ok: true, defaults: model.defaults(), cases: model.CASES, presets: model.PRESETS,
-    fields: Object.keys(imports.FIELDS), importFields: require('../services/test_data/fields').IMPORT_FIELDS, types: model.LABELS, generationAvailable: true, stage: 'monthly_approvals' }));
+    fields: Object.keys(imports.FIELDS), importFields: require('../services/test_data/fields').IMPORT_FIELDS, types: model.LABELS, generationAvailable: true, stage: 'settlements' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 5, fields: 1, parts: 6 } });
   router.post('/imports', upload.array('files', 5), wrap(async (req, res) => res.json({ ok: true, sheets: await imports.parseFiles(req.files || [], req.body.encoding || 'utf8') })));
   router.post('/normalize', wrap(async (req, res) => res.json({ ok: true, ...imports.normalize(req.body.sheets) })));
@@ -83,6 +85,16 @@ function createRouter(runQuery = query, env = process.env, suppliedGeneration = 
   }));
   router.post('/jobs/:id/generate-monthly', wrap(async(req,res)=>{
     const job=await monthly.enqueue(req.params.id,req.session.user.user_id);
+    return res.status(job.status==='completed'?200:202).json({ok:true,job});
+  }));
+  router.get('/settlement-jobs', wrap(async (req,res)=>res.json({ok:true,jobs:await settlement.list()})));
+  router.get('/settlement-jobs/:id', wrap(async (req,res)=>{
+    const job=await settlement.get(req.params.id);
+    if(!job)return res.status(404).json({ok:false,message:'精算生成ジョブが見つかりません'});
+    return res.json({ok:true,job});
+  }));
+  router.post('/monthly-jobs/:id/generate-settlements', wrap(async(req,res)=>{
+    const job=await settlement.enqueue(req.params.id,req.session.user.user_id);
     return res.status(job.status==='completed'?200:202).json({ok:true,job});
   }));
   router.post('/drafts/:id/generate', wrap(async (req, res) => {
