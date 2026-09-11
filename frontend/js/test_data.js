@@ -95,7 +95,9 @@
       });
     },
     async applyMappings() {
-      const sheets = structuredClone(this.sheets.filter(s => s.enabled !== false));
+      const sheets = structuredClone(this.sheets.filter(s => s.enabled !== false).flatMap(s => s.targets
+        .filter(t => t.enabled && t.mapping.some(m => m.field))
+        .map(t => ({name:`${s.name} / ${this.meta.types[t.type]}`,headers:s.headers,rows:s.rows,type:t.type,mapping:t.mapping,duplicatePolicy:t.duplicatePolicy}))));
       if (!sheets.length) throw new Error('取り込むシートがありません。「このシートの扱い」を確認してください');
       const ignored = sheets.reduce((n,s) => n + s.headers.filter((h,i) => !s.mapping.some(m => m.column === i && m.field && m.mode !== 'unused')).length, 0);
       const result = await this.call('/normalize', { sheets });

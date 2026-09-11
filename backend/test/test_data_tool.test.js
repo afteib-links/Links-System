@@ -23,6 +23,16 @@ test('missing partner codes are deterministically completed', () => {
   assert.deepEqual(n.catalog.partners.map(r => r.code),['P00001','P00002']);
   assert.equal(n.fills.length,2);
 });
+
+test('duplicate policy supports first, last and rounded numeric averages', () => {
+  const source = policy => [{type:'partners',duplicatePolicy:policy,rows:[['P1','先','100'],['P1','後','101']],mapping:[
+    {column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'},{column:2,field:'splitRate',mode:'preserve'}]}];
+  assert.equal(imp.normalize(source('first')).catalog.partners[0].name,'先');
+  assert.equal(imp.normalize(source('last')).catalog.partners[0].name,'後');
+  assert.equal(imp.normalize(source('averageFloor')).catalog.partners[0].splitRate,'100');
+  assert.equal(imp.normalize(source('averageCeil')).catalog.partners[0].splitRate,'101');
+  assert.equal(imp.normalize(source('error')).issues.length,1);
+});
 test('invalid type field, duplicate column and missing source column are refused', () => {
   const s = {type:'companies',rows:[['001','name']],mapping:[{column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'}]};
   for (const change of [x => x.mapping[1].field='partnerCode', x => x.mapping[1].column=0, x => x.mapping[1].column=3]) {

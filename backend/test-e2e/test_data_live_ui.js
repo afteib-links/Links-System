@@ -49,7 +49,7 @@ const { enabled } = require('../src/routes/test_data');
     const config = typeof imported.payload_json === 'string' ? JSON.parse(imported.payload_json) : imported.payload_json;
     assert.equal(config.catalog.companies[0].code,'00001');
     assert.equal(config.catalog.companies[1].workMode,'倉庫');
-    assert.equal(config.importMappings[0].mapping[2].field,'workMode');
+    assert.equal(config.importMappings[0].targets[0].mapping[2].field,'workMode');
     assert.deepEqual(await counts(),before);
     assert.deepEqual(errors,[]);
     console.log(JSON.stringify({ok:true,draftId:id,businessCountsUnchanged:true,checks:['login','menu','preview','approval','real MariaDB persistence','anonymous share','header back','generation barrier','column mapping persistence']}));
