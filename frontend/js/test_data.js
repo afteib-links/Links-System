@@ -57,6 +57,8 @@
         <label>保存した設定<select id="td-saved"><option value="">選択</option>${(this.saved || []).map(d => `<option value="${e(d.draft_id)}">${e(d.draft_id)} / 第${d.revision}版</option>`).join('')}</select></label>${button('load','読み込む')}
         </section><section class="panel"><h2>1. 元データ</h2><p>原本は保存しません。維持した正規化値は設定保存時に検証DBへ保存します。各ファイル2MBまで。</p>
         <details class="td-import-help"><summary>Excelデータの取込方法</summary><ol><li>ファイルを選び「ファイルを解析」を押します。</li><li>Excelシートと「編集中の取込先」を選びます。</li><li>左の取込項目と右のExcel列を順に押して連携します。複数マスターは取込先を切り替えて繰り返します。</li><li>必要なら重複時の処理を選び、最後に「設定を保存してサンプル表示」を押します。</li></ol></details>
+        <p>「マスターデータ取込」で完成Excelを登録済みの場合は、再度Excelを選ばずにその内容を利用できます。</p>
+        <div class="btn-row">${button('registered','登録済みマスターを利用')}</div>
         <input type="file" id="td-files" multiple accept=".xlsx,.csv"><select id="td-encoding"><option value="utf8">UTF-8</option><option value="cp932">CP932</option></select>${button('import','ファイルを解析')}
         ${importHtml}</section>
         <section class="panel"><h2>2. 稼働パターン</h2><div class="form-grid">
@@ -79,6 +81,17 @@
       click('load', async () => { const id = document.getElementById('td-saved').value; if (!id) return; this.draft = (await this.call(`/drafts/${id}`)).draft; this.config = structuredClone(this.draft.config); this.sample = null; this.shared = null; this.sheets = []; this.importPending = false; });
       click('import', async () => { this.read(); const form = new FormData(); for (const file of document.getElementById('td-files').files) form.append('files', file); form.append('encoding', document.getElementById('td-encoding').value);
         this.sheets = window.LinksTestDataMapping.initialize(this, (await this.call('/imports', form)).sheets); this.sample = null; this.shared = null; });
+      click('registered', async () => {
+        this.read();
+        const hasCatalog = Object.values(this.config.catalog || {}).some(rows => Array.isArray(rows) && rows.length);
+        if (hasCatalog && !window.confirm('現在の取込カタログを、登録済みマスターの内容へ置き換えます。よろしいですか？')) return;
+        const data = await this.call('/registered-masters');
+        this.config.catalog = { ...this.config.catalog, ...data.catalog };
+        this.config.counts = { ...this.config.counts, ...data.counts };
+        this.config.importMappings = [{ source:'registered-master', label:'マスターデータ取込の登録済みデータ' }];
+        this.config.acceptFill = false; this.sheets = []; this.importPending = false; this.sample = null; this.shared = null;
+        this.message = `登録済みマスター ${Object.values(data.counts).reduce((a,b) => a + b, 0)}件を設定へ反映しました。設定を保存して日報サンプルを確認してください。`;
+      });
       window.LinksTestDataMapping.bind(this); this.bindNormalize();
       click('approve', async () => { this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('変更後の設定を保存し、サンプルを再表示してください');
         this.draft = (await this.call(`/drafts/${this.draft.id}/approve`, { revision: this.draft.revision, hash: this.sample.hash })).draft; this.message = 'この設定版を承認しました。業務DB生成はまだ実施していません。'; });

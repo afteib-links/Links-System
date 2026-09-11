@@ -44,7 +44,6 @@ function validate(input) {
       for (const value of Object.values(r)) if (typeof value !== 'string' || value.length > 200) fail('取込値は200文字以内の文字列にしてください');
     }
   }
-  if (c.counts.projects > c.counts.partners) fail('初回サンプルでは個別案件数以上のパートナーが必要です（重複勤務防止）');
   if (days * c.counts.projects > 50000) fail('サンプルは最大50,000案件日です。期間または件数を減らしてください');
   if (!c.weights || Object.keys(c.weights).some(k => !Object.hasOwn(PRESETS.realistic, k))) fail('勤務割合に未知のケースがあります');
   let sum = 0;
@@ -78,15 +77,12 @@ function catalogs(c) {
     });
     if (new Set(result[type].map(r => r.code)).size !== result[type].length) fail(`${LABELS[type]}の補完コードが取込コードと重複します。件数・コードを調整してください`);
   }
-  const used = new Set();
   for (const [i, row] of result.projects.entries()) {
     const refs = { companyCode: 'companies', partnerCode: 'partners', baseCode: 'baseProjects' };
     for (const [field, type] of Object.entries(refs)) {
       if (!row[field]) { row[field] = result[type][i % result[type].length].code; fills.push(`${row.code}: ${field} → ${row[field]}`); }
       if (!result[type].some(r => r.code === row[field])) fail(`${row.code}: ${field}の参照先がありません`);
     }
-    if (used.has(row.partnerCode)) fail('初回サンプルは1名1案件です。複数案件配属の取込は後続対応です');
-    used.add(row.partnerCode);
   }
   return { catalog: result, fills };
 }
@@ -96,24 +92,32 @@ function preview(input) {
   let seed = parseInt(hash(config.seed).slice(0, 8), 16);
   const rand = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const required = [...new Set(config.required)].filter(k => k !== 'unnecessary');
+  const projectsByPartner = new Map();
+  for (const project of catalog.projects) {
+    if (!projectsByPartner.has(project.partnerCode)) projectsByPartner.set(project.partnerCode, []);
+    projectsByPartner.get(project.partnerCode).push(project.code);
+  }
   const previousMonth = new Date(`${config.asOf.slice(0, 7)}-01T00:00:00Z`);
   previousMonth.setUTCMonth(previousMonth.getUTCMonth() - 1);
   for (const project of catalog.projects) {
     let lastEnd = 0;
-    const delivery = project.name.includes('配送');
+    const delivery = /配送|運送|運行|集配|ドライバー/.test(project.name);
     const canNight = /点検|調査|倉庫/.test(project.name);
     for (let time = Date.parse(config.start); time <= Date.parse(config.asOf); time += 86400000) {
       const day = new Date(time), workDate = day.toISOString().slice(0, 10), dow = day.getUTCDay();
       let kind = 'unnecessary';
+      const assignments = projectsByPartner.get(project.partnerCode) || [project.code];
+      const scheduledProject = assignments[Math.floor(time / 86400000) % assignments.length];
+      const available = scheduledProject === project.code;
       const applicable = k => (k !== 'early' || delivery) && (k !== 'night' || canNight);
       const eligible = k => applicable(k) && (k === 'holiday' ? dow === 0 : dow > 0 && dow < 6);
-      const forced = required.find(eligible);
+      const forced = available ? required.find(eligible) : null;
       if (forced) { kind = forced; required.splice(required.indexOf(forced), 1); }
-      else if (dow > 0 && dow < 6) {
+      else if (available && dow > 0 && dow < 6) {
         const entries = Object.entries(config.weights).filter(([k]) => k !== 'holiday' && applicable(k));
         let n = rand() * entries.reduce((s, [, w]) => s + w, 0);
         kind = entries.find(([, w]) => (n -= w) < 0)?.[0] || 'unnecessary';
-      } else if (dow === 0 && rand() * 100 < config.weights.holiday) kind = 'holiday';
+      } else if (available && dow === 0 && rand() * 100 < config.weights.holiday) kind = 'holiday';
       const working = !['unnecessary', 'absent'].includes(kind);
       const start = kind === 'night' ? 22 * 60 : kind === 'early' || delivery ? 5 * 60 : 8 * 60;
       const end = start + 540 + (kind === 'overtime' ? 120 : kind === 'short' ? -120 : 0);

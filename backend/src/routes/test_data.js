@@ -5,6 +5,7 @@ const { query } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const model = require('../services/test_data/model');
 const imports = require('../services/test_data/imports');
+const { loadRegisteredCatalog } = require('../services/test_data/registered_masters');
 
 function enabled(env = process.env) {
   return env.LINKS_ENV === 'verification' && env.TEST_DATA_TOOL_ENABLED === 'true' && env.NODE_ENV !== 'production'
@@ -31,6 +32,7 @@ function createRouter(runQuery = query, env = process.env) {
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 5, fields: 1, parts: 6 } });
   router.post('/imports', upload.array('files', 5), wrap(async (req, res) => res.json({ ok: true, sheets: await imports.parseFiles(req.files || [], req.body.encoding || 'utf8') })));
   router.post('/normalize', wrap(async (req, res) => res.json({ ok: true, ...imports.normalize(req.body.sheets) })));
+  router.get('/registered-masters', wrap(async (req, res) => res.json({ ok: true, ...(await loadRegisteredCatalog(runQuery)) })));
   router.get('/drafts', wrap(async (req, res) => res.json({ ok: true, drafts: await runQuery('SELECT draft_id, revision, approved_hash, updated_at FROM test_data_drafts ORDER BY updated_at DESC LIMIT 100') })));
   router.post('/drafts', wrap(async (req, res) => {
     const config = model.validate(req.body.config); model.catalogs(config);

@@ -84,10 +84,32 @@ test('fill confirmation and unmet mandatory cases block approval', () => {
   c.start = c.asOf; c.required = ['holiday']; assert.deepEqual(m.preview(c).missing, ['holiday']);
 });
 test('invalid counts, weights, dates and source relationships are rejected', () => {
-  for (const change of [c => c.counts.projects = 11, c => c.weights.normal = 99, c => c.asOf = '2026-02-30',
+  for (const change of [c => c.weights.normal = 99, c => c.asOf = '2026-02-30',
     c => c.catalog.projects = [{ code:'J1', name:'test', partnerCode:'missing' }]]) {
     const c = m.defaults('2026-09-10'); change(c); assert.throws(() => m.preview(c));
   }
+});
+test('multiple projects for one partner are scheduled without overlapping work', () => {
+  const c = m.defaults('2026-09-10');
+  c.counts.projects = 2;
+  c.catalog.projects = [
+    {code:'J00001',name:'配送A',companyCode:'C00001',partnerCode:'P00001',baseCode:'B00001'},
+    {code:'J00002',name:'配送B',companyCode:'C00001',partnerCode:'P00001',baseCode:'B00001'},
+  ];
+  const active = m.preview(c).reports.filter(row => row.startTime);
+  const keys = active.map(row => `${row.partnerCode}:${row.workDate}`);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.deepEqual(new Set(active.map(row => row.projectCode)), new Set(['J00001','J00002']));
+});
+test('anonymized transport labels still produce early shifts and mileage', () => {
+  const c = m.defaults('2026-09-10');
+  c.counts.projects = 1;
+  c.catalog.projects = [{code:'J00001',name:'企業車両運行業務',companyCode:'C00001',partnerCode:'P00001',baseCode:'B00001'}];
+  c.weights = Object.fromEntries(Object.keys(c.weights).map(key => [key,key === 'early' ? 100 : 0]));
+  c.required = ['early'];
+  const active = m.preview(c).reports.filter(row => row.startTime);
+  assert.ok(active.length > 0);
+  assert.ok(active.every(row => row.scenario === 'early' && row.startTime === '05:00' && row.distanceKm > 0));
 });
 test('CSV preserves leading zero, quotes and CP932-independent strings', () => {
   assert.deepEqual(imp.parseCsv('code,name\r\n001,"佐藤,太郎"\r\n002,"A""B"'), [['code','name'],['001','佐藤,太郎'],['002','A"B']]);
