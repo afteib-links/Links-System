@@ -3,6 +3,26 @@ const assert = require('node:assert/strict');
 const m = require('../src/services/test_data/model');
 const imp = require('../src/services/test_data/imports');
 const { workbook, zip } = require('../test-support/xlsx_buffer');
+const { IMPORT_FIELDS, suggest } = require('../src/services/test_data/fields');
+
+test('Japanese company fields retain source values and stay out of anonymous share', () => {
+  const headers = ['担当','形態','検索用','企業番号','企業名'];
+  const mapping = suggest(headers,'companies');
+  assert.deepEqual(mapping.map(m => m.field),['managerName','workMode','searchText','code','name']);
+  const n = imp.normalize([{type:'companies',mapping,rows:[['PRIVATE_MANAGER','PRIVATE_FORM','PRIVATE_SEARCH','00001','PRIVATE_NAME']]}]);
+  assert.deepEqual(n.issues,[]); assert.equal(n.catalog.companies[0].workMode,'PRIVATE_FORM');
+  const c = m.defaults('2026-09-11'); c.catalog = n.catalog; c.counts.companies = 1;
+  c.importMappings = [{name:'PRIVATE_SHEET',headers,mapping,type:'companies'}];
+  assert.ok(!JSON.stringify(m.share(c)).includes('PRIVATE'));
+  assert.ok(IMPORT_FIELDS.companies.every(f => f.label));
+});
+test('invalid type field, duplicate column and missing source column are refused', () => {
+  const s = {type:'companies',rows:[['001','name']],mapping:[{column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'}]};
+  for (const change of [x => x.mapping[1].field='partnerCode', x => x.mapping[1].column=0, x => x.mapping[1].column=3]) {
+    const x = structuredClone(s); change(x); assert.throws(() => imp.normalize([x]));
+  }
+  assert.equal(suggest(['企業名','会社名'],'companies').filter(x=>x.field).length,1);
+});
 
 test('real XLSX buffer parsing preserves string codes and rejects formulas/macros', async () => {
   const result = await imp.parseFiles([{ originalname:'fictional.xlsx', buffer:workbook() }]);

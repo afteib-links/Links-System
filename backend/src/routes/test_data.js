@@ -27,7 +27,7 @@ function createRouter(runQuery = query, env = process.env) {
     const r = rows[0]; return { id: r.draft_id, revision: r.revision, config: JSON.parse(r.payload_json), approvedHash: r.approved_hash };
   };
   router.get('/meta', (req, res) => res.json({ ok: true, defaults: model.defaults(), cases: model.CASES, presets: model.PRESETS,
-    fields: Object.keys(imports.FIELDS), types: model.LABELS, generationAvailable: false, stage: 'preview' }));
+    fields: Object.keys(imports.FIELDS), importFields: require('../services/test_data/fields').IMPORT_FIELDS, types: model.LABELS, generationAvailable: false, stage: 'preview' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 5, fields: 1, parts: 6 } });
   router.post('/imports', upload.array('files', 5), wrap(async (req, res) => res.json({ ok: true, sheets: await imports.parseFiles(req.files || [], req.body.encoding || 'utf8') })));
   router.post('/normalize', wrap(async (req, res) => res.json({ ok: true, ...imports.normalize(req.body.sheets) })));

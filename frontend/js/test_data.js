@@ -3,7 +3,7 @@
     async open(ctx) {
       this.ctx = ctx; this.kit = window.LinksFeatureKit.createFeatureKit(ctx); this.kit.clearNav();
       this.meta = await this.call('/meta'); this.config = structuredClone(this.meta.defaults);
-      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null;
+      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false;
       await this.refreshList(); this.render();
     },
     async call(path, body, method) {
@@ -15,6 +15,7 @@
     async refreshList() { this.saved = (await this.call('/drafts')).drafts; },
     async action(fn) {
       if (this.busy) return; this.busy = true;
+      this.ctx.app.querySelectorAll('main input, main select, main button').forEach(el => { el.disabled = true; });
       try { await fn(); } catch (e) { this.message = e.message; }
       finally { this.busy = false; this.render(); }
     },
@@ -28,6 +29,7 @@
       this.config.decisions = Object.fromEntries(this.meta.cases.map(s => [s.id, { status: q(`td-decision-${s.id}`).value, comment: q(`td-comment-${s.id}`).value }]));
     },
     async save() {
+      if (this.importPending) throw new Error('先に全シートの対応付けを確認して設定へ反映してください');
       this.read();
       const data = this.draft ? await this.call(`/drafts/${this.draft.id}`, { config: this.config, revision: this.draft.revision }, 'PUT') : await this.call('/drafts', { config: this.config });
       this.draft = data.draft; this.sample = null; this.shared = null; await this.refreshList();
@@ -40,12 +42,8 @@
       const e = this.ctx.escapeHtml, c = this.config;
       const input = (id, value, type = 'text') => `<input id="td-${id}" type="${type}" value="${e(value)}" ${type === 'number' ? 'min="0" max="500"' : ''}>`;
       const button = (id, text, disabled = false) => `<button class="btn btn-secondary" id="td-${id}" type="button" ${disabled ? 'disabled' : ''}>${text}</button>`;
-      const importHtml = this.sheets.map((s, i) => `<fieldset><legend>${e(s.name)}：${s.rows.length}件</legend>
-        <label>取込先<select data-sheet-type="${i}">${Object.entries(this.meta.types).map(([k,v]) => `<option value="${k}" ${s.type === k ? 'selected' : ''}>${e(v)}</option>`).join('')}</select></label>
-        ${s.headers.map((h, j) => { const m = s.mapping[j]; return `<div class="field"><span>${e(h)}（例：${e(s.rows[0]?.[j] || '')}）</span>
-          <select data-map-field="${i}:${j}"><option value="">未割当</option>${this.meta.fields.map(f => `<option value="${f}" ${m.field === f ? 'selected' : ''}>${e(f)}</option>`).join('')}</select>
-          <select data-map-mode="${i}:${j}">${[['preserve','維持'],['fictional','仮想化（名称のみ）'],['unused','使用しない']].map(([k,v]) => `<option value="${k}" ${m.mode === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>`; }).join('')}</fieldset>`).join('');
-      const sampleHtml = this.sample ? `<section class="panel"><h2>日報サンプル・補完確認</h2><p>${e(this.sample.warnings.join(' / '))}</p>
+      const importHtml = `<div id="td-mapping-root">${window.LinksTestDataMapping.render(this)}</div>`;
+      const sampleHtml = this.sample ? `<section class="panel" id="td-sample-panel"><h2>日報サンプル・補完確認</h2><p>${e(this.sample.warnings.join(' / '))}</p>
         <details><summary>補完内容 ${this.sample.fills.length}件</summary><ul>${this.sample.fills.map(f => `<li>${e(f)}</li>`).join('')}</ul></details>
         ${this.table(['ケース','実現件数'], Object.entries(this.sample.achieved).map(([k,v]) => [this.meta.cases.find(s => s.id === k)?.name || k,v]))}
         <details><summary>マスターのサンプル</summary>${Object.entries(this.sample.catalog).map(([k, rows]) => `<h3>${e(this.meta.types[k])}</h3>${this.table(['コード','名称'], rows.slice(0, 20).map(r => [r.code,r.name]))}`).join('')}</details>
@@ -59,7 +57,7 @@
         <label>保存した設定<select id="td-saved"><option value="">選択</option>${(this.saved || []).map(d => `<option value="${e(d.draft_id)}">${e(d.draft_id)} / 第${d.revision}版</option>`).join('')}</select></label>${button('load','読み込む')}
         </section><section class="panel"><h2>1. 元データ</h2><p>原本は保存しません。維持した正規化値は設定保存時に検証DBへ保存します。各ファイル2MBまで。</p>
         <input type="file" id="td-files" multiple accept=".xlsx,.csv"><select id="td-encoding"><option value="utf8">UTF-8</option><option value="cp932">CP932</option></select>${button('import','ファイルを解析')}
-        ${importHtml}${this.sheets.length ? button('normalize','列割当を確認して設定に反映') : ''}</section>
+        ${importHtml}</section>
         <section class="panel"><h2>2. 稼働パターン</h2><div class="form-grid">
         <label>基準日${input('asOf',c.asOf,'date')}</label><label>開始日${input('start',c.start,'date')}</label><label>乱数シード${input('seed',c.seed)}</label>
         <label>スタンス<select id="td-preset">${[['realistic','現実の稼働中心'],['coverage','境界・例外中心'],['mixed','混合']].map(([k,v]) => `<option value="${k}" ${c.preset === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
@@ -71,32 +69,39 @@
           <label>コメント${input(`comment-${s.id}`,c.decisions[s.id]?.comment || '')}</label></fieldset>`).join('')}
         <label><input id="td-fill" type="checkbox" ${c.acceptFill ? 'checked' : ''}>サンプルの仮想補完内容を確認・採用する</label>
         <div class="btn-row">${button('preview','設定を保存してサンプル表示')}</div></section>${sampleHtml}
-        ${this.shared ? `<section class="panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
+        ${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
       this.kit.bindShell(); this.bind();
     },
     bind() {
       const click = (id, fn) => document.getElementById(`td-${id}`)?.addEventListener('click', () => this.action(fn));
       click('preview', async () => { await this.save(); this.sample = (await this.call(`/drafts/${this.draft.id}/preview`, {})).preview; this.message = '設定を保存しました。補完内容と勤務サンプルを確認してください。'; });
-      click('load', async () => { const id = document.getElementById('td-saved').value; if (!id) return; this.draft = (await this.call(`/drafts/${id}`)).draft; this.config = structuredClone(this.draft.config); this.sample = null; this.shared = null; this.sheets = []; });
+      click('load', async () => { const id = document.getElementById('td-saved').value; if (!id) return; this.draft = (await this.call(`/drafts/${id}`)).draft; this.config = structuredClone(this.draft.config); this.sample = null; this.shared = null; this.sheets = []; this.importPending = false; });
       click('import', async () => { this.read(); const form = new FormData(); for (const file of document.getElementById('td-files').files) form.append('files', file); form.append('encoding', document.getElementById('td-encoding').value);
-        this.sheets = (await this.call('/imports', form)).sheets.map(s => ({ ...s, mapping: s.suggestedMapping, type: 'companies' })); this.sample = null; });
-      click('normalize', async () => {
-        this.read(); const sheets = structuredClone(this.sheets);
-        document.querySelectorAll('[data-sheet-type]').forEach(el => { sheets[el.dataset.sheetType].type = el.value; });
-        for (const attr of ['field','mode']) document.querySelectorAll(`[data-map-${attr}]`).forEach(el => { const [i,j] = el.getAttribute(`data-map-${attr}`).split(':'); sheets[i].mapping[j][attr] = el.value; });
-        this.sheets = sheets; const result = await this.call('/normalize', { sheets });
-        if (result.issues.length) throw new Error(result.issues.join(' / '));
-        this.config.catalog = result.catalog; Object.assign(this.config.counts, result.counts); this.config.acceptFill = false; this.sample = null;
-        this.message = '取込件数を反映しました。補完内容はサンプルで確認してください。';
-      });
-      click('approve', async () => { this.read(); if (JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('変更後の設定を保存し、サンプルを再表示してください');
+        this.sheets = window.LinksTestDataMapping.initialize(this, (await this.call('/imports', form)).sheets); this.sample = null; this.shared = null; });
+      window.LinksTestDataMapping.bind(this); this.bindNormalize();
+      click('approve', async () => { this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('変更後の設定を保存し、サンプルを再表示してください');
         this.draft = (await this.call(`/drafts/${this.draft.id}/approve`, { revision: this.draft.revision, hash: this.sample.hash })).draft; this.message = 'この設定版を承認しました。業務DB生成はまだ実施していません。'; });
       click('share', async () => {
-        this.read(); if (JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('共有前に変更後の設定を保存し、サンプルを再表示してください');
+        this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('共有前に変更後の設定を保存し、サンプルを再表示してください');
         const data = await this.call(`/drafts/${this.draft.id}/share`); this.shared = data.package; this.message = '匿名版を再サンプリングしました。元の名称・自由コメントは含みません。';
       });
       click('download', async () => { const url = URL.createObjectURL(new Blob([JSON.stringify(this.shared,null,2)], { type:'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'anonymous-test-data.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); });
       document.getElementById('td-preset').addEventListener('change', () => { this.read(); this.config.weights = structuredClone(this.meta.presets[this.config.preset]); this.sample = null; this.render(); });
+    },
+    bindNormalize() {
+      const button = document.getElementById('td-normalize'); if (!button) return;
+      button.onclick = () => this.action(async () => {
+        this.read(); const sheets = structuredClone(this.sheets.filter(s => s.enabled !== false));
+        if (!sheets.length) throw new Error('取込対象のシートを選択してください');
+        const ignored = sheets.flatMap(s => s.headers.filter((h,i) => !s.mapping.some(m => m.column === i && m.field && m.mode !== 'unused')).map(h => `${s.name}: ${h || '見出しなし'}`));
+        const result = await this.call('/normalize', { sheets });
+        if (result.issues.length) throw new Error(result.issues.join(' / '));
+        if (ignored.length && !window.confirm(`未連携の${ignored.length}列は取り込みません。続行しますか？\n${ignored.join('\n')}`)) return;
+        Object.assign(this.config.catalog, result.catalog); Object.assign(this.config.counts, result.counts);
+        this.config.importMappings = window.LinksTestDataMapping.metadata(this.sheets);
+        this.config.acceptFill = false; this.importPending = false; this.sample = null; this.shared = null;
+        this.message = '対応付けと取込件数を設定に反映しました。「設定を保存してサンプル表示」で保存してください。';
+      });
     },
   };
 })();

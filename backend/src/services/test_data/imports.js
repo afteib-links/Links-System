@@ -1,4 +1,5 @@
 const { TYPES, fictional, fail } = require('./model');
+const { IMPORT_FIELDS } = require('./fields');
 const FIELDS = { code: ['code', 'no', 'コード', '番号'], name: ['name', '名称', '名前', '氏名', '企業名', '案件名', 'パートナー名'],
   companyCode: ['companycode', '企業コード'], partnerCode: ['partnercode', 'パートナーコード'], baseCode: ['basecode', '基本案件コード'] };
 const header = s => String(s ?? '').normalize('NFKC').replace(/[\s_．.]/g, '').toLowerCase();
@@ -63,8 +64,10 @@ function normalize(sheets) {
     if (!Object.hasOwn(TYPES, s.type)) fail('取込先の種類を選択してください');
     if (!Array.isArray(s.rows) || s.rows.length > 500 || !Array.isArray(s.mapping)) fail('シート形式が不正です');
     const mapping = s.mapping.filter(m => m.mode !== 'unused' && m.field);
-    if (mapping.some(m => !Object.hasOwn(FIELDS, m.field) || !['preserve', 'fictional'].includes(m.mode) || !Number.isInteger(m.column) || m.column < 0 || m.column >= 40)) fail('列割当が不正です');
+    if (mapping.some(m => !IMPORT_FIELDS[s.type].some(f => f.key === m.field) || !['preserve', 'fictional'].includes(m.mode) || !Number.isInteger(m.column) || m.column < 0 || m.column >= 40)) fail('取込先に対応していない項目、または列割当が不正です');
     if (new Set(mapping.map(m => m.field)).size !== mapping.length) fail('同じ項目へ複数列を割り当てないでください');
+    if (new Set(mapping.map(m => m.column)).size !== mapping.length) fail('同じExcel列を複数項目へ割り当てないでください');
+    if (s.rows.some(row => !Array.isArray(row) || mapping.some(m => m.column >= row.length))) fail('割当先のExcel列が存在しません');
     if (mapping.some(m => m.field !== 'name' && m.mode === 'fictional')) fail('コードの仮想化は参照を壊すため初回では未対応です。コードは維持してください');
     catalog[s.type] ||= [];
     for (const values of s.rows) {
