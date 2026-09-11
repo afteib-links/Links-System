@@ -66,3 +66,18 @@ test('最小原本を13シートの編集用Excelへ変換し再読込できる'
   const parsed = await parseCompletedWorkbook(built.buffer);
   assert.equal(parsed['企業'][0].company_name, '匿名企業');
 });
+
+test('車両番号のハイフン等は車両参照を作らない', async () => {
+  const source = new ExcelJS.Workbook();
+  const companies = source.addWorksheet('稼働企業DB変更');
+  companies.addRow(['担当', '形態', '企業番号', '企業名']);
+  companies.addRow(['担当A', '配送', '001', '匿名企業']);
+  const workers = source.addWorksheet('稼働者一覧DB');
+  workers.addRow(['担当', '締日', '形態', '氏名', '企業番号', '稼働企業', '車両番号', '稼働開始日', '契約単価', '委託単価']);
+  workers.addRow(['担当A', '末日', '配送', '匿名 太郎', '001', '匿名企業', '－', '2026-01-01', 18000, 12000]);
+
+  const prepared = await transformSourceWorkbook(await source.xlsx.writeBuffer());
+  assert.equal(prepared['パートナー車両'].length, 0);
+  assert.equal(prepared['個別案件'][0].vehicle_import_key, '');
+  assert.equal(validateRows(prepared).errors.length, 0);
+});

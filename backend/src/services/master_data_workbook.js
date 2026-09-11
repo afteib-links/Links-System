@@ -276,8 +276,9 @@ async function transformSourceWorkbook(input) {
     if (!companyKey || !partnerByRow.get(row.__row)) continue;
     const form = text(row['形態']) || '未設定'; const baseKey = `base_project:${companyKey}:${normalized(form)}`; const projectKey = `project:${companyKey}:${partnerByRow.get(row.__row)}:${row.__row}`;
     const partnerKey = partnerByRow.get(row.__row); const vehicleNo = text(row['車両番号']);
+    const vehicleImportKey = meaningful(vehicleNo) ? `partner_vehicle:${partnerKey.slice(8)}:${normalized(vehicleNo)}` : '';
     result['個別案件'].push({ ...common(projectKey, '稼働者一覧DB', row.__row), project_no: AUTO, base_project_import_key: baseKey, company_import_key: companyKey, billing_import_key: AUTO,
-      partner_import_key: partnerKey, vehicle_import_key: vehicleNo ? `partner_vehicle:${partnerKey.slice(8)}:${normalized(vehicleNo)}` : '', vehicle_owner_type: AUTO,
+      partner_import_key: partnerKey, vehicle_import_key: vehicleImportKey, vehicle_owner_type: AUTO,
       manager_name: text(row['担当']), business_type: form, payment_type: /分割/.test(text(row['支払区分'])) ? '分割' : '通常', installment_amount: money(row['分割単価']),
       operation_start_date: excelDate(row['稼働開始日']), closing_date: text(row['締日']) });
     if (money(row['契約単価']) !== '' || money(row['委託単価']) !== '') addPrice(result, `price_set:${projectKey}`, companyKey, '', projectKey, row, [money(row['契約単価']), money(row['委託単価'])]);
