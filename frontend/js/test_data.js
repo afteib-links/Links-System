@@ -3,8 +3,8 @@
     async open(ctx) {
       this.ctx = ctx; this.kit = window.LinksFeatureKit.createFeatureKit(ctx); this.kit.clearNav();
       this.meta = await this.call('/meta'); this.config = structuredClone(this.meta.defaults);
-      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false; this.job = null; this.monthlyJob = null;
-      await Promise.all([this.refreshList(), this.refreshJobs(), this.refreshMonthlyJobs()]); this.render();
+      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false; this.job = null; this.monthlyJob = null; this.settlementJob = null;
+      await Promise.all([this.refreshList(), this.refreshJobs(), this.refreshMonthlyJobs(), this.refreshSettlementJobs()]); this.render();
     },
     async call(path, body, method) {
       const options = body === undefined ? {} : { method: method || 'POST', body: body instanceof FormData ? body : JSON.stringify(body) };
@@ -15,8 +15,10 @@
     async refreshList() { this.saved = (await this.call('/drafts')).drafts; },
     syncJob() { this.job = this.draft ? (this.jobs || []).find(j => j.draftId === this.draft.id && j.revision === this.draft.revision) || null : null; this.syncMonthlyJob(); },
     async refreshJobs() { this.jobs = (await this.call('/jobs')).jobs; this.syncJob(); },
-    syncMonthlyJob() { this.monthlyJob = this.job ? (this.monthlyJobs || []).find(j => j.dailyJobId === this.job.id) || null : null; },
+    syncMonthlyJob() { this.monthlyJob = this.job ? (this.monthlyJobs || []).find(j => j.dailyJobId === this.job.id) || null : null; this.syncSettlementJob(); },
     async refreshMonthlyJobs() { this.monthlyJobs = (await this.call('/monthly-jobs')).jobs; this.syncMonthlyJob(); },
+    syncSettlementJob() { this.settlementJob = this.monthlyJob ? (this.settlementJobs || []).find(j => j.monthlyJobId === this.monthlyJob.id) || null : null; },
+    async refreshSettlementJobs() { this.settlementJobs=(await this.call('/settlement-jobs')).jobs; this.syncSettlementJob(); },
     async pollJob(id) {
       for (;;) {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -34,6 +36,15 @@
       }
       this.message=this.monthlyJob.status==='completed' ? '日報提出・月次承認の生成と検証が完了しました。' : `月次生成に失敗しました: ${this.monthlyJob.error}`;
       await this.refreshMonthlyJobs(); this.render();
+    },
+    async pollSettlementJob(id) {
+      for (;;) {
+        await new Promise(resolve => setTimeout(resolve,1000));
+        this.settlementJob=(await this.call(`/settlement-jobs/${id}`)).job; this.render();
+        if(['completed','failed'].includes(this.settlementJob.status))break;
+      }
+      this.message=this.settlementJob.status==='completed' ? '先払・請求・支払の生成と検証が完了しました。' : `精算生成に失敗しました: ${this.settlementJob.error}`;
+      await this.refreshSettlementJobs(); this.render();
     },
     async action(fn) {
       if (this.busy) return; this.busy = true;
@@ -84,8 +95,13 @@
         ${button('generate-monthly','日報提出・月次承認を生成',this.monthlyJob && ['queued','running'].includes(this.monthlyJob.status))}
         ${this.monthlyJob ? `<p role="status">状態: ${e(this.monthlyJob.status)} / ${this.monthlyJob.processed.toLocaleString()} / ${this.monthlyJob.total.toLocaleString()}件</p>
         <progress value="${this.monthlyJob.processed}" max="${Math.max(1,this.monthlyJob.total)}"></progress>${this.monthlyJob.error ? `<p class="error">${e(this.monthlyJob.error)}</p>` : ''}` : ''}</section>` : '';
+      const settlementHtml = this.monthlyJob?.status === 'completed' ? `<section class="panel"><h2>5. 先払・請求・支払</h2>
+        <p>承認済み月次データだけを対象に、30名の3サイクル先払と請求・支払下書きを作ります。完了月は承認済み、前月は処理状態を混在させ、手入力調整も含めます。</p>
+        ${button('generate-settlements','先払・請求・支払を生成',this.settlementJob && ['queued','running'].includes(this.settlementJob.status))}
+        ${this.settlementJob ? `<p role="status">状態: ${e(this.settlementJob.status)} / ${this.settlementJob.processed.toLocaleString()} / ${this.settlementJob.total.toLocaleString()}件</p>
+        <progress value="${this.settlementJob.processed}" max="${Math.max(1,this.settlementJob.total)}"></progress>${this.settlementJob.error ? `<p class="error">${e(this.settlementJob.error)}</p>` : ''}${this.settlementJob.manifest ? `<details><summary>生成結果</summary><pre>${e(JSON.stringify(this.settlementJob.manifest,null,2))}</pre></details>` : ''}` : ''}</section>` : '';
       this.ctx.app.innerHTML = this.kit.shell('検証データ作成', `<section class="panel"><h2>検証専用・日報サンプル設計</h2>
-        <p>取込・設定・サンプル承認後、専用検証DBへ日報、日報提出、月次承認を順に生成できます。精算、帳票生成は後続実装です。</p>
+        <p>取込・設定・サンプル承認後、専用検証DBへ日報、日報提出、月次承認、先払、請求、支払を順に生成できます。帳票・銀行CSVは後続段階です。</p>
         <p role="status" class="td-status">${e(this.message || 'Excelを使う場合はファイル解析と列連携を行い、最後に「設定を保存してサンプル表示」を押してください。')}</p><p>${this.draft ? `設定 ${e(this.draft.id)} / 第${this.draft.revision}版 / ${this.draft.approvedHash ? '承認済み' : '未承認'}` : '新しい設定'}</p>
         <label>保存した設定<select id="td-saved"><option value="">選択</option>${(this.saved || []).map(d => `<option value="${e(d.draft_id)}">${e(d.draft_id)} / 第${d.revision}版</option>`).join('')}</select></label>${button('load','読み込む')}
         </section><section class="panel"><h2>1. 元データ</h2><p>原本は保存しません。維持した正規化値は設定保存時に検証DBへ保存します。各ファイル2MBまで。</p>
@@ -105,7 +121,7 @@
           <label>コメント${input(`comment-${s.id}`,c.decisions[s.id]?.comment || '')}</label></fieldset>`).join('')}</div>
         <div class="td-confirm-fill"><label><input id="td-fill" type="checkbox" ${c.acceptFill ? 'checked' : ''}>不足する名称・関連先を仮の値で補うことを許可する</label><small>Excelに不足項目がある場合だけ使います。補完内容はサンプル表示後に確認できます。</small></div>
         <div class="btn-row">${button('preview','設定を保存してサンプル表示')}</div></section>${sampleHtml}
-        ${jobHtml}${monthlyHtml}${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
+        ${jobHtml}${monthlyHtml}${settlementHtml}${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
       this.kit.bindShell(); this.bind();
     },
     bind() {
@@ -137,6 +153,11 @@
         const data=await this.call(`/jobs/${this.job.id}/generate-monthly`,{}); this.monthlyJob=data.job;
         this.message=this.monthlyJob.status==='completed' ? 'この日報の月次データは生成済みです。' : '日報提出・月次承認の生成を開始しました。';
         if(!['completed','failed'].includes(this.monthlyJob.status))this.pollMonthlyJob(this.monthlyJob.id);
+      });
+      click('generate-settlements', async () => {
+        const data=await this.call(`/monthly-jobs/${this.monthlyJob.id}/generate-settlements`,{});this.settlementJob=data.job;
+        this.message=this.settlementJob.status==='completed'?'この月次データの先払・請求・支払は生成済みです。':'先払・請求・支払の生成を開始しました。';
+        if(!['completed','failed'].includes(this.settlementJob.status))this.pollSettlementJob(this.settlementJob.id);
       });
       click('share', async () => {
         this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('共有前に変更後の設定を保存し、サンプルを再表示してください');

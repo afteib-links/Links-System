@@ -1067,4 +1067,10 @@ router.get('/:kind/:id', async(req,res)=>{
 router.normalizeSettlementLineConfig = normalizeSettlementLineConfig;
 router.invoiceDisplayLines = invoiceDisplayLines;
 router.applyPaymentDeductions = applyPaymentDeductions;
+router.testDataAdapter = {
+  approvedSnapshotReports,
+  settlementLineConfig,
+  insertLines,
+  recalculateDraft,
+};
 module.exports = router;
