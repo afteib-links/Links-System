@@ -56,6 +56,7 @@
         <p role="status" class="td-status">${e(this.message || 'Excelを使う場合はファイル解析と列連携を行い、最後に「設定を保存してサンプル表示」を押してください。')}</p><p>${this.draft ? `設定 ${e(this.draft.id)} / 第${this.draft.revision}版 / ${this.draft.approvedHash ? '承認済み' : '未承認'}` : '新しい設定'}</p>
         <label>保存した設定<select id="td-saved"><option value="">選択</option>${(this.saved || []).map(d => `<option value="${e(d.draft_id)}">${e(d.draft_id)} / 第${d.revision}版</option>`).join('')}</select></label>${button('load','読み込む')}
         </section><section class="panel"><h2>1. 元データ</h2><p>原本は保存しません。維持した正規化値は設定保存時に検証DBへ保存します。各ファイル2MBまで。</p>
+        <details class="td-import-help"><summary>Excelデータの取込方法</summary><ol><li>ファイルを選び「ファイルを解析」を押します。</li><li>Excelシートと「編集中の取込先」を選びます。</li><li>左の取込項目と右のExcel列を順に押して連携します。複数マスターは取込先を切り替えて繰り返します。</li><li>必要なら重複時の処理を選び、最後に「設定を保存してサンプル表示」を押します。</li></ol></details>
         <input type="file" id="td-files" multiple accept=".xlsx,.csv"><select id="td-encoding"><option value="utf8">UTF-8</option><option value="cp932">CP932</option></select>${button('import','ファイルを解析')}
         ${importHtml}</section>
         <section class="panel"><h2>2. 稼働パターン</h2><div class="form-grid">
@@ -63,10 +64,10 @@
         <label>スタンス<select id="td-preset">${[['realistic','現実の稼働中心'],['coverage','境界・例外中心'],['mixed','混合']].map(([k,v]) => `<option value="${k}" ${c.preset === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
         ${Object.entries(this.meta.types).map(([k,v]) => `<label>${e(v)}件数${input(`count-${k}`,c.counts[k],'number')}</label>`).join('')}</div>
         <p>勤務割合は合計100。休日出勤は日曜の稼働確率、その他は平日の構成比として適用。実現件数を下のサンプルで確認してください。</p>
-        ${this.meta.cases.map(s => `<fieldset><legend>${e(s.name)}</legend><p>${e(s.purpose)}</p>${s.id in c.weights ? `<label>割合${input(`weight-${s.id}`,c.weights[s.id],'number')}</label>` : ''}
+        <div class="td-case-grid">${this.meta.cases.map(s => `<fieldset><legend>${e(s.name)}</legend><p>${e(s.purpose)}</p>${s.id in c.weights ? `<label>割合${input(`weight-${s.id}`,c.weights[s.id],'number')}</label>` : ''}
           <label class="td-required-case" title="ONにすると、この勤務パターンをサンプルへ最低1件作ります"><input type="checkbox" data-required="${s.id}" ${c.required.includes(s.id) ? 'checked' : ''}>サンプルに必ず1件以上含める</label>
           <select id="td-decision-${s.id}">${[['accept','採用'],['adjust','要調整'],['exclude','除外']].map(([k,v]) => `<option value="${k}" ${(c.decisions[s.id]?.status || 'accept') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
-          <label>コメント${input(`comment-${s.id}`,c.decisions[s.id]?.comment || '')}</label></fieldset>`).join('')}
+          <label>コメント${input(`comment-${s.id}`,c.decisions[s.id]?.comment || '')}</label></fieldset>`).join('')}</div>
         <div class="td-confirm-fill"><label><input id="td-fill" type="checkbox" ${c.acceptFill ? 'checked' : ''}>不足する名称・関連先を仮の値で補うことを許可する</label><small>Excelに不足項目がある場合だけ使います。補完内容はサンプル表示後に確認できます。</small></div>
         <div class="btn-row">${button('preview','設定を保存してサンプル表示')}</div></section>${sampleHtml}
         ${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
