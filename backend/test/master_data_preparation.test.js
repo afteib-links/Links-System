@@ -20,6 +20,7 @@ test('表記・日付・金額・支払条件を正規化する', () => {
   assert.equal(normalized(' ＡＢ－ 12　'), 'ab12');
   assert.equal(excelDate('２０２６年９月２日'), '2026-09-02');
   assert.equal(excelDate(1), '');
+  assert.equal(excelDate(new Date('1900-03-28T00:00:00Z')), '');
   assert.equal(money('￥12,340円'), 12340);
   assert.deepEqual(parsePaymentTerms('翌月末払い'), { offset: 1, day: 'end' });
 });
@@ -80,4 +81,19 @@ test('車両番号のハイフン等は車両参照を作らない', async () =>
   assert.equal(prepared['パートナー車両'].length, 0);
   assert.equal(prepared['個別案件'][0].vehicle_import_key, '');
   assert.equal(validateRows(prepared).errors.length, 0);
+});
+
+test('ハイフン等の空欄表現と不正な1900年日付はマスター値にしない', async () => {
+  const source = new ExcelJS.Workbook();
+  const companies = source.addWorksheet('稼働企業DB変更');
+  companies.addRow(['企業番号', '企業名', '電話']);
+  companies.addRow(['001', '匿名企業', '-']);
+  const workers = source.addWorksheet('稼働者一覧DB');
+  workers.addRow(['形態', '氏名', '企業番号', '稼働企業', '住所', '車両番号', '車検有効期限', '稼働開始日', '契約単価', '委託単価']);
+  workers.addRow(['配送', '匿名 太郎', '001', '匿名企業', '－', '品川100あ1', new Date('1900-03-28T00:00:00Z'), '2026-01-01', 18000, 12000]);
+
+  const prepared = await transformSourceWorkbook(await source.xlsx.writeBuffer());
+  assert.equal(prepared['企業'][0].contact, '');
+  assert.equal(prepared['パートナー'][0].address, '');
+  assert.equal(prepared['パートナー車両'][0].inspection_expiry_date, '');
 });

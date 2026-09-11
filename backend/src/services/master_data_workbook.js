@@ -110,7 +110,10 @@ function digits(value) { return text(value).normalize('NFKC').replace(/\D/g, '')
 function sourceKey(prefix, value) { return `${prefix}:${normalized(value) || crypto.randomUUID().slice(0, 12)}`; }
 function excelDate(value) {
   if (!value) return '';
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const year = value.getUTCFullYear();
+    return year >= 1920 && year <= 2100 ? value.toISOString().slice(0, 10) : '';
+  }
   if (typeof value === 'number') {
     if (value < 20000 || value > 80000) return '';
     return new Date(Date.UTC(1899, 11, 30) + value * 86400000).toISOString().slice(0, 10);
@@ -119,7 +122,7 @@ function excelDate(value) {
   const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (!m) return '';
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3])
+  return Number(m[1]) >= 1920 && Number(m[1]) <= 2100 && d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3])
     ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : '';
 }
 function money(value) {
@@ -149,7 +152,7 @@ function common(importKey, sourceSheet, sourceRow, reason = '') {
 }
 function pickMajority(rows, field) {
   const counts = new Map();
-  rows.forEach((r) => { const v = text(r[field]); if (v) counts.set(v, (counts.get(v) || 0) + 1); });
+  rows.forEach((r) => { const v = text(r[field]); if (meaningful(v)) counts.set(v, (counts.get(v) || 0) + 1); });
   return [...counts].sort((a, b) => b[1] - a[1] || rows.findIndex((r) => text(r[field]) === a[0]) - rows.findIndex((r) => text(r[field]) === b[0]))[0]?.[0] || '';
 }
 function parsePaymentTerms(value) {
