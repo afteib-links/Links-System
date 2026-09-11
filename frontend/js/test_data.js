@@ -3,8 +3,8 @@
     async open(ctx) {
       this.ctx = ctx; this.kit = window.LinksFeatureKit.createFeatureKit(ctx); this.kit.clearNav();
       this.meta = await this.call('/meta'); this.config = structuredClone(this.meta.defaults);
-      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false;
-      await this.refreshList(); this.render();
+      this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false; this.job = null;
+      await Promise.all([this.refreshList(), this.refreshJobs()]); this.render();
     },
     async call(path, body, method) {
       const options = body === undefined ? {} : { method: method || 'POST', body: body instanceof FormData ? body : JSON.stringify(body) };
@@ -13,6 +13,17 @@
       return data;
     },
     async refreshList() { this.saved = (await this.call('/drafts')).drafts; },
+    syncJob() { this.job = this.draft ? (this.jobs || []).find(j => j.draftId === this.draft.id && j.revision === this.draft.revision) || null : null; },
+    async refreshJobs() { this.jobs = (await this.call('/jobs')).jobs; this.syncJob(); },
+    async pollJob(id) {
+      for (;;) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.job = (await this.call(`/jobs/${id}`)).job; this.render();
+        if (['completed','failed'].includes(this.job.status)) break;
+      }
+      this.message = this.job.status === 'completed' ? '日報生成と検証が完了しました。' : `日報生成に失敗しました: ${this.job.error}`;
+      await this.refreshJobs(); this.render();
+    },
     async action(fn) {
       if (this.busy) return; this.busy = true;
       this.ctx.app.querySelectorAll('main input, main select, main button').forEach(el => { el.disabled = true; });
@@ -32,7 +43,7 @@
       this.read();
       if (this.importPending) await this.applyMappings();
       const data = this.draft ? await this.call(`/drafts/${this.draft.id}`, { config: this.config, revision: this.draft.revision }, 'PUT') : await this.call('/drafts', { config: this.config });
-      this.draft = data.draft; this.sample = null; this.shared = null; await this.refreshList();
+      this.draft = data.draft; this.sample = null; this.shared = null; this.syncJob(); await this.refreshList();
     },
     table(headers, rows) {
       const e = this.ctx.escapeHtml;
@@ -51,8 +62,14 @@
         ${this.table(['案件','人物','勤務日','区分','開始','終了','休憩分','距離km','月次目標'], this.sample.reports.slice(0,100).map(r => [r.projectCode,r.partnerCode,r.workDate,r.scenario,r.startTime,r.endTime,r.breakMinutes,r.distanceKm,r.monthlyTarget]))}
         ${button('approve','この設定版のサンプルを承認', !this.sample.approvable)} ${button('share','匿名共有内容を確認')}
         </section>` : '';
+      const jobHtml = this.draft?.approvedHash ? `<section class="panel"><h2>3. 日報生成</h2>
+        <p>承認済み設定を専用検証DBへ登録し、現行の料金計算を実行します。通常DB・本番DBには接続しません。</p>
+        ${button('generate','承認済みサンプルから日報を生成', this.job && ['queued','running'].includes(this.job.status))}
+        ${this.job ? `<p role="status">状態: ${e(this.job.status)} / ${this.job.processed.toLocaleString()} / ${this.job.total.toLocaleString()}件</p>
+        <progress value="${this.job.processed}" max="${Math.max(1,this.job.total)}"></progress>${this.job.error ? `<p class="error">${e(this.job.error)}</p>` : ''}` : ''}
+        </section>` : '';
       this.ctx.app.innerHTML = this.kit.shell('検証データ作成', `<section class="panel"><h2>検証専用・日報サンプル設計</h2>
-        <p>初回機能：取込・設定・サンプル確認。業務DBへの投入、精算、帳票生成は後続実装です。</p>
+        <p>取込・設定・サンプル承認後、専用検証DBへ日報を生成できます。月次承認、精算、帳票生成は後続実装です。</p>
         <p role="status" class="td-status">${e(this.message || 'Excelを使う場合はファイル解析と列連携を行い、最後に「設定を保存してサンプル表示」を押してください。')}</p><p>${this.draft ? `設定 ${e(this.draft.id)} / 第${this.draft.revision}版 / ${this.draft.approvedHash ? '承認済み' : '未承認'}` : '新しい設定'}</p>
         <label>保存した設定<select id="td-saved"><option value="">選択</option>${(this.saved || []).map(d => `<option value="${e(d.draft_id)}">${e(d.draft_id)} / 第${d.revision}版</option>`).join('')}</select></label>${button('load','読み込む')}
         </section><section class="panel"><h2>1. 元データ</h2><p>原本は保存しません。維持した正規化値は設定保存時に検証DBへ保存します。各ファイル2MBまで。</p>
@@ -72,13 +89,13 @@
           <label>コメント${input(`comment-${s.id}`,c.decisions[s.id]?.comment || '')}</label></fieldset>`).join('')}</div>
         <div class="td-confirm-fill"><label><input id="td-fill" type="checkbox" ${c.acceptFill ? 'checked' : ''}>不足する名称・関連先を仮の値で補うことを許可する</label><small>Excelに不足項目がある場合だけ使います。補完内容はサンプル表示後に確認できます。</small></div>
         <div class="btn-row">${button('preview','設定を保存してサンプル表示')}</div></section>${sampleHtml}
-        ${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
+        ${jobHtml}${this.shared ? `<section class="panel" id="td-share-panel"><h2>匿名共有内容の確認</h2><pre style="max-height:300px;overflow:auto">${e(JSON.stringify(this.shared,null,2))}</pre>${button('download','確認した匿名JSONを保存')}<a class="btn" href="/api/test-data/drafts/${e(this.draft.id)}/share?format=csv">匿名日報CSVを保存</a></section>` : ''}`, { wide: true });
       this.kit.bindShell(); this.bind();
     },
     bind() {
       const click = (id, fn) => document.getElementById(`td-${id}`)?.addEventListener('click', () => this.action(fn));
       click('preview', async () => { await this.save(); this.sample = (await this.call(`/drafts/${this.draft.id}/preview`, {})).preview; this.message = '設定を保存しました。補完内容と勤務サンプルを確認してください。'; });
-      click('load', async () => { const id = document.getElementById('td-saved').value; if (!id) return; this.draft = (await this.call(`/drafts/${id}`)).draft; this.config = structuredClone(this.draft.config); this.sample = null; this.shared = null; this.sheets = []; this.importPending = false; });
+      click('load', async () => { const id = document.getElementById('td-saved').value; if (!id) return; this.draft = (await this.call(`/drafts/${id}`)).draft; this.config = structuredClone(this.draft.config); this.syncJob(); this.sample = null; this.shared = null; this.sheets = []; this.importPending = false; });
       click('import', async () => { this.read(); const form = new FormData(); for (const file of document.getElementById('td-files').files) form.append('files', file); form.append('encoding', document.getElementById('td-encoding').value);
         this.sheets = window.LinksTestDataMapping.initialize(this, (await this.call('/imports', form)).sheets); this.sample = null; this.shared = null; });
       click('registered', async () => {
@@ -94,7 +111,12 @@
       });
       window.LinksTestDataMapping.bind(this); this.bindNormalize();
       click('approve', async () => { this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('変更後の設定を保存し、サンプルを再表示してください');
-        this.draft = (await this.call(`/drafts/${this.draft.id}/approve`, { revision: this.draft.revision, hash: this.sample.hash })).draft; this.message = 'この設定版を承認しました。業務DB生成はまだ実施していません。'; });
+        this.draft = (await this.call(`/drafts/${this.draft.id}/approve`, { revision: this.draft.revision, hash: this.sample.hash })).draft; this.message = 'この設定版を承認しました。日報生成を実行できます。'; });
+      click('generate', async () => {
+        const data = await this.call(`/drafts/${this.draft.id}/generate`, {}); this.job = data.job;
+        this.message = this.job.status === 'completed' ? 'この設定版の日報は生成済みです。' : '専用検証DBへの日報生成を開始しました。';
+        if (!['completed','failed'].includes(this.job.status)) this.pollJob(this.job.id);
+      });
       click('share', async () => {
         this.read(); if (this.importPending || JSON.stringify(this.config) !== JSON.stringify(this.draft.config)) throw new Error('共有前に変更後の設定を保存し、サンプルを再表示してください');
         const data = await this.call(`/drafts/${this.draft.id}/share`); this.shared = data.package; this.message = '匿名版を再サンプリングしました。元の名称・自由コメントは含みません。';

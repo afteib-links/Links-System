@@ -40,6 +40,9 @@ function sameStoredValue(field, stored, desired) {
 
 function cleanValue(field, value) {
   if (value == null || value === '' || value === AUTO) return null;
+  // Older generated workbooks used "base", while the pricing engine and code
+  // master have always used "basic" for the regular daily fee.
+  if (field === 'price_type_code' && String(value).trim() === 'base') return 'basic';
   if (/date$/.test(field) || field === 'apply_start_date' || field === 'apply_end_date') return excelDate(value) || null;
   if (['billing_unit_price', 'payment_unit_price', 'sort_order', 'basic_work_hours', 'installment_amount', 'binding_time', 'break_time', 'distance_calc_amount'].includes(field)) return money(value);
   if (field === 'advance_payment_enabled') return ['1', 'true', 'はい', '有', 'あり'].includes(String(value).trim().toLowerCase()) ? 1 : 0;

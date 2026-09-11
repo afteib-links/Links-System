@@ -106,18 +106,20 @@ function preview(input) {
     for (let time = Date.parse(config.start); time <= Date.parse(config.asOf); time += 86400000) {
       const day = new Date(time), workDate = day.toISOString().slice(0, 10), dow = day.getUTCDay();
       let kind = 'unnecessary';
+      const withinLifecycle = (!project.operationStartDate || project.operationStartDate <= workDate)
+        && (!project.operationEndDate || workDate <= project.operationEndDate);
       const assignments = projectsByPartner.get(project.partnerCode) || [project.code];
       const scheduledProject = assignments[Math.floor(time / 86400000) % assignments.length];
       const available = scheduledProject === project.code;
       const applicable = k => (k !== 'early' || delivery) && (k !== 'night' || canNight);
       const eligible = k => applicable(k) && (k === 'holiday' ? dow === 0 : dow > 0 && dow < 6);
-      const forced = available ? required.find(eligible) : null;
+      const forced = available && withinLifecycle ? required.find(eligible) : null;
       if (forced) { kind = forced; required.splice(required.indexOf(forced), 1); }
-      else if (available && dow > 0 && dow < 6) {
+      else if (available && withinLifecycle && dow > 0 && dow < 6) {
         const entries = Object.entries(config.weights).filter(([k]) => k !== 'holiday' && applicable(k));
         let n = rand() * entries.reduce((s, [, w]) => s + w, 0);
         kind = entries.find(([, w]) => (n -= w) < 0)?.[0] || 'unnecessary';
-      } else if (available && dow === 0 && rand() * 100 < config.weights.holiday) kind = 'holiday';
+      } else if (available && withinLifecycle && dow === 0 && rand() * 100 < config.weights.holiday) kind = 'holiday';
       const working = !['unnecessary', 'absent'].includes(kind);
       const start = kind === 'night' ? 22 * 60 : kind === 'early' || delivery ? 5 * 60 : 8 * 60;
       const end = start + 540 + (kind === 'overtime' ? 120 : kind === 'short' ? -120 : 0);
