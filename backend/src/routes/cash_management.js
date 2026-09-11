@@ -359,15 +359,15 @@ router.post('/bank-exports/preview', async (req, res) => {
   }
 });
 
-router.post('/bank-exports', async (req, res) => {
-  const conn = await getPool().getConnection();
+async function createBankExport({ sourceBankAccountId, requestedDate, scheduleIds, actorUserId, pool = getPool() }) {
+  const conn = await pool.getConnection();
   try {
-    const requestedDate = String(req.body?.transfer_date || '');
+    requestedDate = String(requestedDate || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) throw new Error('振込指定日を入力してください');
     const transferDate = await resolveBusinessDate(requestedDate, 'outgoing');
-    const ids = selectedScheduleIds(req.body);
+    const ids = [...new Set((scheduleIds || []).map(Number).filter(Number.isInteger))];
     await conn.beginTransaction();
-    const definition = await loadBankExportDefinition(conn, Number(req.body.source_bank_account_id), true);
+    const definition = await loadBankExportDefinition(conn, Number(sourceBankAccountId), true);
     const items = await loadSelectedOutgoing(conn, ids, true);
     const built = buildRows(items, definition.account, transferDate, definition.columns);
     if (built.errors.length) throw new Error(`銀行データに${built.errors.length}件の不備があります。プレビューを確認してください`);
@@ -402,7 +402,7 @@ router.post('/bank-exports', async (req, res) => {
       `INSERT INTO cash_export_batches
         (cash_cycle_id,export_kind,bank_name,source_bank_account_id,bank_export_profile_version_id,scheduled_transfer_date,definition_snapshot_json,file_checksum,total_count,total_amount,file_name,created_by)
        VALUES (?,'bank_csv',?,?,?,?,?,?,?,?,?,?)`,
-      [cycle.cash_cycle_id, definition.account.bank_name, definition.account.source_bank_account_id, definition.account.bank_export_profile_version_id, transferDate, definitionSnapshot, digest, items.length, totalAmount, '', req.session.user?.user_id || null]
+      [cycle.cash_cycle_id, definition.account.bank_name, definition.account.source_bank_account_id, definition.account.bank_export_profile_version_id, transferDate, definitionSnapshot, digest, items.length, totalAmount, '', actorUserId || null]
     );
     const outputName = fileName(definition.version.file_name_pattern, {
       transfer_date: transferDate,
@@ -419,15 +419,29 @@ router.post('/bank-exports', async (req, res) => {
       await conn.query("UPDATE cash_schedules SET status='exported',version=version+1 WHERE cash_schedule_id=? AND status='planned'", [items[index].cash_schedule_id]);
     }
     await conn.commit();
-    res.setHeader('Content-Type', 'text/csv; charset=binary');
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(outputName)}`);
-    res.setHeader('X-Cash-Export-Batch-Id', String(batch.insertId));
-    return res.send(buffer);
+    return { buffer, outputName, batchId:Number(batch.insertId), checksum:digest, totalCount:items.length, totalAmount, transferDate };
   } catch (error) {
     await conn.rollback();
-    return res.status(400).json({ ok: false, message: error.message });
+    throw error;
   } finally {
     conn.release();
+  }
+}
+
+router.post('/bank-exports', async (req, res) => {
+  try {
+    const result=await createBankExport({
+      sourceBankAccountId:req.body?.source_bank_account_id,
+      requestedDate:req.body?.transfer_date,
+      scheduleIds:selectedScheduleIds(req.body),
+      actorUserId:req.session.user?.user_id || null,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=binary');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(result.outputName)}`);
+    res.setHeader('X-Cash-Export-Batch-Id', String(result.batchId));
+    return res.send(result.buffer);
+  } catch (error) {
+    return res.status(400).json({ ok: false, message: error.message });
   }
 });
 router.get('/exports', async (req, res) => {
@@ -481,4 +495,4 @@ router.post('/exports/:id/cancel', async (req, res) => {
     await conn.commit(); return res.json({ok:true});
   } catch(err) { await conn.rollback(); return res.status(400).json({ok:false,message:err.message}); } finally {conn.release();}
 });
-module.exports = { router, ensureCycles };
+module.exports = { router, ensureCycles, createBankExport };
