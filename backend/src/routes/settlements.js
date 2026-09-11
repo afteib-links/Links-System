@@ -771,8 +771,11 @@ async function restorePaymentAllocations(conn, paymentId, actor, reason) {
   );
 }
 
-router.post('/:kind/:id/finalize', requireRole('admin','soumu','executive'), async (req,res) => {
-  const kind=req.params.kind,id=Number(req.params.id); if(!validKind(kind)) return res.status(404).end(); const b=req.body||{}; const conn=await getPool().getConnection(); const generated=[];
+async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDate = null }) {
+  if(!validKind(kind)) throw new Error('精算種別が不正です');
+  id=Number(id);
+  const b={cash_cycle_id:cashCycleId};
+  const conn=await getPool().getConnection(); const generated=[];
   try { await conn.beginTransaction(); const [headerRows]=await conn.query(`SELECT s.*, ${kind==='invoice'?'c.company_name':'p.partner_name'} FROM ${tableFor(kind)} s LEFT JOIN ${kind==='invoice'?'companies c ON c.company_id=s.company_id':'partners p ON p.partner_id=s.partner_id'} WHERE s.${idFor(kind)}=? FOR UPDATE`,[id]); const header=headerRows[0]; if(!header) throw new Error('対象が見つかりません'); const [wf]=await conn.query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE',[kind,id]); if(!wf.length || wf[0].status!=='approved') throw new Error('日報・請求・支払の一括承認後に発行できます');
     const [lines]=await conn.query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]); let finalLines=lines.map(x=>({...x,amount:Number(x.amount),unit_price:Number(x.unit_price),quantity:Number(x.quantity)}));
     let pdfLines = finalLines;
@@ -836,7 +839,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','soumu','executive'), asy
     const scheduleDelta=wf[0].correction_of_settlement_id?asMoney(Number(header.total_amount)-correctionExecuted):Number(header.total_amount);
     if(scheduleDelta!==0){
       const direction=scheduleDelta>0?baseDirection:(baseDirection==='incoming'?'outgoing':'incoming');
-      await conn.query(`INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,company_id,partner_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,[cycleId,direction,wf[0].correction_of_settlement_id?'adjustment':kind,id,header.company_id||null,header.partner_id||null,header.company_name||header.partner_name,wf[0].correction_of_settlement_id?'訂正差額':kind==='invoice'?'請求入金':'通常支払',Math.abs(scheduleDelta),direction==='incoming'?cycles[0].planned_incoming_date:cycles[0].planned_outgoing_date,JSON.stringify({settlement_type:kind,settlement_id:id,total_amount:header.total_amount,executed_net:correctionExecuted,difference:scheduleDelta}),req.session.user.user_id]);
+      await conn.query(`INSERT INTO cash_schedules (cash_cycle_id,direction,source_type,source_id,company_id,partner_id,counterparty_name,title,amount,scheduled_date,snapshot_json,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,[cycleId,direction,wf[0].correction_of_settlement_id?'adjustment':kind,id,header.company_id||null,header.partner_id||null,header.company_name||header.partner_name,wf[0].correction_of_settlement_id?'訂正差額':kind==='invoice'?'請求入金':'通常支払',Math.abs(scheduleDelta),direction==='incoming'?cycles[0].planned_incoming_date:cycles[0].planned_outgoing_date,JSON.stringify({settlement_type:kind,settlement_id:id,total_amount:header.total_amount,executed_net:correctionExecuted,difference:scheduleDelta}),actorUserId]);
     }
     const types=kind==='invoice'
       ? [invoiceDisplayMode==='project_aggregated'?'invoice_summary':'invoice']
@@ -851,7 +854,7 @@ router.post('/:kind/:id/finalize', requireRole('admin','soumu','executive'), asy
         settlement_type:kind,
         document_type:type,
         document_number:number,
-        issued_date:new Date().toISOString().slice(0,10),
+        issued_date:issuedDate || new Date().toISOString().slice(0,10),
         due_date:cycles[0].planned_incoming_date,
         payment_date:cycles[0].planned_outgoing_date,
         target_year_month:header.target_year_month,
@@ -870,21 +873,30 @@ router.post('/:kind/:id/finalize', requireRole('admin','soumu','executive'), asy
       const pdf=await writePdf(document,finalLines);
       generated.push(pdf.absolutePath);
       await conn.query(
-        `INSERT INTO settlement_documents (settlement_type,settlement_id,document_type,document_year,document_number,company_id,partner_id,file_path,snapshot_json) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [kind,id,type,year,number,header.company_id||null,header.partner_id||null,pdf.fileName,JSON.stringify({document,lines:pdfLines,internal_lines:finalLines})]
+        `INSERT INTO settlement_documents (settlement_type,settlement_id,document_type,document_year,document_number,company_id,partner_id,file_path,snapshot_json,issued_at) VALUES (?,?,?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))`,
+        [kind,id,type,year,number,header.company_id||null,header.partner_id||null,pdf.fileName,JSON.stringify({document,lines:pdfLines,internal_lines:finalLines}),issuedDate?`${issuedDate} 17:00:00`:null]
       );
     }
-    await conn.query(`UPDATE settlement_workflows SET status='finalized',finalized_by_user_id=?,finalized_at=CURRENT_TIMESTAMP,issued_by_user_id=?,issued_at=CURRENT_TIMESTAMP WHERE settlement_workflow_id=?`,[req.session.user.user_id,req.session.user.user_id,wf[0].settlement_workflow_id]);
+    await conn.query(`UPDATE settlement_workflows SET status='finalized',finalized_by_user_id=?,finalized_at=COALESCE(?,CURRENT_TIMESTAMP),issued_by_user_id=?,issued_at=COALESCE(?,CURRENT_TIMESTAMP) WHERE settlement_workflow_id=?`,[actorUserId,issuedDate?`${issuedDate} 17:00:00`:null,actorUserId,issuedDate?`${issuedDate} 17:00:00`:null,wf[0].settlement_workflow_id]);
     const linkTable=kind==='invoice'?'invoice_daily_reports':'payment_daily_reports';
     await conn.query(`UPDATE daily_reports d JOIN ${linkTable} l ON l.daily_report_id=d.daily_report_id SET d.${kind==='invoice'?'billing_status':'payment_status'}=?,d.version=d.version+1 WHERE l.${idFor(kind)}=?`,[kind==='invoice'?'billed':'paid',id]);
-    await conn.commit(); return res.json({ok:true,status:'finalized',total_amount:header.total_amount});
+    await conn.commit(); return {ok:true,status:'finalized',total_amount:header.total_amount};
   } catch(err){
     let rollbackConfirmed=false;
     try{await conn.rollback();rollbackConfirmed=true;}catch(_rollbackError){/* The commit outcome may be unknown after connection loss. */}
     // Do not remove a potentially committed document when the DB outcome is unknown.
     if(rollbackConfirmed)for(const file of generated){try{fs.unlinkSync(file);}catch(_unlinkErr){/* best effort */}}
-    return res.status(400).json({ok:false,message:err.message});
+    throw err;
   } finally {conn.release();}
+}
+
+router.post('/:kind/:id/finalize', requireRole('admin','soumu','executive'), async (req,res) => {
+  try {
+    const result=await finalizeSettlement({kind:req.params.kind,id:req.params.id,cashCycleId:req.body?.cash_cycle_id,actorUserId:req.session.user.user_id});
+    return res.json(result);
+  } catch(err) {
+    return res.status(400).json({ok:false,message:err.message});
+  }
 });
 
 router.post('/:kind/:id/cancel', requireRole('admin','soumu','executive'), async(req,res)=>{
@@ -1072,5 +1084,6 @@ router.testDataAdapter = {
   settlementLineConfig,
   insertLines,
   recalculateDraft,
+  finalizeSettlement,
 };
 module.exports = router;
