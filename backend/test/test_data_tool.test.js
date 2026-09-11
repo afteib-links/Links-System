@@ -3,6 +3,43 @@ const assert = require('node:assert/strict');
 const m = require('../src/services/test_data/model');
 const imp = require('../src/services/test_data/imports');
 const { workbook, zip } = require('../test-support/xlsx_buffer');
+const { IMPORT_FIELDS, suggest } = require('../src/services/test_data/fields');
+
+test('Japanese company fields retain source values and stay out of anonymous share', () => {
+  const headers = ['担当','形態','検索用','企業番号','企業名'];
+  const mapping = suggest(headers,'companies');
+  assert.deepEqual(mapping.map(m => m.field),['managerName','workMode','searchText','code','name']);
+  const n = imp.normalize([{type:'companies',mapping,rows:[['PRIVATE_MANAGER','PRIVATE_FORM','PRIVATE_SEARCH','00001','PRIVATE_NAME']]}]);
+  assert.deepEqual(n.issues,[]); assert.equal(n.catalog.companies[0].workMode,'PRIVATE_FORM');
+  const c = m.defaults('2026-09-11'); c.catalog = n.catalog; c.counts.companies = 1;
+  c.importMappings = [{name:'PRIVATE_SHEET',headers,mapping,type:'companies'}];
+  assert.ok(!JSON.stringify(m.share(c)).includes('PRIVATE'));
+  assert.ok(IMPORT_FIELDS.companies.every(f => f.label));
+});
+
+test('missing partner codes are deterministically completed', () => {
+  const n = imp.normalize([{type:'partners',rows:[['架空 太郎'],['架空 花子']],mapping:[{column:0,field:'name',mode:'preserve'}]}]);
+  assert.deepEqual(n.issues,[]);
+  assert.deepEqual(n.catalog.partners.map(r => r.code),['P00001','P00002']);
+  assert.equal(n.fills.length,2);
+});
+
+test('duplicate policy supports first, last and rounded numeric averages', () => {
+  const source = policy => [{type:'partners',duplicatePolicy:policy,rows:[['P1','先','100'],['P1','後','101']],mapping:[
+    {column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'},{column:2,field:'splitRate',mode:'preserve'}]}];
+  assert.equal(imp.normalize(source('first')).catalog.partners[0].name,'先');
+  assert.equal(imp.normalize(source('last')).catalog.partners[0].name,'後');
+  assert.equal(imp.normalize(source('averageFloor')).catalog.partners[0].splitRate,'100');
+  assert.equal(imp.normalize(source('averageCeil')).catalog.partners[0].splitRate,'101');
+  assert.equal(imp.normalize(source('error')).issues.length,1);
+});
+test('invalid type field, duplicate column and missing source column are refused', () => {
+  const s = {type:'companies',rows:[['001','name']],mapping:[{column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'}]};
+  for (const change of [x => x.mapping[1].field='partnerCode', x => x.mapping[1].column=0, x => x.mapping[1].column=3]) {
+    const x = structuredClone(s); change(x); assert.throws(() => imp.normalize([x]));
+  }
+  assert.equal(suggest(['企業名','会社名'],'companies').filter(x=>x.field).length,1);
+});
 
 test('real XLSX buffer parsing preserves string codes and rejects formulas/macros', async () => {
   const result = await imp.parseFiles([{ originalname:'fictional.xlsx', buffer:workbook() }]);

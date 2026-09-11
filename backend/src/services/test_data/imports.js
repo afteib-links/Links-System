@@ -1,6 +1,8 @@
 const { TYPES, fictional, fail } = require('./model');
+const { IMPORT_FIELDS } = require('./fields');
 const FIELDS = { code: ['code', 'no', 'コード', '番号'], name: ['name', '名称', '名前', '氏名', '企業名', '案件名', 'パートナー名'],
   companyCode: ['companycode', '企業コード'], partnerCode: ['partnercode', 'パートナーコード'], baseCode: ['basecode', '基本案件コード'] };
+const AVERAGE_FIELDS = new Set(['closingDay','splitRate','contractPrice','outsourcingPrice']);
 const header = s => String(s ?? '').normalize('NFKC').replace(/[\s_．.]/g, '').toLowerCase();
 function parseCsv(text) {
   const rows = []; let row = [], value = '', quoted = false, closed = false;
@@ -58,13 +60,17 @@ async function parseFiles(files, encoding = 'utf8') {
 }
 function normalize(sheets) {
   if (!Array.isArray(sheets) || sheets.length > 50) fail('シート指定が不正です');
-  const catalog = {}, issues = [], fills = [];
+  const catalog = {}, issues = [], fills = [], valuesByType = {};
   for (const s of sheets) {
     if (!Object.hasOwn(TYPES, s.type)) fail('取込先の種類を選択してください');
     if (!Array.isArray(s.rows) || s.rows.length > 500 || !Array.isArray(s.mapping)) fail('シート形式が不正です');
     const mapping = s.mapping.filter(m => m.mode !== 'unused' && m.field);
-    if (mapping.some(m => !Object.hasOwn(FIELDS, m.field) || !['preserve', 'fictional'].includes(m.mode) || !Number.isInteger(m.column) || m.column < 0 || m.column >= 40)) fail('列割当が不正です');
+    const duplicatePolicy = s.duplicatePolicy || 'error';
+    if (!['error','first','last','averageFloor','averageCeil'].includes(duplicatePolicy)) fail('重複時の処理が正しくありません');
+    if (mapping.some(m => !IMPORT_FIELDS[s.type].some(f => f.key === m.field) || !['preserve', 'fictional'].includes(m.mode) || !Number.isInteger(m.column) || m.column < 0 || m.column >= 40)) fail('取込先に対応していない項目、または列割当が不正です');
     if (new Set(mapping.map(m => m.field)).size !== mapping.length) fail('同じ項目へ複数列を割り当てないでください');
+    if (new Set(mapping.map(m => m.column)).size !== mapping.length) fail('同じExcel列を複数項目へ割り当てないでください');
+    if (s.rows.some(row => !Array.isArray(row) || mapping.some(m => m.column >= row.length))) fail('割当先のExcel列が存在しません');
     if (mapping.some(m => m.field !== 'name' && m.mode === 'fictional')) fail('コードの仮想化は参照を壊すため初回では未対応です。コードは維持してください');
     catalog[s.type] ||= [];
     for (const values of s.rows) {
@@ -75,10 +81,36 @@ function normalize(sheets) {
         if (typeof raw !== 'string' || raw.length > 200) fail('セルは200文字以内の文字列です');
         row[m.field] = m.mode === 'fictional' ? fictional(s.type, catalog[s.type].length).name : raw.trim();
       }
-      if (!row.code) issues.push(`${s.type} ${catalog[s.type].length + 1}行目: コードが必要です`);
+      if (!row.code) {
+        let number = catalog[s.type].length + 1;
+        do { row.code = `${TYPES[s.type]}${String(number++).padStart(5, '0')}`; } while (catalog[s.type].some(r => r.code === row.code));
+        fills.push(`${s.type} ${catalog[s.type].length + 1}行目: ${row.code} を仮想補完します`);
+      }
       if (!row.name) fills.push(`${s.type} ${row.code}: 名称を仮想補完します`);
-      if (catalog[s.type].some(r => r.code === row.code)) issues.push(`${s.type}: コード ${row.code} が重複しています`);
-      catalog[s.type].push(row);
+      const existing = catalog[s.type].find(r => r.code === row.code);
+      valuesByType[s.type] ||= new Map();
+      if (!existing) {
+        catalog[s.type].push(row);
+        valuesByType[s.type].set(row.code, Object.fromEntries(Object.entries(row).map(([key,value]) => [key,[value]])));
+      } else if (duplicatePolicy === 'error') {
+        issues.push(`${s.type}: コード ${row.code} が重複しています。重複時の処理を選択してください`);
+      } else {
+        const history = valuesByType[s.type].get(row.code);
+        for (const [key,value] of Object.entries(row)) (history[key] ||= []).push(value);
+        if (duplicatePolicy === 'last') Object.assign(existing,row);
+        if (duplicatePolicy === 'averageFloor' || duplicatePolicy === 'averageCeil') {
+          for (const [key,all] of Object.entries(history)) {
+            if (key === 'code') continue;
+            const nonblank = all.filter(value => value !== '');
+            if (!nonblank.length) { existing[key] = ''; continue; }
+            const numeric = AVERAGE_FIELDS.has(key) && nonblank.every(value => /^-?\d+(?:\.\d+)?$/.test(value));
+            if (numeric) {
+              const average = nonblank.reduce((sum,value) => sum + Number(value),0) / nonblank.length;
+              existing[key] = String(duplicatePolicy === 'averageFloor' ? Math.floor(average) : Math.ceil(average));
+            } else existing[key] = duplicatePolicy === 'averageFloor' ? nonblank[0] : nonblank.at(-1);
+          }
+        }
+      }
     }
     if (catalog[s.type].length > 500) fail('各種類500件までです');
   }
