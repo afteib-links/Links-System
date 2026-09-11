@@ -78,7 +78,11 @@ function normalize(sheets) {
         if (typeof raw !== 'string' || raw.length > 200) fail('セルは200文字以内の文字列です');
         row[m.field] = m.mode === 'fictional' ? fictional(s.type, catalog[s.type].length).name : raw.trim();
       }
-      if (!row.code) issues.push(`${s.type} ${catalog[s.type].length + 1}行目: コードが必要です`);
+      if (!row.code) {
+        let number = catalog[s.type].length + 1;
+        do { row.code = `${TYPES[s.type]}${String(number++).padStart(5, '0')}`; } while (catalog[s.type].some(r => r.code === row.code));
+        fills.push(`${s.type} ${catalog[s.type].length + 1}行目: ${row.code} を仮想補完します`);
+      }
       if (!row.name) fills.push(`${s.type} ${row.code}: 名称を仮想補完します`);
       if (catalog[s.type].some(r => r.code === row.code)) issues.push(`${s.type}: コード ${row.code} が重複しています`);
       catalog[s.type].push(row);

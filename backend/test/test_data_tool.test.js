@@ -16,6 +16,13 @@ test('Japanese company fields retain source values and stay out of anonymous sha
   assert.ok(!JSON.stringify(m.share(c)).includes('PRIVATE'));
   assert.ok(IMPORT_FIELDS.companies.every(f => f.label));
 });
+
+test('missing partner codes are deterministically completed', () => {
+  const n = imp.normalize([{type:'partners',rows:[['架空 太郎'],['架空 花子']],mapping:[{column:0,field:'name',mode:'preserve'}]}]);
+  assert.deepEqual(n.issues,[]);
+  assert.deepEqual(n.catalog.partners.map(r => r.code),['P00001','P00002']);
+  assert.equal(n.fills.length,2);
+});
 test('invalid type field, duplicate column and missing source column are refused', () => {
   const s = {type:'companies',rows:[['001','name']],mapping:[{column:0,field:'code',mode:'preserve'},{column:1,field:'name',mode:'preserve'}]};
   for (const change of [x => x.mapping[1].field='partnerCode', x => x.mapping[1].column=0, x => x.mapping[1].column=3]) {
