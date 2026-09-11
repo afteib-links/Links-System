@@ -13,10 +13,11 @@ test('environment gate fails closed', () => {
 });
 test('API authorization, version lock, approval invalidation and generation barrier', async t => {
   const generation = { list:async()=>[], get:async()=>null, enqueue:async d=>({id:'job-1',draftId:d.id,revision:d.revision,status:'queued',total:0,processed:0}) };
+  const monthly = { list:async()=>[], get:async()=>null, enqueue:async id=>({id:'monthly-1',dailyJobId:id,status:'queued',total:0,processed:0}) };
   const app = express(); app.use(express.json());
   app.use((req,res,next) => { if (req.get('x-test-role')) req.session = { user:{ user_id:1, roles:[req.get('x-test-role')] } }; next(); });
-  app.use('/api/test-data',createRouter(createStore(),env,generation));
-  app.use('/disabled',createRouter(createStore(),{}));
+  app.use('/api/test-data',createRouter(createStore(),env,generation,monthly));
+  app.use('/disabled',createRouter(createStore(),{},generation,monthly));
   const server = app.listen(0,'127.0.0.1'); await new Promise(r => server.once('listening',r)); t.after(() => server.close());
   const root = `http://127.0.0.1:${server.address().port}`;
   const call = async (path, body, method='POST', role='admin') => {
@@ -35,6 +36,7 @@ test('API authorization, version lock, approval invalidation and generation barr
   assert.equal((await call(`/drafts/${id}/approve`,{revision:0,hash:p.hash})).status,409);
   assert.equal((await call(`/drafts/${id}/approve`,{revision:1,hash:p.hash})).status,200);
   assert.equal((await call(`/drafts/${id}/generate`,{})).status,202);
+  assert.equal((await call('/jobs/job-1/generate-monthly',{})).status,202);
   assert.equal((await call(`/drafts/${id}`,{revision:1,config},'PUT')).status,200);
   assert.equal((await call(`/drafts/${id}/generate`,{})).status,409);
   assert.equal((await call(`/drafts/${id}`,{revision:1,config},'PUT')).status,409);
