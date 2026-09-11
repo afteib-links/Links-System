@@ -97,7 +97,7 @@ const CHOICES = {
   work_time_type: [['binding', '拘束時間'], ['actual', '実働時間']],
   payment_type: [['normal', '通常'], ['installment', '分割']],
   vehicle_owner_type: [['company', '企業'], ['partner', 'パートナー']],
-  weekday: [['all', '全日']], calc_type: [['daily', '日額']], price_type: [['base', '基本']], boolean: [['1', 'はい'], ['0', 'いいえ']],
+  weekday: [['all', '全日']], calc_type: [['daily', '日額']], price_type: [['basic', '基本']], boolean: [['1', 'はい'], ['0', 'いいえ']],
 };
 
 function text(value) {

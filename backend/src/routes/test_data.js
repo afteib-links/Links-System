@@ -6,13 +6,15 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const model = require('../services/test_data/model');
 const imports = require('../services/test_data/imports');
 const { loadRegisteredCatalog } = require('../services/test_data/registered_masters');
+const { createGenerationService } = require('../services/test_data/generation');
 
 function enabled(env = process.env) {
   return env.LINKS_ENV === 'verification' && env.TEST_DATA_TOOL_ENABLED === 'true' && env.NODE_ENV !== 'production'
     && /^links_verification_tool_[a-z0-9_]+$/.test(env.DB_NAME || '');
 }
-function createRouter(runQuery = query, env = process.env) {
+function createRouter(runQuery = query, env = process.env, suppliedGeneration = null) {
   const router = express.Router();
+  const generation = suppliedGeneration || createGenerationService({ runQuery });
   router.use((req, res, next) => enabled(env) ? next() : res.sendStatus(404));
   router.use(requireAuth, requireRole('admin'));
   router.use((req, res, next) => {
@@ -28,7 +30,7 @@ function createRouter(runQuery = query, env = process.env) {
     const r = rows[0]; return { id: r.draft_id, revision: r.revision, config: JSON.parse(r.payload_json), approvedHash: r.approved_hash };
   };
   router.get('/meta', (req, res) => res.json({ ok: true, defaults: model.defaults(), cases: model.CASES, presets: model.PRESETS,
-    fields: Object.keys(imports.FIELDS), importFields: require('../services/test_data/fields').IMPORT_FIELDS, types: model.LABELS, generationAvailable: false, stage: 'preview' }));
+    fields: Object.keys(imports.FIELDS), importFields: require('../services/test_data/fields').IMPORT_FIELDS, types: model.LABELS, generationAvailable: true, stage: 'daily_reports' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 5, fields: 1, parts: 6 } });
   router.post('/imports', upload.array('files', 5), wrap(async (req, res) => res.json({ ok: true, sheets: await imports.parseFiles(req.files || [], req.body.encoding || 'utf8') })));
   router.post('/normalize', wrap(async (req, res) => res.json({ ok: true, ...imports.normalize(req.body.sheets) })));
@@ -65,10 +67,17 @@ function createRouter(runQuery = query, env = process.env) {
       res.type('text/csv').attachment('anonymous-daily-sample.csv').send(model.csv(data.preview.reports));
     } else res.json({ ok: true, package: data });
   }));
+  router.get('/jobs', wrap(async (req, res) => res.json({ ok: true, jobs: await generation.list() })));
+  router.get('/jobs/:id', wrap(async (req, res) => {
+    const job = await generation.get(req.params.id);
+    if (!job) return res.status(404).json({ ok: false, message: '生成ジョブが見つかりません' });
+    return res.json({ ok: true, job });
+  }));
   router.post('/drafts/:id/generate', wrap(async (req, res) => {
     const d = await getDraft(req.params.id);
     if (d.approvedHash !== model.hash(d.config)) return res.status(409).json({ ok: false, message: 'サンプル承認が必要です' });
-    res.status(501).json({ ok: false, message: '独立DB生成ワーカーは後続実装です。業務DBには書き込んでいません。' });
+    const job = await generation.enqueue(d, req.session.user.user_id);
+    return res.status(job.status === 'completed' ? 200 : 202).json({ ok: true, job });
   }));
   router.use((err, req, res, next) => {
     const status = err.status || (err instanceof multer.MulterError ? 413 : 500);
