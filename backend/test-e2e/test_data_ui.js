@@ -23,6 +23,7 @@ const { createStore } = require('../test-support/test_data_store');
       await window.LinksTestData.open({ app:document.getElementById('app'), escapeHtml, sidebarHtml:() => '<aside class="app-sidebar">検証用メニュー</aside>', headerHtml:() => '<header>検証ツール</header>', bindChrome:() => {},
         api:async (url,options) => { const res = await fetch(url,{...options,headers:options?.body instanceof FormData ? {} : {'Content-Type':'application/json'}}); return {res,data:await res.json()}; } });
     });
+    assert.equal(await page.locator('#td-registered').innerText(),'登録済みマスターを利用');
     await page.locator('#td-preview').click(); await page.locator('#td-approve').waitFor();
     assert.equal(await page.locator('#td-approve').isDisabled(),true);
     await page.locator('#td-fill').check(); await page.locator('#td-preview').click();
