@@ -5,6 +5,7 @@ const {
   SETTING_ROWS,
   HELP_ROWS,
   validateCatalog,
+  loadCatalog,
   syncSimple,
 } = require('../src/services/foundation_masters');
 
@@ -13,6 +14,25 @@ test('基盤マスター定義の安定キーに重複がない', () => {
   assert.equal(new Set(CODE_ROWS.map((row) => `${row.category_code}:${row.code_value}`)).size, CODE_ROWS.length);
   assert.equal(new Set(SETTING_ROWS.map((row) => row.setting_key)).size, SETTING_ROWS.length);
   assert.equal(new Set(HELP_ROWS.map((row) => row.screen_key)).size, HELP_ROWS.length);
+});
+
+test('版管理したExcelの各シートから初期値を読める', async () => {
+  const catalog=await loadCatalog();
+  assert.equal(catalog['コード'].length,CODE_ROWS.length);
+  assert.equal(catalog['システム設定'].length,SETTING_ROWS.length);
+  assert.equal(catalog['画面ヘルプ'].length,HELP_ROWS.length);
+  assert.equal(catalog['控除規則'].find(row=>row.rule_code==='office_fee').amount,1100);
+  assert.equal(catalog['システム設定'].find(row=>row.setting_key==='document_issuer_name').setting_value,'');
+  assert.equal(catalog['採番'][0].prefix,'');
+});
+
+test('Excelの重複キーと不正な控除額は起動前に拒否する', async () => {
+  const catalog=await loadCatalog();
+  catalog['コード'].push({...catalog['コード'][0]});
+  assert.throws(()=>validateCatalog(catalog),/重複/);
+  catalog['コード'].pop();
+  catalog['控除規則'][0].amount=-1;
+  assert.throws(()=>validateCatalog(catalog),/控除規則/);
 });
 
 test('物理的にない初期値だけを追加し既存の利用者設定は上書きしない', async () => {
