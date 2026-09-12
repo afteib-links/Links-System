@@ -171,8 +171,8 @@ async function syncBankProfiles(conn, issues, definitionProfiles = BANK_PROFILES
       const [result] = await conn.query("INSERT INTO bank_export_profile_versions (bank_export_profile_id,version_no,status,encoding_code,delimiter_text,quote_mode,include_header,line_ending,file_name_pattern,verification_note) VALUES (?,1,'draft','utf8_bom',',','all',1,'crlf',?,?)",[current.bank_export_profile_id,`${profile.profile_code}_{YYYYMMDD}_{cycle}.csv`,'未検証。契約中の銀行サービス仕様書と取込試験結果を確認してから公開してください。']);
       version = { bank_export_profile_version_id:result.insertId }; created += 1;
     }
-    const [columns] = await conn.query('SELECT column_key FROM bank_export_columns WHERE bank_export_profile_version_id=?',[version.bank_export_profile_version_id]);
-    const columnKeys = new Set(columns.map((row) => row.column_key));
+    const [existingColumns] = await conn.query('SELECT column_key FROM bank_export_columns WHERE bank_export_profile_version_id=?',[version.bank_export_profile_version_id]);
+    const columnKeys = new Set(existingColumns.map((row) => row.column_key));
     for (const [column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order] of columns) {
       if (columnKeys.has(column_key)) continue;
       await conn.query('INSERT INTO bank_export_columns (bank_export_profile_version_id,column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)',[version.bank_export_profile_version_id,column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order]);
@@ -212,4 +212,4 @@ async function syncFoundationMasters(pool) {
 
 function getFoundationMasterStatus() { return { ...lastStatus,issues:lastStatus.issues.map((issue) => ({...issue})) }; }
 
-module.exports = { CODE_ROWS,SETTING_ROWS,HELP_ROWS,BANK_PROFILES,BANK_COLUMNS,DEDUCTIONS,CATALOG_PATH,loadCatalog,validateCatalog,syncSimple,syncFoundationMasters,getFoundationMasterStatus };
+module.exports = { CODE_ROWS,SETTING_ROWS,HELP_ROWS,BANK_PROFILES,BANK_COLUMNS,DEDUCTIONS,CATALOG_PATH,loadCatalog,validateCatalog,syncSimple,syncBankProfiles,syncFoundationMasters,getFoundationMasterStatus };
