@@ -3,6 +3,7 @@ const { getPool,query } = require('../db');
 const { requireAuth,requirePermission } = require('../middleware/auth');
 const { normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet } = require('../services/calculation_rule_engine');
 const { applyDailyPriceCalcWithRuleSet } = require('../services/price_calc_rules');
+const { resolveInvoiceTax } = require('../services/settlement_tax');
 
 const router = express.Router();
 router.use(requireAuth,requirePermission('calculation_rules'));
@@ -108,7 +109,13 @@ router.post('/:id/compare',async (req,res) => {
       { name:'標準請求',side:'billing',lines:[{ amount:40000,tax_category:'taxable' }],deductions:[] },
       { name:'標準支払',side:'payment',lines:[{ amount:18500,tax_category:'taxable' }],deductions:[{ amount:1100 }] },
     ];
-    const run = async (selected,scenario) => executeRuleSet(selected.rule_set,selected.rules,{ ...scenario,input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}' }) });
+    const defaultTax = await resolveInvoiceTax(conn,null,[]);
+    const run = async (selected,scenario) => executeRuleSet(selected.rule_set,selected.rules,{
+      ...scenario,
+      tax_rate:(scenario.side || 'billing') === 'billing' ? (scenario.tax_rate ?? defaultTax.rate) : scenario.tax_rate,
+      tax_rounding:(scenario.side || 'billing') === 'billing' ? (scenario.tax_rounding ?? { mode:defaultTax.mode,unit:1 }) : scenario.tax_rounding,
+      input:{},
+    },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}' }) });
     const results = [];
     for (const scenario of scenarios) {
       const after = await run(candidate,scenario);
@@ -185,7 +192,13 @@ router.post('/:id/recalculate',async (req,res) => {
       const [allLines] = await conn.query('SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=?',[type,id]);
       const workLines = allLines.filter((line) => ['work','adjustment','carry_forward'].includes(line.line_type));
       const deductions = allLines.filter((line) => ['deduction','advance','installment'].includes(line.line_type));
-      const calculated = await executeRuleSet(selected.rule_set,selected.rules,{ side,lines:workLines,deductions,input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}' }) });
+      const projectIds = [...new Set(allLines.map((line) => Number(line.project_id)).filter(Boolean))];
+      const tax = type === 'invoice' ? await resolveInvoiceTax(conn,row.company_id,projectIds) : null;
+      const calculated = await executeRuleSet(selected.rule_set,selected.rules,{
+        side,lines:workLines,deductions,
+        ...(tax ? { tax_rate:tax.rate,tax_rounding:{ mode:tax.mode,unit:1 } } : {}),
+        input:{},
+      },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}' }) });
       if (type === 'invoice') await conn.query('UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,calculation_rule_set_id=?,version=version+1 WHERE invoice_id=?',[calculated.work_amount,calculated.adjustment_amount,calculated.taxable_amount,calculated.tax_amount,calculated.total_amount,selected.rule_set.calculation_rule_set_id,id]);
       else await conn.query('UPDATE payments SET gross_amount=?,final_transfer_amount=?,calculation_rule_set_id=?,version=version+1 WHERE payment_id=?',[calculated.subtotal_amount,calculated.total_amount,selected.rule_set.calculation_rule_set_id,id]);
       result[`${type}s`] += 1;

@@ -30,3 +30,13 @@ test('精算下書きと確定スナップショットは適用ルール版を�
   assert.match(settlement,/typed-rules-v1/);
   assert.match(settlement,/executeRuleSet/);
 });
+
+test('請求の選択再計算と確定は同じ税率優先順位を使い、画面は税率の編集を促さない',() => {
+  assert.match(route,/require\('\.\.\/services\/settlement_tax'\)/);
+  assert.match(settlement,/require\('\.\.\/services\/settlement_tax'\)/);
+  assert.match(route,/resolveInvoiceTax\(conn,row\.company_id,projectIds\)/);
+  assert.match(route,/tax_rate:tax\.rate,tax_rounding:/);
+  assert.match(ui,/請求税率・端数は請求先→案件→システム設定で決定/);
+  assert.doesNotMatch(ui,/data-tax-rate type="number"/);
+  assert.match(ui,/実データ全件を検証するものではありません/);
+});
