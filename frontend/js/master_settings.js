@@ -169,11 +169,14 @@
       this.ctx.renderLoading();
       const { res, data } = await this.ctx.api('/api/master-settings/hub');
       const hub = data?.hub || {};
+      const foundation = data?.foundation_master_status || {};
+      const foundationWarnings = (foundation.issues || []).map((issue) => `${issue.type}: ${issue.key}（${issue.reason}）`);
       const canEditBankExport = (this.ctx.currentUser?.roles || []).some((role) => ['admin', 'system'].includes(role));
       this.ctx.app.innerHTML = this.kit.shell(
         'マスター設定（仮組）',
         `<section class="panel">
           <p class="muted">共通小口マスタへの入口です。各カードの「？」で登録方法と影響画面を確認できます。</p>
+          ${foundationWarnings.length ? `<div class="foundation-master-warning"><strong>初期マスターの確認が必要です（${foundationWarnings.length}件）</strong><p>削除・無効化された初期値は自動復活していません。意図した変更か確認してください。</p><ul>${foundationWarnings.map((line) => `<li>${this.ctx.escapeHtml(line)}</li>`).join('')}</ul></div>` : ''}
           <div class="hub-grid">
             ${hubCardHtml(this.ctx, 'staff', '営業担当者マスタ', hub.staff_masters)}
             ${hubCardHtml(this.ctx, 'offices', '事業所マスタ', hub.office_masters)}

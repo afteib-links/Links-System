@@ -5,6 +5,7 @@ const MySQLStoreFactory = require('express-mysql-session');
 const { config } = require('./config');
 const { getPool, ping } = require('./db');
 const { runMigrationsAndSeed } = require('./migrate');
+const { getFoundationMasterStatus } = require('./services/foundation_masters');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const { localUrl } = require('./middleware/local_url');
 const authRoutes = require('./routes/auth');
@@ -83,6 +84,7 @@ async function createApp() {
         ok: true,
         service: 'links-system',
         db: 'up',
+        master_defaults: getFoundationMasterStatus(),
         time: new Date().toISOString(),
       });
     } catch (err) {
