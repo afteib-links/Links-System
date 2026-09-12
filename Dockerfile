@@ -18,6 +18,8 @@ COPY frontend ./frontend
 COPY ["利用マニュアル", "./利用マニュアル"]
 COPY db ./db
 
+RUN node /app/backend/scripts/generate_build_info.js
+
 RUN mkdir -p /app/uploads /app/pdf
 
 WORKDIR /app/backend

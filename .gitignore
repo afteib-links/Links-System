@@ -11,6 +11,7 @@ output/business-verification/
 tmp/
 npm-debug.log*
 backend/test-results/
+backend/build-info.json
 .idea/
 .vscode/
 
