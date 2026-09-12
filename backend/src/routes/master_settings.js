@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const { getFoundationMasterStatus } = require('../services/foundation_masters');
 
 const router = express.Router();
 router.use(requireAuth, requirePermission('master_settings'));
@@ -54,6 +55,7 @@ router.get('/hub', async (_req, res) => {
         bank_export_profiles: Number(bankProfileCnt.cnt || 0),
         source_bank_accounts: Number(sourceAccountCnt.cnt || 0),
       },
+      foundation_master_status: getFoundationMasterStatus(),
     });
   } catch (err) {
     console.error('[master_settings/hub]', err);

@@ -3,6 +3,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const { getPool, waitForDb } = require('./db');
 const { config } = require('./config');
+const { syncFoundationMasters } = require('./services/foundation_masters');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../db/migrations');
 
@@ -98,6 +99,8 @@ async function seedAdminIfNeeded() {
 async function runMigrationsAndSeed() {
   await applyMigrations();
   await seedAdminIfNeeded();
+  const status = await syncFoundationMasters(getPool());
+  console.log(`[foundation-masters] ${status.status}: created=${status.created_count}, warnings=${status.warning_count}`);
 }
 
 if (require.main === module) {
