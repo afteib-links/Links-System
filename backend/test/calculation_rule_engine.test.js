@@ -1,0 +1,45 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { validateRuleSet,definitionChecksum,executeRuleSet,roundAmount } = require('../src/services/calculation_rule_engine');
+
+const set = { calculation_rule_set_id:1,rule_set_code:'standard',version_no:1 };
+const rules = [
+  { rule_code:'daily',rule_name:'日次',stage_code:'daily',side_code:'both',handler_code:'daily_price_v1',sort_order:10,is_active:1,parameter_json:{} },
+  { rule_code:'aggregate',rule_name:'集約',stage_code:'aggregate',side_code:'both',handler_code:'aggregate_sum_v1',sort_order:20,is_active:1,parameter_json:{} },
+  { rule_code:'deduction',rule_name:'控除',stage_code:'deduction',side_code:'payment',handler_code:'deduction_sum_v1',sort_order:30,is_active:1,parameter_json:{} },
+  { rule_code:'tax',rule_name:'税',stage_code:'tax',side_code:'billing',handler_code:'tax_v1',sort_order:40,is_active:1,parameter_json:{ rate:0.1 },rounding_json:{ mode:'floor',unit:1 } },
+  { rule_code:'finalize',rule_name:'最終',stage_code:'finalize',side_code:'both',handler_code:'finalize_v1',sort_order:50,is_active:1,parameter_json:{} },
+];
+
+test('型付きルールは段階・処理・安全式を公開前に検証する',() => {
+  assert.equal(validateRuleSet(set,rules).ok,true);
+  assert.match(definitionChecksum(set,rules),/^[a-f0-9]{64}$/);
+  assert.equal(definitionChecksum(set,rules),definitionChecksum(set,[...rules].reverse()));
+  const invalid = validateRuleSet(set,[...rules,{ ...rules[0],rule_code:'bad',handler_code:'eval_js',condition_expression:'process.exit()' }]);
+  assert.equal(invalid.ok,false);
+  assert.match(invalid.errors.join(' '),/未対応の処理/);
+});
+
+test('請求は集約後に課税・丸め・合計を順番どおり計算する',async () => {
+  const result = await executeRuleSet(set,rules,{ side:'billing',lines:[{ amount:10005,tax_category:'taxable' },{ amount:500,tax_category:'non_taxable' }],input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0 }) });
+  assert.equal(result.subtotal_amount,10505);
+  assert.equal(result.taxable_amount,10005);
+  assert.equal(result.tax_amount,1000);
+  assert.equal(result.total_amount,11505);
+  assert.deepEqual(result.trace.map((row) => row.rule_code),['daily','aggregate','tax','finalize']);
+});
+
+test('支払は控除を差し引き、日次だけの実行では既存計算器を版付きで包む',async () => {
+  const payment = await executeRuleSet(set,rules,{ side:'payment',lines:[{ amount:20000 }],deductions:[{ amount:1100 },{ amount:-500 }],input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0 }) });
+  assert.equal(payment.deduction_total,1600);
+  assert.equal(payment.total_amount,18400);
+  const daily = await executeRuleSet(set,rules,{ side:'billing',stages:['daily'],input:{ marker:1 } },{ dailyCalculator:async (input) => ({ calculated_billing_amount:40000,calculated_payment_amount:18500,marker:input.marker }) });
+  assert.equal(daily.billing_amount,40000);
+  assert.equal(daily.payment_amount,18500);
+  assert.equal(daily.calculation_engine_code,'typed-rules-v1');
+});
+
+test('丸め単位と方式を固定処理として適用する',() => {
+  assert.equal(roundAmount(1259,{ mode:'floor',unit:10 }),1250);
+  assert.equal(roundAmount(1251,{ mode:'ceil',unit:10 }),1260);
+});

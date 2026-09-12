@@ -9,7 +9,7 @@ const {
 const { validateDistanceRule } = require('../services/distance_calc');
 const { normalizePriceMatrixSettings, SETTING_KEYS } = require('../services/price_matrix_settings');
 const { validateFeeItems, feeItemsToLines } = require('../services/fee_item_rules');
-const { applyDailyPriceCalc } = require('../services/price_calc');
+const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 
 const RECALCULATED_REPORT_FIELDS = [
   'applied_price_set_id', 'selected_fee_item_id', 'selected_fee_item_name', 'fee_item_selection_source',
@@ -19,6 +19,7 @@ const RECALCULATED_REPORT_FIELDS = [
   'night_minutes_billing', 'night_minutes_payment', 'night_overtime_minutes_billing',
   'night_overtime_minutes_payment', 'regular_overtime_minutes_billing', 'regular_overtime_minutes_payment',
   'calculated_billing_amount', 'calculated_payment_amount', 'calculation_detail',
+  'calculation_rule_set_id', 'calculation_engine_code',
 ];
 
 function todayTokyoYmd() {
@@ -660,7 +661,7 @@ router.post('/:id/recalculate-unconfirmed', async (req, res) => {
       [source.price_set_id]
     );
     for (const report of reports) {
-      const calculated = await applyDailyPriceCalc({ ...report });
+      const calculated = await applyDailyPriceCalcWithRules({ ...report });
       const fields = RECALCULATED_REPORT_FIELDS.filter((key) => Object.prototype.hasOwnProperty.call(calculated, key));
       await conn.query(
         `UPDATE daily_reports SET ${fields.map((key) => `${key} = ?`).join(', ')},
