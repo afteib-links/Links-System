@@ -4,6 +4,14 @@ const { inspectExpression, evaluateExpression } = require('./price_rule_expressi
 const STAGES = Object.freeze(['daily','aggregate','deduction','tax','finalize']);
 const SIDES = new Set(['billing','payment','both']);
 const RULE_VARIABLES = Object.freeze(['side','billing_amount','payment_amount','subtotal_amount','taxable_amount','tax_amount','deduction_total','total_amount']);
+const HANDLER_STAGES = Object.freeze({
+  daily_price_v1:'daily',aggregate_sum_v1:'aggregate',deduction_sum_v1:'deduction',tax_v1:'tax',finalize_v1:'finalize',
+});
+const REQUIRED_HANDLERS = Object.freeze({
+  billing:['daily_price_v1','aggregate_sum_v1','tax_v1','finalize_v1'],
+  payment:['aggregate_sum_v1','deduction_sum_v1','finalize_v1'],
+});
+const SIDE_LABELS = Object.freeze({ billing:'請求',payment:'支払' });
 
 function json(value, fallback = {}) {
   if (value == null || value === '') return fallback;
@@ -74,6 +82,7 @@ function validateRuleSet(ruleSet, rows) {
     if (!STAGES.includes(rule.stage_code)) errors.push(`${rule.rule_code}: 計算段階が不正です`);
     if (!SIDES.has(rule.side_code)) errors.push(`${rule.rule_code}: 請求・支払区分が不正です`);
     if (!HANDLERS[rule.handler_code]) errors.push(`${rule.rule_code}: 未対応の処理です (${rule.handler_code})`);
+    else if (rule.stage_code !== HANDLER_STAGES[rule.handler_code]) errors.push(`${rule.rule_code}: 処理と計算段階が一致しません`);
     const expression = inspectExpression(rule.condition_expression,RULE_VARIABLES);
     if (!expression.ok) errors.push(`${rule.rule_code}: 条件式 ${expression.message}`);
     if (expression.undefined_variables.length) errors.push(`${rule.rule_code}: 条件式の未定義項目 ${expression.undefined_variables.join(', ')}`);
@@ -82,7 +91,14 @@ function validateRuleSet(ruleSet, rows) {
       if (!Number.isFinite(rate) || rate < 0 || rate > 1) errors.push(`${rule.rule_code}: 税率は0以上1以下で指定してください`);
     }
   }
-  for (const stage of ['daily','aggregate','finalize']) if (!rules.some((rule) => rule.is_active && rule.stage_code === stage)) errors.push(`${stage}段階の有効なルールが必要です`);
+  for (const [side,handlers] of Object.entries(REQUIRED_HANDLERS)) {
+    for (const handler of handlers) {
+      if (!rules.some((rule) => rule.is_active && rule.handler_code === handler && rule.stage_code === HANDLER_STAGES[handler]
+        && (rule.side_code === side || rule.side_code === 'both') && !String(rule.condition_expression || '').trim())) {
+        errors.push(`${SIDE_LABELS[side]}側に条件なしの必須処理がありません: ${handler}`);
+      }
+    }
+  }
   return { ok:errors.length === 0,errors,rules };
 }
 
@@ -107,6 +123,16 @@ async function executeRuleSet(ruleSet, rows, context = {}, dependencies = {}) {
     if (rule.condition_expression && !evaluateExpression(rule.condition_expression,state)) continue;
     await HANDLERS[rule.handler_code](state,rule,dependencies);
     trace.push({ rule_code:rule.rule_code,handler_code:rule.handler_code,output_code:rule.output_code || null });
+  }
+  const requiredOutputs = selectedStages
+    ? (selectedStages.has('daily') ? ['billing_amount','payment_amount'] : [])
+    : state.side === 'billing'
+      ? ['subtotal_amount','taxable_amount','tax_amount','total_amount']
+      : ['subtotal_amount','deduction_total','total_amount'];
+  for (const output of requiredOutputs) {
+    if (typeof state[output] !== 'number' || !Number.isFinite(state[output])) {
+      throw new Error(`${SIDE_LABELS[state.side] || state.side}側の計算結果が不正です: ${output}`);
+    }
   }
   return { ...state,calculation_rule_set_id:Number(ruleSet.calculation_rule_set_id || 0) || null,calculation_engine_code:'typed-rules-v1',trace };
 }
