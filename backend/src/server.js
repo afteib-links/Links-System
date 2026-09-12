@@ -5,6 +5,7 @@ const MySQLStoreFactory = require('express-mysql-session');
 const { config } = require('./config');
 const { getPool, ping } = require('./db');
 const { runMigrationsAndSeed } = require('./migrate');
+const { getFoundationMasterStatus } = require('./services/foundation_masters');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const { localUrl } = require('./middleware/local_url');
 const authRoutes = require('./routes/auth');
@@ -31,6 +32,7 @@ const analyticsRoutes = require('./routes/analytics');
 const baseManagementRoutes = require('./routes/base_management');
 const helpRoutes = require('./routes/help');
 const masterDataPreparationsRoutes = require('./routes/master_data_preparations');
+const calculationRulesRoutes = require('./routes/calculation_rules');
 
 
 async function createApp() {
@@ -83,6 +85,7 @@ async function createApp() {
         ok: true,
         service: 'links-system',
         db: 'up',
+        master_defaults: getFoundationMasterStatus(),
         time: new Date().toISOString(),
       });
     } catch (err) {
@@ -120,6 +123,7 @@ async function createApp() {
   app.use('/api/base-management', baseManagementRoutes);
   app.use('/api/help', helpRoutes);
   app.use('/api', masterDataPreparationsRoutes);
+  app.use('/api/calculation-rules', calculationRulesRoutes);
   app.use('/api/test-data', require('./routes/test_data').createRouter());
 
   // ロール／機能権限の動作確認用
