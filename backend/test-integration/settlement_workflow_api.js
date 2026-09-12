@@ -149,7 +149,7 @@ async function main() {
     assert.equal((await post(`/api/settlements/payment/${zeroPaymentId}/sales-review`, {})).response.status, 200);
     await approveSettlementProjects([zeroTarget.project_id], '2026-05');
     const zeroFinal = await post(`/api/settlements/payment/${zeroPaymentId}/finalize`, { cash_cycle_id: cashCycleId });
-    assert.equal(zeroFinal.response.status, 200);
+    assert.equal(zeroFinal.response.status, 200, zeroFinal.data?.message);
     assert.equal(Number(zeroFinal.data.total_amount), 0);
     const [zeroSchedules] = await pool.query("SELECT cash_schedule_id FROM cash_schedules WHERE source_type='payment' AND source_id=?", [zeroPaymentId]);
     assert.equal(zeroSchedules.length, 0);
