@@ -7,7 +7,7 @@ const multer = require('multer');
 const unzipper = require('unzipper');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission, requireRole } = require('../middleware/auth');
-const { applyDailyPriceCalc } = require('../services/price_calc');
+const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 const {
   IMPORT_FIELDS,
   buildImportRows,
@@ -43,6 +43,7 @@ const DAILY_SYSTEM_FIELDS = [
   'night_minutes_billing', 'night_minutes_payment', 'night_overtime_minutes_billing',
   'night_overtime_minutes_payment', 'regular_overtime_minutes_billing', 'regular_overtime_minutes_payment',
   'calculated_billing_amount', 'calculated_payment_amount', 'calculation_detail',
+  'calculation_rule_set_id', 'calculation_engine_code',
 ];
 
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
@@ -552,7 +553,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
         row_comment: data.row_comment || null,
         input_source_type: batches[0].source_type,
       };
-      const calculated = await applyDailyPriceCalc(input);
+      const calculated = await applyDailyPriceCalcWithRules(input);
       const insertData = {};
       for (const key of DAILY_INPUT_FIELDS) if (Object.prototype.hasOwnProperty.call(input, key)) insertData[key] = input[key];
       for (const key of DAILY_SYSTEM_FIELDS) if (Object.prototype.hasOwnProperty.call(calculated, key)) insertData[key] = calculated[key];

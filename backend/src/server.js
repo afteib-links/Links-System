@@ -32,6 +32,7 @@ const analyticsRoutes = require('./routes/analytics');
 const baseManagementRoutes = require('./routes/base_management');
 const helpRoutes = require('./routes/help');
 const masterDataPreparationsRoutes = require('./routes/master_data_preparations');
+const calculationRulesRoutes = require('./routes/calculation_rules');
 
 
 async function createApp() {
@@ -122,6 +123,7 @@ async function createApp() {
   app.use('/api/base-management', baseManagementRoutes);
   app.use('/api/help', helpRoutes);
   app.use('/api', masterDataPreparationsRoutes);
+  app.use('/api/calculation-rules', calculationRulesRoutes);
   app.use('/api/test-data', require('./routes/test_data').createRouter());
 
   // ロール／機能権限の動作確認用

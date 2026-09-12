@@ -1,7 +1,8 @@
 const express = require('express');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const { applyDailyPriceCalc, buildDailyCalculationContext, parseJson } = require('../services/price_calc');
+const { buildDailyCalculationContext, parseJson } = require('../services/price_calc');
+const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
 
 const { calculateMonthlyDistance } = require('../services/distance_calc');
@@ -93,6 +94,8 @@ const SYSTEM_FIELDS = [
   'calculated_billing_amount',
   'calculated_payment_amount',
   'calculation_detail',
+  'calculation_rule_set_id',
+  'calculation_engine_code',
 ];
 
 const JSON_FIELDS = new Set(['expenses_json', 'rate_overrides', 'calculation_detail']);
@@ -208,7 +211,7 @@ async function fetchDetail(id) {
 }
 
 async function applySimpleCalc(data) {
-  return applyDailyPriceCalc(data);
+  return applyDailyPriceCalcWithRules(data);
 }
 
 router.get('/', async (req, res) => {
