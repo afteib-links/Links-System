@@ -1,3 +1,8 @@
+const readXlsx = require('read-excel-file/node');
+const unzipper = require('unzipper');
+const path = require('path');
+const CATALOG_PATH = path.resolve(__dirname,'../../foundation_masters.xlsx');
+
 const CODE_ROWS = [
   ['closing_date','5','5日',10],['closing_date','10','10日',20],['closing_date','15','15日',30],['closing_date','20','20日',40],['closing_date','25','25日',50],['closing_date','end','末日',60],
   ['payment_date','5','5日',10],['payment_date','10','10日',20],['payment_date','15','15日',30],['payment_date','20','20日',40],['payment_date','25','25日',50],['payment_date','end','末日',60],
@@ -80,12 +85,61 @@ const stable = {
   profile: (r) => r.profile_code,
 };
 
-function validateCatalog() {
-  for (const [name,rows,key] of [['code',CODE_ROWS,stable.code],['setting',SETTING_ROWS,stable.setting],['help',HELP_ROWS,stable.help],['profile',BANK_PROFILES,stable.profile]]) {
+const CATALOG_SHEETS = {
+  'コード':['category_code','code_value','code_label','sort_order','is_active'],
+  'システム設定':['setting_key','setting_value','setting_label'],
+  '画面ヘルプ':['screen_key','help_title','overview_text','input_effect_text'],
+  '銀行形式':['profile_code','profile_name','bank_family','description','is_active'],
+  '銀行列':['column_key','column_label','source_key','is_required','format_code','zero_pad_length','max_length','transform_code','sort_order'],
+  '控除規則':['rule_code','display_name','amount','valid_from','tax_category'],
+  '採番':['rule_key','rule_label','prefix','pad_digits','next_number','is_active'],
+};
+
+async function loadCatalog(filePath = CATALOG_PATH) {
+  const archive=await unzipper.Open.file(filePath);
+  const sheets=archive.files.filter(file=>/^xl\/worksheets\/sheet\d+\.xml$/.test(file.path));
+  if (sheets.length!==Object.keys(CATALOG_SHEETS).length || sheets.some(file=>file.uncompressedSize>5_000_000)) throw new Error('基盤マスターExcelのシート構成または容量が不正です');
+  for (const sheet of sheets) {
+    if (/<(?:[A-Za-z0-9_]+:)?f(?:\s|>)/.test((await sheet.buffer()).toString('utf8'))) throw new Error('基盤マスターExcelに数式は使用できません');
+  }
+  const catalog = {};
+  for (const [sheetName,fields] of Object.entries(CATALOG_SHEETS)) {
+    const values=await readXlsx(filePath,{sheet:sheetName});
+    if (!values[1] || values[1].length !== fields.length || fields.some((field,index)=>values[1][index] !== field)) {
+      throw new Error(`基盤マスターExcelの項目コードが不正です: ${sheetName}`);
+    }
+    const rows=[];
+    for (let number=3;number<=values.length;number++) {
+      const row=values[number-1];
+      if (!row.some(value=>value!==null && value!=='')) continue;
+      if (row.length>fields.length && row.slice(fields.length).some(value=>value!==null && value!=='')) throw new Error(`基盤マスターExcelに未定義の列があります: ${sheetName} ${number}行`);
+      const item={};
+      for (let index=0;index<fields.length;index++) {
+        const value=row[index];
+        if (value && typeof value==='object') throw new Error(`基盤マスターExcelの値に数式・日付・リンクは使用できません: ${sheetName} ${number}行`);
+        item[fields[index]]=value ?? ((sheetName==='システム設定' && fields[index]==='setting_value') || (sheetName==='採番' && fields[index]==='prefix') ? '' : null);
+      }
+      if (item[fields[0]]===null || item[fields[0]]==='') throw new Error(`基盤マスターExcelの安定キーが空です: ${sheetName} ${number}行`);
+      rows.push(item);
+    }
+    catalog[sheetName]=rows;
+  }
+  validateCatalog(catalog);
+  return catalog;
+}
+
+function validateCatalog(catalog = {
+  'コード':CODE_ROWS,'システム設定':SETTING_ROWS,'画面ヘルプ':HELP_ROWS,'銀行形式':BANK_PROFILES,
+  '銀行列':BANK_COLUMNS.map(([column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order])=>({column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order})),
+  '控除規則':DEDUCTIONS.map(row=>({...row,valid_from:'2026-01-01'})),'採番':[{rule_key:'office'}],
+}) {
+  for (const [name,rows,key] of [['code',catalog['コード'],stable.code],['setting',catalog['システム設定'],stable.setting],['help',catalog['画面ヘルプ'],stable.help],['profile',catalog['銀行形式'],stable.profile],['column',catalog['銀行列'],r=>r.column_key],['deduction',catalog['控除規則'],r=>`${r.rule_code}:${r.valid_from}`],['numbering',catalog['採番'],r=>r.rule_key]]) {
+    if (!rows?.length) throw new Error(`基盤マスター定義が空です: ${name}`);
     const keys = rows.map(key);
     if (new Set(keys).size !== keys.length) throw new Error(`基盤マスター定義に重複があります: ${name}`);
   }
-  if (BANK_COLUMNS.some((r) => !r[0] || !r[2])) throw new Error('銀行CSV列定義が不正です');
+  if (catalog['銀行列'].some((r) => !r.column_key || !r.source_key)) throw new Error('銀行CSV列定義が不正です');
+  if (catalog['控除規則'].some((r) => !Number.isFinite(Number(r.amount)) || Number(r.amount)<0 || !/^\d{4}-\d{2}-\d{2}$/.test(String(r.valid_from)))) throw new Error('控除規則の金額または適用開始日が不正です');
 }
 
 async function syncSimple(conn, config, issues) {
@@ -105,10 +159,10 @@ async function syncSimple(conn, config, issues) {
   return created;
 }
 
-async function syncBankProfiles(conn, issues) {
-  let created = await syncSimple(conn,{ type:'bank_profile',table:'bank_export_profiles',rows:BANK_PROFILES,key:stable.profile },issues);
+async function syncBankProfiles(conn, issues, definitionProfiles = BANK_PROFILES, columns = BANK_COLUMNS) {
+  let created = await syncSimple(conn,{ type:'bank_profile',table:'bank_export_profiles',rows:definitionProfiles,key:stable.profile },issues);
   const [profiles] = await conn.query('SELECT * FROM bank_export_profiles');
-  for (const profile of BANK_PROFILES) {
+  for (const profile of definitionProfiles) {
     const current = profiles.find((row) => row.profile_code === profile.profile_code);
     if (!current || Number(current.is_deleted || 0) || !Number(current.is_active)) continue;
     const [versions] = await conn.query('SELECT * FROM bank_export_profile_versions WHERE bank_export_profile_id=? AND version_no=1',[current.bank_export_profile_id]);
@@ -119,7 +173,7 @@ async function syncBankProfiles(conn, issues) {
     }
     const [columns] = await conn.query('SELECT column_key FROM bank_export_columns WHERE bank_export_profile_version_id=?',[version.bank_export_profile_version_id]);
     const columnKeys = new Set(columns.map((row) => row.column_key));
-    for (const [column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order] of BANK_COLUMNS) {
+    for (const [column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order] of columns) {
       if (columnKeys.has(column_key)) continue;
       await conn.query('INSERT INTO bank_export_columns (bank_export_profile_version_id,column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)',[version.bank_export_profile_version_id,column_key,column_label,source_key,is_required,format_code,zero_pad_length,max_length,transform_code,sort_order]);
       created += 1;
@@ -129,24 +183,24 @@ async function syncBankProfiles(conn, issues) {
 }
 
 async function syncFoundationMasters(pool) {
-  validateCatalog();
+  const catalog=await loadCatalog();
   const conn = await pool.getConnection(); const issues = []; let created = 0;
   try {
     await conn.beginTransaction();
-    created += await syncSimple(conn,{ type:'code',table:'code_masters',rows:CODE_ROWS,key:stable.code },issues);
-    created += await syncSimple(conn,{ type:'setting',table:'system_settings',rows:SETTING_ROWS,key:stable.setting },issues);
-    created += await syncSimple(conn,{ type:'help',table:'help_contents',rows:HELP_ROWS,key:stable.help },issues);
-    created += await syncSimple(conn,{ type:'numbering_rule',table:'numbering_rules',rows:[{rule_key:'office',rule_label:'事業所No',prefix:'',pad_digits:4,next_number:1,is_active:1}],key:(r)=>r.rule_key },issues);
-    created += await syncBankProfiles(conn,issues);
+    created += await syncSimple(conn,{ type:'code',table:'code_masters',rows:catalog['コード'],key:stable.code },issues);
+    created += await syncSimple(conn,{ type:'setting',table:'system_settings',rows:catalog['システム設定'],key:stable.setting },issues);
+    created += await syncSimple(conn,{ type:'help',table:'help_contents',rows:catalog['画面ヘルプ'],key:stable.help },issues);
+    created += await syncSimple(conn,{ type:'numbering_rule',table:'numbering_rules',rows:catalog['採番'],key:(r)=>r.rule_key },issues);
+    created += await syncBankProfiles(conn,issues,catalog['銀行形式'],catalog['銀行列'].map(row=>Object.values(row)));
     const [deductions] = await conn.query("SELECT * FROM settlement_deduction_rules WHERE scope='common' AND partner_id IS NULL");
-    for (const row of DEDUCTIONS) {
+    for (const row of catalog['控除規則']) {
       const current = deductions.find((value) => {
         const date = value.valid_from instanceof Date
           ? value.valid_from.toISOString().slice(0,10)
           : String(value.valid_from).slice(0,10);
-        return value.rule_code === row.rule_code && date === '2026-01-01';
+        return value.rule_code === row.rule_code && date === row.valid_from;
       });
-      if (!current) { await conn.query("INSERT INTO settlement_deduction_rules (rule_code,scope,partner_id,display_name,amount,tax_category,valid_from,is_active) VALUES (?,'common',NULL,?,?,'taxable','2026-01-01',1)",[row.rule_code,row.display_name,row.amount]); created += 1; }
+      if (!current) { await conn.query("INSERT INTO settlement_deduction_rules (rule_code,scope,partner_id,display_name,amount,tax_category,valid_from,is_active) VALUES (?,'common',NULL,?,?,?,?,1)",[row.rule_code,row.display_name,row.amount,row.tax_category,row.valid_from]); created += 1; }
       else if (!Number(current.is_active)) issues.push({type:'deduction',key:row.rule_code,reason:'無効化されています'});
     }
     await conn.commit();
@@ -158,4 +212,4 @@ async function syncFoundationMasters(pool) {
 
 function getFoundationMasterStatus() { return { ...lastStatus,issues:lastStatus.issues.map((issue) => ({...issue})) }; }
 
-module.exports = { CODE_ROWS,SETTING_ROWS,HELP_ROWS,BANK_PROFILES,BANK_COLUMNS,DEDUCTIONS,validateCatalog,syncSimple,syncFoundationMasters,getFoundationMasterStatus };
+module.exports = { CODE_ROWS,SETTING_ROWS,HELP_ROWS,BANK_PROFILES,BANK_COLUMNS,DEDUCTIONS,CATALOG_PATH,loadCatalog,validateCatalog,syncSimple,syncFoundationMasters,getFoundationMasterStatus };
