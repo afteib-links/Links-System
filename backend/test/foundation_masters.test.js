@@ -7,6 +7,7 @@ const {
   validateCatalog,
   loadCatalog,
   syncSimple,
+  syncBankProfiles,
 } = require('../src/services/foundation_masters');
 
 test('基盤マスター定義の安定キーに重複がない', () => {
@@ -33,6 +34,21 @@ test('Excelの重複キーと不正な控除額は起動前に拒否する', asy
   catalog['コード'].pop();
   catalog['控除規則'][0].amount=-1;
   assert.throws(()=>validateCatalog(catalog),/控除規則/);
+});
+
+test('銀行形式のExcel列定義を、既存DB列と照合して不足追加する', async () => {
+  const catalog=await loadCatalog();
+  const profile=catalog['銀行形式'][0];
+  const inserted=[];
+  const conn={async query(sql,params=[]) {
+    if(sql.includes('SELECT * FROM bank_export_profiles')) return [[{...profile,bank_export_profile_id:1,is_deleted:0}]];
+    if(sql.includes('SELECT * FROM bank_export_profile_versions')) return [[{bank_export_profile_version_id:2}]];
+    if(sql.includes('SELECT column_key FROM bank_export_columns')) return [[]];
+    inserted.push({sql,params}); return [{insertId:3}];
+  }};
+  const created=await syncBankProfiles(conn,[],[profile],catalog['銀行列'].map(row=>Object.values(row)));
+  assert.equal(created,catalog['銀行列'].length);
+  assert.equal(inserted[0].params[1],'transfer_date');
 });
 
 test('物理的にない初期値だけを追加し既存の利用者設定は上書きしない', async () => {
