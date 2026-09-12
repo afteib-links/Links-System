@@ -70,6 +70,9 @@ jobs:
       - name: Rebuild with the project Docker updater
         run: bash scripts/docker-update.sh --timeout 240
 
+      - name: Verify the running image has a build identifier
+        run: docker compose exec -T app node -e "const info=require('./src/services/system_version').getSystemVersion(); if (!info.build_id) process.exit(1);"
+
       - name: Show Docker diagnostics on failure
         if: failure()
         run: docker compose logs --tail 150

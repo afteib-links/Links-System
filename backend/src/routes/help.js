@@ -1,6 +1,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { getSystemVersion } = require('../services/system_version');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -17,13 +18,16 @@ router.get('/', requireRole('admin', 'system'), async (_req, res) => {
 
 router.get('/:screenKey', async (req, res) => {
   try {
+    const screenKey = String(req.params.screenKey || '').slice(0, 64);
     const rows = await query(
       `SELECT screen_key,help_title,overview_text,input_effect_text,version,updated_at
        FROM help_contents WHERE screen_key=? AND is_deleted=0 LIMIT 1`,
-      [String(req.params.screenKey || '').slice(0, 64)]
+      [screenKey]
     );
+    if (screenKey === 'home') res.setHeader('Cache-Control', 'no-store');
     return res.json({
       ok: true,
+      ...(screenKey === 'home' ? { system_version: getSystemVersion() } : {}),
       help: rows[0] || {
         screen_key: req.params.screenKey,
         help_title: 'この画面のヘルプ',
