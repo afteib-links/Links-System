@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateRuleSet,definitionChecksum,executeRuleSet,roundAmount } = require('../src/services/calculation_rule_engine');
 
-const set = { calculation_rule_set_id:1,rule_set_code:'standard',version_no:1 };
+const set = { calculation_rule_set_id:1,rule_set_code:'standard',rule_set_name:'標準',version_no:1 };
 const rules = [
   { rule_code:'daily',rule_name:'日次',stage_code:'daily',side_code:'both',handler_code:'daily_price_v1',sort_order:10,is_active:1,parameter_json:{} },
   { rule_code:'aggregate',rule_name:'集約',stage_code:'aggregate',side_code:'both',handler_code:'aggregate_sum_v1',sort_order:20,is_active:1,parameter_json:{} },
@@ -42,4 +42,10 @@ test('支払は控除を差し引き、日次だけの実行では既存計算�
 test('丸め単位と方式を固定処理として適用する',() => {
   assert.equal(roundAmount(1259,{ mode:'floor',unit:10 }),1250);
   assert.equal(roundAmount(1251,{ mode:'ceil',unit:10 }),1260);
+});
+
+test('契約・案件側の税率と丸め指定を公開版の既定値より優先する',async () => {
+  const result = await executeRuleSet(set,rules,{ side:'billing',lines:[{ amount:10009,tax_category:'taxable' }],tax_rate:0.08,tax_rounding:{ mode:'ceil',unit:10 },input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0 }) });
+  assert.equal(result.tax_amount,810);
+  assert.equal(result.total_amount,10819);
 });

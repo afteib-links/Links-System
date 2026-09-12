@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912g';
+  const version = '20260912h';
   const pending = new Map();
   const common = [['feature-kit', 'LinksFeatureKit'], ['data-table', 'LinksDataTable'], ['list_screens', 'LinksListScreens']];
   const modules = {
@@ -11,6 +11,7 @@
     projects: [['projects', 'LinksProjects']],
     price_sets: [['price_set_fee_model', 'LinksPriceSetFeeModel'], ['price_sets', 'LinksPriceSets']],
     master_data_preparation: [['master_data_preparation', 'LinksMasterDataPreparation']],
+    calculation_rules: [['calculation_rules', 'LinksCalculationRules']],
     office_work: [['office_work', 'LinksOfficeWork']],
     daily_reports: [['daily_report_imports', 'LinksDailyReportImports'], ['daily_reports', 'LinksDailyReports']],
     daily_report_submissions: [['daily_report_submissions', 'LinksDailyReportSubmissions']],

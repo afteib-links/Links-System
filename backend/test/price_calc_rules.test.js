@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { applyDailyPriceCalcWithRules } = require('../src/services/price_calc_rules');
 
 const selected = {
-  rule_set:{ calculation_rule_set_id:7,rule_set_code:'standard',version_no:2,definition_checksum:'abc' },
+  rule_set:{ calculation_rule_set_id:7,rule_set_code:'standard',rule_set_name:'標準',version_no:2,definition_checksum:'abc' },
   rules:[
     { rule_code:'daily',rule_name:'日次',stage_code:'daily',side_code:'both',handler_code:'daily_price_v1',sort_order:10,is_active:1 },
     { rule_code:'aggregate',rule_name:'集約',stage_code:'aggregate',side_code:'both',handler_code:'aggregate_sum_v1',sort_order:20,is_active:1 },

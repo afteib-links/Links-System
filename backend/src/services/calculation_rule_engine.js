@@ -3,6 +3,7 @@ const { inspectExpression, evaluateExpression } = require('./price_rule_expressi
 
 const STAGES = Object.freeze(['daily','aggregate','deduction','tax','finalize']);
 const SIDES = new Set(['billing','payment','both']);
+const RULE_VARIABLES = Object.freeze(['side','billing_amount','payment_amount','subtotal_amount','taxable_amount','tax_amount','deduction_total','total_amount']);
 
 function json(value, fallback = {}) {
   if (value == null || value === '') return fallback;
@@ -29,6 +30,8 @@ const HANDLERS = Object.freeze({
   aggregate_sum_v1: async (state) => {
     const lines = Array.isArray(state.lines) ? state.lines : [];
     state.subtotal_amount = lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+    state.work_amount = lines.filter((line) => line.line_type !== 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
+    state.adjustment_amount = lines.filter((line) => line.line_type === 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
     state.taxable_amount = lines.filter((line) => (line.tax_category || 'taxable') === 'taxable').reduce((sum, line) => sum + Number(line.amount || 0), 0);
   },
   deduction_sum_v1: async (state) => {
@@ -36,7 +39,9 @@ const HANDLERS = Object.freeze({
   },
   tax_v1: async (state, rule) => {
     const params = json(rule.parameter_json);
-    state.tax_amount = roundAmount(Number(state.taxable_amount || 0) * Number(params.rate ?? 0.1), json(rule.rounding_json));
+    const rate = Number(state.tax_rate ?? params.rate ?? 0.1);
+    const rounding = { ...json(rule.rounding_json),...(state.tax_rounding || {}) };
+    state.tax_amount = roundAmount(Number(state.taxable_amount || 0) * rate,rounding);
   },
   finalize_v1: async (state, rule) => {
     const side = rule.side_code === 'both' ? state.side : rule.side_code;
@@ -59,6 +64,8 @@ function normalizeRules(rows) {
 function validateRuleSet(ruleSet, rows) {
   const errors = [];
   if (!ruleSet || !String(ruleSet.rule_set_code || '').trim()) errors.push('ルールセットコードが必要です');
+  if (!String(ruleSet?.rule_set_name || '').trim()) errors.push('ルールセット名称が必要です');
+  if (ruleSet?.effective_from && ruleSet?.effective_to && String(ruleSet.effective_from).slice(0,10) > String(ruleSet.effective_to).slice(0,10)) errors.push('適用終了日は適用開始日以降にしてください');
   const rules = normalizeRules(rows);
   const codes = new Set();
   for (const rule of rules) {
@@ -67,7 +74,7 @@ function validateRuleSet(ruleSet, rows) {
     if (!STAGES.includes(rule.stage_code)) errors.push(`${rule.rule_code}: 計算段階が不正です`);
     if (!SIDES.has(rule.side_code)) errors.push(`${rule.rule_code}: 請求・支払区分が不正です`);
     if (!HANDLERS[rule.handler_code]) errors.push(`${rule.rule_code}: 未対応の処理です (${rule.handler_code})`);
-    const expression = inspectExpression(rule.condition_expression);
+    const expression = inspectExpression(rule.condition_expression,RULE_VARIABLES);
     if (!expression.ok) errors.push(`${rule.rule_code}: 条件式 ${expression.message}`);
     if (expression.undefined_variables.length) errors.push(`${rule.rule_code}: 条件式の未定義項目 ${expression.undefined_variables.join(', ')}`);
     if (rule.handler_code === 'tax_v1') {
@@ -116,4 +123,4 @@ async function resolvePublishedRuleSet(conn, targetDate) {
   return sets.length ? loadRuleSet(conn,sets[0].calculation_rule_set_id) : null;
 }
 
-module.exports = { STAGES,SIDES,HANDLERS,json,roundAmount,normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet };
+module.exports = { STAGES,SIDES,RULE_VARIABLES,HANDLERS,json,roundAmount,normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet };

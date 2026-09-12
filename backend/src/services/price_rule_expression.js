@@ -177,11 +177,12 @@ function evaluateAst(node, context) {
   }
 }
 
-function inspectExpression(source) {
+function inspectExpression(source, additionalVariables = []) {
   if (!String(source || '').trim()) return { ok: true, references: [], undefined_variables: [] };
   try {
     const parsed = parse(source);
-    const undefinedVariables = parsed.references.filter((name) => !CURRENT_VARIABLES.has(name));
+    const allowed = new Set([...CURRENT_VARIABLES,...additionalVariables]);
+    const undefinedVariables = parsed.references.filter((name) => !allowed.has(name));
     return { ok: true, references: parsed.references, undefined_variables: undefinedVariables };
   } catch (error) {
     return { ok: false, message: error.message, references: [], undefined_variables: [] };

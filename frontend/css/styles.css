@@ -1878,6 +1878,10 @@ label, .field-label { color: #344054; font-weight: 700; }
 .foundation-master-warning { margin:12px 0; padding:12px 14px; border:1px solid #f3c26b; border-radius:8px; background:#fff8e8; color:#7a4700; }
 .foundation-master-warning p { margin:6px 0; }
 .foundation-master-warning ul { margin:6px 0 0; padding-left:22px; }
+.calculation-rule-table input,.calculation-rule-table select { min-width:120px; }
+.calculation-rule-table [data-field="condition_expression"] { min-width:190px; }
+.recalculation-candidates { margin-top:18px; padding:14px; border:1px solid var(--line); border-radius:8px; background:#f8fafc; }
+.recalculation-candidates .check-item { margin:5px 0; }
 .error { color:var(--danger); }
 .toast { background:#17233c; border-radius:7px; }
 

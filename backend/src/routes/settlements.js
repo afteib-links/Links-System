@@ -5,6 +5,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { ensureCycles } = require('./cash_management');
 const { PDF_DIR, renderHtml, writePdf } = require('../services/settlement_pdf');
 const { buildAggregatedLines } = require('../services/settlement_line_builder');
+const { executeRuleSet,loadRuleSet,resolvePublishedRuleSet } = require('../services/calculation_rule_engine');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -614,24 +615,29 @@ async function recalculateDraft(conn, kind, id) {
      ORDER BY display_order,settlement_line_id`, [kind,id]
   );
   const normalized = lines.map((line) => ({ ...line, amount:Number(line.amount), quantity:Number(line.quantity), unit_price:Number(line.unit_price) }));
+  const [ruleHeaders] = await conn.query(`SELECT calculation_rule_set_id,target_year_month FROM ${tableFor(kind)} WHERE ${idFor(kind)}=?`,[id]);
+  const ruleHeader = ruleHeaders[0];
+  const selected = ruleHeader?.calculation_rule_set_id
+    ? await loadRuleSet(conn,ruleHeader.calculation_rule_set_id)
+    : await resolvePublishedRuleSet(conn,`${ruleHeader?.target_year_month || new Date().toISOString().slice(0,7)}-01`);
+  if (!selected) throw new Error('適用可能な公開計算ルールがありません');
+  const dailyCalculator = async () => ({ calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}' });
   if (kind === 'invoice') {
     const [headers] = await conn.query('SELECT company_id FROM invoices WHERE invoice_id=?', [id]);
     const projectIds = [...new Set(normalized.map((line) => Number(line.project_id)).filter(Boolean))];
     const resolved = await resolveInvoiceTax(conn, headers[0].company_id, projectIds);
-    const subtotal = asMoney(normalized.reduce((sum,line) => sum + line.amount, 0));
-    const adjustment = asMoney(normalized.filter((line) => line.line_type === 'adjustment').reduce((sum,line) => sum + line.amount, 0));
-    const taxable = asMoney(normalized.filter((line) => line.tax_category === 'taxable').reduce((sum,line) => sum + line.amount, 0));
-    const tax = rounding(taxable * resolved.rate, resolved.mode);
+    const calculated = await executeRuleSet(selected.rule_set,selected.rules,{ side:'billing',lines:normalized,deductions:[],tax_rate:resolved.rate,tax_rounding:{ mode:resolved.mode,unit:1 },input:{} },{ dailyCalculator });
     await conn.query(
-      `UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,version=version+1
-       WHERE invoice_id=?`, [subtotal,adjustment,taxable,tax,asMoney(subtotal+tax),id]
+      `UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,calculation_rule_set_id=?,version=version+1
+       WHERE invoice_id=?`, [asMoney(calculated.work_amount),asMoney(calculated.adjustment_amount),asMoney(calculated.taxable_amount),asMoney(calculated.tax_amount),asMoney(calculated.total_amount),selected.rule_set.calculation_rule_set_id,id]
     );
   } else {
-    const gross = asMoney(normalized.filter((line) => ['work','adjustment'].includes(line.line_type)).reduce((sum,line) => sum + line.amount, 0));
-    const deductions = asMoney(normalized.filter((line) => !['work','adjustment'].includes(line.line_type)).reduce((sum,line) => sum + line.amount, 0));
+    const workLines = normalized.filter((line) => ['work','adjustment'].includes(line.line_type));
+    const deductions = normalized.filter((line) => !['work','adjustment'].includes(line.line_type));
+    const calculated = await executeRuleSet(selected.rule_set,selected.rules,{ side:'payment',lines:workLines,deductions,input:{} },{ dailyCalculator });
     await conn.query(
-      `UPDATE payments SET gross_amount=?,other_adjustment_amount=?,final_transfer_amount=?,version=version+1
-       WHERE payment_id=?`, [gross,asMoney(normalized.filter((line) => line.line_type === 'adjustment').reduce((sum,line) => sum + line.amount, 0)),Math.max(0,asMoney(gross+deductions)),id]
+      `UPDATE payments SET gross_amount=?,other_adjustment_amount=?,final_transfer_amount=?,calculation_rule_set_id=?,version=version+1
+       WHERE payment_id=?`, [asMoney(calculated.subtotal_amount),asMoney(calculated.adjustment_amount),Math.max(0,asMoney(calculated.total_amount)),selected.rule_set.calculation_rule_set_id,id]
     );
   }
   await rebuildCompatibilityLines(conn,kind,id);
@@ -777,6 +783,10 @@ async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDa
   const b={cash_cycle_id:cashCycleId};
   const conn=await getPool().getConnection(); const generated=[];
   try { await conn.beginTransaction(); const [headerRows]=await conn.query(`SELECT s.*, ${kind==='invoice'?'c.company_name':'p.partner_name'} FROM ${tableFor(kind)} s LEFT JOIN ${kind==='invoice'?'companies c ON c.company_id=s.company_id':'partners p ON p.partner_id=s.partner_id'} WHERE s.${idFor(kind)}=? FOR UPDATE`,[id]); const header=headerRows[0]; if(!header) throw new Error('対象が見つかりません'); const [wf]=await conn.query('SELECT * FROM settlement_workflows WHERE settlement_type=? AND settlement_id=? FOR UPDATE',[kind,id]); if(!wf.length || wf[0].status!=='approved') throw new Error('日報・請求・支払の一括承認後に発行できます');
+    const selectedRuleSet=header.calculation_rule_set_id?await loadRuleSet(conn,header.calculation_rule_set_id):await resolvePublishedRuleSet(conn,`${header.target_year_month}-01`);
+    if(!selectedRuleSet)throw new Error('適用可能な公開計算ルールがありません');
+    if(!header.calculation_rule_set_id){header.calculation_rule_set_id=selectedRuleSet.rule_set.calculation_rule_set_id;await conn.query(`UPDATE ${tableFor(kind)} SET calculation_rule_set_id=? WHERE ${idFor(kind)}=?`,[header.calculation_rule_set_id,id]);}
+    const ruleDailyCalculator=async()=>({calculated_billing_amount:0,calculated_payment_amount:0,calculation_detail:'{}'});
     const [lines]=await conn.query("SELECT * FROM settlement_lines WHERE settlement_type=? AND settlement_id=? AND status='active' ORDER BY display_order,settlement_line_id",[kind,id]); let finalLines=lines.map(x=>({...x,amount:Number(x.amount),unit_price:Number(x.unit_price),quantity:Number(x.quantity)}));
     let pdfLines = finalLines;
     let invoiceDisplayMode = 'detailed';
@@ -789,11 +799,10 @@ async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDa
       const projects=[...new Set(finalLines.map(x=>x.project_id).filter(Boolean))];
       const resolvedTax = await resolveInvoiceTax(conn, header.company_id, projects);
       const taxRate=resolvedTax.rate, taxMode=resolvedTax.mode;
-      const taxable=finalLines.filter(x=>x.tax_category==='taxable').reduce((n,x)=>n+x.amount,0);
-      const tax=rounding(taxable*taxRate,taxMode);
-      const total=asMoney(finalLines.reduce((n,x)=>n+x.amount,0)+tax);
+      const ruleResult=await executeRuleSet(selectedRuleSet.rule_set,selectedRuleSet.rules,{side:'billing',lines:finalLines,deductions:[],tax_rate:taxRate,tax_rounding:{mode:taxMode,unit:1},input:{}},{dailyCalculator:ruleDailyCalculator});
+      const taxable=asMoney(ruleResult.taxable_amount),tax=asMoney(ruleResult.tax_amount),total=asMoney(ruleResult.total_amount);
       pdfLines=invoiceDisplayLines(finalLines,invoiceDisplayMode);
-      await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[finalLines.filter(x=>x.line_type==='work').reduce((n,x)=>n+x.amount,0),finalLines.filter(x=>x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode}),id]);
+      await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[finalLines.filter(x=>x.line_type==='work').reduce((n,x)=>n+x.amount,0),finalLines.filter(x=>x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode,calculation_rule_set_id:header.calculation_rule_set_id,calculation_engine_code:'typed-rules-v1'}),id]);
       invoiceTaxRate=taxRate;
       invoiceTaxAmount=tax;
       invoiceSubtotal=asMoney(finalLines.reduce((n,x)=>n+x.amount,0));
@@ -826,7 +835,9 @@ async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDa
         }
         final=appliedDeductions.finalAmount;
       }
-      await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,transfer_fee_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.source_type==='advance_fee').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='安全協力会費').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines}),id]);
+      const finalRuleResult=await executeRuleSet(selectedRuleSet.rule_set,selectedRuleSet.rules,{side:'payment',lines:finalLines.filter(x=>x.line_type==='work'||x.line_type==='adjustment'),deductions:finalLines.filter(x=>x.line_type!=='work'&&x.line_type!=='adjustment'),input:{}},{dailyCalculator:ruleDailyCalculator});
+      final=Math.max(0,asMoney(finalRuleResult.total_amount));
+      await conn.query(`UPDATE payments SET gross_amount=?,advance_deduction_amount=?,transfer_fee_deduction_amount=?,office_fee_amount=?,safety_fee_amount=?,final_transfer_amount=?,payment_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE payment_id=?`,[gross,finalLines.filter(x=>x.line_type==='advance').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.source_type==='advance_fee').reduce((n,x)=>n+Math.abs(x.amount),0),finalLines.filter(x=>x.item_name==='事務手数料').reduce((n,x)=>n+Math.abs(x.amount),0),final,JSON.stringify({header,lines:finalLines,calculation_rule_set_id:header.calculation_rule_set_id,calculation_engine_code:'typed-rules-v1'}),id]);
       header.gross_amount=gross;
       header.total_amount=final;
     }
