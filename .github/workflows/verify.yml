@@ -37,8 +37,8 @@ jobs:
           bash scripts/docker-update.sh --dry-run
           bash scripts/docker-update.sh --nas --backup --dry-run
           bash scripts/create-production-system-archive.sh /tmp/links-production-system.tgz
-          tar -tzf /tmp/links-production-system.tgz | grep -q '^scripts/production-deploy-remote.sh$'
-          if tar -xOzf /tmp/links-production-system.tgz scripts/nas-db-replace.sh | LC_ALL=C grep -q $'\r'; then
+          tar -tzf /tmp/links-production-system.tgz | grep -Fx 'scripts/production-deploy-remote.sh' >/dev/null
+          if tar -xOzf /tmp/links-production-system.tgz scripts/nas-db-replace.sh | LC_ALL=C grep $'\r' >/dev/null; then
             echo '本番用アーカイブのシェルスクリプトにCRLFが残っています。' >&2
             exit 1
           fi
