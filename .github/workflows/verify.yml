@@ -33,9 +33,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash -n scripts/docker-update.sh scripts/nas-sync.sh scripts/nas-backup.sh
+          bash -n scripts/docker-update.sh scripts/nas-sync.sh scripts/nas-backup.sh scripts/nas-db-export.sh scripts/nas-db-replace.sh scripts/nas-db-verify.sh scripts/create-production-system-archive.sh scripts/rotate-production-runtime-secrets.sh scripts/production-deploy-remote.sh
           bash scripts/docker-update.sh --dry-run
           bash scripts/docker-update.sh --nas --backup --dry-run
+          bash scripts/create-production-system-archive.sh /tmp/links-production-system.tgz
+          tar -tzf /tmp/links-production-system.tgz | grep -q '^scripts/production-deploy-remote.sh$'
+          if tar -xOzf /tmp/links-production-system.tgz scripts/nas-db-replace.sh | LC_ALL=C grep -q $'\r'; then
+            echo '本番用アーカイブのシェルスクリプトにCRLFが残っています。' >&2
+            exit 1
+          fi
+
+      - name: Verify production deployment launcher
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/production-deploy.ps1'),
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) { $errors | Out-String | Write-Error }
 
       - name: Run backend unit tests
         run: npm test --prefix backend
@@ -92,6 +109,22 @@ jobs:
         env:
           LINKS_DOCKER_UPDATE_NO_PAUSE: "1"
         run: call "Docker更新.cmd" -DryRun
+
+      - name: Run the production deployment launcher dry-run
+        shell: cmd
+        env:
+          LINKS_PRODUCTION_DEPLOY_NO_PAUSE: "1"
+        run: >-
+          call "本番移行.cmd"
+          -NasHost example.invalid
+          -ProjectPath /share/Container/Links-System
+          -SystemBackup no
+          -DatabaseBackup no
+          -DatabaseMode update
+          -Files no
+          -RotateWeakSecrets no
+          -NonInteractive
+          -DryRun
 
   mariadb-migration-and-health:
     runs-on: ubuntu-latest
