@@ -10,10 +10,14 @@ umask 077
 DUMP_FILE="${1:-}"
 MANIFEST_FILE="${2:-}"
 CONFIRMATION="${3:-}"
+BACKUP_MODE="${4:---backup}"
+GIT_CHECK_MODE="${5:---check-git}"
 if [[ -z "$DUMP_FILE" || -z "$MANIFEST_FILE" || "$CONFIRMATION" != "--confirm-replace" ]]; then
-  echo "使い方: $0 <移行元.sql> <移行元.manifest> --confirm-replace" >&2
+  echo "使い方: $0 <移行元.sql> <移行元.manifest> --confirm-replace [--backup|--no-backup] [--check-git|--skip-git-check]" >&2
   exit 2
 fi
+[[ "$BACKUP_MODE" =~ ^--(backup|no-backup)$ ]] || { echo "エラー: バックアップ指定が不正です。" >&2; exit 2; }
+[[ "$GIT_CHECK_MODE" =~ ^--(check-git|skip-git-check)$ ]] || { echo "エラー: Git照合指定が不正です。" >&2; exit 2; }
 if [[ ! -s "$DUMP_FILE" || ! -f "$MANIFEST_FILE" ]]; then
   echo "エラー: ダンプまたはマニフェストが見つからないか空です。" >&2
   exit 2
@@ -72,7 +76,7 @@ if [[ ! "$MYSQL_DATABASE" =~ ^[A-Za-z0-9_]+$ || ! "$MYSQL_USER" =~ ^[A-Za-z0-9_]
   echo "エラー: DB名またはDBユーザー名に使用できない文字が含まれます。" >&2
   exit 1
 fi
-if [[ "$(git rev-parse HEAD)" != "$SOURCE_GIT_COMMIT" ]]; then
+if [[ "$GIT_CHECK_MODE" == "--check-git" ]] && [[ "$(git rev-parse HEAD)" != "$SOURCE_GIT_COMMIT" ]]; then
   echo "エラー: 移行元と移行先のアプリコミットが一致しません。先に同じコミットへ更新してください。" >&2
   exit 1
 fi
@@ -95,13 +99,17 @@ echo "移行先アプリを停止します。停止中は移行先へ直接書�
 app_stopped=1
 docker compose stop app
 
-echo "停止状態の移行先DBから復旧用バックアップを作成します。"
-BACKUP_OUTPUT="$(bash ./scripts/nas-db-export.sh backups)"
-printf '%s\n' "$BACKUP_OUTPUT"
-ROLLBACK_MANIFEST="$(printf '%s\n' "$BACKUP_OUTPUT" | sed -n 's/^照合情報: //p' | tail -n 1)"
-if [[ -z "$ROLLBACK_MANIFEST" || ! -f "$ROLLBACK_MANIFEST" ]]; then
-  echo "エラー: 移行先の復旧用マニフェストを確認できません。" >&2
-  exit 1
+if [[ "$BACKUP_MODE" == "--backup" ]]; then
+  echo "停止状態の移行先DBから復旧用バックアップを作成します。"
+  BACKUP_OUTPUT="$(bash ./scripts/nas-db-export.sh backups)"
+  printf '%s\n' "$BACKUP_OUTPUT"
+  ROLLBACK_MANIFEST="$(printf '%s\n' "$BACKUP_OUTPUT" | sed -n 's/^照合情報: //p' | tail -n 1)"
+  if [[ -z "$ROLLBACK_MANIFEST" || ! -f "$ROLLBACK_MANIFEST" ]]; then
+    echo "エラー: 移行先の復旧用マニフェストを確認できません。" >&2
+    exit 1
+  fi
+else
+  echo "警告: 指定により移行先DBの復旧用バックアップを作成しません。"
 fi
 
 echo "DBを再作成して完全置換します。"
@@ -112,7 +120,9 @@ docker compose exec -T db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL
 # DBを再作成すると旧セッションは消えるが、明示的に空にして全利用者の再ログインを保証する。
 docker compose exec -T db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" -e 'DELETE FROM sessions'
 
-docker compose start app
+# 事前にビルドされた新しいイメージと現在の.envを確実に使うため、旧コンテナの
+# 単純再開ではなくappコンテナを再作成する。
+docker compose up -d --no-deps --force-recreate app
 app_stopped=0
 
 echo "アプリ起動とマイグレーション完了を待機します。"
@@ -125,6 +135,6 @@ done
 curl --fail --silent --show-error http://127.0.0.1:8080/api/health >/dev/null
 docker compose logs --tail=200 app | grep -E 'migration|migrate|Migration' || true
 
-bash ./scripts/nas-db-verify.sh "$MANIFEST_FILE"
+bash ./scripts/nas-db-verify.sh "$MANIFEST_FILE" "$GIT_CHECK_MODE"
 trap - EXIT
-echo "完全置換が完了しました。復旧用マニフェスト: $ROLLBACK_MANIFEST"
+echo "完全置換が完了しました。復旧用マニフェスト: ${ROLLBACK_MANIFEST:-作成なし}"

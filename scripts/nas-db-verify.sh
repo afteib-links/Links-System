@@ -6,10 +6,12 @@ ROOT="$(cd "$(dirname "$0")/../" && pwd)"
 cd "$ROOT"
 
 MANIFEST_FILE="${1:-}"
+GIT_CHECK_MODE="${2:---check-git}"
 if [[ -z "$MANIFEST_FILE" || ! -f "$MANIFEST_FILE" ]]; then
   echo "使い方: $0 <移行元マニフェスト>" >&2
   exit 2
 fi
+[[ "$GIT_CHECK_MODE" =~ ^--(check-git|skip-git-check)$ ]] || { echo "エラー: Git照合指定が不正です。" >&2; exit 2; }
 
 # マニフェストは値だけを読み込む。source しないことで、誤ったファイルを指定しても
 # シェルコードとして実行されないようにする。
@@ -33,6 +35,8 @@ DAILY_REPORTS="$(manifest_value DAILY_REPORTS)"
 ADVANCE_PAYMENTS="$(manifest_value ADVANCE_PAYMENTS)"
 INVOICES="$(manifest_value INVOICES)"
 PAYMENTS="$(manifest_value PAYMENTS)"
+ADMIN_USER_COUNT="$(manifest_value ADMIN_USER_COUNT)"
+ADMIN_PASSWORD_HASH_SHA256="$(manifest_value ADMIN_PASSWORD_HASH_SHA256)"
 SOURCE_GIT_COMMIT="$(manifest_value SOURCE_GIT_COMMIT)"
 
 if [[ "$FORMAT_VERSION" != "1" ]]; then
@@ -49,6 +53,12 @@ for value in "$MIGRATIONS" "$COMPANIES" "$PARTNERS" "$BASE_PROJECTS" "$PROJECTS"
     exit 2
   fi
 done
+if [[ -n "$ADMIN_USER_COUNT" || -n "$ADMIN_PASSWORD_HASH_SHA256" ]]; then
+  if [[ "$ADMIN_USER_COUNT" != "1" || ! "$ADMIN_PASSWORD_HASH_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    echo "エラー: admin照合情報が不正です。" >&2
+    exit 2
+  fi
+fi
 
 set -a
 # shellcheck disable=SC1091
@@ -98,12 +108,34 @@ check 'advance payments' "$ADVANCE_PAYMENTS" 'SELECT COUNT(*) FROM advance_payme
 check 'invoices' "$INVOICES" 'SELECT COUNT(*) FROM invoices'
 check 'payments' "$PAYMENTS" 'SELECT COUNT(*) FROM payments'
 
-TARGET_GIT_COMMIT="$(git rev-parse HEAD)"
-if [[ "$TARGET_GIT_COMMIT" == "$SOURCE_GIT_COMMIT" ]]; then
-  echo "OK  git commit: ${TARGET_GIT_COMMIT}"
+if [[ -n "$ADMIN_PASSWORD_HASH_SHA256" ]]; then
+  ACTUAL_ADMIN_COUNT="$(scalar "SELECT COUNT(*) FROM users WHERE login_id = 'admin' AND is_deleted = 0")"
+  ACTUAL_ADMIN_HASH="$(scalar "SELECT password_hash FROM users WHERE login_id = 'admin' AND is_deleted = 0 LIMIT 1")"
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL_ADMIN_HASH_SHA256="$(printf '%s' "$ACTUAL_ADMIN_HASH" | sha256sum | awk '{print $1}')"
+  elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL_ADMIN_HASH_SHA256="$(printf '%s' "$ACTUAL_ADMIN_HASH" | shasum -a 256 | awk '{print $1}')"
+  else
+    ACTUAL_ADMIN_HASH_SHA256="$(printf '%s' "$ACTUAL_ADMIN_HASH" | openssl dgst -sha256 | awk '{print $NF}')"
+  fi
+  if [[ "$ACTUAL_ADMIN_COUNT" == "1" && "$ACTUAL_ADMIN_HASH_SHA256" == "$ADMIN_PASSWORD_HASH_SHA256" ]]; then
+    echo "OK  admin password hash: preserved"
+  else
+    echo "NG  admin password hash: admin missing or changed" >&2
+    failed=1
+  fi
+fi
+
+if [[ "$GIT_CHECK_MODE" == "--check-git" ]]; then
+  TARGET_GIT_COMMIT="$(git rev-parse HEAD)"
+  if [[ "$TARGET_GIT_COMMIT" == "$SOURCE_GIT_COMMIT" ]]; then
+    echo "OK  git commit: ${TARGET_GIT_COMMIT}"
+  else
+    echo "NG  git commit: expected=${SOURCE_GIT_COMMIT}, actual=${TARGET_GIT_COMMIT}" >&2
+    failed=1
+  fi
 else
-  echo "NG  git commit: expected=${SOURCE_GIT_COMMIT}, actual=${TARGET_GIT_COMMIT}" >&2
-  failed=1
+  echo "SKIP git commit: 作業ツリーのスナップショット配備"
 fi
 
 exit "$failed"

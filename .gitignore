@@ -1,8 +1,10 @@
 node_modules/
+.pnpm-store/
 .env
 data/
 backups/
 *.log
+scripts/production-deploy.local.json
 .DS_Store
 backend/uploads/
 backend/pdf/
