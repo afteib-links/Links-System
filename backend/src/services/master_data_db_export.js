@@ -156,7 +156,15 @@ async function previewDbExport(conn, parsed) {
     }
     if (Object.entries(item.desired).every(([field,value]) => sameStoredValue(field,item.current[field],value))) item.status='unchanged';
     else if (rowVersion(item.current)!==item.recordVersion) { item.status='conflict'; item.errors.push('出力後に画面または別のExcelから変更されています'); }
-    else item.status='update';
+    else {
+      let historical=item.sheet==='料金セット' && item.current.is_current_revision != null && Number(item.current.is_current_revision)===0;
+      if (item.sheet==='料金行') {
+        const [parents]=await conn.query('SELECT is_current_revision FROM price_sets WHERE price_set_id=? AND is_deleted=0 LIMIT 1',[item.current.price_set_id]);
+        historical=!parents.length || (parents[0].is_current_revision != null && Number(parents[0].is_current_revision)===0);
+      }
+      if (historical) { item.status='conflict'; item.errors.push('過去の料金改定版はExcelから変更できません。金額データ画面で理由を入力して訂正してください'); }
+      else item.status='update';
+    }
   }
   let changed=true;
   while (changed) {
@@ -176,6 +184,13 @@ async function commitDbExport(conn, preview) {
   let updated=0;
   for (const sheet of ORDER) for (const item of preview.rows.filter((row) => row.sheet===sheet && row.status==='update')) {
     const config=CONFIG[sheet]; const fields=Object.keys(item.desired);
+    if (sheet==='料金セット' || sheet==='料金行') {
+      const priceSetId=sheet==='料金セット'?item.recordId:item.current.price_set_id;
+      const [parents]=await conn.query('SELECT is_current_revision FROM price_sets WHERE price_set_id=? AND is_deleted=0 LIMIT 1 FOR UPDATE',[priceSetId]);
+      if (!parents.length || (parents[0].is_current_revision != null && Number(parents[0].is_current_revision)===0)) {
+        throw Object.assign(new Error('過去の料金改定版はExcelから変更できません'),{code:'version_conflict'});
+      }
+    }
     const [result]=await conn.query(`UPDATE ${config.table} SET ${fields.map((field)=>`${field}=?`).join(',')},version=version+1,updated_at=CURRENT_TIMESTAMP WHERE ${config.id}=? AND version=? AND is_deleted=0`,[...fields.map((field)=>item.desired[field]),item.recordId,item.recordVersion]);
     if (!result.affectedRows) throw Object.assign(new Error('登録直前にバージョン競合が発生しました'),{code:'version_conflict'});
     updated++;

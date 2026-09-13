@@ -6,7 +6,7 @@ const SIMPLE = [
   { sheet:'画面ヘルプ',table:'help_contents',id:'help_content_id',key:['screen_key'],fields:['help_title','overview_text','input_effect_text'],version:true },
   { sheet:'銀行形式',table:'bank_export_profiles',id:'bank_export_profile_id',key:['profile_code'],fields:['profile_name','bank_family','description','is_active'],version:true },
   { sheet:'控除規則',table:'settlement_deduction_rules',id:'settlement_deduction_rule_id',key:['rule_code','valid_from'],fields:['display_name','amount','tax_category'],version:false,where:"scope='common' AND partner_id IS NULL" },
-  { sheet:'採番',table:'numbering_rules',id:'numbering_rule_id',key:['rule_key'],fields:['rule_label','prefix','pad_digits','next_number','is_active'],version:true },
+  { sheet:'採番',table:'numbering_rules',id:'numbering_rule_id',key:['rule_key'],fields:['rule_label','prefix','pad_digits','is_active'],version:true },
 ];
 function value(value) { return value instanceof Date ? value.toISOString().slice(0,10) : value == null ? '' : String(value); }
 function keyOf(row,fields) { return fields.map((field)=>value(row[field])).join(':'); }
@@ -20,8 +20,9 @@ async function previewFoundationRestore(conn) {
     for (const source of catalog[spec.sheet]) {
       const key=keyOf(source,spec.key); const current=byKey.get(key);
       const diff=changedFields(source,current,spec.fields);
-      const status=current && Number(current.is_deleted||0) ? 'conflict' : !current ? 'new' : diff.length ? 'update' : 'unchanged';
-      rows.push({sheet:spec.sheet,key,source,current:current||null,spec,status,diff,reason:status==='conflict'?'論理削除済みです':''});
+      const numberingMissing=spec.sheet==='採番' && !current;
+      const status=numberingMissing || (current && Number(current.is_deleted||0)) ? 'conflict' : !current ? 'new' : diff.length ? 'update' : 'unchanged';
+      rows.push({sheet:spec.sheet,key,source,current:current||null,spec,status,diff,reason:status==='conflict'?(numberingMissing?'採番ルールが欠落しています。使用済み番号を確認して手動復旧してください':'論理削除済みです'):''});
     }
   }
   const [profiles]=await conn.query('SELECT bank_export_profile_id,profile_code FROM bank_export_profiles WHERE is_deleted=0');
@@ -53,6 +54,7 @@ async function commitFoundationRestore(conn,preview,selectedKeys) {
     const clauses=Object.keys(lookup).map((field)=>`${field}=?`).join(' AND ');
     const [liveRows]=await conn.query(`SELECT * FROM ${spec.table} WHERE ${clauses}${spec.where?` AND ${spec.where}`:''} FOR UPDATE`,Object.values(lookup));
     const live=liveRows[0]||null;
+    if (item.sheet==='採番' && !live) throw Object.assign(new Error('採番ルールの自動復旧はできません'),{status:409});
     if (Boolean(current)!==Boolean(live) || (current && [...spec.fields,...spec.key,'is_deleted',...(spec.version?['version']:[])].some((field)=>value(current[field])!==value(live[field])))) {
       throw Object.assign(new Error(`復旧前に値が変更されました: ${item.sheet} ${item.key}`),{status:409});
     }

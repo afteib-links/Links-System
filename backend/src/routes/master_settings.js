@@ -422,16 +422,19 @@ router.post('/offices', async (req, res) => {
 
     let nextNum = Number(rule.next_number) || 1;
     let officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
-    // 衝突時は次番号を進めて再試行（仮組）
-    for (let i = 0; i < 50; i += 1) {
+    // 使用済み番号は論理削除済みを含めて再利用しない。
+    let available = false;
+    for (let i = 0; i < 10000; i += 1) {
       const [dup] = await conn.query(
-        `SELECT office_id FROM office_masters WHERE office_no = ? AND is_deleted = 0 LIMIT 1`,
-        [officeNo]
+        `SELECT office_id AS id FROM office_masters WHERE office_no = ?
+         UNION ALL SELECT company_id AS id FROM companies WHERE office_no = ? LIMIT 1`,
+        [officeNo, officeNo]
       );
-      if (!dup.length) break;
+      if (!dup.length) { available = true; break; }
       nextNum += 1;
       officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
     }
+    if (!available) throw new Error('未使用の事業所Noを採番できませんでした');
 
     const [result] = await conn.query(
       `INSERT INTO office_masters (office_no, office_name, is_active, sort_order)

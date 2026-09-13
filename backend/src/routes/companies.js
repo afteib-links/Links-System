@@ -155,18 +155,20 @@ async function allocateOfficeNo(conn) {
   }
   let nextNum = Number(rule.next_number) || 1;
   let officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
-  for (let i = 0; i < 50; i += 1) {
+  let available = false;
+  for (let i = 0; i < 10000; i += 1) {
     const [dup] = await conn.query(
-      `SELECT company_id AS id FROM companies WHERE office_no = ? AND is_deleted = 0
+      `SELECT company_id AS id FROM companies WHERE office_no = ?
        UNION ALL
-       SELECT office_id AS id FROM office_masters WHERE office_no = ? AND is_deleted = 0
+       SELECT office_id AS id FROM office_masters WHERE office_no = ?
        LIMIT 1`,
       [officeNo, officeNo]
     );
-    if (!dup.length) break;
+    if (!dup.length) { available = true; break; }
     nextNum += 1;
     officeNo = formatSerial(rule.prefix, rule.pad_digits, nextNum);
   }
+  if (!available) throw new Error('未使用の事業所Noを採番できませんでした');
   await conn.query(
     `UPDATE numbering_rules
      SET next_number = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP

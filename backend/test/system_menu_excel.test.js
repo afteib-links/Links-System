@@ -4,6 +4,9 @@ const {refreshRoleMatrix,featuresFromRoles,FEATURE_KEYS}=require('../src/permiss
 const {buildDbExport,previewDbExport,commitDbExport}=require('../src/services/master_data_db_export');
 const {parseCompletedWorkbook}=require('../src/services/master_data_workbook');
 const {previewFoundationRestore,commitFoundationRestore}=require('../src/services/foundation_master_restore');
+const {loadCatalog}=require('../src/services/foundation_masters');
+const express=require('express');
+const {allocateOfficeNo}=require('../src/services/master_data_import');
 
 test('役割別チェックは管理者の許可にも反映し、既定では管理者とシステム担当者に専用機能を出す',async()=>{
   await refreshRoleMatrix(async()=>[]);
@@ -119,4 +122,94 @@ test('基盤初期値は選択した差分だけ登録する',async()=>{
   const result=await commitFoundationRestore(conn,preview,[`${first.sheet}:${first.key}`]);
   assert.equal(result.created,1);
   assert.equal(inserted.length,1);
+});
+
+test('採番の復旧は次番号を巻き戻さず、欠落ルールは自動復旧しない',async()=>{
+  const source=(await loadCatalog())['採番'][0];
+  const live={...source,numbering_rule_id:7,next_number:900,rule_label:'変更済み',version:2,is_deleted:0};
+  const updates=[];
+  const conn={async query(sql,params=[]){
+    if(sql.startsWith('SELECT * FROM numbering_rules'))return [[live]];
+    if(sql.startsWith('SELECT'))return [[]];
+    if(sql.startsWith('UPDATE numbering_rules')){updates.push({sql,params});return [{affectedRows:1}];}
+    throw new Error(`unexpected SQL: ${sql}`);
+  }};
+  const preview=await previewFoundationRestore(conn);
+  const number=preview.rows.find((row)=>row.sheet==='採番'&&row.key===source.rule_key);
+  assert.equal(number.status,'update');
+  assert.equal(number.diff.includes('next_number'),false);
+  await commitFoundationRestore(conn,preview,[`採番:${source.rule_key}`]);
+  assert.equal(updates.length,1);
+  assert.equal(updates[0].sql.includes('next_number'),false);
+  assert.equal(updates[0].params.includes(900),false);
+  const missing={async query(sql){if(sql.startsWith('SELECT'))return [[]];throw new Error(`unexpected SQL: ${sql}`);}};
+  const missingPreview=await previewFoundationRestore(missing);
+  assert.equal(missingPreview.rows.find((row)=>row.sheet==='採番'&&row.key===source.rule_key).status,'conflict');
+});
+
+test('古い採番カウンターでも使用済み企業Noを飛ばして発行する',async()=>{
+  const issued=[];
+  const conn={async query(sql,params=[]){
+    if(sql.startsWith('SELECT * FROM numbering_rules'))return [[{numbering_rule_id:1,prefix:'C',pad_digits:3,next_number:1,is_active:1}]];
+    if(sql.startsWith('SELECT company_id AS id'))return [Number(params[0].slice(1))<=2?[{id:1}]:[]];
+    if(sql.startsWith('UPDATE numbering_rules')){issued.push(params);return [{affectedRows:1}];}
+    throw new Error(`unexpected SQL: ${sql}`);
+  }};
+  assert.equal(await allocateOfficeNo(conn),'C003');
+  assert.deepEqual(issued,[[4,1]]);
+});
+
+test('メニュー権限を外した管理者は請求・支払・設定APIを直接呼べない',async()=>{
+  const app=express();
+  app.locals.rolePolicyQuery=async()=>[
+    {feature_key:'invoices',role_key:'admin',is_allowed:0},
+    {feature_key:'payments',role_key:'admin',is_allowed:0},
+    {feature_key:'master_settings',role_key:'admin',is_allowed:0},
+  ];
+  app.use((req,_res,next)=>{req.session={user:{user_id:1,roles:['admin'],is_active:true}};next();});
+  app.use('/api/settlements',require('../src/routes/settlements'));
+  app.use('/api/master-settings/bank-export',require('../src/routes/bank_export_masters').router);
+  const server=app.listen(0);
+  try{
+    for(const path of ['/api/settlements/invoice/1','/api/settlements/payment/1','/api/settlements/settings/deduction-rules','/api/settlements/documents','/api/master-settings/bank-export/catalog']){
+      const response=await fetch(`http://127.0.0.1:${server.address().port}${path}`);
+      assert.equal(response.status,403,path);
+    }
+  }finally{await new Promise((resolve)=>server.close(resolve));await refreshRoleMatrix(async()=>[]);}
+});
+
+test('過去料金改定版と料金行はExcelで閲覧できるが更新できない',async()=>{
+  const batch='b'.repeat(32);const key=(suffix)=>`dbx:${batch}:${suffix.repeat(16)}`;
+  const snapshots=[
+    {export_key:key('1'),entity_type:'price_set',record_id:10,record_version:2},
+    {export_key:key('2'),entity_type:'price_line',record_id:20,record_version:2},
+    {export_key:key('3'),entity_type:'company',record_id:1,record_version:1},
+  ];
+  const set={price_set_id:10,company_id:1,price_set_name:'旧料金',is_current_revision:0,version:2};
+  const line={price_set_line_id:20,price_set_id:10,weekday_code:'all',calc_type_code:'daily',price_type_code:'basic',billing_unit_price:100,payment_unit_price:50,version:2};
+  const conn={async query(sql,params=[]){
+    if(sql.startsWith('SELECT export_key'))return [snapshots];
+    if(sql.startsWith('SELECT transfer_fee_pattern_id'))return [[]];
+    if(sql.startsWith('SELECT is_current_revision FROM price_sets'))return [[{is_current_revision:set.is_current_revision}]];
+    if(sql.startsWith('SELECT * FROM price_sets'))return [[set]];
+    if(sql.startsWith('SELECT * FROM price_set_lines'))return [[line]];
+    if(sql.startsWith('SELECT * FROM companies'))return [[{company_id:1,version:1}]];
+    throw new Error(`unexpected SQL: ${sql}`);
+  }};
+  const parsed={
+    '料金セット':[{import_key:key('1'),company_import_key:key('3'),note:'修正料金の備考'}],
+    '料金行':[{import_key:key('2'),price_set_import_key:key('1'),weekday_code:'all',calc_type_code:'daily',price_type_code:'basic',billing_unit_price:200,payment_unit_price:50}],
+  };
+  const preview=await previewDbExport(conn,parsed);
+  assert.equal(preview.counts.conflict,2);
+  assert.equal(preview.counts.dependency_error,0);
+  assert.equal(preview.counts.update,0);
+  assert.match(preview.rows[0].errors.join(' '),/過去の料金改定版/);
+  const lineOnly=await previewDbExport(conn,{'料金行':[parsed['料金行'][0]]});
+  assert.equal(lineOnly.counts.conflict,1);
+  assert.match(lineOnly.rows[0].errors.join(' '),/過去の料金改定版/);
+  const forced={rows:[{sheet:'料金行',status:'update',recordId:20,recordVersion:2,current:line,desired:{billing_unit_price:200}}],counts:{unchanged:0}};
+  await assert.rejects(commitDbExport(conn,forced),{code:'version_conflict'});
+  const forcedSet={rows:[{sheet:'料金セット',status:'update',recordId:10,recordVersion:2,current:set,desired:{note:'不正な直接変更'}}],counts:{unchanged:0}};
+  await assert.rejects(commitDbExport(conn,forcedSet),{code:'version_conflict'});
 });

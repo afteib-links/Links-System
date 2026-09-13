@@ -1,11 +1,11 @@
 const express = require('express');
 const { getPool, query } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requirePermission } = require('../middleware/auth');
 const { SOURCE_FIELDS, validateDefinition } = require('../services/bank_csv_export');
 const { yenInteger } = require('../services/source_bank_ledger');
 
 const router = express.Router();
-router.use(requireAuth, requireRole('admin', 'system'));
+router.use(requireAuth, requirePermission('master_settings'), requireRole('admin', 'system'));
 
 const VALID_BANK_FAMILIES = new Set(['resona', 'mizuho', 'smbc', 'other']);
 const VALID_ENCODINGS = new Set(['utf8', 'utf8_bom', 'cp932']);

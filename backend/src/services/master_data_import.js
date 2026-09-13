@@ -151,8 +151,16 @@ function desiredData(item, resolved = new Map()) {
 async function allocateOfficeNo(conn) {
   const [rules] = await conn.query("SELECT * FROM numbering_rules WHERE rule_key='office' AND is_deleted=0 LIMIT 1 FOR UPDATE");
   if (!rules.length || !Number(rules[0].is_active)) throw new Error('企業Noの採番ルールがありません');
-  const rule = rules[0]; const no = `${rule.prefix || ''}${String(rule.next_number).padStart(Number(rule.pad_digits || 0), '0')}`;
-  await conn.query('UPDATE numbering_rules SET next_number=next_number+1, version=version+1 WHERE numbering_rule_id=?', [rule.numbering_rule_id]); return no;
+  const rule = rules[0]; let next = Number(rule.next_number) || 1;
+  for (let attempt = 0; attempt < 10000; attempt += 1, next += 1) {
+    const no = `${rule.prefix || ''}${String(next).padStart(Number(rule.pad_digits || 0), '0')}`;
+    const [used] = await conn.query(`SELECT company_id AS id FROM companies WHERE office_no=?
+      UNION ALL SELECT office_id AS id FROM office_masters WHERE office_no=? LIMIT 1`, [no, no]);
+    if (used.length) continue;
+    await conn.query('UPDATE numbering_rules SET next_number=?, version=version+1 WHERE numbering_rule_id=?', [next + 1, rule.numbering_rule_id]);
+    return no;
+  }
+  throw new Error('未使用の企業Noを採番できませんでした');
 }
 async function allocatePrice(conn, data) {
   const priceSetNo = await allocatePriceSetNo(conn);
@@ -193,4 +201,4 @@ async function commitRows(conn, preview, actorUserId) {
   return { batch_id: batch.insertId, created: preview.counts.new, updated: preview.counts.update, unchanged: preview.counts.unchanged, skipped: total - accepted.length };
 }
 
-module.exports = { CONFIG, ORDER, FK_FIELDS, cleanValue, sameStoredValue, autoComplete, validateRows, classifyRows, desiredData, commitRows };
+module.exports = { CONFIG, ORDER, FK_FIELDS, cleanValue, sameStoredValue, autoComplete, validateRows, classifyRows, desiredData, allocateOfficeNo, commitRows };
