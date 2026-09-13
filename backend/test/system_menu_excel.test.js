@@ -175,6 +175,8 @@ test('メニュー権限を外した管理者は請求・支払・設定APIを�
       const response=await fetch(`http://127.0.0.1:${server.address().port}${path}`);
       assert.equal(response.status,403,path);
     }
+    const encoded=await fetch(`http://127.0.0.1:${server.address().port}/api/settlements/%70ayment/1`);
+    assert.equal(encoded.status,404);
   }finally{await new Promise((resolve)=>server.close(resolve));await refreshRoleMatrix(async()=>[]);}
 });
 
@@ -190,7 +192,7 @@ test('過去料金改定版と料金行はExcelで閲覧できるが更新でき
   const conn={async query(sql,params=[]){
     if(sql.startsWith('SELECT export_key'))return [snapshots];
     if(sql.startsWith('SELECT transfer_fee_pattern_id'))return [[]];
-    if(sql.startsWith('SELECT is_current_revision FROM price_sets'))return [[{is_current_revision:set.is_current_revision}]];
+    if(sql.startsWith('SELECT is_current_revision FROM price_sets'))return [[{is_current_revision:params[0]===11?1:set.is_current_revision}]];
     if(sql.startsWith('SELECT * FROM price_sets'))return [[set]];
     if(sql.startsWith('SELECT * FROM price_set_lines'))return [[line]];
     if(sql.startsWith('SELECT * FROM companies'))return [[{company_id:1,version:1}]];
@@ -212,4 +214,13 @@ test('過去料金改定版と料金行はExcelで閲覧できるが更新でき
   await assert.rejects(commitDbExport(conn,forced),{code:'version_conflict'});
   const forcedSet={rows:[{sheet:'料金セット',status:'update',recordId:10,recordVersion:2,current:set,desired:{note:'不正な直接変更'}}],counts:{unchanged:0}};
   await assert.rejects(commitDbExport(conn,forcedSet),{code:'version_conflict'});
+  line.price_set_id=11;
+  const moved=await previewDbExport(conn,{'料金行':[parsed['料金行'][0]]});
+  assert.equal(moved.counts.conflict,1);
+  const forcedMove={rows:[{sheet:'料金行',status:'update',recordId:20,recordVersion:2,current:line,desired:{price_set_id:10}}],counts:{unchanged:0}};
+  await assert.rejects(commitDbExport(conn,forcedMove),{code:'version_conflict'});
+  set.is_current_revision=1;
+  const invalidDate=await previewDbExport(conn,{'料金セット':[{import_key:key('1'),company_import_key:key('3'),apply_end_date:'2026-13-01'}]});
+  assert.equal(invalidDate.counts.error,1);
+  assert.match(invalidDate.rows[0].errors.join(' '),/有効な日付/);
 });

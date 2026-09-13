@@ -6,6 +6,13 @@ const AUTO_FIELDS = Object.fromEntries(Object.entries(FIELD_DEFINITIONS).map(([s
 
 function exportKey(batch) { return `dbx:${batch}:${crypto.randomBytes(8).toString('hex')}`; }
 function rowVersion(row) { return Number(row.version || 1); }
+async function hasHistoricalPriceSet(conn, ids, lock=false) {
+  for (const id of [...new Set(ids.map(Number))].sort((a,b)=>a-b)) {
+    const [parents]=await conn.query(`SELECT is_current_revision FROM price_sets WHERE price_set_id=? AND is_deleted=0 LIMIT 1${lock?' FOR UPDATE':''}`,[id]);
+    if (!parents.length || (parents[0].is_current_revision != null && Number(parents[0].is_current_revision)===0)) return true;
+  }
+  return false;
+}
 
 async function buildDbExport(conn, actorUserId) {
   const batch = crypto.randomBytes(16).toString('hex');
@@ -106,8 +113,14 @@ async function previewDbExport(conn, parsed) {
     for (const field of config.fields) {
       if (AUTO_FIELDS[item.sheet].has(field) || field.endsWith('_id')) continue;
       if (!Object.hasOwn(item.row,field)) continue;
-      item.desired[field]=cleanValue(field,item.row[field]);
+      const raw=item.row[field];
+      const cleaned=cleanValue(field,raw);
+      if (/date$/.test(field) && raw != null && String(raw).trim() !== '' && String(raw).trim() !== '-' && cleaned == null) {
+        item.status='error';item.errors.push(`${field} は有効な日付ではありません`);
+      }
+      item.desired[field]=cleaned;
     }
+    if (item.status==='error') continue;
     for (const [keyField,[idField,expected]] of Object.entries(FK_FIELDS[item.sheet]||{})) {
       const targetKey=String(item.row[keyField]||'');
       if (!targetKey) {
@@ -157,11 +170,9 @@ async function previewDbExport(conn, parsed) {
     if (Object.entries(item.desired).every(([field,value]) => sameStoredValue(field,item.current[field],value))) item.status='unchanged';
     else if (rowVersion(item.current)!==item.recordVersion) { item.status='conflict'; item.errors.push('出力後に画面または別のExcelから変更されています'); }
     else {
-      let historical=item.sheet==='料金セット' && item.current.is_current_revision != null && Number(item.current.is_current_revision)===0;
-      if (item.sheet==='料金行') {
-        const [parents]=await conn.query('SELECT is_current_revision FROM price_sets WHERE price_set_id=? AND is_deleted=0 LIMIT 1',[item.current.price_set_id]);
-        historical=!parents.length || (parents[0].is_current_revision != null && Number(parents[0].is_current_revision)===0);
-      }
+      const historical=item.sheet==='料金セット'
+        ? item.current.is_current_revision != null && Number(item.current.is_current_revision)===0
+        : item.sheet==='料金行' && await hasHistoricalPriceSet(conn,[item.current.price_set_id,item.desired.price_set_id??item.current.price_set_id]);
       if (historical) { item.status='conflict'; item.errors.push('過去の料金改定版はExcelから変更できません。金額データ画面で理由を入力して訂正してください'); }
       else item.status='update';
     }
@@ -185,9 +196,8 @@ async function commitDbExport(conn, preview) {
   for (const sheet of ORDER) for (const item of preview.rows.filter((row) => row.sheet===sheet && row.status==='update')) {
     const config=CONFIG[sheet]; const fields=Object.keys(item.desired);
     if (sheet==='料金セット' || sheet==='料金行') {
-      const priceSetId=sheet==='料金セット'?item.recordId:item.current.price_set_id;
-      const [parents]=await conn.query('SELECT is_current_revision FROM price_sets WHERE price_set_id=? AND is_deleted=0 LIMIT 1 FOR UPDATE',[priceSetId]);
-      if (!parents.length || (parents[0].is_current_revision != null && Number(parents[0].is_current_revision)===0)) {
+      const parentIds=sheet==='料金セット'?[item.recordId]:[item.current.price_set_id,item.desired.price_set_id??item.current.price_set_id];
+      if (await hasHistoricalPriceSet(conn,parentIds,true)) {
         throw Object.assign(new Error('過去の料金改定版はExcelから変更できません'),{code:'version_conflict'});
       }
     }

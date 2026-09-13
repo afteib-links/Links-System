@@ -17,7 +17,7 @@ router.use((req, res, next) => {
   if (section === 'invoice') return requirePermission('invoices')(req, res, next);
   if (section === 'payment') return requirePermission('payments')(req, res, next);
   if (section === 'documents') return requirePermission('invoices', 'payments')(req, res, next);
-  return next();
+  return res.status(404).end();
 });
 const roles = (req) => new Set(req.session.user?.roles || []);
 const has = (req, values) => values.some((v) => roles(req).has(v));
