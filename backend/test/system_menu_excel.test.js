@@ -71,6 +71,41 @@ test('車両IDが重複しても個別案件の所有元で参照キーを決め
   assert.equal(exported.data['個別案件'][0].vehicle_owner_type,'partner');
 });
 
+test('DB出力Excelで車両の所有元を変えた場合は連動更新し、所有者違いは除外する',async()=>{
+  const batch='a'.repeat(32);
+  const key=(suffix)=>`dbx:${batch}:${suffix.repeat(16)}`;
+  const snapshots=[
+    ['project',3,'1'],['base_project',4,'2'],['company',1,'3'],['partner',2,'4'],
+    ['company_vehicle',5,'5'],['partner_vehicle',5,'6'],['partner_vehicle',6,'7'],
+  ].map(([entity_type,record_id,suffix])=>({export_key:key(suffix),entity_type,record_id,record_version:1}));
+  const records={
+    'projects:3':{project_id:3,base_project_id:4,company_id:1,partner_id:2,vehicle_id:5,vehicle_owner_type:'company',version:1},
+    'base_projects:4':{base_project_id:4,company_id:1,version:1},
+    'companies:1':{company_id:1,version:1},
+    'partners:2':{partner_id:2,version:1},
+    'company_vehicles:5':{vehicle_id:5,company_id:1,version:1},
+    'partner_vehicles:5':{vehicle_id:5,partner_id:2,version:1},
+    'partner_vehicles:6':{vehicle_id:6,partner_id:9,version:1},
+  };
+  const conn={async query(sql,params=[]){
+    if(sql.startsWith('SELECT export_key'))return [snapshots];
+    if(sql.startsWith('SELECT transfer_fee_pattern_id'))return [[]];
+    const match=/^SELECT \* FROM ([a-z_]+) WHERE [a-z_]+\s*=\s*\? AND is_deleted=0 LIMIT 1/.exec(sql);
+    if(match)return [records[`${match[1]}:${params[0]}`] ? [records[`${match[1]}:${params[0]}`]] : []];
+    throw new Error(`unexpected SQL: ${sql}`);
+  }};
+  const row={import_key:key('1'),base_project_import_key:key('2'),company_import_key:key('3'),partner_import_key:key('4'),vehicle_import_key:key('6')};
+  const parsed={'個別案件':[row]};
+  const switched=await previewDbExport(conn,parsed);
+  assert.equal(switched.counts.update,1);
+  assert.equal(switched.rows[0].desired.vehicle_owner_type,'partner');
+  assert.equal(switched.rows[0].desired.vehicle_id,5);
+  row.vehicle_import_key=key('7');
+  const invalid=await previewDbExport(conn,parsed);
+  assert.equal(invalid.counts.dependency_error,1);
+  assert.match(invalid.rows[0].errors.join(' '),/所有元/);
+});
+
 test('基盤初期値は選択した差分だけ登録する',async()=>{
   const inserted=[];
   const conn={async query(sql,params=[]){

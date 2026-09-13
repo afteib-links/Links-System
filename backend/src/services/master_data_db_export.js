@@ -102,6 +102,7 @@ async function previewDbExport(conn, parsed) {
       if (!String(item.row[field.code]??'').trim()) {item.status='error';item.errors.push(`${field.code} は必須です`);}
     }
     if (item.status==='error') continue;
+    const linked = {};
     for (const field of config.fields) {
       if (AUTO_FIELDS[item.sheet].has(field) || field.endsWith('_id')) continue;
       if (!Object.hasOwn(item.row,field)) continue;
@@ -109,15 +110,42 @@ async function previewDbExport(conn, parsed) {
     }
     for (const [keyField,[idField,expected]] of Object.entries(FK_FIELDS[item.sheet]||{})) {
       const targetKey=String(item.row[keyField]||'');
-      if (!targetKey) { if (item.row[keyField] === '') item.desired[idField]=null; continue; }
+      if (!targetKey) {
+        if (item.row[keyField] === '') {
+          item.desired[idField]=null;
+          if (item.sheet==='個別案件' && keyField==='vehicle_import_key') item.desired.vehicle_owner_type=null;
+        }
+        continue;
+      }
       const target=byKey.get(targetKey);
       if (!target || !expected.split('|').includes(target.entity_type)) {
         item.status='dependency_error'; item.errors.push(`${keyField} の参照先が不正です`); break;
       }
       const parentConfig=CONFIG[ORDER.find((sheet)=>CONFIG[sheet].type===target.entity_type)];
-      const [liveParents]=await conn.query(`SELECT ${parentConfig.id} FROM ${parentConfig.table} WHERE ${parentConfig.id}=? AND is_deleted=0 LIMIT 1`,[target.record_id]);
+      const [liveParents]=await conn.query(`SELECT * FROM ${parentConfig.table} WHERE ${parentConfig.id}=? AND is_deleted=0 LIMIT 1`,[target.record_id]);
       if (!liveParents.length) {item.status='dependency_error';item.errors.push(`${keyField} の参照先が削除されています`);break;}
       item.desired[idField]=Number(target.record_id);
+      linked[keyField]={type:target.entity_type,row:{...liveParents[0],...(inputByKey.get(targetKey)?.desired||{})}};
+      if (item.sheet==='個別案件' && keyField==='vehicle_import_key') {
+        item.desired.vehicle_owner_type=target.entity_type==='partner_vehicle'?'partner':'company';
+      }
+    }
+    if (item.status==='dependency_error') continue;
+    const desiredId=(field)=>item.desired[field]===undefined?item.current[field]:item.desired[field];
+    const companyId=desiredId('company_id');
+    for (const field of ['billing_import_key','base_project_import_key','project_import_key']) {
+      const relation=linked[field];
+      if (relation && companyId != null && relation.row.company_id != null && Number(relation.row.company_id)!==Number(companyId)) {
+        item.status='dependency_error';item.errors.push(`${field} が指定企業に属していません`);
+      }
+    }
+    const vehicle=linked.vehicle_import_key;
+    if (vehicle) {
+      const ownerField=vehicle.type==='partner_vehicle'?'partner_id':'company_id';
+      const ownerId=desiredId(ownerField);
+      if (ownerId == null || Number(vehicle.row[ownerField])!==Number(ownerId)) {
+        item.status='dependency_error';item.errors.push('車両が指定した所有元に属していません');
+      }
     }
     if (item.status==='dependency_error') continue;
     if (['パートナー','個別案件'].includes(item.sheet)) {
