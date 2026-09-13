@@ -122,6 +122,7 @@ async function createApp() {
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/base-management', baseManagementRoutes);
   app.use('/api/help', helpRoutes);
+  app.use('/api/menu-access', require('./routes/menu_access'));
   app.use('/api', masterDataPreparationsRoutes);
   app.use('/api/calculation-rules', calculationRulesRoutes);
   app.use('/api/test-data', require('./routes/test_data').createRouter());

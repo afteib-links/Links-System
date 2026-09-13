@@ -2,6 +2,11 @@
   window.LinksTestData = {
     async open(ctx) {
       this.ctx = ctx; this.kit = window.LinksFeatureKit.createFeatureKit(ctx); this.kit.clearNav();
+      const availability = await ctx.api('/api/test-data/meta');
+      if (availability.res.status === 404) {
+        ctx.app.innerHTML = `<div class="app-shell">${ctx.sidebarHtml('test_data')}<div class="app-frame">${ctx.headerHtml('検証用データ')}<main class="app-main"><section class="panel"><h2>この環境では生成できません</h2><p>検証用データの作成は検証専用環境と検証専用DBだけで利用できます。本番・通常DBのデータは変更しません。</p></section></main></div></div>`;
+        ctx.bindChrome(); return;
+      }
       this.meta = await this.call('/meta'); this.config = structuredClone(this.meta.defaults);
       this.draft = null; this.sample = null; this.sheets = []; this.message = ''; this.shared = null; this.importPending = false; this.job = null; this.monthlyJob = null; this.settlementJob = null; this.outputJob = null;
       await Promise.all([this.refreshList(), this.refreshJobs(), this.refreshMonthlyJobs(), this.refreshSettlementJobs(), this.refreshOutputJobs()]); this.render();

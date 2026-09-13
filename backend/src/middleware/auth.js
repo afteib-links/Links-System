@@ -5,9 +5,10 @@
  * requirePermission(...features): 指定機能のいずれか（または全て）必須
  */
 
-const { hasPermission } = require('../permissions');
+const { hasPermission, featuresFromRoles, refreshRoleMatrix } = require('../permissions');
+const { query } = require('../db');
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   if (!req.session || !req.session.user) {
     return res.status(401).json({
       ok: false,
@@ -22,7 +23,13 @@ function requireAuth(req, res, next) {
       message: 'このユーザーは無効化されています',
     });
   }
-  return next();
+  try {
+    await refreshRoleMatrix(req.app.locals.rolePolicyQuery || query);
+    req.session.user.permissions = featuresFromRoles(req.session.user);
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 }
 
 function requireRole(...roles) {

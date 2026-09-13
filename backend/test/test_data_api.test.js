@@ -14,7 +14,7 @@ test('environment gate fails closed', () => {
 test('API authorization, version lock, approval invalidation and generation barrier', async t => {
   const generation = { list:async()=>[], get:async()=>null, enqueue:async d=>({id:'job-1',draftId:d.id,revision:d.revision,status:'queued',total:0,processed:0}) };
   const monthly = { list:async()=>[], get:async()=>null, enqueue:async id=>({id:'monthly-1',dailyJobId:id,status:'queued',total:0,processed:0}) };
-  const app = express(); app.use(express.json());
+  const app = express(); app.use(express.json()); app.locals.rolePolicyQuery=async()=>[];
   app.use((req,res,next) => { if (req.get('x-test-role')) req.session = { user:{ user_id:1, roles:[req.get('x-test-role')] } }; next(); });
   app.use('/api/test-data',createRouter(createStore(),env,generation,monthly));
   app.use('/disabled',createRouter(createStore(),{},generation,monthly));

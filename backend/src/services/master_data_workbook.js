@@ -317,7 +317,7 @@ async function buildWorkbook(data, options = {}) {
   const summary = Object.fromEntries(Object.keys(FIELD_DEFINITIONS).map((name) => [name, (data[name] || []).length]));
   for (const name of SHEET_ORDER) wb.addWorksheet(name, { views: name === '概要' ? [] : [{ state: 'frozen', ySplit: 2, xSplit: 1 }] });
   const cover = wb.getWorksheet('概要');
-  cover.addRows([['マスターデータ編集用Excel'], ['生成日時', new Date()], [], ['使い方'], ['1', '薄黄色の必須欄と必要な白色欄を入力します。'], ['2', '薄青の★自動補完欄は変更しても登録時に再計算されます。'], ['3', '管理画面で完成Excelを検証し、エラーがない正常行を登録します。'], [], ['シート', '件数'], ...Object.entries(summary)]);
+  cover.addRows([[options.mode === 'db_export' ? 'DB出力・編集用Excel' : 'マスターデータ編集用Excel'], ['生成日時', new Date()], [], ['使い方'], ['1', '薄黄色の必須欄と必要な白色欄を入力します。'], ['2', options.mode === 'db_export' ? '薄青の★自動補完欄はDBの現在値を表示します。変更しても取込時には採用しません。' : '薄青の★自動補完欄は変更しても登録時に再計算されます。'], ['3', 'DB取込画面でExcelを検証し、正常行だけ登録します。Excelから削除した行はDBから削除されません。'], [], ['シート', '件数'], ...Object.entries(summary)]);
   cover.getCell('A1').font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1F2937' } }; cover.getColumn(1).width = 24; cover.getColumn(2).width = 70; cover.getCell('B2').numFmt = 'yyyy-mm-dd hh:mm';
   for (const [sheetName, fields] of Object.entries(FIELD_DEFINITIONS)) {
     const ws = wb.getWorksheet(sheetName); const cols = allFields(sheetName); const rows = data[sheetName] || [];
@@ -334,7 +334,7 @@ async function buildWorkbook(data, options = {}) {
       const body = ws.getColumn(index + 1); body.alignment = { vertical: 'middle' };
       if (field.code.endsWith('_date') || ['apply_start_date', 'apply_end_date'].includes(field.code)) col.numFmt = 'yyyy-mm-dd';
       if (field.kind === 'required') for (let r = 3; r <= Math.max(rows.length + 2, 502); r += 1) ws.getCell(r, index + 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-      if (field.kind === 'auto') for (let r = 3; r <= Math.max(rows.length + 2, 502); r += 1) { const c = ws.getCell(r, index + 1); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } }; if (!c.value) c.value = AUTO; }
+      if (field.kind === 'auto') for (let r = 3; r <= Math.max(rows.length + 2, 502); r += 1) { const c = ws.getCell(r, index + 1); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } }; if (c.value === null || c.value === undefined || c.value === '') c.value = AUTO; }
       if (field.choice) {
         const rangeName = `choice_${field.choice}`;
         for (let r = 3; r <= Math.max(rows.length + 2, 502); r += 1) ws.getCell(r, index + 1).dataValidation = { type: 'list', allowBlank: field.kind !== 'required', formulae: [`=${rangeName}`], showErrorMessage: true, errorTitle: '選択肢エラー', error: '一覧の表示名またはコード値を入力してください。' };
@@ -350,7 +350,7 @@ async function buildWorkbook(data, options = {}) {
     wb.definedNames.add(`'選択肢'!$C$${start}:$C$${choiceRow - 1}`, `choice_${category}`);
   }
   choiceSheet.columns = [{ width: 24 }, { width: 24 }, { width: 24 }]; choiceSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }; choiceSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
-  const rules = wb.getWorksheet('変換ルール'); rules.addRows([['項目', '規則'], ['企業統合', '企業番号で統合。番号なしの稼働企業は正規化名称の仮キー。'], ['パートナー統合', '正規化氏名と電話・生年月日・口座番号で統合。強い情報の衝突は別候補。'], ['基本案件', '企業＋形態で集約。'], ['個別案件', '企業を特定できる稼働者行ごとに作成。'], ['料金', '契約単価＝請求基本日額、委託単価＝支払基本日額、daily/all。'], ['★自動補完', 'Excel値を信用せず再取込時にサーバーで再計算。'], ['保存対象外', '支払月オフセット等はExcelには残すが今回DBへ保存しない。']]);
+  const rules = wb.getWorksheet('変換ルール'); rules.addRows(options.mode === 'db_export' ? [['項目', '規則'], ['出力対象', '現行DBの有効な企業・パートナー・案件・料金データです。'], ['取込キー', 'DB上の対象と出力時の版を照合します。変更しないでください。'], ['★自動補完', '表示されたDB値は参照用です。変更しても取込時には採用されません。'], ['行の削除', 'Excelから行を消してもDBのレコードは削除されません。'], ['競合', '出力後に画面等で変更された行は更新しません。']] : [['項目', '規則'], ['企業統合', '企業番号で統合。番号なしの稼働企業は正規化名称の仮キー。'], ['パートナー統合', '正規化氏名と電話・生年月日・口座番号で統合。強い情報の衝突は別候補。'], ['基本案件', '企業＋形態で集約。'], ['個別案件', '企業を特定できる稼働者行ごとに作成。'], ['料金', '契約単価＝請求基本日額、委託単価＝支払基本日額、daily/all。'], ['★自動補完', 'Excel値を信用せず再取込時にサーバーで再計算。'], ['保存対象外', '支払月オフセット等はExcelには残すが今回DBへ保存しない。']]);
   rules.columns = [{ width: 24 }, { width: 100 }]; rules.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }; rules.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
   for (const ws of wb.worksheets) { ws.views = ws.views || []; ws.properties.defaultRowHeight = 19; ws.eachRow((row) => row.eachCell((cell) => { cell.font = { name: 'Arial', size: cell.font?.size || 10, bold: cell.font?.bold, italic: cell.font?.italic, color: cell.font?.color }; cell.alignment = { ...(cell.alignment || {}), vertical: 'middle' }; })); }
   return { workbook: wb, summary };

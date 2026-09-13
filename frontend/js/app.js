@@ -18,8 +18,12 @@
     { key: 'base_projects', label: '基本案件', desc: '基本案件テンプレートを管理します', group: 'master' },
     { key: 'projects', label: '個別案件', desc: '個別案件を登録・管理します', group: 'master' },
     { key: 'price_sets', label: '金額データ管理', desc: '料金セットを登録・管理します', group: 'master' },
-    { key: 'master_data_preparation', label: 'マスターデータ取込', desc: '原本Excelを整形し、完成データを検証・登録します', group: 'master' },
-    { key: 'calculation_rules', label: '計算ルール管理', desc: '請求・支払計算の版を検証して公開します', group: 'master' },
+    { key: 'master_data_preparation', label: 'マスターデータ取込', desc: '原本を編集用Excelに変換し、基盤初期値を選択復旧します', group: 'system' },
+    { key: 'db_import', label: 'DB取込', desc: '完成Excelを検証してDBへ登録・更新します', group: 'system' },
+    { key: 'db_export', label: 'DB出力', desc: '現行DBのマスター値を編集用Excelに出力します', group: 'system' },
+    { key: 'master_data_export', label: 'マスターデータ出力', desc: 'システム同梱の基盤マスター初期値を取得します', group: 'system' },
+    { key: 'test_data', label: '検証用データ', desc: '検証データの作成と確認を行います', group: 'system' },
+    { key: 'calculation_rules', label: '計算ルール管理', desc: '請求・支払計算の版を検証して公開します', group: 'system' },
     { key: 'office_work', label: '事務作業', desc: '日報・請求・支払の進捗を横断して確認します', group: 'daily' },
     { key: 'daily_reports', label: '日報', desc: '日々の業務内容を登録・管理します', group: 'daily' },
     { key: 'daily_report_submissions', label: '日報提出', desc: 'パートナーからの日報提出を案件ごとに確認します', group: 'daily' },
@@ -29,7 +33,8 @@
     { key: 'cash_management', label: '入出金管理・FB出力', desc: '予定・実績・銀行CSVを管理します', group: 'billing' },
     { key: 'analytics', label: '収支分析', desc: '担当者・企業・パートナーの収支を見ます', group: 'analysis' },
     { key: 'master_settings', label: 'マスター設定', desc: '担当者・区分・システム設定', group: 'settings' },
-    { key: 'help_settings', label: 'ヘルプ編集設定', desc: '各画面のヘルプ内容を編集します', group: 'settings' },
+    { key: 'help_settings', label: 'ヘルプ編集設定', desc: '各画面のヘルプ内容を編集します', group: 'system' },
+    { key: 'menu_access_settings', label: '利用可能メニュー選択', desc: '役割ごとに利用できるメニューを設定します', group: 'system' },
     { key: 'ui_builder', label: 'UIビルダー', desc: '画面レイアウトを編集します', group: 'settings' },
     { key: 'users', label: 'ユーザー管理', desc: 'ユーザー情報の登録・管理を行います', group: 'settings' },
   ];
@@ -40,30 +45,8 @@
     { key: 'billing', label: '精算' },
     { key: 'analysis', label: '分析' },
     { key: 'settings', label: '設定' },
+    { key: 'system', label: 'システム専用' },
   ];
-
-  const FEATURE_ROLE_MAP = {
-    base_management: ['admin', 'system', 'soumu'],
-    companies: ['admin', 'system', 'soumu'],
-    partners: ['admin', 'system', 'soumu'],
-    base_projects: ['admin', 'system', 'soumu', 'sales'],
-    projects: ['admin', 'system', 'soumu', 'sales'],
-    price_sets: ['admin', 'system', 'soumu', 'sales'],
-    master_data_preparation: ['admin', 'system', 'soumu'],
-    calculation_rules: ['admin', 'system', 'soumu'],
-    office_work: ['admin', 'soumu', 'sales', 'executive'],
-    daily_reports: ['admin', 'system', 'soumu', 'sales', 'partner', 'executive'],
-    daily_report_submissions: ['admin', 'system', 'soumu', 'sales', 'executive'],
-    advances: ['admin', 'executive', 'soumu'],
-    invoices: ['admin', 'executive', 'soumu', 'sales', 'company'],
-    payments: ['admin', 'executive', 'soumu', 'sales', 'partner'],
-    cash_management: ['admin', 'executive', 'soumu'],
-    analytics: ['admin', 'executive', 'soumu'],
-    master_settings: ['admin', 'system', 'soumu'],
-    help_settings: ['admin', 'system'],
-    ui_builder: ['admin', 'system'],
-    users: ['admin', 'system'],
-  };
 
   let currentUser = null;
   let featureCatalog = FEATURE_FALLBACK;
@@ -157,15 +140,7 @@
     if (!featureCatalog.some((feature) => feature.key === featureKey)) {
       return false;
     }
-    const roles = Array.isArray(currentUser?.roles) ? currentUser.roles : [];
-    if (roles.includes('admin')) {
-      return true;
-    }
-    if (currentUser?.permissions?.includes(featureKey)) {
-      return true;
-    }
-    const allowedRoles = FEATURE_ROLE_MAP[featureKey] || [];
-    return allowedRoles.some((role) => roles.includes(role));
+    return currentUser?.permissions?.includes(featureKey) || false;
   }
 
   function roleLabel(key) {
@@ -487,7 +462,7 @@
       if (featureKey === 'users') return await showUsers();
       const featureOptions = featureKey === 'base_projects'
         ? { ...options, tab: 'base', featureKey }
-        : featureKey === 'projects' ? { ...options, tab: options.tab || 'projects', featureKey } : options;
+        : featureKey === 'projects' ? { ...options, tab: options.tab || 'projects', featureKey } : { ...options, featureKey };
       await module.open(featureContext(), featureOptions);
     } catch (error) {
       console.error('[feature/load]', error);
@@ -503,11 +478,6 @@
   }
 
   async function showHome() {
-    featureCatalog = featureCatalog.filter(f => f.key !== 'test_data');
-    if (currentUser?.roles?.includes('admin')) {
-      const capability = await api('/api/test-data/meta');
-      if (capability.res.ok && capability.data?.ok) featureCatalog.push({ key: 'test_data', label: '検証データ作成', desc: '日報サンプルから検証パターンを設計します', group: 'settings' });
-    }
     currentView = 'home';
     app.innerHTML = `<div class="app-shell">${sidebarHtml('home')}<div class="app-frame">${headerHtml('業務ダッシュボード')}
       <main class="app-main dashboard-main"><p class="muted" data-dashboard-loading role="status">業務状況を読み込み中…</p></main></div></div>`;
