@@ -1,12 +1,12 @@
 const express = require('express');
 const { query } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { getSystemVersion } = require('../services/system_version');
 
 const router = express.Router();
 router.use(requireAuth);
 
-router.get('/', requireRole('admin', 'system'), async (_req, res) => {
+router.get('/', requirePermission('help_settings'), async (_req, res) => {
   try {
     const rows = await query(`SELECT * FROM help_contents WHERE is_deleted=0 ORDER BY screen_key`);
     return res.json({ ok: true, help_contents: rows });
@@ -41,7 +41,7 @@ router.get('/:screenKey', async (req, res) => {
   }
 });
 
-router.put('/:screenKey', requireRole('admin', 'system'), async (req, res) => {
+router.put('/:screenKey', requirePermission('help_settings'), async (req, res) => {
   try {
     const screenKey = String(req.params.screenKey || '').trim().slice(0, 64);
     const title = String(req.body.help_title || '').trim().slice(0, 200);

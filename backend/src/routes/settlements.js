@@ -1,7 +1,8 @@
 const express = require('express');
 const fs = require('fs');
 const { getPool, query } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, requirePermission } = require('../middleware/auth');
+const { hasPermission } = require('../permissions');
 const { ensureCycles } = require('./cash_management');
 const { PDF_DIR, renderHtml, writePdf } = require('../services/settlement_pdf');
 const { buildAggregatedLines } = require('../services/settlement_line_builder');
@@ -10,6 +11,14 @@ const { SYSTEM_TAX_RATE,resolveInvoiceTax } = require('../services/settlement_ta
 
 const router = express.Router();
 router.use(requireAuth);
+router.use((req, res, next) => {
+  const section = req.path.split('/')[1];
+  if (section === 'settings') return requirePermission('master_settings')(req, res, next);
+  if (section === 'invoice') return requirePermission('invoices')(req, res, next);
+  if (section === 'payment') return requirePermission('payments')(req, res, next);
+  if (section === 'documents') return requirePermission('invoices', 'payments')(req, res, next);
+  return res.status(404).end();
+});
 const roles = (req) => new Set(req.session.user?.roles || []);
 const has = (req, values) => values.some((v) => roles(req).has(v));
 const asMoney = (value) => Math.round(Number(value || 0) * 100) / 100;
@@ -964,6 +973,8 @@ router.post('/:kind/:id/corrections', requireRole('admin','executive'), async(re
 router.get('/documents', async(req,res)=>{
   try{
     const clauses=[];const params=[];
+    const allowedTypes=[hasPermission(req.session.user,'invoices')?'invoice':null,hasPermission(req.session.user,'payments')?'payment':null].filter(Boolean);
+    clauses.push(`d.settlement_type IN (${allowedTypes.map(()=>'?').join(',')})`);params.push(...allowedTypes);
     if(roles(req).has('company')){clauses.push("d.company_id=? AND d.document_type IN ('invoice','invoice_summary')");params.push(req.session.user.company_id);}
     else if(roles(req).has('partner')){clauses.push("d.partner_id=? AND d.document_type IN ('payment_statement','salary_statement')");params.push(req.session.user.partner_id);}
     else if(roles(req).has('sales')){clauses.push(`EXISTS (SELECT 1 FROM settlement_projects sp JOIN project_settlement_reviewers psr ON psr.project_id=sp.project_id WHERE sp.settlement_type=d.settlement_type AND sp.settlement_id=d.settlement_id AND psr.user_id=?)`);params.push(req.session.user.user_id);}
@@ -977,6 +988,7 @@ router.get('/documents/:id/download', async(req,res)=>{
   try{
     const docs=await query('SELECT * FROM settlement_documents WHERE settlement_document_id=?',[Number(req.params.id)]);const doc=docs[0];
     if(!doc)return res.status(404).json({ok:false,message:'帳票が見つかりません'});
+    if(!hasPermission(req.session.user,doc.settlement_type==='invoice'?'invoices':'payments'))return res.status(403).json({ok:false,message:'この帳票は閲覧できません'});
     if(!(await canAccessSettlement(req,doc.settlement_type,doc.settlement_id)))return res.status(403).json({ok:false,message:'この帳票は閲覧できません'});
     if(doc.status!=='issued')return res.status(410).json({ok:false,message:'この帳票は取消済みです'});
     return res.download(require('path').join(PDF_DIR,doc.file_path),doc.file_path);

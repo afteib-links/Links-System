@@ -2,7 +2,7 @@ const express = require('express');
 const { randomUUID } = require('node:crypto');
 const multer = require('multer');
 const { query } = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const model = require('../services/test_data/model');
 const imports = require('../services/test_data/imports');
 const { loadRegisteredCatalog } = require('../services/test_data/registered_masters');
@@ -22,7 +22,7 @@ function createRouter(runQuery = query, env = process.env, suppliedGeneration = 
   const settlement = suppliedSettlement || createSettlementGenerationService({ runQuery });
   const output = suppliedOutput || createOutputGenerationService({ runQuery });
   router.use((req, res, next) => enabled(env) ? next() : res.sendStatus(404));
-  router.use(requireAuth, requireRole('admin'));
+  router.use(requireAuth, requirePermission('test_data'));
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     if (req.get('Sec-Fetch-Site') === 'cross-site') return res.sendStatus(403);

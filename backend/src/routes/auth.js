@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { ROLES, FEATURES, publicUser } = require('../permissions');
+const { ROLES, FEATURES, publicUser, refreshRoleMatrix } = require('../permissions');
 
 const router = express.Router();
 
@@ -58,6 +58,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    await refreshRoleMatrix(query);
     req.session.user = publicUser(user);
     return res.json({
       ok: true,
@@ -129,6 +130,7 @@ router.get('/me', requireAuth, async (req, res) => {
       });
     }
 
+    await refreshRoleMatrix(query);
     req.session.user = publicUser(row);
     return req.session.save((err) => {
       if (err) {
