@@ -59,7 +59,7 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'networkidle' });
     await page.locator('[data-nav-feature="base_management"]').click();
     await page.locator('.bm-screen').waitFor();
-    const initialScreen = await page.locator('.bm-screen').elementHandle();
+    let initialScreen;
     assert.equal(await page.locator('.bm-heads .bm-column-title').count(), 4);
     assert.equal(await page.locator('[data-list="company"] [data-id]').count(), 30);
     assert.equal(await page.locator('#bm-company-query').count(), 0, '企業抽出は初期状態で閉じている');
@@ -84,6 +84,7 @@ async function main() {
     await page.locator('[data-kana-group="a"]').click();
     assert.equal(await page.locator('[data-list="company"] [data-id="1"]').count(), 1, 'あ行で企業を絞り込む');
     await page.locator('[data-kana-group=""]').click();
+    initialScreen = await page.locator('.bm-screen').elementHandle();
     await page.setViewportSize({ width: 600, height: 800 });
     const companyScroll = await page.locator('[data-list="company"]').evaluate((element) => {
       element.scrollTop = element.scrollHeight;
@@ -109,6 +110,7 @@ async function main() {
     await page.waitForFunction(() => window.__baseManagementCreate?.options?.project_id === 99);
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'projects', options: { project_id: 99 } });
     await page.locator('[data-list="base"] [data-id="12"]').click();
+    await page.locator('[data-list="project"] [data-create-type="project"][data-base-id="12"]').waitFor();
     await page.locator('[data-list="project"] [data-create-type="project"]').click();
     await page.waitForFunction(() => window.__baseManagementCreate?.options?.project_id === 99);
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'projects', options: { project_id: 99 } });
@@ -116,7 +118,9 @@ async function main() {
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'price_sets', options: { new_with_owner: true, company_id: 1, base_project_id: 12, project_id: null } });
     await page.locator('[data-list="company"] [data-id="1"]').click();
     await page.locator('[data-list="base"] [data-id="11"]').click();
+    await page.locator('[data-list="project"] [data-create-type="project"][data-base-id="11"]').waitFor();
     await page.locator('[data-list="project"] [data-id="22"]').click();
+    await page.locator('[data-list="price"] [data-create-type="price"][data-project-id="22"]').waitFor();
     await page.locator('[data-list="price"] [data-create-type="price"][data-project-id="22"]').click();
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'price_sets', options: { new_with_owner: true, company_id: 1, base_project_id: null, project_id: 22 } });
     await page.locator('[data-list="project"] [data-id="21"]').click();
