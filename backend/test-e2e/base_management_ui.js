@@ -100,8 +100,10 @@ async function main() {
     await page.locator('[data-list="base"] [data-create-type="base"]').click();
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'base_projects', options: { new: true, company_id: 2 } });
     await page.locator('[data-list="company"] [data-id="1"]').click();
+    await page.locator('[data-list="base"] .bm-add-action').waitFor();
     assert.equal(await page.locator('[data-list="base"] .bm-add-action').count(), 1, '基本案件が存在しても追加できる');
     await page.locator('[data-list="base"] [data-id="11"]').click();
+    await page.locator('[data-list="project"] .bm-add-action').waitFor();
     assert.equal(await page.locator('[data-list="project"] .bm-add-action').count(), 1, '個別案件が存在しても追加できる');
     await page.locator('[data-list="project"] .bm-add-action').click();
     await page.waitForFunction(() => window.__baseManagementCreate?.options?.project_id === 99);
@@ -119,6 +121,7 @@ async function main() {
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'price_sets', options: { new_with_owner: true, company_id: 1, base_project_id: null, project_id: 22 } });
     await page.locator('[data-list="project"] [data-id="21"]').click();
     await page.locator('#bm-preview-body h2').getByText('パートナーA', { exact: true }).waitFor();
+    await page.locator('[data-list="price"] .bm-add-action').waitFor();
     assert.equal(await page.locator('[data-list="price"] .bm-add-action').count(), 1, '金額データが存在しても追加できる');
     await page.locator('#bm-preview-body [data-copy-selected]').click();
     await page.waitForFunction(() => window.__baseManagementCreate?.options?.project_id === 100);
