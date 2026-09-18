@@ -18,6 +18,7 @@
         priceId: null,
         selected: null,
         includeEnded: false,
+        companyFiltersOpen: false,
         companyFilter: { query: '', closing: '', kanaGroup: '' },
         sort: {
           company: ['name', 1],
@@ -148,8 +149,9 @@
     columnHeader(type, title, count, controls) {
       const [key, direction] = this.state.sort[type];
       const button = (sortKey, label) => `<button type="button" class="bm-sort ${key === sortKey ? 'is-active' : ''}" data-sort-type="${type}" data-sort-key="${sortKey}">${this.esc(label)}${key === sortKey ? (direction > 0 ? ' ▲' : ' ▼') : ''}</button>`;
-      const companyFilters = type === 'company' ? this.companyFilterHtml() : '';
-      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span data-count-type="${type}">${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}</div>${companyFilters}</div>`;
+      const companyFilters = type === 'company' && this.state.companyFiltersOpen ? this.companyFilterHtml() : '';
+      const filterToggle = type === 'company' ? `<button type="button" class="bm-sort bm-filter-toggle ${this.state.companyFiltersOpen ? 'is-active' : ''}" id="bm-filter-toggle" aria-expanded="${this.state.companyFiltersOpen}" aria-controls="bm-company-filters" title="企業を抽出">抽</button>` : '';
+      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span data-count-type="${type}">${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}${filterToggle}</div>${companyFilters}</div>`;
     },
 
     companyFilterHtml() {
@@ -157,7 +159,7 @@
       const closings = [...new Set(this.data.companies.map((row) => String(row.closing_date_code || '')).filter(Boolean))]
         .sort((a, b) => this.closing(a).localeCompare(this.closing(b), 'ja', { numeric: true }));
       const groups = [['a','あ'],['k','か'],['s','さ'],['t','た'],['n','な'],['h','は'],['m','ま'],['y','や'],['r','ら'],['w','わ'],['other','他']];
-      return `<div class="bm-company-filters">
+      return `<div class="bm-company-filters" id="bm-company-filters">
         <input type="search" id="bm-company-query" value="${this.esc(filter.query)}" placeholder="企業名・カナで検索" autocomplete="off" aria-label="企業名・カナで絞り込み">
         <select id="bm-company-closing" aria-label="締日で絞り込み"><option value="">全締日</option>${closings.map((value) => `<option value="${this.esc(value)}" ${filter.closing === value ? 'selected' : ''}>${this.esc(this.closing(value))}</option>`).join('')}</select>
         <div class="bm-kana-filter" aria-label="五十音で絞り込み"><button type="button" data-kana-group="" class="${filter.kanaGroup ? '' : 'is-active'}">全</button>${groups.map(([value,label]) => `<button type="button" data-kana-group="${value}" class="${filter.kanaGroup === value ? 'is-active' : ''}">${label}</button>`).join('')}</div>
@@ -177,7 +179,7 @@
           <div class="bm-guide"><div class="bm-breadcrumb" id="bm-breadcrumb">${crumbs.length ? crumbs.map(this.esc.bind(this)).join('<span>›</span>') : '全企業'}</div><div><label class="check-item bm-include-ended"><input type="checkbox" id="bm-include-ended" ${this.state.includeEnded ? 'checked' : ''}><span>終了しているものも表示</span></label><strong>クリック</strong>で詳細 <span>／</span> <strong>ダブルクリック</strong>で編集画面</div></div>
           <div class="bm-workspace">
             <div class="bm-browser">
-              <div class="bm-heads">
+              <div class="bm-heads ${this.state.companyFiltersOpen ? 'is-filter-open' : ''}">
                 ${this.columnHeader('company', '企業', companyCount, allCompany)}
                 ${this.columnHeader('base', '基本案件', baseCount, allBase)}
                 ${this.columnHeader('project', '個別案件', projectCount)}
@@ -199,25 +201,28 @@
       return `<div class="bm-columns">${['company', 'base', 'project', 'price'].map((type) => `<div class="bm-list" data-list="${type}">${this.listRows(type)}</div>`).join('')}</div>`;
     },
 
-    createButton(type, label, context = {}) {
+    createButton(type, label, context = {}, compact = false) {
       const attrs = [
         ['company-id', context.companyId],
         ['base-id', context.baseId],
         ['project-id', context.projectId],
       ].filter(([, value]) => value).map(([key, value]) => ` data-${key}="${Number(value)}"`).join('');
+      if (compact) return `<button type="button" class="bm-add-action" data-create-type="${type}"${attrs}>＋ ${this.esc(label)}</button>`;
       return `<button type="button" class="bm-empty-action" data-create-type="${type}"${attrs}><strong>${this.esc(label)}</strong><span>＋ 新規登録</span></button>`;
     },
 
     listRows(type) {
       const rows = this.sorted(type);
+      let addAction = '';
+      if (type === 'base' && this.state.companyId) addAction = this.createButton('base', '基本案件を追加', { companyId: this.state.companyId }, true);
+      if (type === 'project' && this.state.baseId) addAction = this.createButton('project', '個別案件を追加', { companyId: this.state.companyId, baseId: this.state.baseId }, true);
+      if (type === 'price' && (this.state.projectId || this.state.baseId)) addAction = this.createButton('price', '金額データを追加', { companyId: this.state.companyId, baseId: this.state.baseId, projectId: this.state.projectId }, true);
       if (!rows.length) {
-        if (type === 'base' && this.state.companyId) return this.createButton('base', '基本案件なし', { companyId: this.state.companyId });
-        if (type === 'project' && this.state.baseId) return this.createButton('project', '個別案件なし', { companyId: this.state.companyId, baseId: this.state.baseId });
-        if (type === 'price' && (this.state.projectId || this.state.baseId)) return this.createButton('price', '金額データなし', { companyId: this.state.companyId, baseId: this.state.baseId, projectId: this.state.projectId });
+        if (addAction) return addAction;
         const empty = type === 'base' ? '企業を選択してください' : type === 'project' ? '基本案件を選択してください' : type === 'price' ? '個別案件を選択してください' : '企業がありません';
         return `<div class="bm-empty">${this.esc(empty)}</div>`;
       }
-      return rows.map((row) => this.rowButton(type, row)).join('');
+      return `${addAction}${rows.map((row) => this.rowButton(type, row)).join('')}`;
     },
 
     rowButton(type, row) {
@@ -328,7 +333,7 @@
         next = status === '適用終了' ? '必要に応じてコピーして次の改定を作成してください。' : '料金項目と適用期間を確認し、必要なら改定コピーしてください。';
       }
       const amountNote = type === 'price' ? '<p class="bm-amount-note">金額は登録されている料金行の単価を合算した確認用の参考値です。月次の請求額・支払額ではありません。</p>' : '';
-      return `<div class="bm-preview-card"><div class="bm-preview-hero"><div><small>${TYPE_LABELS[type]}</small><h2>${this.esc(this.nameOf(type, row))}</h2><p>選択項目の登録内容と関連状況</p></div><button type="button" class="btn bm-edit" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集を開く</button></div>${notice}${this.detailGrid(items)}${amountNote}<div class="bm-next"><span>次に確認・設定する内容</span><strong>${this.esc(next)}</strong></div><div class="bm-preview-actions"><button type="button" class="btn" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集画面へ</button>${type === 'price' ? '<button type="button" class="btn btn-ghost" data-copy-price>コピーして改定</button>' : ''}</div><p class="bm-updated">最終更新 ${this.esc(row.updated_at ? String(row.updated_at).replace('T', ' ').slice(0, 16) : '未取得')}</p></div>`;
+      return `<div class="bm-preview-card"><div class="bm-preview-hero"><div><small>${TYPE_LABELS[type]}</small><h2>${this.esc(this.nameOf(type, row))}</h2><p>選択項目の登録内容と関連状況</p></div><button type="button" class="btn bm-edit" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集を開く</button></div>${notice}${this.detailGrid(items)}${amountNote}<div class="bm-next"><span>次に確認・設定する内容</span><strong>${this.esc(next)}</strong></div><div class="bm-preview-actions"><button type="button" class="btn" data-edit-type="${type}" data-edit-id="${this.idOf(type, row)}">編集画面へ</button><button type="button" class="btn btn-ghost" data-copy-selected>コピーして作成</button></div><p class="bm-updated">最終更新 ${this.esc(row.updated_at ? String(row.updated_at).replace('T', ' ').slice(0, 16) : '未取得')}</p></div>`;
     },
 
     select(type, id) {
@@ -355,13 +360,45 @@
       return this.ctx.openFeature('price_sets', { price_set_id: id });
     },
 
-    create(type, context) {
+    async create(type, context) {
       const companyId = Number(context.companyId || 0) || null;
       const baseId = Number(context.baseId || 0) || null;
       const projectId = Number(context.projectId || 0) || null;
       if (type === 'base') return this.ctx.openFeature('base_projects', { new: true, company_id: companyId });
-      if (type === 'project') return this.ctx.openFeature('projects', { new: true, company_id: companyId, base_project_id: baseId });
+      if (type === 'project' && baseId) {
+        const result = await this.ctx.api(`/api/projects/base/${baseId}/create-project`, { method: 'POST', body: '{}' });
+        if (!result.res.ok || !result.data?.ok) return window.alert(result.data?.message || '案件作成に失敗しました');
+        const copied = result.data.copied_price_set_count;
+        if (copied != null) this.ctx.showToast?.(`金額データを${copied}件コピーしました`);
+        return this.ctx.openFeature('projects', { project_id: Number(result.data.project?.project_id) });
+      }
+      if (type === 'project') return this.ctx.openFeature('projects', { new: true, company_id: companyId });
       return this.ctx.openFeature('price_sets', { new_with_owner: true, company_id: companyId, base_project_id: projectId ? null : baseId, project_id: projectId });
+    },
+
+    async copySelected() {
+      const selected = this.state.selected;
+      if (!selected) return;
+      const { type, row } = selected;
+      const id = this.idOf(type, row);
+      if (type === 'company') return this.ctx.openFeature('companies', { copy_company_id: id });
+      let endpoint = `/api/projects/${id}/copy`;
+      let body = {};
+      if (type === 'base') endpoint = `/api/projects/base/${id}/copy`;
+      if (type === 'price') {
+        endpoint = `/api/price-sets/${id}/copy`;
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+        const applyStart = window.prompt('コピー後の適用開始日（必須）', today);
+        if (!applyStart?.trim()) return;
+        body = { apply_start_date: applyStart.trim() };
+      }
+      const result = await this.ctx.api(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      if (!result.res.ok || !result.data?.ok) return window.alert(result.data?.message || 'コピーに失敗しました');
+      const copied = result.data.copied_price_set_count;
+      if (copied != null) this.ctx.showToast?.(`金額データを${copied}件コピーしました`);
+      if (type === 'base') return this.ctx.openFeature('base_projects', { base_project_id: Number(result.data.base_project?.base_project_id) });
+      if (type === 'project') return this.ctx.openFeature('projects', { project_id: Number(result.data.project?.project_id) });
+      return this.ctx.openFeature('price_sets', { price_set_id: Number(result.data.price_set?.price_set_id) });
     },
 
     updateSelection(changedType = null) {
@@ -428,6 +465,11 @@
         this.state.sort[type] = [key, current[0] === key ? current[1] * -1 : 1];
         this.render();
       }));
+      document.getElementById('bm-filter-toggle')?.addEventListener('click', () => {
+        this.state.companyFiltersOpen = !this.state.companyFiltersOpen;
+        this.render();
+        if (this.state.companyFiltersOpen) document.getElementById('bm-company-query')?.focus();
+      });
       const queryInput = document.getElementById('bm-company-query');
       let composing = false;
       let filterTimer = null;
@@ -478,7 +520,7 @@
 
     bindPreview() {
       document.querySelectorAll('#bm-preview-body [data-edit-type]').forEach((button) => button.addEventListener('click', () => this.edit(button.dataset.editType, Number(button.dataset.editId))));
-      document.querySelector('[data-copy-price]')?.addEventListener('click', () => this.ctx.openFeature('price_sets', { price_set_id: this.idOf('price', this.state.selected?.row) }));
+      document.querySelector('#bm-preview-body [data-copy-selected]')?.addEventListener('click', () => this.copySelected());
     },
   };
 

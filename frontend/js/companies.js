@@ -15,6 +15,10 @@
         await this.showDetail(Number(options.company_id));
         return;
       }
+      if (options.copy_company_id) {
+        await this.showDetail(null, { copyCompanyId: Number(options.copy_company_id) });
+        return;
+      }
       await this.showList();
     },
 
@@ -223,7 +227,7 @@
       };
     },
 
-    async showDetail(companyId) {
+    async showDetail(companyId, options = {}) {
       this.ctx.renderLoading();
       let company = {
         company_id: null,
@@ -260,8 +264,9 @@
         vehicles: [],
         manager_periods: [],
       };
-      if (companyId) {
-        const { res, data } = await this.ctx.api(`/api/companies/${companyId}`);
+      const sourceCompanyId = companyId || Number(options.copyCompanyId || 0) || null;
+      if (sourceCompanyId) {
+        const { res, data } = await this.ctx.api(`/api/companies/${sourceCompanyId}`);
         if (!res.ok || !data?.ok) {
           this.ctx.app.innerHTML = this.kit.shell(
             '企業詳細',
@@ -272,6 +277,18 @@
           return;
         }
         company = data.company;
+        if (!companyId) {
+          company = {
+            ...company,
+            company_id: null,
+            version: 1,
+            office_no: '',
+            company_name: `${String(company.company_name || '').trim()}（コピー）`,
+            billings: (company.billings || []).map((row) => ({ ...row, billing_id: null })),
+            vehicles: (company.vehicles || []).map((row) => ({ ...row, vehicle_id: null })),
+            manager_periods: (company.manager_periods || []).map((row) => ({ ...row, period_id: null })),
+          };
+        }
       }
       this.detailState = {
         companyId: company.company_id || null,
