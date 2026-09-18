@@ -13,17 +13,29 @@ test('基本管理はマスターを扱う社内権限だけが利用できる',
   }
 });
 
-test('基本管理画面は全対象・階層別編集・欠損表示を備える', () => {
+test('基本管理画面は抽出開閉・常設追加・階層別編集・コピー作成を備える', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../frontend/js/base_management.js'), 'utf8');
-  for (const text of ['全対象', '基本案件なし', '個別案件なし', '金額データなし', 'ダブルクリック', '編集画面へ', '請求単価合計', '支払単価合計']) {
+  for (const text of ['全対象', '基本案件なし', '個別案件なし', '金額データなし', 'ダブルクリック', '編集画面へ', 'コピーして作成', '請求単価合計', '支払単価合計']) {
     assert.match(source, new RegExp(text));
   }
   for (const target of ['companies', 'base_projects', 'projects', 'price_sets']) {
     assert.match(source, new RegExp(`openFeature\\('${target}'`));
   }
   assert.match(source, /data-create-type/);
+  assert.match(source, /bm-filter-toggle/);
+  assert.match(source, /bm-add-action/);
+  assert.match(source, /create-project/);
+  assert.match(source, /data-copy-selected/);
   assert.match(source, /new: true/);
   assert.match(source, /new_with_owner: true/);
+});
+
+test('企業コピーは元データを新規登録フォームへ複製する', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../../frontend/js/companies.js'), 'utf8');
+  assert.match(source, /options\.copy_company_id/);
+  assert.match(source, /copyCompanyId/);
+  assert.match(source, /company_id: null/);
+  assert.match(source, /company_name: `\$\{String\(company\.company_name/);
 });
 
 test('案件画面は基本管理からの新規登録と親案件の初期選択を受け取る', () => {
