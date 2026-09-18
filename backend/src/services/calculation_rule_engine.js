@@ -27,37 +27,59 @@ function roundAmount(value, rounding = {}) {
   return rounded * unit;
 }
 
+async function dailyPriceV1(state, _rule, dependencies) {
+  if (typeof dependencies.dailyCalculator !== 'function') throw new Error('日次計算処理が接続されていません');
+  const result = await dependencies.dailyCalculator({ ...state.input });
+  state.daily = result;
+  state.billing_amount = Number(result.calculated_billing_amount || 0);
+  state.payment_amount = Number(result.calculated_payment_amount || 0);
+}
+
+async function aggregateSumV1(state) {
+  const lines = Array.isArray(state.lines) ? state.lines : [];
+  state.subtotal_amount = lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+  state.work_amount = lines.filter((line) => line.line_type !== 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
+  state.adjustment_amount = lines.filter((line) => line.line_type === 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
+  state.taxable_amount = lines.filter((line) => (line.tax_category || 'taxable') === 'taxable').reduce((sum, line) => sum + Number(line.amount || 0), 0);
+}
+
+async function deductionSumV1(state) {
+  state.deduction_total = (Array.isArray(state.deductions) ? state.deductions : []).reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
+}
+
+async function taxV1(state, rule) {
+  const params = json(rule.parameter_json);
+  const rate = Number(state.tax_rate ?? params.rate ?? 0.1);
+  const rounding = { ...json(rule.rounding_json),...(state.tax_rounding || {}) };
+  state.tax_amount = roundAmount(Number(state.taxable_amount || 0) * rate,rounding);
+}
+
+async function finalizeV1(state, rule) {
+  const side = rule.side_code === 'both' ? state.side : rule.side_code;
+  state.total_amount = side === 'payment'
+    ? Number(state.subtotal_amount ?? state.payment_amount ?? 0) - Number(state.deduction_total || 0)
+    : Number(state.subtotal_amount ?? state.billing_amount ?? 0) + Number(state.tax_amount || 0);
+}
+
 const HANDLERS = Object.freeze({
-  daily_price_v1: async (state, rule, dependencies) => {
-    if (typeof dependencies.dailyCalculator !== 'function') throw new Error('日次計算処理が接続されていません');
-    const result = await dependencies.dailyCalculator({ ...state.input });
-    state.daily = result;
-    state.billing_amount = Number(result.calculated_billing_amount || 0);
-    state.payment_amount = Number(result.calculated_payment_amount || 0);
-  },
-  aggregate_sum_v1: async (state) => {
-    const lines = Array.isArray(state.lines) ? state.lines : [];
-    state.subtotal_amount = lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
-    state.work_amount = lines.filter((line) => line.line_type !== 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
-    state.adjustment_amount = lines.filter((line) => line.line_type === 'adjustment').reduce((sum, line) => sum + Number(line.amount || 0), 0);
-    state.taxable_amount = lines.filter((line) => (line.tax_category || 'taxable') === 'taxable').reduce((sum, line) => sum + Number(line.amount || 0), 0);
-  },
-  deduction_sum_v1: async (state) => {
-    state.deduction_total = (Array.isArray(state.deductions) ? state.deductions : []).reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
-  },
-  tax_v1: async (state, rule) => {
-    const params = json(rule.parameter_json);
-    const rate = Number(state.tax_rate ?? params.rate ?? 0.1);
-    const rounding = { ...json(rule.rounding_json),...(state.tax_rounding || {}) };
-    state.tax_amount = roundAmount(Number(state.taxable_amount || 0) * rate,rounding);
-  },
-  finalize_v1: async (state, rule) => {
-    const side = rule.side_code === 'both' ? state.side : rule.side_code;
-    state.total_amount = side === 'payment'
-      ? Number(state.subtotal_amount ?? state.payment_amount ?? 0) - Number(state.deduction_total || 0)
-      : Number(state.subtotal_amount ?? state.billing_amount ?? 0) + Number(state.tax_amount || 0);
-  },
+  daily_price_v1:dailyPriceV1,
+  aggregate_sum_v1:aggregateSumV1,
+  deduction_sum_v1:deductionSumV1,
+  tax_v1:taxV1,
+  finalize_v1:finalizeV1,
 });
+
+const FUNCTION_RULES = Object.freeze([
+  { function_code:'daily_price_v1',function_name:'現行の日次料金',stage_code:'daily',side_code:'both',version:'v1',summary:'勤務日・時間・距離と適用中の金額データから、日報の請求額と支払額を計算します。',formula:'現行の日次料金計算（単価、時間外、不足、休日、距離等）を実行',inputs:['日報入力','勤務日のPriceSet・料金項目','手入力上書き'],outputs:['billing_amount','payment_amount'],source:'backend/src/services/price_calc.js' },
+  { function_code:'aggregate_sum_v1',function_name:'明細合計',stage_code:'aggregate',side_code:'both',version:'v1',summary:'日報から作成した明細と手動調整明細を集計します。',formula:'subtotal = Σ明細金額 / work = Σ調整以外 / adjustment = Σ調整 / taxable = Σ課税明細',inputs:['lines.amount','lines.line_type','lines.tax_category'],outputs:['subtotal_amount','work_amount','adjustment_amount','taxable_amount'],source:'backend/src/services/calculation_rule_engine.js' },
+  { function_code:'deduction_sum_v1',function_name:'控除合計',stage_code:'deduction',side_code:'payment',version:'v1',summary:'前払・手数料などの控除明細を絶対額で合計します。',formula:'deduction_total = Σ ABS(控除金額)',inputs:['deductions.amount'],outputs:['deduction_total'],source:'backend/src/services/calculation_rule_engine.js' },
+  { function_code:'tax_v1',function_name:'消費税',stage_code:'tax',side_code:'billing',version:'v1',summary:'課税対象額に解決済み税率を掛け、指定方式・単位で端数処理します。',formula:'tax_amount = ROUND_MODE(taxable_amount × tax_rate, unit)',inputs:['taxable_amount','tax_rate','tax_rounding'],outputs:['tax_amount'],source:'backend/src/services/calculation_rule_engine.js' },
+  { function_code:'finalize_v1',function_name:'最終金額',stage_code:'finalize',side_code:'both',version:'v1',summary:'請求または支払の最終金額を算出します。',formula:'請求 = subtotal + tax / 支払 = subtotal - deduction',inputs:['side','subtotal_amount','billing_amount','payment_amount','tax_amount','deduction_total'],outputs:['total_amount'],source:'backend/src/services/calculation_rule_engine.js' },
+]);
+
+function getFunctionRuleCatalog() {
+  return FUNCTION_RULES.map((rule) => ({ ...rule,inputs:[...rule.inputs],outputs:[...rule.outputs] }));
+}
 
 function normalizeRules(rows) {
   return (rows || []).map((row) => ({
@@ -149,4 +171,4 @@ async function resolvePublishedRuleSet(conn, targetDate) {
   return sets.length ? loadRuleSet(conn,sets[0].calculation_rule_set_id) : null;
 }
 
-module.exports = { STAGES,SIDES,RULE_VARIABLES,HANDLERS,json,roundAmount,normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet };
+module.exports = { STAGES,SIDES,RULE_VARIABLES,HANDLERS,FUNCTION_RULES,getFunctionRuleCatalog,json,roundAmount,normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet };

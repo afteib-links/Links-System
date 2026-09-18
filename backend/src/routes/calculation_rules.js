@@ -2,6 +2,7 @@ const express = require('express');
 const { getPool,query } = require('../db');
 const { requireAuth,requirePermission } = require('../middleware/auth');
 const { normalizeRules,validateRuleSet,definitionChecksum,executeRuleSet,loadRuleSet,resolvePublishedRuleSet } = require('../services/calculation_rule_engine');
+const { getCalculationFunctionCatalog } = require('../services/calculation_function_catalog');
 const { applyDailyPriceCalcWithRuleSet } = require('../services/price_calc_rules');
 const { resolveInvoiceTax } = require('../services/settlement_tax');
 
@@ -16,6 +17,10 @@ router.get('/',async (_req,res) => {
     console.error('[calculation_rules/list]',error);
     return res.status(500).json({ ok:false,message:'計算ルール一覧を取得できませんでした' });
   }
+});
+
+router.get('/functions',(_req,res) => {
+  return res.json({ ok:true,function_rules:getCalculationFunctionCatalog(),read_only:true });
 });
 
 router.get('/:id',async (req,res) => {

@@ -40,3 +40,12 @@ test('請求の選択再計算と確定は同じ税率優先順位を使い、�
   assert.doesNotMatch(ui,/data-tax-rate type="number"/);
   assert.match(ui,/実データ全件を検証するものではありません/);
 });
+
+test('計算ルール管理から参照専用の関数ルール候補一覧を開ける',() => {
+  assert.match(route,/getCalculationFunctionCatalog/);
+  assert.match(route,/router\.get\('\/functions'/);
+  assert.match(ui,/関数ルール/);
+  assert.match(ui,/参照専用・選別前/);
+  assert.match(ui,/implementation_status/);
+  assert.doesNotMatch(ui,/data-function-rule-save/);
+});
