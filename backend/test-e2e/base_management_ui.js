@@ -66,6 +66,12 @@ async function main() {
     await page.locator('#bm-filter-toggle').click();
     assert.equal(await page.locator('#bm-filter-toggle').getAttribute('aria-expanded'), 'true');
     await page.locator('#bm-company-query').waitFor();
+    const filterBounds = await page.evaluate(() => {
+      const header = document.querySelector('.bm-heads').getBoundingClientRect();
+      const kana = document.querySelector('.bm-kana-filter').getBoundingClientRect();
+      return { headerBottom: header.bottom, kanaBottom: kana.bottom };
+    });
+    assert.ok(filterBounds.kanaBottom < filterBounds.headerBottom, `五十音ボタンをヘッダー下線より内側に収める: ${JSON.stringify(filterBounds)}`);
     await page.locator('#bm-company-query').evaluate((input) => {
       input.dispatchEvent(new CompositionEvent('compositionstart', { data:'か' }));
       input.value = 'かも';
@@ -100,6 +106,10 @@ async function main() {
     await page.locator('[data-list="company"] [data-id="2"]').click();
     await page.locator('[data-list="base"] [data-create-type="base"]').click();
     assert.deepEqual(await page.evaluate(() => window.__baseManagementCreate), { feature: 'base_projects', options: { new: true, company_id: 2 } });
+    const normalAddSize = await page.locator('[data-list="base"] .bm-add-action').evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
     await page.locator('[data-list="company"] [data-id="1"]').click();
     await page.locator('[data-list="base"] .bm-add-action').waitFor();
     assert.equal(await page.locator('[data-list="base"] .bm-add-action').count(), 1, '基本案件が存在しても追加できる');
@@ -142,6 +152,12 @@ async function main() {
     await page.locator('.bm-all-table').waitFor();
     assert.match(await page.locator('.bm-all-table').innerText(), /基本案件なし/);
     assert.match(await page.locator('.bm-all-table').innerText(), /通常料金/);
+    const allAddSize = await page.locator('.bm-all-table .bm-empty-action').first().evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    assert.ok(Math.abs(normalAddSize.width - allAddSize.width) < 1, `通常列と全対象の追加ボタン幅を揃える: ${JSON.stringify({ normalAddSize, allAddSize })}`);
+    assert.ok(Math.abs(normalAddSize.height - allAddSize.height) < 1, `通常列と全対象の追加ボタン高を揃える: ${JSON.stringify({ normalAddSize, allAddSize })}`);
     await page.setViewportSize({ width: 900, height: 800 });
     const allScroll = await page.locator('.bm-all-wrap').evaluate((element) => {
       element.scrollTop = element.scrollHeight;
