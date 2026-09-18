@@ -9,7 +9,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-links_pass_change_me}
       TZ: ${TZ:-Asia/Tokyo}
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - type: bind
+        source: ${LINKS_DATA_ROOT:-.}/data/mysql
+        target: /var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
@@ -48,5 +50,9 @@ services:
     ports:
       - "8080:3000"
     volumes:
-      - ./data/uploads:/app/uploads
-      - ./data/pdf:/app/pdf
+      - type: bind
+        source: ${LINKS_DATA_ROOT:-.}/data/uploads
+        target: /app/uploads
+      - type: bind
+        source: ${LINKS_DATA_ROOT:-.}/data/pdf
+        target: /app/pdf
