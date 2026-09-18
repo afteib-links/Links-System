@@ -37,17 +37,27 @@ test('事務作業プレビューは案件一覧を置かず進行状況を表�
   assert.match(css, /\.office-column-row \{[^}]*padding:18px 12px 10px[^}]*align-items:flex-start/s);
 });
 
-test('全対象と第3ミラーの業務フィルターを提供する', () => {
+test('全対象とタブレットでも見えるソート・フィルタを提供する', () => {
   const css = read('frontend/css/styles.css');
   const source = read('frontend/js/office_work.js');
   assert.match(source, /id="office-all-companies">全対象/);
+  assert.match(source, /id="office-filter-toggle"[^>]*>ソート・フィルタ<\/button>/);
   assert.match(source, /data-company-sort="number">企業No/);
   assert.match(source, /data-company-sort="closing">締日/);
-  assert.match(source, /data-company-sort="kana">フリガナ/);
+  assert.match(source, /data-company-sort="kana"[^>]*>フリ<\/button>/);
+  assert.match(source, /aria-label="フリガナ順"/);
+  assert.match(source, /id="office-company-query"[^>]*企業名・カナで検索/);
+  assert.match(source, /id="office-company-closing"/);
+  assert.match(source, /data-office-kana-group/);
+  assert.match(source, /compositionstart/);
+  assert.match(source, /compositionend/);
   assert.match(source, /data-type-filter/);
   assert.match(source, /renderAllTable/);
   assert.match(source, /詳細プレビュー/);
   assert.match(css, /grid-template-columns:300px 220px 230px minmax\(400px,1fr\)/);
   assert.match(css, /\.office-column-row strong,[^}]*font-size:18px/s);
   assert.match(css, /\.office-head-actions \.btn \{[^}]*min-height:38px[^}]*font-size:14px/s);
+  assert.match(css, /\.office-company-primary-actions \.btn \{[^}]*flex:1 1 0/s);
+  assert.match(css, /\.office-company-sort \{[^}]*grid-template-columns/s);
+  assert.match(css, /\.office-kana-filter \{[^}]*grid-template-columns:repeat\(6/s);
 });
