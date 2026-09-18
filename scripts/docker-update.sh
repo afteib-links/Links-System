@@ -51,6 +51,17 @@ fi
 [[ -f "$ROOT/docker-compose.yml" ]] || { echo "docker-compose.yml not found: $ROOT" >&2; exit 1; }
 cd "$ROOT"
 
+if [[ -z "${LINKS_DATA_ROOT:-}" ]]; then
+  LINKS_DATA_ROOT="$ROOT"
+  if command -v git >/dev/null 2>&1; then
+    git_common_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [[ -n "$git_common_dir" && "$(basename "$git_common_dir")" == ".git" && -d "$(dirname "$git_common_dir")" ]]; then
+      LINKS_DATA_ROOT="$(dirname "$git_common_dir")"
+    fi
+  fi
+  export LINKS_DATA_ROOT
+fi
+
 print_command() {
   printf '  '
   printf '%q ' "$@"
@@ -67,6 +78,7 @@ run() {
 echo "Links-System Docker update"
 echo "  mode: $MODE"
 echo "  root: $ROOT"
+echo "  data root: $LINKS_DATA_ROOT"
 echo "  dry-run: $DRY_RUN"
 
 if [[ $DRY_RUN -eq 0 ]]; then

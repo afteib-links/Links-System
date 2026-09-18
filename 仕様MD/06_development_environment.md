@@ -321,6 +321,8 @@ Docker Composeの通常更新は、リポジトリ管理の次のツールを正
 
 共通の成功条件は、`docker compose config --quiet` が成功し、コンテナ起動後に `/api/health` が応答して `db: "up"` となることである。失敗時はアプリログを表示して非0終了し、途中まで動いたコンテナを隠して成功扱いにしない。`--dry-run` ではDockerやGitを変更せず、実行予定を確認できる。
 
+ローカル更新ツールは、通常のチェックアウトとlinked worktreeのどちらから実行しても、Git共通ディレクトリを持つ主作業ツリー直下の `data` を永続データルートとして使用する。対象は `data/mysql`、`data/uploads`、`data/pdf` であり、コードを隔離したworktreeへ切り替えても保存先を切り替えない。特殊な検証環境は `LINKS_DATA_ROOT` を明示した場合だけ別の保存先を使用する。更新ツールは決定した永続データルートを実行前に表示する。
+
 `Docker更新.cmd` は特別なAIや開発ツールを必要とせず、Windows標準のPowerShellから同じ更新処理を呼び出す。更新終了後はウィンドウを保持し、「正常終了」または「失敗」、終了コード、システムURLを日本語で表示する。Docker Desktopが起動していない場合を含む失敗時には成功表示を行わない。
 
 環境を指定しない「Docker更新」は現在の作業環境だけを対象とする。NASへの同期は、NAS、ASUSTOR、QNAP等が明示された場合に限る。通常更新では `docker compose down -v`、DBボリューム削除、`data/mysql` 削除を行わない。
