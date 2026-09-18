@@ -38,6 +38,12 @@ test('企業コピーは元データを新規登録フォームへ複製する',
   assert.match(source, /company_name: `\$\{String\(company\.company_name/);
 });
 
+test('基本管理の抽出ヘッダーと常設追加ボタンは一覧境界に重ならない寸法を持つ', () => {
+  const styles = fs.readFileSync(path.resolve(__dirname, '../../frontend/css/styles.css'), 'utf8');
+  assert.match(styles, /\.bm-heads\.is-filter-open\s*\{[^}]*min-height:208px/);
+  assert.match(styles, /\.bm-add-action\s*\{[^}]*width:calc\(100% - 24px\)[^}]*min-height:72px[^}]*margin:12px/);
+});
+
 test('案件画面は基本管理からの新規登録と親案件の初期選択を受け取る', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../frontend/js/projects.js'), 'utf8');
   assert.match(source, /if \(options\.new\)/);

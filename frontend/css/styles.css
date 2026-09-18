@@ -2427,7 +2427,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-workspace { flex:1 1 0; height:calc(100% - 42px); min-height:0; display:grid; grid-template-columns:1120px minmax(360px,1fr); min-width:1480px; overflow:hidden; border:1px solid #9eb3ce; border-radius:10px; background:#fff; }
 .bm-browser { min-width:0; min-height:0; height:100%; display:flex; flex-direction:column; overflow:hidden; border-right:1px solid #9eb3ce; }
 .bm-heads { flex:0 0 104px; display:grid; grid-template-columns:repeat(4,280px); min-height:104px; border-bottom:1px solid #9eb3ce; background:#f7f9fc; transition:flex-basis .16s ease,min-height .16s ease; }
-.bm-heads.is-filter-open { flex-basis:188px; min-height:188px; }
+.bm-heads.is-filter-open { flex-basis:208px; min-height:208px; }
 .bm-column-head { padding:12px; border-right:1px solid #9eb3ce; }
 .bm-column-head:last-child { border-right:0; }
 .bm-column-title { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
@@ -2458,7 +2458,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .bm-empty-action:hover,.bm-empty-action:focus-visible { border-style:solid; border-color:#1769e8; background:#eaf3ff; outline:none; }
 .bm-empty-action strong { display:block; font-size:15px; }
 .bm-empty-action span { display:block; margin-top:5px; color:#0754dc; font-size:13px; font-weight:800; }
-.bm-add-action { position:sticky; top:0; z-index:2; width:calc(100% - 16px); min-height:34px; margin:8px; padding:6px 10px; border:1px solid #6f9fe3; border-radius:6px; background:#f4f8ff; color:#174f9e; font:inherit; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(15,39,66,.08); }
+.bm-add-action { position:sticky; top:0; z-index:2; width:calc(100% - 24px); min-height:72px; margin:12px; padding:12px; border:1px solid #6f9fe3; border-radius:8px; background:#f4f8ff; color:#174f9e; font:inherit; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(15,39,66,.08); }
 .bm-add-action:hover,.bm-add-action:focus-visible { border-color:#1769e8; background:#eaf3ff; outline:none; }
 .bm-all-wrap { flex:1 1 0; height:auto; min-height:0; overflow-x:hidden; overflow-y:scroll; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
 .bm-all-table { width:1120px; table-layout:fixed; border-collapse:collapse; }
