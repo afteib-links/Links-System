@@ -7,12 +7,23 @@
   const LinksCalculationRules = {
     async open(ctx) { this.ctx=ctx; this.kit=window.LinksFeatureKit.createFeatureKit(ctx); await this.showList(); },
     shell(title,body,onBack) { this.ctx.app.innerHTML=this.kit.shell(title,`<section class="panel">${body}</section>`,onBack ? { onBack } : {}); this.kit.bindShell(onBack ? { onBack } : {}); },
+    tabs(active) { return `<div class="calculation-rule-tabs" role="tablist" aria-label="計算ルール管理"><button type="button" role="tab" aria-selected="${active==='rules'}" class="${active==='rules'?'active':''}" data-calculation-rule-tab="rules">計算ルール</button><button type="button" role="tab" aria-selected="${active==='functions'}" class="${active==='functions'?'active':''}" data-calculation-rule-tab="functions">関数ルール</button></div>`; },
+    bindTabs() { document.querySelector('[data-calculation-rule-tab="rules"]')?.addEventListener('click',()=>this.showList()); document.querySelector('[data-calculation-rule-tab="functions"]')?.addEventListener('click',()=>this.showFunctions()); },
     async showList(message='') {
       this.ctx.renderLoading(); const { res,data }=await this.ctx.api('/api/calculation-rules');
       if (!res.ok) return this.shell('計算ルール管理',`<p class="error">${this.ctx.escapeHtml(data?.message || '取得できませんでした')}</p>`);
       const rows=(data.rule_sets || []).map((row)=>`<tr><td>${this.ctx.escapeHtml(row.rule_set_name)}</td><td>${row.version_no}</td><td><span class="status-badge status-${row.status==='published'?'complete':row.status==='draft'?'working':'inactive'}">${statusLabels[row.status] || row.status}</span></td><td>${this.ctx.escapeHtml(String(row.effective_from || '-').slice(0,10))}</td><td>${row.rule_count}</td><td><button class="btn btn-ghost btn-small" data-open-rule="${row.calculation_rule_set_id}">詳細</button></td></tr>`).join('');
-      this.shell('計算ルール管理',`${message?`<p class="flash">${this.ctx.escapeHtml(message)}</p>`:''}<p class="muted">公開済みの版は変更できません。既存版から下書きを作り、検証と比較を通してから公開します。</p><div class="table-wrap"><table class="data-table"><thead><tr><th>名称</th><th>版</th><th>状態</th><th>適用開始</th><th>処理数</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="6">登録がありません</td></tr>'}</tbody></table></div>`);
+      this.shell('計算ルール管理',`${this.tabs('rules')}${message?`<p class="flash">${this.ctx.escapeHtml(message)}</p>`:''}<p class="muted">公開済みの版は変更できません。既存版から下書きを作り、検証と比較を通してから公開します。</p><div class="table-wrap"><table class="data-table"><thead><tr><th>名称</th><th>版</th><th>状態</th><th>適用開始</th><th>処理数</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td colspan="6">登録がありません</td></tr>'}</tbody></table></div>`);
+      this.bindTabs();
       document.querySelectorAll('[data-open-rule]').forEach((button)=>button.addEventListener('click',()=>this.showDetail(button.dataset.openRule)));
+    },
+    async showFunctions() {
+      this.ctx.renderLoading(); const { res,data }=await this.ctx.api('/api/calculation-rules/functions');
+      if (!res.ok) return this.shell('計算ルール管理',`<p class="error">${this.ctx.escapeHtml(data?.message || '関数ルールを取得できませんでした')}</p>`);
+      const statusLabels={ active_handler:'現行ルールで使用',existing_process:'現行コードで処理',expression_available:'式で利用可能' };
+      const rows=(data.function_rules || []).map((rule)=>`<tr><td>${this.ctx.escapeHtml(rule.category_name)}</td><td><strong>${this.ctx.escapeHtml(rule.function_name)}</strong><br><code>${this.ctx.escapeHtml(rule.function_code)}</code></td><td>${this.ctx.escapeHtml(rule.usage || '-')}</td><td>${this.ctx.escapeHtml(rule.summary)}</td><td><code>${this.ctx.escapeHtml(rule.formula)}</code></td><td>${(rule.inputs || []).map((value)=>`<code>${this.ctx.escapeHtml(value)}</code>`).join('<br>')}</td><td>${(rule.outputs || []).map((value)=>`<code>${this.ctx.escapeHtml(value)}</code>`).join('<br>')}</td><td><span class="status-badge status-complete">${this.ctx.escapeHtml(statusLabels[rule.implementation_status] || rule.implementation_status)}</span><br><span class="muted">選別前</span></td></tr>`).join('');
+      this.shell('計算ルール管理',`${this.tabs('functions')}<div class="function-rule-readonly"><strong>参照専用・選別前</strong> 現在の金額計算で使う業務処理、時間・距離処理、四則・比較・条件・端数処理を候補台帳として表示しています。この画面から計算内容は変更できません。</div><div class="table-wrap"><table class="data-table data-table-compact function-rule-table"><thead><tr><th>区分</th><th>関数・演算</th><th>現在の利用箇所</th><th>処理内容</th><th>計算</th><th>主な入力</th><th>出力</th><th>状態</th></tr></thead><tbody>${rows || '<tr><td colspan="8">関数ルールがありません</td></tr>'}</tbody></table></div>`);
+      this.bindTabs();
     },
     ruleRow(rule,index,editable) {
       const option=(values,current,labels)=>values.map((value)=>`<option value="${value}" ${value===current?'selected':''}>${labels[value] || value}</option>`).join('');
