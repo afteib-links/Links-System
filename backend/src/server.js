@@ -33,6 +33,7 @@ const baseManagementRoutes = require('./routes/base_management');
 const helpRoutes = require('./routes/help');
 const masterDataPreparationsRoutes = require('./routes/master_data_preparations');
 const calculationRulesRoutes = require('./routes/calculation_rules');
+const postalCodesRoutes = require('./routes/postal_codes');
 
 
 async function createApp() {
@@ -125,6 +126,7 @@ async function createApp() {
   app.use('/api/menu-access', require('./routes/menu_access'));
   app.use('/api', masterDataPreparationsRoutes);
   app.use('/api/calculation-rules', calculationRulesRoutes);
+  app.use('/api/postal-codes', postalCodesRoutes);
   app.use('/api/test-data', require('./routes/test_data').createRouter());
 
   // ロール／機能権限の動作確認用

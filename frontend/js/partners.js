@@ -24,10 +24,11 @@
     listColumns() {
       return [
         { key: 'partner_id', label: 'No' },
-        { key: 'partner_name', label: '名称' },
+        { key: 'partner_name', label: '名称', className: 'col-partner-name' },
         {
           key: 'bank',
           label: '銀行',
+          className: 'col-secondary-text',
           getValue: (p) => [p.bank_name, p.branch_name].filter(Boolean).join(' ') || '-',
         },
         {
@@ -233,6 +234,7 @@
         zip_code: '',
         address: '',
         contact_phone: '',
+        email: '',
         blood_type: '',
         birth_date: '',
         work_start_date: '',
@@ -289,23 +291,24 @@
           <form id="partner-form">
             <div class="form-sections">
             <section class="form-section-card"><h3>基本・契約情報</h3>
-            <div class="form-grid form-grid-compact">
-              <div><label>名称（必須）</label><input name="partner_name" required value="${this.ctx.escapeHtml(partner.partner_name || '')}" /></div>
-              <div><label>カナ</label><input name="partner_name_kana" value="${this.ctx.escapeHtml(partner.partner_name_kana || '')}" /></div>
-              <div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">未設定（￥0）</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(partner.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${this.kit.money(fee.amount)}）</option>`).join('')}</select></div>
-              <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(partner.zip_code || '')}" /></div>
-              <div class="full"><label>住所</label><input name="address" value="${this.ctx.escapeHtml(partner.address || '')}" /></div>
-              <div><label>電話</label><input name="contact_phone" value="${this.ctx.escapeHtml(partner.contact_phone || '')}" /></div>
-              <div><label>血液型</label><input name="blood_type" value="${this.ctx.escapeHtml(partner.blood_type || '')}" /></div>
-              <div><label>生年月日</label><input type="date" name="birth_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.birth_date))}" /></div>
-              <div><label>稼働開始日</label><input type="date" name="work_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.work_start_date))}" /></div>
-              <div><label>契約状況区分</label><select name="contract_status_code">${this.kit.codeOptions(this.codes.contract_status, partner.contract_status_code || 'active')}</select></div>
-              <div><label>稼働終了日</label><input type="date" name="operation_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.operation_end_date))}" /></div>
-              <div><label>契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.contract_date))}" /></div>
+            <div class="form-grid form-grid-compact partner-basic-grid">
+              <div class="partner-name-stack"><div><label>カナ</label><input name="partner_name_kana" value="${this.ctx.escapeHtml(partner.partner_name_kana || '')}" /></div><div><label>名称（必須）</label><input name="partner_name" required value="${this.ctx.escapeHtml(partner.partner_name || '')}" /></div></div>
               <div><label>区分</label><select name="partner_category_code">${this.kit.codeOptions(this.codes.partner_category, partner.partner_category_code)}</select></div>
               <div><label>雇用区分</label><select name="employment_type_code">${this.kit.codeOptions(this.codes.employment_type, partner.employment_type_code)}</select></div>
+              <div class="partner-grid-spacer" aria-hidden="true"></div>
+              <div><label>郵便番号</label><input name="zip_code" value="${this.ctx.escapeHtml(partner.zip_code || '')}" /></div>
+              <div class="field-span-3"><label>住所</label><input name="address" value="${this.ctx.escapeHtml(partner.address || '')}" /></div>
+              <div><label>契約状況区分</label><select name="contract_status_code">${this.kit.codeOptions(this.codes.contract_status, partner.contract_status_code || 'active')}</select></div>
+              <div><label>稼働開始日</label><input type="date" name="work_start_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.work_start_date))}" /></div>
+              <div><label>稼働終了日</label><input type="date" name="operation_end_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.operation_end_date))}" /></div>
+              <div><label>契約日</label><input type="date" name="contract_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.contract_date))}" /></div>
+              <div><label>電話</label><input type="tel" name="contact_phone" value="${this.ctx.escapeHtml(partner.contact_phone || '')}" /></div>
+              <div class="field-span-2"><label>メールアドレス</label><input type="email" name="email" autocomplete="email" value="${this.ctx.escapeHtml(partner.email || '')}" /></div>
+              <div class="partner-grid-spacer" aria-hidden="true"></div>
+              <div><label>生年月日</label><input type="date" name="birth_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.birth_date))}" /></div>
+              <div><label>血液型</label><input name="blood_type" value="${this.ctx.escapeHtml(partner.blood_type || '')}" /></div>
               <div><label>インボイス番号</label><input name="invoice_number" value="${this.ctx.escapeHtml(partner.invoice_number || '')}" /></div>
-              <div class="full"><label class="check-item"><input type="checkbox" name="advance_payment_enabled" ${partner.advance_payment_enabled ? 'checked' : ''} /><span>先払い対象</span></label></div>
+              <div><label class="check-item"><input type="checkbox" name="advance_payment_enabled" ${partner.advance_payment_enabled ? 'checked' : ''} /><span>先払い対象</span></label></div>
             </div></section>
             <section class="form-section-card"><h3>免許・安全管理</h3><div class="form-grid form-grid-compact">
               <div><label>免許期限</label><input type="date" name="license_expiry_date" value="${this.ctx.escapeHtml(this.kit.dateValue(partner.license_expiry_date))}" /></div>
@@ -322,6 +325,7 @@
               <div><label>支払出力</label><select name="payment_output_code">${this.kit.codeOptions(this.codes.payment_output, partner.payment_output_code)}</select></div>
             </div></section>
             <section class="form-section-card"><h3>銀行情報</h3><div class="form-grid form-grid-compact">
+              <div><label>振込手数料</label><select name="transfer_fee_pattern_id"><option value="">未設定（￥0）</option>${this.transferFees.map((fee) => `<option value="${fee.transfer_fee_pattern_id}" ${Number(partner.transfer_fee_pattern_id) === Number(fee.transfer_fee_pattern_id) ? 'selected' : ''}>${this.ctx.escapeHtml(fee.pattern_name)}（${this.kit.money(fee.amount)}）</option>`).join('')}</select></div>
               <div><label>銀行コード（4桁）</label><input name="bank_code" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="${this.ctx.escapeHtml(partner.bank_code || '')}" /></div>
               <div><label>銀行名</label><input name="bank_name" value="${this.ctx.escapeHtml(partner.bank_name || '')}" /></div>
               <div><label>支店コード（3桁）</label><input name="branch_code" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" value="${this.ctx.escapeHtml(partner.branch_code || '')}" /></div>
@@ -348,6 +352,7 @@
         { onBack: () => this.showList() }
       );
       this.kit.bindShell({ onBack: () => this.showList() });
+      this.kit.bindPostalLookup(document.getElementById('partner-form'));
       document.getElementById('cancel')?.addEventListener('click', () => this.showList());
       document.getElementById('add-vehicle')?.addEventListener('click', () => this.openVehicleModal(null));
       this.bindVehicleTable();
@@ -411,6 +416,7 @@
         zip_code: form.zip_code.value,
         address: form.address.value,
         contact_phone: form.contact_phone.value,
+        email: form.email.value,
         blood_type: form.blood_type.value,
         birth_date: form.birth_date.value || null,
         work_start_date: form.work_start_date.value || null,

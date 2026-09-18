@@ -18,6 +18,7 @@
         priceId: null,
         selected: null,
         includeEnded: false,
+        companyFilter: { query: '', closing: '', kanaGroup: '' },
         sort: {
           company: ['name', 1],
           base: ['name', 1],
@@ -67,6 +68,29 @@
       if (type === 'project') return row.project_name || row.partner_name || `個別案件 #${row.project_id}`;
       return row.price_set_name || `金額データ #${row.price_set_id}`;
     },
+    normalizeJapanese(value) {
+      return String(value || '').normalize('NFKC').toLocaleLowerCase('ja').replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+    },
+    kanaGroup(value) {
+      const first = this.normalizeJapanese(value).replace(/^[\s「」『』【】（）()・ー]+/, '').charAt(0);
+      const groups = {
+        a: 'ぁあぃいうぇえぉおゔ', k: 'かがきぎくぐけげこご', s: 'さざしじすずせぜそぞ',
+        t: 'ただちぢっつづてでとど', n: 'なにぬねの', h: 'はばぱひびぴふぶぷへべぺほぼぽ',
+        m: 'まみむめも', y: 'ゃやゅゆょよ', r: 'らりるれろ', w: 'ゎわゐゑをん',
+      };
+      return Object.entries(groups).find(([, chars]) => chars.includes(first))?.[0] || 'other';
+    },
+    filteredCompanies() {
+      const filter = this.state.companyFilter;
+      const query = this.normalizeJapanese(filter.query);
+      return this.data.companies.filter((row) => {
+        const haystack = this.normalizeJapanese(`${row.company_name || ''} ${row.company_name_kana || ''}`);
+        if (query && !haystack.includes(query)) return false;
+        if (filter.closing && String(row.closing_date_code || '') !== filter.closing) return false;
+        if (filter.kanaGroup && this.kanaGroup(row.company_name_kana || row.company_name) !== filter.kanaGroup) return false;
+        return true;
+      });
+    },
     company(id) { return this.data.companies.find((row) => Number(row.company_id) === Number(id)); },
     base(id) { return this.data.bases.find((row) => Number(row.base_project_id) === Number(id)); },
     project(id) { return this.data.projects.find((row) => Number(row.project_id) === Number(id)); },
@@ -91,7 +115,7 @@
     },
 
     rows(type) {
-      if (type === 'company') return this.data.companies;
+      if (type === 'company') return this.filteredCompanies();
       if (type === 'base') return this.data.bases.filter((row) => this.state.companyId ? Number(row.company_id) === Number(this.state.companyId) : this.state.all);
       if (type === 'project') return this.data.projects.filter((row) => {
         if (this.state.baseId) return Number(row.base_project_id) === Number(this.state.baseId);
@@ -124,12 +148,25 @@
     columnHeader(type, title, count, controls) {
       const [key, direction] = this.state.sort[type];
       const button = (sortKey, label) => `<button type="button" class="bm-sort ${key === sortKey ? 'is-active' : ''}" data-sort-type="${type}" data-sort-key="${sortKey}">${this.esc(label)}${key === sortKey ? (direction > 0 ? ' ▲' : ' ▼') : ''}</button>`;
-      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span data-count-type="${type}">${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}</div></div>`;
+      const companyFilters = type === 'company' ? this.companyFilterHtml() : '';
+      return `<div class="bm-column-head"><div class="bm-column-title"><strong>${this.esc(title)}</strong><span data-count-type="${type}">${count}</span></div><div class="bm-column-controls">${controls || ''}${button('name', type === 'company' ? '企業名' : type === 'price' ? '名称' : '名称')}${button(type === 'price' ? 'start' : 'closing', type === 'price' ? '適用開始日' : '締日')}</div>${companyFilters}</div>`;
+    },
+
+    companyFilterHtml() {
+      const filter = this.state.companyFilter;
+      const closings = [...new Set(this.data.companies.map((row) => String(row.closing_date_code || '')).filter(Boolean))]
+        .sort((a, b) => this.closing(a).localeCompare(this.closing(b), 'ja', { numeric: true }));
+      const groups = [['a','あ'],['k','か'],['s','さ'],['t','た'],['n','な'],['h','は'],['m','ま'],['y','や'],['r','ら'],['w','わ'],['other','他']];
+      return `<div class="bm-company-filters">
+        <input type="search" id="bm-company-query" value="${this.esc(filter.query)}" placeholder="企業名・カナで検索" autocomplete="off" aria-label="企業名・カナで絞り込み">
+        <select id="bm-company-closing" aria-label="締日で絞り込み"><option value="">全締日</option>${closings.map((value) => `<option value="${this.esc(value)}" ${filter.closing === value ? 'selected' : ''}>${this.esc(this.closing(value))}</option>`).join('')}</select>
+        <div class="bm-kana-filter" aria-label="五十音で絞り込み"><button type="button" data-kana-group="" class="${filter.kanaGroup ? '' : 'is-active'}">全</button>${groups.map(([value,label]) => `<button type="button" data-kana-group="${value}" class="${filter.kanaGroup === value ? 'is-active' : ''}">${label}</button>`).join('')}</div>
+      </div>`;
     },
 
     render() {
       const crumbs = this.breadcrumbs();
-      const companyCount = this.data.companies.length;
+      const companyCount = this.rows('company').length;
       const baseCount = this.rows('base').length;
       const projectCount = this.rows('project').length;
       const priceCount = this.rows('price').length;
@@ -391,6 +428,29 @@
         this.state.sort[type] = [key, current[0] === key ? current[1] * -1 : 1];
         this.render();
       }));
+      const queryInput = document.getElementById('bm-company-query');
+      let composing = false;
+      let filterTimer = null;
+      const applyQuery = () => {
+        if (composing) return;
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(() => {
+          this.state.companyFilter.query = queryInput?.value || '';
+          this.applyCompanyFilters();
+        }, 200);
+      };
+      queryInput?.addEventListener('compositionstart', () => { composing = true; clearTimeout(filterTimer); });
+      queryInput?.addEventListener('compositionend', () => { composing = false; applyQuery(); });
+      queryInput?.addEventListener('input', applyQuery);
+      document.getElementById('bm-company-closing')?.addEventListener('change', (event) => {
+        this.state.companyFilter.closing = event.target.value;
+        this.applyCompanyFilters();
+      });
+      document.querySelectorAll('[data-kana-group]').forEach((button) => button.addEventListener('click', () => {
+        this.state.companyFilter.kanaGroup = button.dataset.kanaGroup || '';
+        document.querySelectorAll('[data-kana-group]').forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+        this.applyCompanyFilters();
+      }));
       document.querySelector('[data-all="company"]')?.addEventListener('click', () => {
         const next = !(this.state.all && !this.state.companyId);
         Object.assign(this.state, { all: next, companyId: null, baseId: null, projectId: null, priceId: null, selected: null });
@@ -402,6 +462,18 @@
         Object.assign(this.state, { all: next, baseId: null, projectId: null, priceId: null, selected: null });
         this.render();
       });
+    },
+
+    applyCompanyFilters() {
+      Object.assign(this.state, { all: false, companyId: null, baseId: null, projectId: null, priceId: null, selected: null });
+      const companyList = document.querySelector('[data-list="company"]');
+      if (companyList) {
+        companyList.innerHTML = this.listRows('company');
+        this.bindRows(companyList);
+      }
+      const count = document.querySelector('[data-count-type="company"]');
+      if (count) count.textContent = String(this.rows('company').length);
+      this.updateSelection('company');
     },
 
     bindPreview() {
