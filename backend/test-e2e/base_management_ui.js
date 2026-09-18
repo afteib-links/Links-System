@@ -30,8 +30,8 @@ async function main() {
         body = {
           ok: true,
           companies: [
-            { company_id: 1, office_no: 'C001', company_name: '企業A', company_name_kana: 'キギョウエー', closing_date_code: 'end', payment_date_code: 'end' },
-            { company_id: 2, office_no: 'C002', company_name: '企業B', closing_date_code: '15' },
+            { company_id: 1, office_no: 'C001', company_name: 'あおば運輸', company_name_kana: 'アオバウンユ', closing_date_code: 'end', payment_date_code: 'end' },
+            { company_id: 2, office_no: 'C002', company_name: 'かもめ運送', company_name_kana: 'カモメウンソウ', closing_date_code: '15' },
             ...Array.from({ length: 28 }, (_, index) => ({
               company_id: index + 3,
               office_no: `C${String(index + 3).padStart(3, '0')}`,
@@ -57,6 +57,25 @@ async function main() {
     await page.locator('.bm-screen').waitFor();
     const initialScreen = await page.locator('.bm-screen').elementHandle();
     assert.equal(await page.locator('.bm-heads .bm-column-title').count(), 4);
+    assert.equal(await page.locator('[data-list="company"] [data-id]').count(), 30);
+    await page.locator('#bm-company-query').evaluate((input) => {
+      input.dispatchEvent(new CompositionEvent('compositionstart', { data:'か' }));
+      input.value = 'かも';
+      input.dispatchEvent(new Event('input', { bubbles:true }));
+    });
+    await page.waitForTimeout(260);
+    assert.equal(await page.locator('[data-list="company"] [data-id]').count(), 30, 'IME変換確定前は一覧を再描画しない');
+    await page.locator('#bm-company-query').evaluate((input) => input.dispatchEvent(new CompositionEvent('compositionend', { data:'かも' })));
+    await page.waitForTimeout(260);
+    assert.equal(await page.locator('[data-list="company"] [data-id="2"]').count(), 1, '日本語IME確定後に企業名・カナを検索する');
+    await page.locator('#bm-company-query').fill('');
+    await page.waitForTimeout(260);
+    await page.locator('#bm-company-closing').selectOption('15');
+    assert.equal(await page.locator('[data-list="company"] [data-id]').count(), 1, '締日で企業を絞り込む');
+    await page.locator('#bm-company-closing').selectOption('');
+    await page.locator('[data-kana-group="a"]').click();
+    assert.equal(await page.locator('[data-list="company"] [data-id="1"]').count(), 1, 'あ行で企業を絞り込む');
+    await page.locator('[data-kana-group=""]').click();
     await page.setViewportSize({ width: 600, height: 800 });
     const companyScroll = await page.locator('[data-list="company"]').evaluate((element) => {
       element.scrollTop = element.scrollHeight;

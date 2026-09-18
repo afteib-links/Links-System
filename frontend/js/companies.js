@@ -21,14 +21,14 @@
     listColumns() {
       return [
         { key: 'company_id', label: '企業No' },
-        { key: 'company_name', label: '企業名' },
-        { key: 'office_name', label: '事業所名' },
+        { key: 'company_name', label: '企業名', className: 'col-company-name' },
+        { key: 'office_name', label: '事業所名', className: 'col-secondary-text' },
         {
           key: 'work_mode_code',
           label: '稼働形態',
           getValue: (r) => this.kit.codeLabel(this.codes.work_mode, r.work_mode_code),
         },
-        { key: 'our_manager', label: '営業担当' },
+        { key: 'our_manager', label: '営業担当', className: 'col-secondary-text' },
         { key: 'base_project_count', label: '基本案件数' },
         { key: 'contract_status_code', label: '契約状況', getValue: (r) => this.kit.codeLabel(this.codes.contract_status, r.contract_status_code) },
         { key: 'operation_end_date', label: '稼働終了日', getValue: (r) => this.kit.dateValue(r.operation_end_date) || '-' },
@@ -354,6 +354,9 @@
       );
 
       this.kit.bindShell({ onBack: () => this.showList() });
+      const companyForm = document.getElementById('company-form');
+      this.kit.bindPostalLookup(companyForm);
+      this.kit.bindAutoKana(companyForm);
       document.getElementById('cancel-company')?.addEventListener('click', () => this.showList());
       document.getElementById('add-billing')?.addEventListener('click', () => this.openBillingModal(null));
       document.getElementById('add-vehicle')?.addEventListener('click', () => this.openVehicleModal(null));
@@ -532,6 +535,7 @@
         document.getElementById('modal-backdrop')?.remove();
         this.refreshChildTables();
       });
+      this.kit.bindPostalLookup(document.getElementById('modal-backdrop'), '#m_billing_zip_code', '#m_billing_address');
     },
 
     openVehicleModal(idx) {

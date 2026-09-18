@@ -29,6 +29,112 @@
         const s = String(value);
         return s.length >= 5 ? s.slice(0, 5) : s;
       },
+      bindPostalLookup(root = document, zipSelector = '[name="zip_code"]', addressSelector = '[name="address"]') {
+        const zip = root.querySelector?.(zipSelector);
+        const address = root.querySelector?.(addressSelector);
+        if (!zip || !address || zip.dataset.postalLookupBound === '1') return;
+        zip.dataset.postalLookupBound = '1';
+        zip.inputMode = 'numeric';
+        zip.autocomplete = 'postal-code';
+        address.autocomplete = 'street-address';
+        const status = document.createElement('small');
+        status.className = 'postal-lookup-status';
+        status.setAttribute('aria-live', 'polite');
+        zip.insertAdjacentElement('afterend', status);
+        let timer = null;
+        let requestNumber = 0;
+        let lastPostalCode = '';
+        const setStatus = (message, tone = '') => {
+          status.textContent = message;
+          status.dataset.tone = tone;
+        };
+        const lookup = async () => {
+          const digits = String(zip.value || '').normalize('NFKC').replace(/\D/g, '');
+          if (digits.length !== 7) {
+            lastPostalCode = '';
+            setStatus(digits.length ? '7桁入力すると住所を検索します' : '');
+            return;
+          }
+          if (digits === lastPostalCode) return;
+          lastPostalCode = digits;
+          const currentRequest = ++requestNumber;
+          setStatus('住所を検索しています…');
+          let result;
+          try {
+            result = await ctx.api(`/api/postal-codes/${encodeURIComponent(digits)}`);
+          } catch (_error) {
+            if (currentRequest === requestNumber) setStatus('住所を取得できませんでした。住所は手入力できます', 'error');
+            return;
+          }
+          const { res, data } = result;
+          if (currentRequest !== requestNumber) return;
+          if (!res.ok || !data?.ok || !data.addresses?.length) {
+            setStatus(data?.message || '住所を取得できませんでした。住所は手入力できます', 'error');
+            return;
+          }
+          const found = data.addresses[0].address || '';
+          const canReplace = !address.value.trim() || address.dataset.postalAutoValue === address.value;
+          if (canReplace) {
+            address.value = found;
+            address.dataset.postalAutoValue = found;
+            address.dispatchEvent(new Event('input', { bubbles: true }));
+            setStatus(data.addresses.length > 1 ? '住所を入力しました（同じ郵便番号に複数候補があります）' : '住所を入力しました', 'success');
+          } else {
+            setStatus(`住所候補: ${found}（入力済み住所は変更していません）`);
+          }
+        };
+        zip.addEventListener('input', () => {
+          clearTimeout(timer);
+          timer = setTimeout(lookup, 350);
+        });
+        zip.addEventListener('blur', () => {
+          clearTimeout(timer);
+          lookup();
+        });
+      },
+      bindAutoKana(root = document, sourceSelector = '[name="company_name"]', targetSelector = '[name="company_name_kana"]') {
+        const source = root.querySelector?.(sourceSelector);
+        const target = root.querySelector?.(targetSelector);
+        if (!source || !target || source.dataset.autoKanaBound === '1') return;
+        source.dataset.autoKanaBound = '1';
+        const toKatakana = (value) => String(value || '').normalize('NFKC').replace(/[ぁ-ゖ]/g, (char) => String.fromCharCode(char.charCodeAt(0) + 0x60));
+        const isReading = (value) => Boolean(value) && /^[\p{Script=Hiragana}\p{Script=Katakana}ー・\s]+$/u.test(value);
+        let composing = false;
+        let compositionReading = '';
+        let baseKana = target.value || '';
+        let autoValue = target.value || '';
+        let internalChange = false;
+        let manuallyEdited = Boolean(target.value);
+        target.addEventListener('input', () => {
+          if (!internalChange) manuallyEdited = true;
+        });
+        const writeKana = (value) => {
+          internalChange = true;
+          target.value = value;
+          autoValue = value;
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+          internalChange = false;
+        };
+        source.addEventListener('compositionstart', () => {
+          composing = true;
+          compositionReading = '';
+          baseKana = target.value || '';
+        });
+        source.addEventListener('compositionupdate', (event) => {
+          if (isReading(event.data) && String(event.data).length >= compositionReading.length) compositionReading = event.data;
+        });
+        source.addEventListener('compositionend', (event) => {
+          composing = false;
+          if (manuallyEdited && target.value !== autoValue) return;
+          const reading = compositionReading || (isReading(event.data) ? event.data : '');
+          if (reading) writeKana(`${baseKana}${toKatakana(reading)}`);
+        });
+        source.addEventListener('input', () => {
+          if (composing || manuallyEdited) return;
+          if (!source.value) writeKana('');
+          else if (isReading(source.value)) writeKana(toKatakana(source.value));
+        });
+      },
       /** 共通画面シェル。詳細画面だけ前画面へ戻る導線を表示する。 */
       shell(title, bodyHtml, options = {}) {
         const showHistoryBack = options.showHistoryBack !== false && (options.onBack || navStack.length);

@@ -12,6 +12,7 @@ const PARTNER_FIELDS = [
   'zip_code',
   'address',
   'contact_phone',
+  'email',
   'blood_type',
   'birth_date',
   'work_start_date',
@@ -55,6 +56,15 @@ function pick(body, fields) {
     }
   }
   return out;
+}
+
+function validateEmail(data) {
+  if (!data.email) return null;
+  data.email = String(data.email).trim();
+  if (data.email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    return 'メールアドレスの形式が正しくありません';
+  }
+  return null;
 }
 
 function normalizeVehicles(list) {
@@ -164,7 +174,7 @@ router.get('/', async (req, res) => {
     }
 
     const rows = await query(
-      `SELECT p.partner_id, p.partner_name, p.partner_name_kana, p.contact_phone,
+      `SELECT p.partner_id, p.partner_name, p.partner_name_kana, p.contact_phone, p.email,
               p.partner_category_code, p.employment_type_code, p.invoice_number,
               p.advance_payment_enabled, p.payment_output_code,
               p.transfer_fee_pattern_id,
@@ -217,6 +227,8 @@ router.post('/', async (req, res) => {
     if (!data.partner_name || !String(data.partner_name).trim()) {
       return res.status(400).json({ ok: false, message: 'パートナー名は必須です' });
     }
+    const emailError = validateEmail(data);
+    if (emailError) return res.status(400).json({ ok: false, message: emailError });
     data.partner_name = String(data.partner_name).trim();
     if (data.advance_payment_enabled == null) data.advance_payment_enabled = 0;
     const vehicles = normalizeVehicles(req.body.vehicles);
@@ -252,6 +264,8 @@ router.put('/:id', async (req, res) => {
     if (!data.partner_name || !String(data.partner_name).trim()) {
       return res.status(400).json({ ok: false, message: 'パートナー名は必須です' });
     }
+    const emailError = validateEmail(data);
+    if (emailError) return res.status(400).json({ ok: false, message: emailError });
     data.partner_name = String(data.partner_name).trim();
     const vehicles = normalizeVehicles(req.body.vehicles);
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
