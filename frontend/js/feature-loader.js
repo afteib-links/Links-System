@@ -17,7 +17,7 @@
     menu_access_settings: [['menu_access_settings', 'LinksMenuAccessSettings']],
     calculation_rules: [['calculation_rules', 'LinksCalculationRules']],
     office_work: [['office_work', 'LinksOfficeWork']],
-    daily_reports: [['time-input', 'LinksTimeInput'], ['daily-entry-ui', 'LinksDailyEntryUI'], ['daily_report_imports', 'LinksDailyReportImports'], ['daily_reports', 'LinksDailyReports']],
+    daily_reports: [['time-input', 'LinksTimeInput'], ['daily-entry-ui', 'LinksDailyEntryUI'], ['pdf_imports', 'LinksPdfImports'], ['daily_report_imports', 'LinksDailyReportImports'], ['daily_reports', 'LinksDailyReports']],
     daily_report_submissions: [['daily_report_submissions', 'LinksDailyReportSubmissions']],
     advances: [['advances_matrix', 'LinksAdvances']],
     invoices: [['invoices', 'LinksInvoices']],

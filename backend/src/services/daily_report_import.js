@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const timeInput = require('../../../frontend/js/time-input');
 const fs = require('fs/promises');
 const path = require('path');
 const readXlsxFile = require('read-excel-file/node');
@@ -121,14 +122,8 @@ function minutesFromValue(value, duration = false) {
     if (value >= 0 && value < 2) return Math.round(value * 24 * 60);
     if (duration) return Math.round(value * 60);
   }
-  let text = String(value).normalize('NFKC').trim();
-  if (!text) return null;
-  text = text.replace('：', ':');
-  if (/^\d{1,2}\.\d{2}$/.test(text)) text = text.replace('.', ':');
-  if (/^\d{1,2}$/.test(text)) text += ':00';
-  const match = text.match(/^(\d{1,2}):(\d{2})$/);
-  if (!match || Number(match[2]) > 59) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
+  try { return timeInput.parse(value, { maxMinutes: duration ? 59999 : 2879 }); }
+  catch { return null; }
 }
 
 function clockText(value) {

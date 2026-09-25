@@ -69,6 +69,7 @@ const upload = multer({
 const requireImportViewer = requireRole('admin', 'soumu', 'executive');
 const requireImportEditor = requireRole('admin', 'soumu');
 router.use(requireAuth, requirePermission('daily_reports'), requireImportViewer);
+router.use('/pdf', require('./daily_report_pdf_imports'));
 
 function parseJson(value, fallback = null) {
   if (value == null || value === '') return fallback;
@@ -351,7 +352,7 @@ router.post('/mappings', requireImportEditor, async (req, res) => {
 
 router.get('/files/:fileId', async (req, res) => {
   try {
-    const rows = await query('SELECT * FROM daily_report_import_files WHERE daily_report_import_file_id=? AND is_active=1 AND deleted_at IS NULL', [Number(req.params.fileId)]);
+    const rows = await query('SELECT * FROM daily_report_import_files WHERE daily_report_import_file_id=? AND is_active=1 AND deleted_at IS NULL AND retention_until>=CURDATE()', [Number(req.params.fileId)]);
     if (!rows.length) return res.status(404).json({ ok: false, message: '原本ファイルが見つかりません' });
     const file = rows[0];
     const resolved = path.resolve(file.storage_path);
@@ -398,6 +399,7 @@ router.post('/:id/parse', requireImportEditor, async (req, res) => {
     await conn.beginTransaction();
     const [batches] = await conn.query('SELECT * FROM daily_report_import_batches WHERE daily_report_import_batch_id=? FOR UPDATE', [batchId]);
     if (!batches.length) throw requestError(404, '取込バッチが見つかりません', 'not_found');
+    if (batches[0].source_type === 'pdf') throw badRequest('PDFは原本比較画面から解析してください');
     if (['applied', 'cancelled'].includes(batches[0].status)) throw badRequest('反映済みまたは取消済みの取込は再解析できません');
     const [files] = await conn.query('SELECT * FROM daily_report_import_files WHERE daily_report_import_batch_id=? AND is_active=1 ORDER BY daily_report_import_file_id LIMIT 1', [batchId]);
     if (!files.length) throw badRequest('取込ファイルが見つかりません');
@@ -469,6 +471,8 @@ router.put('/:id/rows/:rowId', requireImportEditor, async (req, res) => {
     const rowId = Number(req.params.rowId);
     const [rows] = await conn.query('SELECT * FROM daily_report_import_rows WHERE daily_report_import_row_id=? AND daily_report_import_batch_id=? FOR UPDATE', [rowId, batchId]);
     if (!rows.length) throw requestError(404, '取込行が見つかりません', 'not_found');
+    const [batchTypes] = await conn.query('SELECT source_type FROM daily_report_import_batches WHERE daily_report_import_batch_id=?', [batchId]);
+    if (batchTypes[0]?.source_type === 'pdf') throw badRequest('PDFは原本比較画面から修正してください');
     if (rows[0].status === 'applied') throw badRequest('反映済みの取込行は変更できません');
     const data = req.body.reviewed_data && typeof req.body.reviewed_data === 'object' ? req.body.reviewed_data : {};
     const validation = validateParsedRow(data);
@@ -514,6 +518,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
     await conn.beginTransaction();
     const [batches] = await conn.query('SELECT * FROM daily_report_import_batches WHERE daily_report_import_batch_id=? FOR UPDATE', [batchId]);
     if (!batches.length) throw badRequest('取込バッチが見つかりません');
+    if (batches[0].source_type === 'pdf') throw badRequest('PDFは原本比較画面から項目を選択して反映してください');
     if (batches[0].status === 'cancelled') throw badRequest('取消済みの取込は反映できません');
     const [rows] = await conn.query(
       `SELECT * FROM daily_report_import_rows WHERE daily_report_import_batch_id=?

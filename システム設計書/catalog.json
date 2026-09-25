@@ -2278,7 +2278,7 @@
     }
   ],
   "schema_summary": {
-    "tables": 102,
+    "tables": 105,
     "foreign_keys": 161
   }
 }
