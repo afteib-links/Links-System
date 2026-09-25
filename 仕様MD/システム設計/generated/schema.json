@@ -4940,6 +4940,15 @@
           "default": "NULL",
           "extra": "",
           "comment": ""
+        },
+        {
+          "name": "daily_report_period_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
         }
       ],
       "foreign_keys": [
@@ -6673,6 +6682,208 @@
             "project_id",
             "target_year_month",
             "approval_version"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_periods",
+      "comment": "",
+      "columns": [
+        {
+          "name": "daily_report_period_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "target_year_month",
+          "type": "char(7)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_start",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_end",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "closing_day",
+          "type": "varchar(10)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_mode",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'closing'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "on update current_timestamp()",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_daily_period_dates",
+          "unique": false,
+          "columns": [
+            "project_id",
+            "period_start",
+            "period_end"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "daily_report_period_id"
+          ]
+        },
+        {
+          "name": "uq_daily_period",
+          "unique": true,
+          "columns": [
+            "project_id",
+            "target_year_month"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_period_audits",
+      "comment": "",
+      "columns": [
+        {
+          "name": "daily_report_period_audit_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "before_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "after_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "daily_report_period_audit_id"
           ]
         }
       ]

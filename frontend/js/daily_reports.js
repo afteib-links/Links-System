@@ -452,10 +452,10 @@
         if (!byDate.has(date)) byDate.set(date, []);
         byDate.get(date).push({ ...r, _dirty: false, _expanded: false });
       }
-      const days = this.daysInMonth(this.ym);
+      this.period = data.period || null;
+      const dates = data.period?.dates || Array.from({ length: this.daysInMonth(this.ym) }, (_, i) => `${this.ym}-${String(i + 1).padStart(2, '0')}`);
       this.gridRows = [];
-      for (let d = 1; d <= days; d += 1) {
-        const dateStr = `${this.ym}-${String(d).padStart(2, '0')}`;
+      for (const dateStr of dates) {
         const rows = byDate.get(dateStr) || [];
         if (rows.length) this.gridRows.push(...rows);
         else this.gridRows.push(this.emptyDay(dateStr, meta));
@@ -475,6 +475,44 @@
       this.dailyReportUiSettings = uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.settings : {};
       this.dailyReportHolidayDates = new Set(uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.holiday_dates || [] : []);
       this.renderGrid();
+    },
+
+    async showPeriodMigration() {
+      const { res, data } = await this.ctx.api(`/api/daily-reports/period-migration?project_id=${encodeURIComponent(this.gridMeta.project_id)}`);
+      if (!res.ok || !data?.ok) { window.alert(data?.message || '期間の取得に失敗しました'); return; }
+      const preview = data.preview;
+      const esc = value => this.ctx.escapeHtml(String(value ?? ''));
+      const before = new Map(preview.before_periods.map(p => [p.target_year_month, p]));
+      const changed = preview.changes.filter(r => r.before_month !== r.after_month);
+      this.ctx.app.innerHTML = this.kit.shell('締め期間の確認・移行', `<section class="panel">
+        <h2>案件#${esc(preview.project_id)} の期間差分</h2>
+        <p>案件に設定された締日へ未確定期間を切り替えます。確認・承認・精算に使われた期間と金額は保持します。</p>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>対象月</th><th>現在の期間</th><th>移行後の期間</th><th>状態</th></tr></thead><tbody>
+        ${preview.periods.map(p => `<tr><td>${esc(p.target_year_month)}</td><td>${before.has(p.target_year_month) ? esc(before.get(p.target_year_month).period_start + '〜' + before.get(p.target_year_month).period_end) : '新規'}</td><td>${esc(p.period_start)}〜${esc(p.period_end)}</td><td>${preview.protected_months.includes(p.target_year_month) ? '保護・変更なし' : p.period_mode === 'transition' ? '移行期間' : '締日適用'}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h3>所属月が変わる日報 ${changed.length}件</h3>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>日報</th><th>勤務日</th><th>変更前</th><th>変更後</th><th>請求額（不変）</th><th>支払額（不変）</th></tr></thead><tbody>
+        ${changed.map(r => `<tr><td>#${esc(r.daily_report_id)}</td><td>${esc(r.work_date)}</td><td>${esc(r.before_month)}</td><td>${esc(r.after_month)}</td><td>${esc(this.kit.money(r.billing_amount))}</td><td>${esc(this.kit.money(r.payment_amount))}</td></tr>`).join('')}
+        </tbody></table></div>
+        <label>移行理由<input id="period-migration-reason" required maxlength="1000" /></label>
+        <p id="period-migration-message" role="status"></p>
+        <div class="btn-row"><button type="button" class="btn" id="apply-period-migration">表示した差分で移行する</button><button type="button" class="btn btn-secondary" id="cancel-period-migration">日報へ戻る</button></div>
+      </section>`, { onBack: () => this.showInputGrid(this.gridMeta), wide: true });
+      this.kit.bindShell({ onBack: () => this.showInputGrid(this.gridMeta) });
+      document.getElementById('cancel-period-migration').onclick = () => this.showInputGrid(this.gridMeta);
+      document.getElementById('apply-period-migration').onclick = async event => {
+        const reason = document.getElementById('period-migration-reason').value.trim();
+        const message = document.getElementById('period-migration-message');
+        if (!reason) { message.textContent = '移行理由を入力してください'; return; }
+        event.currentTarget.disabled = true;
+        const result = await this.ctx.api('/api/daily-reports/period-migration', { method: 'POST', body: JSON.stringify({ project_id: preview.project_id, token: preview.token, reason }) });
+        if (!result.res.ok || !result.data?.ok) {
+          message.textContent = result.data?.message || '移行に失敗しました';
+          document.getElementById('apply-period-migration').disabled = false;
+          return;
+        }
+        await this.showInputGrid(this.gridMeta);
+      };
     },
 
     summaryFromGrid() {
@@ -697,6 +735,7 @@
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="dr-toolbar">
             <div class="dr-entry-context">${this.ctx.escapeHtml(this.gridMeta.company_name || `企業#${this.gridMeta.company_id || ''}`)} / ${this.ctx.escapeHtml(this.gridMeta.project_name || `案件#${this.gridMeta.project_id}`)} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} / ${this.ctx.escapeHtml(this.ym)}</div>
+            ${this.period ? `<div class="dr-period-summary">対象期間: <strong>${this.ctx.escapeHtml(this.period.period_start)} 〜 ${this.ctx.escapeHtml(this.period.period_end)}</strong> / ${this.period.closing_day === 'end' ? '末日' : this.ctx.escapeHtml(this.period.closing_day) + '日'}締め ${this.period.period_mode === 'legacy_calendar' ? '（既存の暦月を保持）' : this.period.period_mode === 'transition' ? '（前期間からの移行期間）' : ''}</div>` : ''}
             <div class="dr-entry-modes btn-row"><button type="button" class="btn btn-secondary" data-entry-mode="time">時間入力</button><button type="button" class="btn btn-secondary" data-entry-mode="all">全項目入力</button><small data-hidden-extras></small></div>
             <div class="dr-summary">
               <span>入力行数: <strong>${sum.workDays}</strong></span>
@@ -710,6 +749,7 @@
               ${this.monthlyButtonsHtml()}
               <button type="button" class="btn" id="save-all">一括保存</button>
               ${this.canImport() ? '<button type="button" class="btn btn-secondary" id="open-daily-import">データ取り込み</button>' : ''}
+              ${this.canImport() ? '<button type="button" class="btn btn-ghost" id="open-period-migration">締め期間の確認・移行</button>' : ''}
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
               <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
               <button type="button" class="btn btn-ghost" id="back-month">保存して一覧へ</button>
@@ -961,6 +1001,7 @@
       });
       document.getElementById('back-month')?.addEventListener('click', () => this.leaveGrid(() => this.showMonthList()));
       document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
+      document.getElementById('open-period-migration')?.addEventListener('click', () => this.leaveGrid(() => this.showPeriodMigration()));
       document.getElementById('open-daily-import')?.addEventListener('click', () => this.leaveGrid(() => this.openImports({
         projectId: this.gridMeta.project_id,
         back: () => this.showInputGrid(this.gridMeta),

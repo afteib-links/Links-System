@@ -114,6 +114,24 @@ const frontend = path.resolve(__dirname, '../../frontend');
       assert.ok(await time('start_time',0).evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16);
       await page.screenshot({path:path.join(output,`${width}.png`),fullPage:false});
     }
+    // 月跨ぎ期間の入力行と移行プレビューを実UIで確認する。
+    await page.evaluate(async () => {
+      const dr = window.LinksDailyReports;
+      dr.ym = '2026-11';
+      dr.ctx.renderLoading = () => {};
+      dr.kit.currentYearMonth = () => dr.ym;
+      const dates = Array.from({length:31}, (_, i) => new Date(Date.UTC(2026,9,21+i)).toISOString().slice(0,10));
+      const period = {target_year_month:'2026-11',period_start:dates[0],period_end:dates.at(-1),closing_day:'20',period_mode:'closing',dates};
+      dr.ctx.api = async url => ({res:{ok:true},data:{ok:true,...(url.includes('period-migration') ? {preview:{project_id:1,before_periods:[],periods:[period],changes:[],protected_months:[],token:'test'}} : {period,reports:[],settings:{}})}});
+      await dr.showInputGrid(dr.gridMeta);
+    });
+    assert.equal(await page.evaluate(() => window.LinksDailyReports.gridRows[0].work_date), '2026-10-21');
+    assert.equal(await page.evaluate(() => window.LinksDailyReports.gridRows.at(-1).work_date), '2026-11-20');
+    assert.match(await page.locator('.dr-period-summary').innerText(), /2026-10-21.*2026-11-20/);
+    await page.locator('#open-period-migration').click();
+    await page.locator('#period-migration-reason').waitFor();
+    await page.locator('#apply-period-migration').click();
+    assert.match(await page.locator('#period-migration-message').innerText(), /理由/);
     assert.deepEqual(errors,[]);
     console.log('PASS: 20日連続Tab/逆Tab、時刻、時分選択、詳細、整数、保存競合、3画面幅');
   } finally { await browser.close(); }
