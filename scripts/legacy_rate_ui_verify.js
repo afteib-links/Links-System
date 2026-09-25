@@ -26,7 +26,12 @@ async function main(){
       const panel=await page.locator('.legacy-analysis-panel').innerText();
       assert.match(panel,/原本照合・計算ロジック/);
       assert.match(panel,/qwen3.5:4b/);
-      assert.match(panel,/検算差額/);
+      if(parse(r.extra_data).legacy_analysis.semantic_model){
+        assert.match(panel,/計算項目・数量・金額の算出/);
+        assert.match(panel,/入力項目と数量の求め方/);
+        assert.match(panel,/unit_price \* quantity/);
+        assert.ok(await page.locator('.semantic-calculation-panel tbody tr').count());
+      }else assert.match(panel,/検算差額/);
       assert.ok(await page.locator('[data-fee-row]').count());
       if(parse(r.extra_data).legacy_analysis.calculation_status==='review_required')assert.match(panel,/自動計算は保留/);
       if(r.base_project_id)assert.match(panel,/最初のデータ一式/);

@@ -364,7 +364,7 @@
       if (!a) return '';
       const esc = (value) => this.ctx.escapeHtml(String(value ?? ''));
       const sources = [a, ...(a.alternate_sources || [])];
-      const sourceHtml = sources.map((source, index) => `<details ${index === 0 ? 'open' : ''}>
+      const sourceHtml = sources.map((source, index) => `<details ${index === 0 && !a.semantic_model ? 'open' : ''}>
         <summary>${index ? '同月の別資料' : '採用した原本'}：${esc(source.source_file)} / ${esc(source.source_sheet)}</summary>
         <p>時間条件：${esc(source.header || '記載なし')} ／ 分類モデル：${esc(source.model || a.model)}</p>
         <div style="overflow:auto;max-height:420px"><table class="data-table"><thead><tr><th>区分</th><th>項目</th><th>単価（円）</th><th>単価セル</th><th>数量の式</th><th>金額の式</th><th>検算差額</th></tr></thead><tbody>
@@ -373,7 +373,30 @@
       return `<section class="form-section-card legacy-analysis-panel"><h3>原本照合・計算ロジック</h3>
         <p>${a.calculation_status === 'review_required' ? '要確認：料金は保存済みです。未確認条件があるため自動計算は保留しています。' : '基本計算へ登録済み。過去の請求・支払金額は再計算していません。'}</p>
         ${a.base_source_project_id ? `<p>企業基本料金：最初のデータ一式（元案件ID ${esc(a.base_source_project_id)}）を採用</p>` : ''}
-        ${(a.warnings || []).length ? `<ul>${[...new Set(a.warnings)].map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${sourceHtml}</section>`;
+        ${this.semanticCalculationHtml(a.semantic_model)}
+        ${(a.warnings || []).length ? `<details><summary>従来の原本確認事項</summary><ul>${[...new Set(a.warnings)].map(w => `<li>${esc(w)}</li>`).join('')}</ul></details>` : ''}${sourceHtml}</section>`;
+    },
+
+    semanticCalculationHtml(model) {
+      if (!model?.rules?.length) return '';
+      const esc = value => this.ctx.escapeHtml(String(value ?? ''));
+      const v = model.verification;
+      const fmt = value => value == null ? '未記入' : esc(value);
+      const rows = model.rules.flatMap(rule => ['billing', 'payment'].map(side => {
+        const r = rule[side];
+        return `<tr><td>${esc(rule.category)}<br>${esc(rule.item_name)}</td><td>${side === 'billing' ? '請求' : '支払'}<br>${esc(r.operation)}</td>
+          <td>${(r.input_items || []).map(esc).join('、')}<br>${esc(r.quantity_rule)}<br><small>${r.quantity_entry === 'manual_or_mixed' ? '原本には手入力数量を含む' : '参照・集計による数量'}</small></td>
+          <td>${esc(r.quantity_unit_label)}</td><td>${fmt(r.unit_price)}</td><td>${esc(r.amount_description)}<br><small>対象期間の数量を集約後に計算</small><br><code>${esc(r.amount_expression)}</code></td>
+          <td>${fmt(r.sample?.quantity)} → ${fmt(r.sample?.source_amount)}円</td>
+          <td>${rule.issues?.length ? '要確認' : '定義登録済'}</td></tr>`;
+      })).join('').replaceAll('<td>', '<td style="white-space:normal;overflow-wrap:anywhere;position:static;vertical-align:top">');
+      return `<div class="semantic-calculation-panel"><h4>計算項目・数量・金額の算出</h4>
+        <p>セル番号ではなく、計算に使う業務項目で整理しています。請求・支払の単価は独立しています。金額の検算一致と、日報の数量自動算出への対応は別の確認です。</p>
+        ${v ? `<p>原本数量による金額検算：一致 ${esc(v.matched)}件 ／ 差異 ${esc(v.mismatches?.length || 0)}件 ／ 未検算 ${esc(v.unavailable)}件</p>` : ''}
+        ${model.thresholds?.net_hours != null ? `<p>単価の基準実働 ${esc(model.thresholds.net_hours)}時間 ／ 拘束 ${esc(model.thresholds.gross_hours)}時間 ／ 休憩 ${esc(model.thresholds.break_hours)}時間。超過判定の基準との同一視はしません。</p>` : ''}
+        <div style="overflow:auto;max-height:560px"><table class="data-table" style="width:1220px;min-width:1220px;table-layout:fixed"><colgroup>${[130,80,280,70,90,300,180,90].map(w => `<col style="width:${w}px">`).join('')}</colgroup><thead><tr><th>料金区分・項目</th><th>側・加減算</th><th>入力項目と数量の求め方</th><th>数量単位</th><th>単価（円）</th><th>金額の算出方法</th><th>原本の検算例<br>数量 → 金額</th><th style="position:static">確認</th></tr></thead><tbody>${rows}</tbody></table></div>
+        ${model.issues?.length ? `<details open><summary>自動適用前の確認事項</summary><ul>${model.issues.map(w => `<li>${esc(w)}</li>`).join('')}</ul></details>` : ''}
+        <p><small>分類支援：${esc(model.classification_model)}。${esc(model.quantity_analysis_scope)}。${esc(model.execution_scope)}。</small></p></div>`;
     },
 
     async showList(message = '') {
