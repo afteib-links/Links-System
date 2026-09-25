@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>金額データ管理の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-price_sets">設計書のこの章へ戻る</a><h1>金額データ管理の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/price_sets.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/price_sets.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-price_sets.md" download="金額データ管理.md">金額データ管理.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: price_sets
+related_features: projects, base_projects, daily_reports, calculation_rules, invoices, payments
+primary_tables: price_series, price_sets, price_set_lines, price_set_revision_audit_logs
+api_prefixes: /api/price-sets
+specs: 仕様MD/05_project_price_relationship.md
+---
+# 金額データ管理
+
+## 目的と設計意図
+
+請求・支払単価、時間外・距離・休日等の料金行を、有効期間と改定系列で管理します。契約と単価を分け、過去日報の計算根拠を保持します。
+
+## 利用場面と操作手順
+
+契約単価の新規登録、適用日を指定した料金改定、既存条件の確認に使います。
+
+1. 対象が基本案件用か個別案件用かを確認し、企業・名称・適用開始日・終了日を確認します。
+2. 料金カードの曜日・優先順位を設定し、基本・超過などの項目について請求額と支払額を入力します。
+3. 勤務、深夜、距離、丸めの条件を契約と照合し、保存します。式の編集は管理者の権限内で行います。
+4. 将来の単価変更は「コピーして改定」を使い、新しい適用開始日で登録します。
+5. 改定日前後の日報で適用版と計算結果を確認します。基本案件の改定を個別案件へ反映する際は差分と競合を確認します。
+
+## なぜこの手順で利用するか
+
+請求と支払は同じ実績でも契約単価が異なるため、両側を確認します。適用期間と版を分けることで、改定後も過去の計算根拠が残ります。カードの順序も適用判定に関係するため、金額だけでなく曜日と優先順位を点検します。
+
+## 利用例と完了の確認
+
+10月1日改定なら、既存料金を複製して10月1日開始の版を作ります。検証環境で9月30日と10月1日の日報を確認し、それぞれの適用版が意図どおりかを見ます。確認・承認済みの過去金額が勝手に変わっていないことも確認します。
+
+## 作成・変更の経緯と根拠
+
+`仕様MD/05_project_price_relationship.md` §9は、旧マトリクスから料金カード・項目種別行への移行と改定系列を記録しています。2026-09-10の決定ログでは、デスクトップをExcel型の3カード列にし、式を必要時のみ開く操作が定められました。契約の版管理と日常の入力しやすさを両立する構成です。
+
+## 利用者・権限
+
+管理者、システム担当者、総務、営業が業務範囲内で扱います。
+
+## 前提・入力・処理・出力
+
+対象案件、適用期間、請求・支払区分、曜日区分、計算種別、単価を入力します。日報日付から適用版を選び、日次・月次計算へ渡します。
+
+## 関連機能・前後工程
+
+個別案件の後に設定し、日報計算、請求・支払の明細根拠になります。計算式自体は計算ルール管理と連携します。
+
+## 主要API・データ
+
+`price_series` が改定系列、`price_sets` が期間版、`price_set_lines` が料金行です。変更監査を別テーブルへ記録します。
+
+## 状態・制御・注意点
+
+期間重複、請求・支払の取り違え、曜日フォールバック順、公開済み期間の上書きを防ぎます。確定帳票は後日の単価改定で変えません。
+
+## 現行業務との乖離・確認事項
+
+旧Excelの全料金項目、手入力例外、丸め順が料金行モデルで再現できるか継続確認が必要です。
+
+## 今後の改善
+
+改定前後比較、適用漏れ診断、匿名日報を使った料金シミュレーションを検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

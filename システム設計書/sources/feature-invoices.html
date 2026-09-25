@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>請求の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-invoices">設計書のこの章へ戻る</a><h1>請求の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/invoices.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/invoices.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-invoices.md" download="請求.md">請求.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: invoices
+related_features: daily_reports, companies, price_sets, office_work, cash_management
+primary_tables: invoices, invoice_details, invoice_daily_reports, settlement_lines, settlement_line_sources, settlement_documents, settlement_workflows, invoice_consolidation_sources
+api_prefixes: /api/invoices, /api/settlements
+specs: 仕様MD/個別機能仕様書：3-2. 請求締め・請求書発行管理画面.md, 仕様MD/09_日報・精算・帳票_業務要件.md
+---
+# 請求
+
+## 目的と設計意図
+
+企業へ請求する売上明細を日報から下書きし、手動調整、営業確認、確定、請求書発行、入金予定作成まで管理します。支払とは相手先・税・帳票・訂正系列を分離します。
+
+## 利用場面と操作手順
+
+対象月の企業への請求内容を整え、確認後に請求書を発行するときに使います。
+
+1. 対象月、企業、請求先、案件を選んで下書きを作ります。日報未完了の事前下書きは、金額確定済みとして扱いません。
+2. 「日報から再反映」で保存済み日報との差分を確認します。手動追加・編集した行を置き換える場合は内容を確認して選択します。
+3. 摘要、単価、数量、金額、税区分、順序と見本PDFを照合します。調整は理由を残します。
+4. 対象日報の承認と根拠の一致を確認し、営業確認・承認・最終確定・帳票発行を画面の状態に従って進めます。
+5. 発行済みPDFの宛先・番号・合計と、入出金管理の入金予定を確認します。
+
+## なぜこの手順で利用するか
+
+先に下書きを作れるのは月次作業を準備できるようにするためです。一方、確定時には承認された根拠が必要です。自動明細と手動調整を分けることで、日報を再反映した際に意図した調整が失われることを防ぎます。発行後は表示内容を固定し、後日のマスタ変更から過去請求を守ります。
+
+## 利用例と完了の確認
+
+同一企業・同一月の2案件を請求する場合、請求先と取りまとめ条件を確認します。別請求先の下書きを取りまとめるには、同一締日・同じ空欄でない取纏Noなどの条件が必要です。請求書を出した時点と入金を受けた時点を区別し、入金完了は入出金管理の実績で確認します。
+
+## 作成・変更の経緯と根拠
+
+決定ログの2026-09-03（Issue #54）では日別明細から月額明細への集約と手動行の保護、2026-09-09では請求先No.0、取りまとめ請求、案件月単位の統合承認が決まりました。発行済みの訂正は理由付き無効化と訂正下書きで行い、元番号を再利用しない方針です。参照: `仕様MD/05_decision_log.md`、`09_日報・精算・帳票_業務要件.md` §6。
+
+## 利用者・権限
+
+管理者、総務、営業、経営者、企業ユーザーが役割に応じて作成・確認・閲覧します。確定・取消は限定ロールです。
+
+## 前提・入力・処理・出力
+
+対象月、企業、案件、日報を選び、自動明細と任意調整を編集します。営業確認・確定後に帳票番号、PDF、入金予定を出力します。
+
+## 関連機能・前後工程
+
+承認済み日報、企業請求設定、料金を参照し、事務作業から進みます。確定結果は入出金管理と収支分析へ渡ります。
+
+## 主要API・データ
+
+請求ヘッダー・明細・日報対応、共通精算明細・根拠・ワークフロー・確定文書、取りまとめ元を保持します。
+
+## 状態・制御・注意点
+
+下書き、確認待ち、承認済み、発行済み、取消、訂正を区別します。再反映は差分選択とし、手動追加・編集済み明細を黙って置換しません。
+
+## 現行業務との乖離・確認事項
+
+集約キー、締め対象、税・端数、再取込優先順位、訂正運用はD-02〜D-05の最終確認が必要です。
+
+## 今後の改善
+
+企業向け閲覧承認、送付管理、入金消込、訂正差額の案内強化を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

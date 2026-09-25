@@ -178,6 +178,7 @@
 
   function headerHtml(pageTitle = '') {
     const rolesText = (currentUser.roles || []).map(roleLabel).join(' / ') || '権限なし';
+    const canViewSystemDesign = (currentUser.roles || []).some((role) => role === 'admin' || role === 'system');
     const escapedTitle = escapeHtml(pageTitle);
     return `
       <header class="app-header app-topbar">
@@ -186,6 +187,7 @@
         <div class="topbar-context"><span>運送業務基幹システム</span></div>
         <h1 class="topbar-page-title" title="${escapedTitle}">${escapedTitle}</h1>
         <div class="header-actions">
+          ${canViewSystemDesign ? '<a class="btn btn-ghost header-manual-link" href="/system-design/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">設</span><span class="header-manual-label">システム設計書</span></a>' : ''}
           <a class="btn btn-ghost header-manual-link" href="/manual/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">冊</span><span class="header-manual-label">利用マニュアル</span></a>
           <button class="btn btn-ghost header-help-button" type="button" id="screen-help"><span aria-hidden="true">？</span><span class="header-help-label">ヘルプ</span></button>
           <div class="user-pill">
@@ -430,7 +432,7 @@
       await loadUiSettings();
       featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
-      await showHome();
+      await showInitialView();
     });
   }
 
@@ -454,6 +456,9 @@
 
   async function openFeature(featureKey, options = {}) {
     if (!can(featureKey)) return showToast('この機能を利用する権限がありません');
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('feature', featureKey);
+    window.history.replaceState(null, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     currentView = featureKey;
     renderLoading();
     try {
@@ -478,6 +483,9 @@
   }
 
   async function showHome() {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete('feature');
+    window.history.replaceState(null, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     currentView = 'home';
     app.innerHTML = `<div class="app-shell">${sidebarHtml('home')}<div class="app-frame">${headerHtml('業務ダッシュボード')}
       <main class="app-main dashboard-main"><p class="muted" data-dashboard-loading role="status">業務状況を読み込み中…</p></main></div></div>`;
@@ -750,6 +758,16 @@
     });
   }
 
+  async function showInitialView() {
+    const requested = new URL(window.location.href).searchParams.get('feature');
+    if (requested && can(requested)) {
+      await openFeature(requested);
+      return;
+    }
+    await showHome();
+    if (requested) showToast('指定された機能を利用する権限がないか、機能が見つかりません');
+  }
+
   async function boot() {
     renderLoading();
     const { res, data } = await api('/api/auth/me');
@@ -758,7 +776,7 @@
       await loadUiSettings();
       featureCatalog = enrichFeatures(data.features);
       roleCatalog = data.roles || ROLE_FALLBACK;
-      await showHome();
+      await showInitialView();
       return;
     }
     renderLogin(res.status === 401 ? '' : data?.message || 'ログイン状態を確認できませんでした。');

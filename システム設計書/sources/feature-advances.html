@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>先払いの原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-advances">設計書のこの章へ戻る</a><h1>先払いの原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/advances.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/advances.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-advances.md" download="先払い.md">先払い.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: advances
+related_features: projects, partners, payments, cash_management, master_settings
+primary_tables: project_advance_terms, advance_cycle_settings, advance_records, advance_payments, advance_payment_allocations, advance_record_audit_logs
+api_prefixes: /api/advances
+specs: 仕様MD/個別機能仕様書：3-1. 先払い（分割）管理画面.md, 仕様MD/09_日報・精算・帳票_業務要件.md, 仕様MD/10_入出金管理・FB_業務要件.md
+---
+# 先払い
+
+## 目的と設計意図
+
+月途中に行う前払を、5・10日、15・20日、25日・末日の3サイクルで管理し、最終支払控除と入出金予定へつなげます。分割返済とは別の業務概念です。
+
+## 利用場面と操作手順
+
+月次精算前に支払の一部を先に渡す案件について、各サイクルの金額と予定を確認します。
+
+1. 対象月を選び、個別案件の支払区分が「分割」になっている対象案件を確認します。
+2. 3サイクルそれぞれの対象期間、確認済み日報の稼働日数、分割単価、元金額、手数料を確認します。
+3. 当月の対象外サイクルはOFFにします。金額・手数料を元値から変更する場合は理由を入力します。
+4. 対象を選んで予定を作成し、入出金管理の当月20日回、末日回、翌月10日回への反映を確認します。
+5. 振込後は入出金実績を記録し、正式支払時に実行済み先払の控除を確認します。
+
+## なぜこの手順で利用するか
+
+予定を作っただけで先払済みとすると、実際には振り込んでいない額を正式支払から差し引く原因になります。対象期間・予定・実行を分けて照合するのは二重支払や二重控除を防ぐためです。「分割」という案件区分は、物品立替等の分割返済契約とは別の意味で使われます。
+
+## 利用例と完了の確認
+
+5日・10日締めサイクルの先払を作るときは当月20日回へつながることを確認します。稼働0日の案件も一覧に出ますが、予定作成対象はONかつ1円以上のセルです。未実行の誤りは理由付き作成取消、実行済みの誤りは返金・訂正予定で対応し、元実績は残します。
+
+## 作成・変更の経緯と根拠
+
+2026-09-05の決定ログで、3サイクル・5列マトリクス、稼働0日でも表示、月ごとのON/OFF、理由付き手修正が決まりました。`仕様MD/09_日報・精算・帳票_業務要件.md` §4では、旧 `project_advance_terms` ではなく個別案件の支払区分を新規処理の正本としています。
+
+## 利用者・権限
+
+管理者、総務、経営者が利用します。
+
+## 前提・入力・処理・出力
+
+対象月、案件、サイクル、ON/OFF、支払額、手数料、理由を入力します。対象管理回の出金予定と、正式支払の控除根拠を出力します。
+
+## 関連機能・前後工程
+
+分割区分等の個別案件とパートナー振込先、手数料マスターを参照し、支払と入出金管理へ連携します。
+
+## 主要API・データ
+
+案件別サイクル設定、先払記録、振込、最終支払への充当、監査ログを分離します。
+
+## 状態・制御・注意点
+
+未実行予定の取消と実行済み訂正を分けます。取消済み予定を再利用せず、金額変更理由と楽観ロックを必須とします。
+
+## 現行業務との乖離・確認事項
+
+上限、対象外、取消、手数料、分割返済の利子・繰上返済等はD-06/D-07の業務確認が残ります。
+
+## 今後の改善
+
+上限・対象外ルール、分割返済専用管理、実行済み差額処理の自動化を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

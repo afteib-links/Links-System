@@ -15,6 +15,7 @@
     "detach:verification-dependencies": "node scripts/seed_verification_data.js --detach-external-projects",
     "preview:settlement-pdfs": "node scripts/generate_settlement_pdf_previews.js",
     "test:settlement-access": "node test-integration/settlement_access_api.js",
+    "test:system-design-access": "node test-integration/system_design_access.js",
     "test:settlement-workflow": "node test-integration/settlement_workflow_api.js",
     "test:daily-import": "node test-integration/daily_report_import_api.js",
     "test:verification-reset": "node test-integration/verification_seed_reset.js",
@@ -32,7 +33,12 @@
     "test:e2e-base-management": "node test-e2e/base_management_ui.js",
     "test:e2e-master-ui": "node test-e2e/master_ui_search_improvements.js",
     "test:e2e-manual": "node test-e2e/manual_ui.js",
-    "capture:manual": "node scripts/capture_manual_screens.js"
+    "test:e2e-system-design": "node test-e2e/system_design_ui.js",
+    "capture:manual": "node scripts/capture_manual_screens.js",
+    "docs:system-design": "node scripts/system_design.mjs build",
+    "docs:system-design:check": "node scripts/system_design.mjs check",
+    "docs:system-design:schema": "node scripts/system_design.mjs schema",
+    "docs:system-design:scaffold": "node scripts/system_design.mjs scaffold"
   },
   "engines": {
     "node": ">=20"
@@ -50,5 +56,8 @@
     "playwright": "^1.62.1",
     "read-excel-file": "^6.0.3",
     "unzipper": "^0.12.5"
+  },
+  "devDependencies": {
+    "marked": "17.0.5"
   }
 }

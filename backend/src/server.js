@@ -63,8 +63,7 @@ async function createApp() {
     getPool()
   );
 
-  app.use('/api',
-    session({
+  const sessionMiddleware = session({
       name: 'connect.sid',
       secret: config.sessionSecret,
       resave: false,
@@ -76,8 +75,9 @@ async function createApp() {
         secure: false,
         maxAge: 7 * 24 * 60 * 60 * 1000,
       },
-    })
-  );
+    });
+
+  app.use('/api', sessionMiddleware);
 
   app.get('/api/health', async (_req, res) => {
     try {
@@ -170,6 +170,7 @@ async function createApp() {
 
   const frontendDir = path.resolve(__dirname, '../../frontend');
   const manualDir = path.resolve(__dirname, '../../利用マニュアル');
+  const systemDesignDir = path.resolve(__dirname, '../../システム設計書');
 
   // 利用マニュアルはログイン方法も確認できるよう、社内LAN内では認証なしで配信する。
   // SPAフォールバックより前に置き、/manual/* をアプリの index.html へ流さない。
@@ -181,6 +182,24 @@ async function createApp() {
       setHeaders(res) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
+      },
+    })
+  );
+
+  // 内部構造を含むため、設計書は管理者・システム担当者だけへ配信する。
+  app.use(
+    '/system-design',
+    sessionMiddleware,
+    requireAuth,
+    requireRole('admin', 'system'),
+    express.static(systemDesignDir, {
+      etag: false,
+      lastModified: false,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'");
       },
     })
   );

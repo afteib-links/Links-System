@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DB取込の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-db_import">設計書のこの章へ戻る</a><h1>DB取込の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/db_import.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/db_import.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-db_import.md" download="DB取込.md">DB取込.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: db_import
+related_features: master_data_preparation, db_export, companies, partners, projects
+primary_tables: master_data_import_batches, master_data_import_mappings
+api_prefixes: /api/master-data-imports
+specs: 仕様MD/計画/28_マスターデータExcel取込.md
+---
+# DB取込
+
+## 目的と設計意図
+
+編集済みExcelを検証し、エラー一覧を確認してからマスターをDBへ登録・更新します。解析と確定を分離し、誤った一括更新を防ぎます。
+
+## 利用場面と操作手順
+
+所定形式に整えたマスターExcelをDBへ登録・更新するときに使います。
+
+1. マスターデータ取込準備またはDB出力で作ったExcelを用意します。登録先環境を確認します。
+2. Excelを読み込み、プレビューで追加・更新の対象、参照関係、エラーを確認します。
+3. エラーや意図しない更新があればExcelを修正して、もう一度プレビューします。旧プレビューのまま確定しません。
+4. 内容を確認して登録し、結果件数とエラーを確認します。
+5. 企業・パートナー・案件などの画面で代表レコードと関連を照合します。
+
+## なぜこの手順で利用するか
+
+名称だけで同一データと決めると、同名の別人や別契約を上書きする危険があります。取込キーと出力時の版を使って対応を確認し、親データのエラーも確認することで誤った紐付けを防ぎます。Excelから行を消してもDB削除にはなりません。
+
+## 利用例と完了の確認
+
+企業とその案件を同時に登録するとき、企業行がエラーなら案件側の関連も確認します。「ファイル読込成功」で終わらせず、確定結果の件数と、案件画面で正しい企業を参照していることを確認します。過去料金版の訂正はExcel再取込ではなく金額データの訂正経路を使います。
+
+## 作成・変更の経緯と根拠
+
+2026-09-12の決定ログで安定キー、サーバー側自動補完、親から子への依存順保存が整理されました。2026-09-13のPR #143レビュー記録では、過去料金版の保護、手入力レコードの版一致、行欠落を削除と見なさない扱いが追加されています。
+
+## 利用者・権限
+
+管理者とシステム担当者だけが利用します。
+
+## 前提・入力・処理・出力
+
+所定形式のExcelを入力し、列、型、必須、参照先、重複を検査します。プレビュー、エラーExcel、確定結果を出力します。
+
+## 関連機能・前後工程
+
+マスターデータ取込準備またはDB出力で作ったExcelを使い、企業・パートナー・案件等へ反映します。
+
+## 主要API・データ
+
+`master_data_import_batches` に操作単位、`master_data_import_mappings` に対応付けを保存します。
+
+## 状態・制御・注意点
+
+プレビュー結果と同じトークン・内容だけを確定し、途中失敗はトランザクションで巻き戻します。確定済み取引や帳票を一括更新対象にしません。
+
+## 現行業務との乖離・確認事項
+
+重複時の更新・追加・無視の業務判断を、マスター種別ごとに確認する必要があります。
+
+## 今後の改善
+
+行単位選択、更新前後差分、承認付き取込、ロールバック支援を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

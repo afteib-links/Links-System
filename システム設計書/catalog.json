@@ -1,0 +1,2270 @@
+{
+  "generated_from": [
+    "backend/src/permissions.js",
+    "backend/src/server.js",
+    "backend/src/routes/",
+    "仕様MD/システム設計/",
+    "information_schema"
+  ],
+  "features": [
+    {
+      "key": "base_management",
+      "label": "基本管理",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu"
+      ],
+      "related_features": [
+        "companies",
+        "partners",
+        "base_projects",
+        "projects",
+        "price_sets"
+      ],
+      "primary_tables": [
+        "companies",
+        "partners",
+        "base_projects",
+        "projects",
+        "price_sets"
+      ],
+      "api_prefixes": [
+        "/api/base-management"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：1-4. 基本管理画面.md",
+        "仕様MD/05_project_price_relationship.md"
+      ]
+    },
+    {
+      "key": "companies",
+      "label": "企業マスタ",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu"
+      ],
+      "related_features": [
+        "base_management",
+        "base_projects",
+        "projects",
+        "invoices",
+        "cash_management"
+      ],
+      "primary_tables": [
+        "companies",
+        "company_billings",
+        "company_vehicles",
+        "company_manager_periods",
+        "company_invoice_settings"
+      ],
+      "api_prefixes": [
+        "/api/companies"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：1-1. 企業マスタ管理画面.md"
+      ]
+    },
+    {
+      "key": "partners",
+      "label": "パートナーマスタ",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu"
+      ],
+      "related_features": [
+        "base_management",
+        "projects",
+        "daily_reports",
+        "payments",
+        "advances"
+      ],
+      "primary_tables": [
+        "partners",
+        "partner_vehicles"
+      ],
+      "api_prefixes": [
+        "/api/partners"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：1-2. パートナーマスタ管理画面.md"
+      ]
+    },
+    {
+      "key": "base_projects",
+      "label": "基本案件",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu",
+        "sales"
+      ],
+      "related_features": [
+        "companies",
+        "projects",
+        "price_sets",
+        "base_management"
+      ],
+      "primary_tables": [
+        "base_projects",
+        "projects",
+        "project_revisions"
+      ],
+      "api_prefixes": [
+        "/api/projects"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：1-3. 案件マスタ管理画面.md",
+        "仕様MD/05_project_price_relationship.md"
+      ]
+    },
+    {
+      "key": "projects",
+      "label": "個別案件",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu",
+        "sales"
+      ],
+      "related_features": [
+        "companies",
+        "partners",
+        "base_projects",
+        "price_sets",
+        "daily_reports",
+        "advances"
+      ],
+      "primary_tables": [
+        "projects",
+        "project_revisions",
+        "project_advance_terms",
+        "project_invoice_settings",
+        "project_settlement_reviewers"
+      ],
+      "api_prefixes": [
+        "/api/projects"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：1-3. 案件マスタ管理画面.md",
+        "仕様MD/05_project_price_relationship.md"
+      ]
+    },
+    {
+      "key": "price_sets",
+      "label": "金額データ管理",
+      "group": "master",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu",
+        "sales"
+      ],
+      "related_features": [
+        "projects",
+        "base_projects",
+        "daily_reports",
+        "calculation_rules",
+        "invoices",
+        "payments"
+      ],
+      "primary_tables": [
+        "price_series",
+        "price_sets",
+        "price_set_lines",
+        "price_set_revision_audit_logs"
+      ],
+      "api_prefixes": [
+        "/api/price-sets"
+      ],
+      "specs": [
+        "仕様MD/05_project_price_relationship.md"
+      ]
+    },
+    {
+      "key": "master_data_preparation",
+      "label": "マスターデータ取込",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "db_import",
+        "db_export",
+        "master_data_export",
+        "master_settings"
+      ],
+      "primary_tables": [
+        "master_data_import_batches",
+        "master_data_import_mappings"
+      ],
+      "api_prefixes": [
+        "/api/master-data-preparations",
+        "/api/foundation-master-restores"
+      ],
+      "specs": [
+        "仕様MD/計画/28_マスターデータExcel取込.md",
+        "仕様MD/計画/29_基盤マスターと計算ルール.md"
+      ]
+    },
+    {
+      "key": "db_import",
+      "label": "DB取込",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "master_data_preparation",
+        "db_export",
+        "companies",
+        "partners",
+        "projects"
+      ],
+      "primary_tables": [
+        "master_data_import_batches",
+        "master_data_import_mappings"
+      ],
+      "api_prefixes": [
+        "/api/master-data-imports"
+      ],
+      "specs": [
+        "仕様MD/計画/28_マスターデータExcel取込.md"
+      ]
+    },
+    {
+      "key": "db_export",
+      "label": "DB出力",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "db_import",
+        "master_data_preparation",
+        "master_data_export"
+      ],
+      "primary_tables": [
+        "master_data_db_export_rows"
+      ],
+      "api_prefixes": [
+        "/api/db-exports"
+      ],
+      "specs": [
+        "仕様MD/計画/30_システム専用メニューとExcel出入.md"
+      ]
+    },
+    {
+      "key": "master_data_export",
+      "label": "マスターデータ出力",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "master_data_preparation",
+        "db_export",
+        "master_settings"
+      ],
+      "primary_tables": [
+        "code_masters",
+        "system_settings",
+        "help_contents",
+        "bank_export_profiles",
+        "settlement_deduction_rules",
+        "numbering_rules"
+      ],
+      "api_prefixes": [
+        "/api/master-data-exports"
+      ],
+      "specs": [
+        "仕様MD/計画/29_基盤マスターと計算ルール.md",
+        "仕様MD/計画/30_システム専用メニューとExcel出入.md"
+      ]
+    },
+    {
+      "key": "test_data",
+      "label": "検証用データ",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "companies",
+        "partners",
+        "projects",
+        "daily_reports",
+        "invoices",
+        "payments",
+        "cash_management"
+      ],
+      "primary_tables": [
+        "test_data_drafts",
+        "test_data_generation_jobs",
+        "test_data_monthly_generation_jobs",
+        "test_data_settlement_generation_jobs",
+        "test_data_output_generation_jobs"
+      ],
+      "api_prefixes": [
+        "/api/test-data"
+      ],
+      "specs": [
+        "docs/development/TEST_DATA_TOOL.md",
+        "docs/development/TEST_DATA_AND_SECRETS.md",
+        "仕様MD/計画/28_日報起点検証データツール.md"
+      ]
+    },
+    {
+      "key": "calculation_rules",
+      "label": "計算ルール管理",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "price_sets",
+        "daily_reports",
+        "invoices",
+        "payments",
+        "test_data"
+      ],
+      "primary_tables": [
+        "calculation_rule_sets",
+        "calculation_rules",
+        "calculation_rule_audit_logs"
+      ],
+      "api_prefixes": [
+        "/api/calculation-rules"
+      ],
+      "specs": [
+        "仕様MD/04_calculation_logic.md",
+        "仕様MD/計画/29_基盤マスターと計算ルール.md"
+      ]
+    },
+    {
+      "key": "office_work",
+      "label": "事務作業",
+      "group": "daily",
+      "default_roles": [
+        "admin",
+        "soumu",
+        "sales",
+        "executive"
+      ],
+      "related_features": [
+        "daily_report_submissions",
+        "daily_reports",
+        "invoices",
+        "payments",
+        "cash_management"
+      ],
+      "primary_tables": [
+        "daily_reports",
+        "daily_report_monthly_approvals",
+        "monthly_closing_workflows",
+        "invoices",
+        "payments"
+      ],
+      "api_prefixes": [
+        "/api/daily-reports",
+        "/api/invoices",
+        "/api/payments",
+        "/api/settlements"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：2-3. 事務作業画面.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md"
+      ]
+    },
+    {
+      "key": "daily_reports",
+      "label": "日報",
+      "group": "daily",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu",
+        "sales",
+        "partner",
+        "executive"
+      ],
+      "related_features": [
+        "projects",
+        "price_sets",
+        "daily_report_submissions",
+        "calculation_rules",
+        "invoices",
+        "payments"
+      ],
+      "primary_tables": [
+        "daily_reports",
+        "daily_report_audit_logs",
+        "daily_report_confirmation_snapshots",
+        "daily_report_monthly_approvals",
+        "daily_report_distance_monthly_results"
+      ],
+      "api_prefixes": [
+        "/api/daily-reports",
+        "/api/daily-report-imports"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：2-1. 日報登録・一覧管理画面.md",
+        "仕様MD/04_calculation_logic.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md"
+      ]
+    },
+    {
+      "key": "daily_report_submissions",
+      "label": "日報提出",
+      "group": "daily",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu",
+        "sales",
+        "executive"
+      ],
+      "related_features": [
+        "partners",
+        "projects",
+        "daily_reports",
+        "office_work"
+      ],
+      "primary_tables": [
+        "daily_report_submissions"
+      ],
+      "api_prefixes": [
+        "/api/daily-report-submissions"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：2-2. 日報提出一覧画面.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md"
+      ]
+    },
+    {
+      "key": "advances",
+      "label": "先払い",
+      "group": "billing",
+      "default_roles": [
+        "admin",
+        "executive",
+        "soumu"
+      ],
+      "related_features": [
+        "projects",
+        "partners",
+        "payments",
+        "cash_management",
+        "master_settings"
+      ],
+      "primary_tables": [
+        "project_advance_terms",
+        "advance_cycle_settings",
+        "advance_records",
+        "advance_payments",
+        "advance_payment_allocations",
+        "advance_record_audit_logs"
+      ],
+      "api_prefixes": [
+        "/api/advances"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：3-1. 先払い（分割）管理画面.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md",
+        "仕様MD/10_入出金管理・FB_業務要件.md"
+      ]
+    },
+    {
+      "key": "invoices",
+      "label": "請求",
+      "group": "billing",
+      "default_roles": [
+        "admin",
+        "executive",
+        "soumu",
+        "sales",
+        "company"
+      ],
+      "related_features": [
+        "daily_reports",
+        "companies",
+        "price_sets",
+        "office_work",
+        "cash_management"
+      ],
+      "primary_tables": [
+        "invoices",
+        "invoice_details",
+        "invoice_daily_reports",
+        "settlement_lines",
+        "settlement_line_sources",
+        "settlement_documents",
+        "settlement_workflows",
+        "invoice_consolidation_sources"
+      ],
+      "api_prefixes": [
+        "/api/invoices",
+        "/api/settlements"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：3-2. 請求締め・請求書発行管理画面.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md"
+      ]
+    },
+    {
+      "key": "payments",
+      "label": "支払",
+      "group": "billing",
+      "default_roles": [
+        "admin",
+        "executive",
+        "soumu",
+        "sales",
+        "partner"
+      ],
+      "related_features": [
+        "daily_reports",
+        "partners",
+        "advances",
+        "office_work",
+        "cash_management"
+      ],
+      "primary_tables": [
+        "payments",
+        "payment_details",
+        "payment_daily_reports",
+        "settlement_lines",
+        "settlement_line_sources",
+        "settlement_documents",
+        "settlement_workflows",
+        "settlement_deduction_rules"
+      ],
+      "api_prefixes": [
+        "/api/payments",
+        "/api/settlements"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：3-3. 支払締め・支払明細書発行管理画面.md",
+        "仕様MD/09_日報・精算・帳票_業務要件.md"
+      ]
+    },
+    {
+      "key": "cash_management",
+      "label": "入出金管理・FB出力",
+      "group": "billing",
+      "default_roles": [
+        "admin",
+        "executive",
+        "soumu"
+      ],
+      "related_features": [
+        "invoices",
+        "payments",
+        "advances",
+        "master_settings",
+        "analytics"
+      ],
+      "primary_tables": [
+        "cash_cycles",
+        "cash_schedules",
+        "cash_transactions",
+        "cash_export_batches",
+        "cash_export_batch_items",
+        "source_bank_accounts",
+        "source_bank_ledger_entries",
+        "bank_export_profiles",
+        "bank_export_profile_versions",
+        "bank_export_columns"
+      ],
+      "api_prefixes": [
+        "/api/cash-management",
+        "/api/master-settings/bank-export"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：3-4. 入出金管理・銀行CSV出力画面.md",
+        "仕様MD/10_入出金管理・FB_業務要件.md"
+      ]
+    },
+    {
+      "key": "analytics",
+      "label": "収支分析",
+      "group": "analysis",
+      "default_roles": [
+        "admin",
+        "executive",
+        "soumu"
+      ],
+      "related_features": [
+        "companies",
+        "partners",
+        "projects",
+        "daily_reports",
+        "invoices",
+        "payments"
+      ],
+      "primary_tables": [
+        "daily_reports",
+        "invoices",
+        "payments",
+        "projects",
+        "companies",
+        "partners"
+      ],
+      "api_prefixes": [
+        "/api/analytics"
+      ],
+      "specs": [
+        "仕様MD/個別機能仕様書：4-1. 収支分析画面.md",
+        "仕様MD/計画/23_収支分析3表.md"
+      ]
+    },
+    {
+      "key": "master_settings",
+      "label": "マスター設定",
+      "group": "settings",
+      "default_roles": [
+        "admin",
+        "system",
+        "soumu"
+      ],
+      "related_features": [
+        "companies",
+        "projects",
+        "price_sets",
+        "advances",
+        "cash_management",
+        "invoices",
+        "payments"
+      ],
+      "primary_tables": [
+        "staff_masters",
+        "office_masters",
+        "numbering_rules",
+        "code_masters",
+        "holidays",
+        "system_settings",
+        "transfer_fee_patterns",
+        "settlement_deduction_rules",
+        "source_bank_accounts",
+        "bank_export_profiles"
+      ],
+      "api_prefixes": [
+        "/api/master-settings",
+        "/api/settlements/settings"
+      ],
+      "specs": [
+        "仕様MD/02_master_definition.md",
+        "仕様MD/計画/22_マスターヘルプとUIビルダー一覧項目.md"
+      ]
+    },
+    {
+      "key": "help_settings",
+      "label": "ヘルプ編集設定",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "master_settings",
+        "ui_builder",
+        "menu_access_settings"
+      ],
+      "primary_tables": [
+        "help_contents"
+      ],
+      "api_prefixes": [
+        "/api/help"
+      ],
+      "specs": [
+        "仕様MD/計画/22_マスターヘルプとUIビルダー一覧項目.md"
+      ]
+    },
+    {
+      "key": "menu_access_settings",
+      "label": "利用可能メニュー選択",
+      "group": "system",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "users",
+        "help_settings"
+      ],
+      "primary_tables": [
+        "feature_role_permissions",
+        "feature_role_permission_revision"
+      ],
+      "api_prefixes": [
+        "/api/menu-access"
+      ],
+      "specs": [
+        "仕様MD/Login.md",
+        "仕様MD/07_auth_and_permissions.md",
+        "仕様MD/計画/30_システム専用メニューとExcel出入.md"
+      ]
+    },
+    {
+      "key": "ui_builder",
+      "label": "UIビルダー",
+      "group": "settings",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "companies",
+        "partners",
+        "projects",
+        "daily_reports",
+        "users"
+      ],
+      "primary_tables": [
+        "user_screen_layouts",
+        "company_screen_layouts"
+      ],
+      "api_prefixes": [
+        "/api/layouts"
+      ],
+      "specs": [
+        "仕様MD/計画/22_マスターヘルプとUIビルダー一覧項目.md"
+      ]
+    },
+    {
+      "key": "users",
+      "label": "ユーザー管理",
+      "group": "settings",
+      "default_roles": [
+        "admin",
+        "system"
+      ],
+      "related_features": [
+        "menu_access_settings",
+        "ui_builder",
+        "daily_reports",
+        "invoices",
+        "payments"
+      ],
+      "primary_tables": [
+        "users",
+        "sessions"
+      ],
+      "api_prefixes": [
+        "/api/users",
+        "/api/auth"
+      ],
+      "specs": [
+        "仕様MD/Login.md",
+        "仕様MD/07_auth_and_permissions.md"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/admin/ping",
+      "guard": "ロール: admin",
+      "source": "backend/src/server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/advances",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/advances/cycles/:projectId/:groupCode",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/advances/groups",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/advances/groups/:groupCode/records",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/advances/matrix",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/advances/records",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/advances/records",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/advances/records/:id/cancel",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/advances/records/:id/reversal",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/advances/terms",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/advances/terms",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/advances/upsert",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/advances_matrix.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/days",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/analytics.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/margin",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/analytics.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/meta",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/analytics.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/pl",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/analytics.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/features",
+      "guard": "ルート定義による",
+      "source": "backend/src/routes/auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "guard": "ルート定義による",
+      "source": "backend/src/routes/auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "guard": "ルート定義による",
+      "source": "backend/src/routes/auth.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "guard": "ルート定義による",
+      "source": "backend/src/routes/auth.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/base-management",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/base_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calculation-rules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calculation-rules/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/calculation-rules/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/calculation-rules/:id/clone",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/calculation-rules/:id/compare",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/calculation-rules/:id/publish",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/calculation-rules/:id/recalculate",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calculation-rules/:id/recalculation-candidates",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/calculation-rules/:id/validate",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/calculation_rules.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/balances",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/bank-export-options",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/bank-exports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/bank-exports/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/cycles",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/cycles/ensure",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/exports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/exports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/exports/:id/cancel",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/exports/:id/download",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/ledger",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/ledger",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/cash-management/ledger/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cash-management/schedules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/schedules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/cash-management/schedules/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cash-management/schedules/:id/transaction",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/cash_management.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/companies.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/companies.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/companies.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/companies.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companies/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/companies.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-report-imports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-report-imports/:id/apply",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-report-imports/:id/cancel",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-report-imports/:id/parse",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/daily-report-imports/:id/rows/:rowId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports/:id/setup",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports/fields",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports/files/:fileId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-imports/mappings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-report-imports/mappings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_imports.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/daily-report-submissions/cycles/:projectId/:groupCode",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_submissions.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-report-submissions/matrix",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_report_submissions.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/daily-reports/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/daily-reports/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports/:id/status",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/calculation-context",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports/day-status",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/distance-monthly",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/input-defaults",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/month-projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/monthly-approval",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports/monthly-approval",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/ui-settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/summary",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/dashboard.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/db-exports",
+      "guard": "機能権限: db_export",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/db-exports/:token.xlsx",
+      "guard": "機能権限: db_export",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/foundation-master-restores/:token/commit",
+      "guard": "機能権限: master_data_preparation",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/foundation-master-restores/preview",
+      "guard": "機能権限: master_data_preparation",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "guard": "ルート定義による",
+      "source": "backend/src/server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/help",
+      "guard": "機能権限: help_settings",
+      "source": "backend/src/routes/help.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/help/:screenKey",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/help.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/help/:screenKey",
+      "guard": "機能権限: help_settings",
+      "source": "backend/src/routes/help.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/invoices/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/approve",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/confirm",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/print",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/unconfirm",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/close",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/exclude",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/targets",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/invoices.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/:screenKey",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/layouts.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/layouts/:screenKey",
+      "guard": "機能権限: ui_builder",
+      "source": "backend/src/routes/layouts.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/base-projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/companies",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/company-billings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/partners",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/transfer-fees",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/vehicles",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/lookups.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-data-exports",
+      "guard": "機能権限: master_data_export",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-data-exports/:token.xlsx",
+      "guard": "機能権限: master_data_export",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-data-imports/:token/commit",
+      "guard": "機能権限: db_import",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-data-imports/:token/errors.xlsx",
+      "guard": "機能権限: db_import",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-data-imports/preview",
+      "guard": "機能権限: db_import",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-data-preparations",
+      "guard": "機能権限: master_data_preparation",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-data-preparations/:token.xlsx",
+      "guard": "機能権限: master_data_preparation",
+      "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/bank-export/accounts",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/master-settings/bank-export/accounts/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/bank-export/accounts/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/bank-export/catalog",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/bank-export/profiles",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/bank-export/profiles/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/bank-export/profiles/:id/versions",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/bank-export/versions/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/bank-export/versions/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/bank-export/versions/:id/publish",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/bank_export_masters.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/codes",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/codes/:category",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/codes/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/holidays",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/holidays",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/master-settings/holidays/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/holidays/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/holidays/projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/hub",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/numbering-rules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/numbering-rules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/numbering-rules/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/offices",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/offices",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/master-settings/offices/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/offices/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/settings/:key",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/staff",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/staff",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/master-settings/staff/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/staff/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/master-settings/transfer-fees",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/master-settings/transfer-fees",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/master-settings/transfer-fees/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/master-settings/transfer-fees/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/master_settings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/masters/codes",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/masters.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/masters/ui-settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/masters.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/menu-access",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/menu_access.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/menu-access",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/menu_access.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/partners",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/partners.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/partners",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/partners.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/partners/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/partners.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/partners/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/partners.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/partners/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/partners.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payments",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payments/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/:id/approve",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/:id/print",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/:id/unconfirm",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/close",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payments/targets",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/payments.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/permissions/check/:feature",
+      "guard": "ルート定義による",
+      "source": "backend/src/server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/postal-codes/:postalCode",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/postal_codes.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/price-sets/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/price-sets/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets/:id/copy",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets/:id/import-lines",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets/:id/propagate",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets/:id/propagation-preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets/:id/recalculate-unconfirmed",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/price-sets/:id/revise",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets/:id/revisions",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets/:id/unconfirmed-impact",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/price-sets/calculation-settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/price_sets.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/projects/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/:id/copy",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/:id/revisions",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/projects/:id/revisions/:revisionId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/base",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/base",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/projects/base/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/base/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/base/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/base/:id/copy",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects/base/:id/create-project",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/projects.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/:kind/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/cancel",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/corrections",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/finalize",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/lines",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/settlements/:kind/:id/lines/:lineId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settlements/:kind/:id/lines/:lineId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/lines/reorder",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/:kind/:id/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/sales-review",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/:kind/:id/source-diff",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/:id/source-diff/apply",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/:kind/drafts",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/documents",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/documents/:id/download",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/invoice/consolidations",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settlements/settings/company/:companyId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settlements/settings/deduction-rules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settlements/settings/deduction-rules",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settlements/settings/project/:projectId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settlements/settings/project/:projectId/reviewers",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/settlements.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/drafts",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/drafts",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/drafts/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/test-data/drafts/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/drafts/:id/approve",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/drafts/:id/generate",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/drafts/:id/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/drafts/:id/share",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/imports",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/jobs",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/jobs/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/jobs/:id/generate-monthly",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/meta",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/monthly-jobs",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/monthly-jobs/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/monthly-jobs/:id/generate-settlements",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/normalize",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/output-jobs",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/output-jobs/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/registered-masters",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/settlement-jobs",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/test-data/settlement-jobs/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/test-data/settlement-jobs/:id/generate-outputs",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/test_data.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/users.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/users.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/users.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/users.js"
+    }
+  ],
+  "schema_summary": {
+    "tables": 100,
+    "foreign_keys": 163
+  }
+}

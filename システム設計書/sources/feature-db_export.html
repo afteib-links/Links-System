@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DB出力の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-db_export">設計書のこの章へ戻る</a><h1>DB出力の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/db_export.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/db_export.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-db_export.md" download="DB出力.md">DB出力.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: db_export
+related_features: db_import, master_data_preparation, master_data_export
+primary_tables: master_data_db_export_rows
+api_prefixes: /api/db-exports
+specs: 仕様MD/計画/30_システム専用メニューとExcel出入.md
+---
+# DB出力
+
+## 目的と設計意図
+
+現行DBのマスター値を、人が確認・編集できるExcelへ出力します。DBダンプではなく、再取込可能な業務マスター形式を対象にします。
+
+## 利用場面と操作手順
+
+現在登録されている業務マスターをExcelで点検・一括編集したいときに使います。
+
+1. 対象環境と出力対象を確認し、DB出力から編集用Excelを取得します。
+2. 変更が必要な項目を編集します。取込キーや関連を表す項目を不用意に変更しません。
+3. 反映する場合はDB取込で差分・エラーを確認してから確定します。
+4. 登録先画面を再表示し、変更した項目と関連先を確認します。
+
+## なぜこの手順で利用するか
+
+現行値を元に編集することで古いExcelによる上書きを減らします。出力後に別の人が更新する可能性があるため、再取込時にも版と変更対象の確認が必要です。業務マスター用Excelは、帳票・添付・DB全体を復元するバックアップとは用途が異なります。
+
+## 利用例と完了の確認
+
+複数企業の連絡先を点検する場合、DB出力→Excel編集→DB取込プレビュー→確定→企業画面で確認と進めます。競合が出た行は現行値と照合して対応します。共有資料へ使う場合は実在情報を除いた別の確認用資料を作ります。
+
+## 作成・変更の経緯と根拠
+
+2026-09-13の決定ログ「システム専用メニューとExcel出入」で、DB出力は現DB値、マスターデータ出力は同梱の基盤初期値、と明確に分けられました。参照: `仕様MD/計画/30_システム専用メニューとExcel出入.md`。
+
+## 利用者・権限
+
+管理者とシステム担当者だけが利用します。
+
+## 前提・入力・処理・出力
+
+出力対象を選び、現行値をExcelとして生成します。機密情報の出力範囲を限定し、ダウンロードは一時トークンで行います。
+
+## 関連機能・前後工程
+
+出力Excelを編集してDB取込へ渡せます。基盤マスターデータ出力とは、現行DB値か同梱初期値かが異なります。
+
+## 主要API・データ
+
+出力ジョブ・行情報を `master_data_db_export_rows` で追跡します。
+
+## 状態・制御・注意点
+
+これはバックアップではありません。DB復旧には専用バックアップを使います。Excelには実データが含まれ得るためGitへ追加しません。
+
+## 現行業務との乖離・確認事項
+
+業務担当者が必要とする編集列と、出力してはいけない機密列の確認が必要です。
+
+## 今後の改善
+
+対象列選択、差分出力、有効期限付きダウンロード、出力監査の強化を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

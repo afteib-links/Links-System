@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>日報提出の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-daily_report_submissions">設計書のこの章へ戻る</a><h1>日報提出の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/daily_report_submissions.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/daily_report_submissions.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-daily_report_submissions.md" download="日報提出.md">日報提出.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: daily_report_submissions
+related_features: partners, projects, daily_reports, office_work
+primary_tables: daily_report_submissions
+api_prefixes: /api/daily-report-submissions
+specs: 仕様MD/個別機能仕様書：2-2. 日報提出一覧画面.md, 仕様MD/09_日報・精算・帳票_業務要件.md
+---
+# 日報提出
+
+## 目的と設計意図
+
+FAX、紙、メール等で日報を受領した事実を、案件と月3回の確認単位で管理します。勤務実績の入力件数だけで「受領済み」と判断しないため、日報本体と分けています。
+
+## 利用場面と操作手順
+
+FAX・メール・紙などの日報が届いたか、誰に提出を依頼する必要があるかを確認します。
+
+1. 対象月を選び、パートナーと案件、3サイクルの対象期間を確認します。
+2. 対象期間の日報を受領したら提出状態をONにし、実際の提出日を確認します。初期値は操作日なので、別日に届いていた場合は修正します。
+3. 未提出と遅延日数を確認し、必要な相手先へ確認します。遅延日数を手修正する場合は根拠を業務確認記録へ残します。
+4. 受領資料を日報入力と照合し、事務作業で入力・承認の進捗も確認します。
+
+## なぜこの手順で利用するか
+
+資料が届くことと、システムへ入力されることは別の出来事です。入力済みだから受領済みと自動判定すると、代理入力した案件の原票が未着でも見落とします。3サイクルで確認することで月途中の未提出も把握できます。
+
+## 利用例と完了の確認
+
+10日分までの資料を12日に受領して13日に記録する場合、提出日を12日に直します。受領の記録後も日報が未入力なら入力作業は残ります。対象期間と提出日が原票の受領事実と一致し、未提出が追跡できればこの画面の確認は完了です。
+
+## 作成・変更の経緯と根拠
+
+2026-09-06確定の受領管理では、入力済み日報から自動判定せず、パートナー未割当てを含む個別案件を対象にすることが決まりました。基本提出日は期間最終日＋1暦日で、全社猶予日を加えて期限を判定します。参照: `仕様MD/09_日報・精算・帳票_業務要件.md` §3.6。
+
+## 利用者・権限
+
+管理者、システム担当者、総務、営業、経営者が確認します。
+
+## 前提・入力・処理・出力
+
+対象月・案件・確認回を選び、受領有無、受領日、遅延日数等を記録します。未提出・遅延を一覧と事務作業へ出力します。
+
+## 関連機能・前後工程
+
+パートナーと個別案件を参照し、受領後に日報入力へ進みます。事務作業は提出と入力の両方を横断表示します。
+
+## 主要API・データ
+
+`daily_report_submissions` が案件、対象月、確認回、受領状態を保持します。
+
+## 状態・制御・注意点
+
+自動算出した遅延日数と手動調整を区別します。日報入力済みでも受領記録を自動で完了にしません。
+
+## 現行業務との乖離・確認事項
+
+月3回の区切り、休日、未稼働案件、受領媒体ごとの扱いが実際の確認表と一致するか確認します。
+
+## 今後の改善
+
+受領証跡の安全な参照、担当者通知、日報取込バッチとの候補照合を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

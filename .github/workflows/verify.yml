@@ -57,6 +57,9 @@ jobs:
       - name: Run backend unit tests
         run: npm test --prefix backend
 
+      - name: Verify generated system design
+        run: npm run docs:system-design:check --prefix backend
+
       - name: Check migration sequence
         shell: bash
         run: |
@@ -184,6 +187,12 @@ jobs:
       - name: Verify migration re-run
         run: npm run migrate --prefix backend
 
+      - name: Verify system design schema snapshot
+        run: npm run docs:system-design:schema --prefix backend -- --check
+
+      - name: Verify system design access control
+        run: npm run test:system-design-access --prefix backend
+
       - name: Run daily report API integration
         run: node backend/test-integration/daily_report_api.js
 
@@ -247,6 +256,9 @@ jobs:
 
       - name: Run user manual browser E2E
         run: npm run test:e2e-manual --prefix backend
+
+      - name: Run system design browser E2E
+        run: npm run test:e2e-system-design --prefix backend
 
       - name: Upload daily report E2E screenshot
         if: always()
