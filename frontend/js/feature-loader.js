@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260925a';
+  const version = '20260926b';
   const pending = new Map();
   const common = [['feature-kit', 'LinksFeatureKit'], ['data-table', 'LinksDataTable'], ['list_screens', 'LinksListScreens']];
   const modules = {
@@ -9,7 +9,7 @@
     partners: [['partners', 'LinksPartners']],
     base_projects: [['projects', 'LinksProjects']],
     projects: [['projects', 'LinksProjects']],
-    price_sets: [['price_set_fee_model', 'LinksPriceSetFeeModel'], ['price_sets', 'LinksPriceSets']],
+    price_sets: [['fee_logic', 'LinksFeeLogic'], ['price_set_fee_model', 'LinksPriceSetFeeModel'], ['price_sets', 'LinksPriceSets']],
     master_data_preparation: [['master_data_preparation', 'LinksMasterDataPreparation']],
     db_import: [['master_data_preparation', 'LinksMasterDataPreparation']],
     db_export: [['master_data_preparation', 'LinksMasterDataPreparation']],
@@ -24,7 +24,7 @@
     payments: [['invoices', 'LinksInvoices'], ['payments', 'LinksPayments']],
     cash_management: [['cash_management', 'LinksCashManagement']],
     analytics: [['analytics', 'LinksAnalytics']],
-    master_settings: [['bank_export_master', 'LinksBankExportMaster'], ['master_settings', 'LinksMasterSettings']],
+    master_settings: [['fee_logic', 'LinksFeeLogic'], ['bank_export_master', 'LinksBankExportMaster'], ['master_settings', 'LinksMasterSettings']],
     help_settings: [['help_settings', 'LinksHelpSettings']],
     ui_builder: [['ui_builder', 'LinksUiBuilder']],
     users: [],

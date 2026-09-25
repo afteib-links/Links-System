@@ -178,6 +178,7 @@
           <p class="muted">共通小口マスタへの入口です。各カードの「？」で登録方法と影響画面を確認できます。</p>
           ${foundationWarnings.length ? `<div class="foundation-master-warning"><strong>初期マスターの確認が必要です（${foundationWarnings.length}件）</strong><p>削除・無効化された初期値は自動復活していません。意図した変更か確認してください。</p><ul>${foundationWarnings.map((line) => `<li>${this.ctx.escapeHtml(line)}</li>`).join('')}</ul></div>` : ''}
           <div class="hub-grid">
+            <button type="button" class="hub-card" data-hub="fee-logic"><strong>料金計算ロジック・グループ</strong><span>勤務日別の適用版と料金カード連携</span></button>
             ${hubCardHtml(this.ctx, 'staff', '営業担当者マスタ', hub.staff_masters)}
             ${hubCardHtml(this.ctx, 'offices', '事業所マスタ', hub.office_masters)}
             ${hubCardHtml(this.ctx, 'numbering', '採番ルール', hub.numbering_rules)}
@@ -196,7 +197,8 @@
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-hub');
           this.kit.pushNav(() => this.showHub());
-          if (key === 'staff') this.showStaff();
+          if (key === 'fee-logic') window.LinksFeeLogic.open(this.ctx, () => this.showHub());
+          else if (key === 'staff') this.showStaff();
           else if (key === 'offices') this.showOffices();
           else if (key === 'numbering') this.showNumberingRules();
           else if (key === 'codes') this.showCodes();

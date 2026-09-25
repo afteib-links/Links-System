@@ -148,7 +148,7 @@
         <td>${this.ctx.escapeHtml(project.partner_name || '-')}</td>
         <td>${this.ctx.escapeHtml(project.manager_name || '-')}</td>
         <td>${this.ctx.escapeHtml(project.business_type || '-')}</td>
-        <td>${this.ctx.escapeHtml(project.billing_no ? `No.${project.billing_no} ${project.billing_print_name || ''}` : '-')}</td>
+        <td>${this.ctx.escapeHtml(project.billing_no != null ? `${project.billing_no}：${project.billing_name || project.billing_print_name || ''}` : '-')}</td>
         <td>${project.payment_type === 'installment' ? '分割' : '通常'}</td>
         <td>${this.ctx.escapeHtml(this.kit.codeLabel(this.codes.closing_date, project.closing_date))}</td>
         <td>${this.ctx.escapeHtml(this.kit.dateValue(project.operation_start_date) || '-')}</td>
@@ -416,7 +416,7 @@
             <div class="form-sections">
               <section class="form-section-card"><h3>基本情報</h3><div class="form-grid form-grid-compact">
                 <div class="field-md"><label>企業（必須）</label>${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', row.company_id, { required:true })}</div>
-                <div class="field-md"><label>請求先No（必須）</label><div id="base-billing">${this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_print_name', row.billing_id, { required:true, formatLabel:(billing) => `No.${billing.billing_no} ${billing.billing_print_name || ''}` })}</div></div>
+                <div class="field-md"><label>請求先No（必須）</label><div id="base-billing">${this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_name', row.billing_id, { required:true, directValueKey: 'billing_no', placeholder: '番号を入力、または候補から選択', formatLabel:(billing) => `${billing.billing_no}：${billing.billing_name || billing.billing_print_name || ''}` })}</div></div>
                 <div class="field-md"><label>テンプレ名（必須）</label><input name="template_name" required value="${this.ctx.escapeHtml(row.template_name || '')}" /></div>
                 <div class="field-md"><label>デフォルト担当</label><input name="default_manager" value="${this.ctx.escapeHtml(row.default_manager || '')}" /></div>
                 <div class="field-md"><label>業種</label><input name="business_type" value="${this.ctx.escapeHtml(row.business_type || '')}" /></div>
@@ -451,7 +451,7 @@
         const defaultBilling = this.baseBillings.find((billing) => Number(billing.billing_no) === 0);
         const host = document.getElementById('base-billing');
         if (!host) return;
-        host.innerHTML = this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_print_name', defaultBilling?.billing_id || '', { required:true, formatLabel:(billing) => `No.${billing.billing_no} ${billing.billing_print_name || ''}` });
+        host.innerHTML = this.kit.searchSelectHtml('billing_id', this.baseBillings, 'billing_id', 'billing_name', defaultBilling?.billing_id || '', { required:true, directValueKey: 'billing_no', placeholder: '番号を入力、または候補から選択', formatLabel:(billing) => `${billing.billing_no}：${billing.billing_name || billing.billing_print_name || ''}` });
         this.kit.bindSearchSelects(host);
       });
       document.getElementById('cancel')?.addEventListener('click', () => this.showBaseList());
@@ -722,7 +722,7 @@
             <div class="form-sections">
               <section class="form-section-card"><h3>基本情報・担当</h3><div class="form-grid form-grid-compact">
                 <div class="field-md"><label>企業（必須）</label><div id="project-company">${this.kit.searchSelectHtml('company_id', this.companies, 'company_id', 'company_name', project.company_id, { required:true })}</div></div>
-                <div class="field-md"><label>請求先No</label><div id="project-billing">${this.kit.searchSelectHtml('billing_id', this.projectBillings, 'billing_id', 'billing_print_name', project.billing_id, { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` })}</div></div>
+                <div class="field-md"><label>請求先No</label><div id="project-billing">${this.kit.searchSelectHtml('billing_id', this.projectBillings, 'billing_id', 'billing_name', project.billing_id, { directValueKey: 'billing_no', placeholder: '番号を入力、または候補から選択', formatLabel:(row) => `${row.billing_no}：${row.billing_name || row.billing_print_name || ''}` })}</div></div>
                 <div class="field-md"><label>基本案件</label><div id="project-base">${this.kit.searchSelectHtml('base_project_id', this.baseProjects, 'base_project_id', 'template_name', project.base_project_id)}</div></div>
                 <div class="field-md"><label>パートナー</label>${this.kit.searchSelectHtml('partner_id', this.partners, 'partner_id', 'partner_name', project.partner_id)}</div>
                 <div class="field-md"><label>担当者</label><input name="manager_name" value="${this.ctx.escapeHtml(project.manager_name || '')}" /></div>
@@ -801,7 +801,7 @@
         const billingRes = cid ? await this.ctx.api(`/api/lookups/company-billings?company_id=${cid}`) : null;
         this.projectBillings = billingRes?.data?.billings || [];
         const defaultBilling = this.projectBillings.find((billing) => Number(billing.billing_no) === 0);
-        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', defaultBilling?.billing_id || '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_name', defaultBilling?.billing_id || '', { directValueKey: 'billing_no', placeholder: '番号を入力、または候補から選択', formatLabel:(row) => `${row.billing_no}：${row.billing_name || row.billing_print_name || ''}` });
         if (projectForm.vehicle_owner_type.value === 'company') await reloadVehicles();
       });
       projectForm.partner_id?.addEventListener('change', async () => {
@@ -831,7 +831,7 @@
         replaceSearchSelect('project-base', 'base_project_id', this.baseProjects, 'base_project_id', 'template_name', b.base_project_id);
         const billingRes = await this.ctx.api(`/api/lookups/company-billings?company_id=${b.company_id}`);
         this.projectBillings = billingRes.data?.billings || [];
-        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_print_name', b.billing_id || this.projectBillings.find((billing) => Number(billing.billing_no) === 0)?.billing_id || '', { formatLabel:(row) => `No.${row.billing_no} ${row.billing_print_name || ''}` });
+        replaceSearchSelect('project-billing', 'billing_id', this.projectBillings, 'billing_id', 'billing_name', b.billing_id || this.projectBillings.find((billing) => Number(billing.billing_no) === 0)?.billing_id || '', { directValueKey: 'billing_no', placeholder: '番号を入力、または候補から選択', formatLabel:(row) => `${row.billing_no}：${row.billing_name || row.billing_print_name || ''}` });
         if (form.vehicle_owner_type.value === 'company') await reloadVehicles();
         form.manager_name.value = b.default_manager || '';
         form.business_type.value = b.business_type || '';

@@ -39,7 +39,7 @@ router.get('/company-billings', async (req, res) => {
     const companyId = Number(req.query.company_id || 0);
     if (companyId <= 0) return res.status(400).json({ ok:false, message:'企業を指定してください' });
     const rows = await query(
-      `SELECT billing_id, company_id, billing_no, billing_print_name, billing_summary_no
+      `SELECT billing_id, company_id, billing_no, billing_name, billing_print_name, billing_summary_no
        FROM company_billings
        WHERE company_id = ? AND is_deleted = 0
        ORDER BY billing_no ASC, billing_id ASC`,

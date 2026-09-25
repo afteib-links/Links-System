@@ -570,6 +570,7 @@
               <button type="button" class="fee-card-action fee-card-action-delete" data-del-item="${itemIdx}" title="料金カードを削除" aria-label="料金カードを削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13M10 10v6m4-6v6" /></svg></button>
             </div>
           </div>
+          <div class="form-grid"><label>計算ロジックグループ<select class="fee-logic-group"><option value="">項目種別から自動選択（保存時に連携）</option>${(this.logicMasters || []).filter((m) => m.kind === 'group').map((m) => `<option value="${this.ctx.escapeHtml(m.code)}" ${item.logic_group_code === m.code ? 'selected' : ''}>${this.ctx.escapeHtml(m.name)}</option>`).join('')}</select></label><p class="hint">勤務日の適用版で数量×単価を計算します。単価・丸め設定はこの料金設定を使用します。</p></div>
           <div class="fee-rule-scroll">
             <div class="fee-rule-grid-head"><span>操作</span><span>料金項目名</span><span>項目種別</span><span>請求額</span><span>支払額</span><span>利益率</span><span>請求詳細名</span><span>支払詳細名</span><span>条件</span></div>
             ${rows || '<p class="hint">料金行がありません。</p>'}
@@ -625,6 +626,7 @@
         if (!card) return;
         const nameInp = card.querySelector('.fee-item-name');
         if (nameInp) item.name = nameInp.value.trim();
+        item.logic_group_code = card.querySelector('.fee-logic-group')?.value || null;
         Fee().WEEKDAY_CODES.forEach((wd) => {
           const cb = card.querySelector(`input[data-wd="${wd}"]`);
           item.weekdays[wd] = cb ? cb.checked : false;
@@ -910,6 +912,9 @@
 
     async showDetail(id, prefill = null) {
       this.ctx.renderLoading();
+      const logicResult = await this.ctx.api('/api/fee-logic');
+      if (!logicResult.res.ok) { window.alert(logicResult.data?.message || '計算ロジックを取得できませんでした'); return this.showList(); }
+      this.logicMasters = logicResult.data.masters || [];
       let row = {
         price_set_id: null,
         version: 1,

@@ -57,7 +57,8 @@ function tierForDistance(tiers, distance) {
   return null;
 }
 
-function calculateDistanceSide({ distance = 0, monthDistance = null, rule }) {
+function calculateDistanceSide({ distance = 0, monthDistance = null, rule, calculateAmount = null }) {
+  const amountFor = (quantity, rate) => calculateAmount ? calculateAmount('distance', quantity, rate) : quantity * rate;
   const config = normalizeRule(rule);
   const inputDistance = Number(distance || 0);
   if (!Number.isInteger(inputDistance) || inputDistance < 0) throw validationError('走行距離は0以上の整数kmで入力してください');
@@ -72,20 +73,20 @@ function calculateDistanceSide({ distance = 0, monthDistance = null, rule }) {
     tier = tierForDistance(config.tiers, target);
     if (!tier) throw validationError('距離段階が不足しています');
     quantity = config.tier_mode === 'all_distance' ? target : config.tier_mode === 'excess_distance' ? excess : target;
-    if (config.tier_mode === 'fixed') rawAmount = target > tier.lower_distance ? tier.fixed_amount : 0;
+    if (config.tier_mode === 'fixed') rawAmount = target > tier.lower_distance ? amountFor(1, tier.fixed_amount) : 0;
     else if (config.tier_mode === 'progressive') {
       let lower = 0;
       rawAmount = 0;
       for (const current of config.tiers) {
         const upper = current.upper_distance == null ? target : Math.min(target, current.upper_distance);
         const portion = Math.max(0, upper - lower);
-        rawAmount += portion * current.unit_price;
+        rawAmount += amountFor(portion, current.unit_price);
         if (target <= upper || current.upper_distance == null) break;
         lower = current.upper_distance;
       }
-    } else rawAmount = quantity * tier.unit_price;
+    } else rawAmount = amountFor(quantity, tier.unit_price);
   } else {
-    rawAmount = excess > 0 ? (config.fixed_amount || config.unit_price * quantity) : 0;
+    rawAmount = excess > 0 ? (config.fixed_amount ? amountFor(1, config.fixed_amount) : amountFor(quantity, config.unit_price)) : 0;
   }
   const amount = roundDistanceAmount(rawAmount, config);
   return {
@@ -99,9 +100,9 @@ function calculateDistanceSide({ distance = 0, monthDistance = null, rule }) {
   };
 }
 
-function calculateMonthlyDistance({ distances, rule }) {
+function calculateMonthlyDistance({ distances, rule, calculateAmount = null }) {
   const total = (distances || []).reduce((sum, value) => sum + Number(value || 0), 0);
-  return calculateDistanceSide({ distance: 0, monthDistance: total, rule });
+  return calculateDistanceSide({ distance: 0, monthDistance: total, rule, calculateAmount });
 }
 
 module.exports = { MODES, TIER_MODES, normalizeRule, validateDistanceRule, calculateDistanceSide, calculateMonthlyDistance };

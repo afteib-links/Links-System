@@ -3679,6 +3679,15 @@
           "comment": ""
         },
         {
+          "name": "billing_name",
+          "type": "varchar(200)",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
           "name": "billing_print_name",
           "type": "varchar(200)",
           "nullable": true,
@@ -7516,6 +7525,169 @@
           "unique": true,
           "columns": [
             "singleton_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fee_logic_masters",
+      "comment": "",
+      "columns": [
+        {
+          "name": "code",
+          "type": "varchar(64)",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "kind",
+          "type": "enum('logic','group')",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "name",
+          "type": "varchar(200)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "code"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fee_logic_versions",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "master_code",
+          "type": "varchar(64)",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version_no",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "effective_from",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "definition_json",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "varchar(1000)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20)",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "fee_logic_versions_ibfk_1",
+          "column": "master_code",
+          "referenced_table": "fee_logic_masters",
+          "referenced_column": "code"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_fee_logic_date",
+          "unique": true,
+          "columns": [
+            "master_code",
+            "effective_from"
+          ]
+        },
+        {
+          "name": "uq_fee_logic_version",
+          "unique": true,
+          "columns": [
+            "master_code",
+            "version_no"
           ]
         }
       ]

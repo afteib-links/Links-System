@@ -1,8 +1,8 @@
 ---
 feature_key: calculation_rules
 related_features: price_sets, daily_reports, invoices, payments, test_data
-primary_tables: calculation_rule_sets, calculation_rules, calculation_rule_audit_logs
-api_prefixes: /api/calculation-rules
+primary_tables: calculation_rule_sets, calculation_rules, calculation_rule_audit_logs, fee_logic_masters, fee_logic_versions
+api_prefixes: /api/calculation-rules, /api/fee-logic
 specs: 仕様MD/04_calculation_logic.md, 仕様MD/計画/29_基盤マスターと計算ルール.md
 ---
 # 計算ルール管理
@@ -10,6 +10,8 @@ specs: 仕様MD/04_calculation_logic.md, 仕様MD/計画/29_基盤マスター�
 ## 目的と設計意図
 
 日報から請求・支払金額を導く計算式と優先順位を版として管理します。編集、検証、比較、公開を分け、公開済み計算を黙って変更しません。
+
+料金カードの算出方法は別の料金ロジックマスターで管理します（計画35）。加算・控除の2定義を4つのグループから参照し、カードの `logic_group_code` で関連付けます。マスター設定の「料金計算ロジック・グループ」から検算・理由・適用開始日付きで新版を公開します。勤務日で版を解決し、単価と数量の入力元・丸めは料金設定を維持します。グループ分類は確認待ちの分析データを実行可能にするものではありません。公開操作は金額を更新せず、明示した未確定の再計算時だけ新版を使います。
 
 ## 利用場面と操作手順
 

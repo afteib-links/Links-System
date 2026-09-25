@@ -179,6 +179,7 @@
         billing_id: null,
         billing_no: values.billing_no ?? null,
         billing_print_name: '',
+        billing_name: '',
         billing_zip_code: '',
         billing_address: '',
         billing_phone: '',
@@ -197,6 +198,7 @@
       if (!form) return {};
       return {
         billing_print_name: form.company_name?.value || '',
+        billing_name: form.company_name?.value || '',
         billing_zip_code: form.zip_code?.value || '',
         billing_address: form.address?.value || '',
         billing_phone: form.contact?.value || '',
@@ -401,6 +403,7 @@
           (b, idx) => `
           <tr>
             <td>${this.ctx.escapeHtml(b.billing_no ?? '保存時に自動採番')}</td>
+            <td>${this.ctx.escapeHtml(b.billing_name || '-')}</td>
             <td>${this.ctx.escapeHtml(b.billing_print_name || '-')}</td>
             <td>${this.ctx.escapeHtml(`${b.billing_zip_code?`〒${b.billing_zip_code} `:''}${b.billing_address||''}`||'-')}</td>
             <td>${this.ctx.escapeHtml(b.billing_email || '-')}</td>
@@ -413,8 +416,8 @@
           </tr>`
         )
         .join('');
-      return `<table class="data-table data-table-compact"><thead><tr><th>請求先No</th><th>印字名称</th><th>送付先</th><th>メール</th><th>送付方法</th><th>取り纏めNo</th><th>操作</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7">請求先はまだありません</td></tr>'}</tbody></table>`;
+      return `<table class="data-table data-table-compact"><thead><tr><th>請求先No</th><th>請求先名称</th><th>印字名称</th><th>送付先</th><th>メール</th><th>送付方法</th><th>取り纏めNo</th><th>操作</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8">請求先はまだありません</td></tr>'}</tbody></table>`;
     },
 
     vehiclesTableHtml() {
@@ -509,6 +512,7 @@
         `<div class="form-grid">
           <div><label>請求先No</label><input value="${this.ctx.escapeHtml(b.billing_no ?? '保存時に自動採番')}" disabled /></div>
           <div class="full"><label>請求先印字名称</label><input id="m_billing_print_name" value="${this.ctx.escapeHtml(b.billing_print_name || '')}" /></div>
+          <div class="full"><label>請求先名称（案件の選択用）</label><input id="m_billing_name" maxlength="200" value="${this.ctx.escapeHtml(b.billing_name || '')}" /></div>
           <div><label>請求先郵便番号</label><input id="m_billing_zip_code" value="${this.ctx.escapeHtml(b.billing_zip_code || '')}" /></div>
           <div><label>請求書送付方法</label><select id="m_invoice_send_method">${this.kit.codeOptions(this.codes.invoice_send_method,b.invoice_send_method)}</select></div>
           <div class="full"><label>請求書送付先住所</label><input id="m_billing_address" value="${this.ctx.escapeHtml(b.billing_address || '')}" /></div>
@@ -525,6 +529,7 @@
       document.getElementById('copy-company-billing')?.addEventListener('click', () => {
         const copied = this.billingFromCompanyForm();
         const mapping = {
+          billing_name: 'm_billing_name',
           billing_print_name: 'm_billing_print_name', billing_zip_code: 'm_billing_zip_code',
           billing_address: 'm_billing_address', billing_phone: 'm_billing_phone',
           billing_fax: 'm_billing_fax', invoice_send_method: 'm_invoice_send_method',
@@ -536,6 +541,7 @@
         const row = {
           billing_id: b.billing_id,
           billing_no: b.billing_no,
+          billing_name: document.getElementById('m_billing_name').value.trim(),
           billing_print_name: document.getElementById('m_billing_print_name').value,
           billing_zip_code: document.getElementById('m_billing_zip_code').value,
           billing_address: document.getElementById('m_billing_address').value,

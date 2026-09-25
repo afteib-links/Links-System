@@ -9,6 +9,7 @@ const {
 const { validateDistanceRule } = require('../services/distance_calc');
 const { normalizePriceMatrixSettings, SETTING_KEYS } = require('../services/price_matrix_settings');
 const { validateFeeItems, feeItemsToLines } = require('../services/fee_item_rules');
+const { bindGroup } = require('../services/fee_logic');
 const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 
 const RECALCULATED_REPORT_FIELDS = [
@@ -120,7 +121,7 @@ function validateExtraData(extra) {
   }
   if (Array.isArray(extra?.fee_items)) {
     const validated = validateFeeItems(extra.fee_items);
-    extra.fee_items = validated.items;
+    extra.fee_items = validated.items.map(bindGroup);
   }
   return extra;
 }

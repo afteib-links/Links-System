@@ -230,7 +230,7 @@ function rateFor(item, priceType, side) {
   return { calc_type: preferred[0], rate: 0 };
 }
 
-function calculateSideAmounts({ side, item, classified, overrides = {}, rounding = {} }) {
+function calculateSideAmounts({ side, item, classified, overrides = {}, rounding = {}, calculateAmount = null }) {
   const includedInBasicMinutes =
     (classified.modes?.night === 'included' ? Number(classified.night_minutes || 0) : 0) +
     (classified.modes?.night_overtime === 'included' ? Number(classified.night_overtime_minutes || 0) : 0);
@@ -256,6 +256,10 @@ function calculateSideAmounts({ side, item, classified, overrides = {}, rounding
     const rate = hasCellValue(override) ? Number(override) : configured.rate;
     const minutes = minutesByType[priceType];
     const mode = modes[priceType];
+    const quantity = mode !== 'separate' || minutes == null ? 0
+      : configured.calc_type === 'daily'
+        ? Number(priceType === 'basic' ? classified.work_minutes : minutes) > 0 ? 1 : 0
+        : Number(minutes) / 60;
     let rawAmount = 0;
     if (mode === 'separate' && minutes != null) {
       rawAmount =
@@ -269,6 +273,7 @@ function calculateSideAmounts({ side, item, classified, overrides = {}, rounding
               : 0
           : rate * (Number(minutes) / 60);
       if (priceType === 'shortage') rawAmount = -Math.abs(rawAmount);
+      if (calculateAmount) rawAmount = calculateAmount(priceType, quantity, rate);
     }
     const amount = rounding.amount_stage === 'detail'
       ? priceType === 'shortage'
@@ -280,6 +285,8 @@ function calculateSideAmounts({ side, item, classified, overrides = {}, rounding
       mode,
       calc_type: configured.calc_type,
       minutes,
+      quantity,
+      quantity_unit: configured.calc_type === 'daily' ? 'day' : 'hour',
       rate,
       original_rate: configured.rate,
       overridden: hasCellValue(override),

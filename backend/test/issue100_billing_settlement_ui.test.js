@@ -17,7 +17,8 @@ test('請求先Noは企業内0始まりで採番され案件から選択でき�
   assert.match(migration, /ADD COLUMN billing_id BIGINT UNSIGNED NULL/);
   assert.match(workflowMigration, /next_billing_no/);
   assert.match(companies, /numberRows\.length[\s\S]*: 0/);
-  assert.match(projects, /選択した請求先が案件の企業に属していません/);
+  assert.match(projects, /resolveBillingSelection/);
+  assert.match(read('backend/src/services/billing_selection.js'), /選択した請求先が案件の企業に属していません/);
   assert.match(projectUi, /<label>請求先No<\/label>/);
   assert.match(workflowMigration, /billing_no=0/);
   assert.match(verificationSeed, /billing_id: company\.billingId/);

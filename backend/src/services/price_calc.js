@@ -20,6 +20,7 @@ const {
 const { calculateDistanceSide } = require('./distance_calc');
 const { materializeFeeItem, isRowsModel } = require('./fee_item_rules');
 const { assertLegacyRateReady } = require('./legacy_rate_guard');
+const { bindGroup, resolveGroup, amountCalculator, invalid } = require('./fee_logic');
 
 const DAY_TYPE_FALLBACK_ORDER = [
   'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
@@ -147,6 +148,7 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
     payment_summary_template: resolved.item?.payment_summary_template || '{パートナー名} {料金名}',
     fee_item_selection_source: resolved.source,
     fee_item: resolved.item,
+    logic_group: resolved.item ? await resolveGroup(query, bindGroup(resolved.item).logic_group_code, normYmd(workDate)) : null,
     day_type: context.holiday ? 'holiday' : jsWeekdayCode(workDate),
     holiday: context.holiday
       ? {
@@ -189,6 +191,8 @@ async function applyDailyPriceCalc(data) {
     data
   );
   assertLegacyRateReady(context?.legacy_analysis);
+  if (context?.fee_item?.rows?.some((row) => row.item_type === 'unit')) throw invalid('数量料金は数量の入力元が未確定です。自動計算には使用できません');
+  if (context?.fee_item?.rows?.some((row) => row.item_type === 'distance') && !context.distance_rules?.billing?.mode && !context.distance_rules?.payment?.mode) throw invalid('距離料金は距離の計算条件を設定してから使用してください');
   if (!context || !context.fee_item) {
     data.applied_price_set_id = context?.price_set_id || null;
     data.calculated_billing_amount = 0;
@@ -250,10 +254,11 @@ async function applyDailyPriceCalc(data) {
       classified,
       overrides: overrides[side] || {},
       rounding: context.rounding[side],
+      calculateAmount: amountCalculator(context.logic_group),
     });
     const distanceRule = context.distance_rules?.[side];
     distanceResults[side] = distanceRule?.mode
-      ? calculateDistanceSide({ distance: distanceKm, rule: distanceRule })
+      ? calculateDistanceSide({ distance: distanceKm, rule: distanceRule, calculateAmount: amountCalculator(context.logic_group) })
       : null;
   }
 
@@ -287,6 +292,7 @@ async function applyDailyPriceCalc(data) {
     version: 1,
     price_set: { id: context.price_set_id, name: context.price_set_name },
     fee_item: {
+      logic_group: context.logic_group,
       id: context.selected_fee_item_id,
       name: context.selected_fee_item_name,
       billing_summary_template: context.billing_summary_template,

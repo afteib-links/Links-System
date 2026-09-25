@@ -76,6 +76,7 @@ function normalizeBillings(list) {
     billing_id: row.billing_id ? Number(row.billing_id) : null,
     billing_no: row.billing_no === 0 || row.billing_no === '0' ? 0 : (row.billing_no ? Number(row.billing_no) : null),
     billing_print_name: row.billing_print_name || null,
+    billing_name: String(row.billing_name ?? row.billing_print_name ?? '').trim() || null,
     billing_zip_code: row.billing_zip_code || null,
     billing_address: row.billing_address || null,
     billing_phone: row.billing_phone || null,
@@ -238,6 +239,7 @@ async function syncBillings(conn, companyId, billings, companyData = {}) {
       billing_id: null,
       billing_no: 0,
       billing_print_name: companyData.company_name || null,
+      billing_name: companyData.company_name || null,
       billing_zip_code: companyData.zip_code || null,
       billing_address: companyData.address || null,
       billing_phone: companyData.contact || null,
@@ -278,11 +280,12 @@ async function syncBillings(conn, companyId, billings, companyData = {}) {
     if (b.billing_id) {
       await conn.query(
         `UPDATE company_billings
-         SET billing_print_name = ?, billing_zip_code = ?, billing_address = ?, billing_phone = ?,
+         SET billing_name = ?, billing_print_name = ?, billing_zip_code = ?, billing_address = ?, billing_phone = ?,
              billing_fax = ?, billing_email = ?, invoice_send_method = ?, billing_manager = ?, billing_summary_no = ?,
              version = version + 1, updated_at = CURRENT_TIMESTAMP
          WHERE billing_id = ? AND company_id = ? AND is_deleted = 0`,
         [
+          b.billing_name,
           b.billing_print_name,
           b.billing_zip_code,
           b.billing_address,
@@ -303,12 +306,13 @@ async function syncBillings(conn, companyId, billings, companyData = {}) {
         : 0;
       await conn.query(
         `INSERT INTO company_billings
-          (company_id, billing_no, billing_print_name, billing_zip_code, billing_address, billing_phone,
+          (company_id, billing_no, billing_name, billing_print_name, billing_zip_code, billing_address, billing_phone,
            billing_fax, billing_email, invoice_send_method, billing_manager, billing_summary_no)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           companyId,
           billingNo,
+          b.billing_name,
           b.billing_print_name,
           b.billing_zip_code,
           b.billing_address,

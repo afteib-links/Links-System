@@ -8,6 +8,7 @@ const { getPeriod, resolvePeriod, closingPeriod, validMonth, bindReportPeriod, a
   migrationPreview, applyMigration, periodError, periodForDate } = require('../services/daily_report_periods');
 
 const { calculateMonthlyDistance } = require('../services/distance_calc');
+const { amountCalculator, invalid: feeLogicError } = require('../services/fee_logic');
 
 const {
   SETTING_KEYS: DAILY_REPORT_UI_SETTING_KEYS,
@@ -485,7 +486,12 @@ router.get('/distance-monthly', async (req, res) => {
     for (const side of ['billing', 'payment']) {
       const rule = context?.distance_rules?.[side];
       if (!rule?.mode) { output[side] = null; continue; }
-      const result = calculateMonthlyDistance({ distances: rows.map((r) => r.total_distance || 0), rule });
+      const lastContext = await buildDailyCalculationContext(projectId, rows[rows.length - 1].work_date, null, false);
+      const firstLogic = context?.logic_group?.logics?.distance;
+      const lastLogic = lastContext?.logic_group?.logics?.distance;
+      if (firstLogic?.id !== lastLogic?.id || context?.logic_group?.id !== lastContext?.logic_group?.id) throw feeLogicError('月間距離の集約期間内にロジック改定があります。期間分割の確認が必要です');
+      const result = calculateMonthlyDistance({ distances: rows.map((r) => r.total_distance || 0), rule, calculateAmount: amountCalculator(context.logic_group) });
+      result.logic_group = context.logic_group;
       output[side] = result;
       await query(
         `INSERT INTO daily_report_distance_monthly_results

@@ -344,10 +344,13 @@
       "primary_tables": [
         "calculation_rule_sets",
         "calculation_rules",
-        "calculation_rule_audit_logs"
+        "calculation_rule_audit_logs",
+        "fee_logic_masters",
+        "fee_logic_versions"
       ],
       "api_prefixes": [
-        "/api/calculation-rules"
+        "/api/calculation-rules",
+        "/api/fee-logic"
       ],
       "specs": [
         "仕様MD/04_calculation_logic.md",
@@ -1297,6 +1300,24 @@
       "path": "/api/db-exports/:token.xlsx",
       "guard": "機能権限: db_export",
       "source": "backend/src/routes/master_data_preparations.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/fee-logic",
+      "guard": "機能権限: calculation_rules",
+      "source": "backend/src/routes/fee_logic.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fee-logic/:code/preview",
+      "guard": "機能権限: calculation_rules",
+      "source": "backend/src/routes/fee_logic.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fee-logic/:code/versions",
+      "guard": "機能権限: calculation_rules",
+      "source": "backend/src/routes/fee_logic.js"
     },
     {
       "method": "POST",
@@ -2278,7 +2299,7 @@
     }
   ],
   "schema_summary": {
-    "tables": 105,
-    "foreign_keys": 161
+    "tables": 107,
+    "foreign_keys": 162
   }
 }

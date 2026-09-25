@@ -222,7 +222,7 @@
         const items = (list || []).map((row) => {
           const label = options.formatLabel?.(row) || row[labelKey] || row[valueKey];
           const search = [label, row[valueKey], ...aliases.map((key) => row[key])].filter(Boolean).join(' ');
-          return `<button type="button" class="search-select-option" role="option" data-value="${ctx.escapeHtml(row[valueKey])}" data-label="${ctx.escapeHtml(label)}" data-search="${ctx.escapeHtml(search)}">${ctx.escapeHtml(label)}</button>`;
+          return `<button type="button" class="search-select-option" role="option" data-value="${ctx.escapeHtml(row[valueKey])}" ${options.directValueKey ? `data-direct-value="${ctx.escapeHtml(row[options.directValueKey])}"` : ''} data-label="${ctx.escapeHtml(label)}" data-search="${ctx.escapeHtml(search)}">${ctx.escapeHtml(label)}</button>`;
         }).join('');
         return `<div class="search-select" data-search-select="${ctx.escapeHtml(name)}">
           <input type="search" class="search-select-input" value="${ctx.escapeHtml(display)}" placeholder="${ctx.escapeHtml(placeholder)}" autocomplete="off" ${required} aria-autocomplete="list" aria-expanded="false">
@@ -252,6 +252,8 @@
           };
           const filter = () => {
             if (input.value !== input.dataset.selectedLabel) hidden.value = '';
+            const exact = options.find((option) => option.dataset.directValue !== undefined && normalize(option.dataset.directValue) === normalize(input.value.trim()));
+            if (exact) hidden.value = exact.dataset.value;
             const terms = normalize(input.value).split(/\s+/).filter(Boolean);
             let visible = 0;
             options.forEach((option) => {
@@ -267,6 +269,10 @@
           input.dataset.selectedLabel = input.value;
           input.addEventListener('focus', open);
           input.addEventListener('input', filter);
+          input.addEventListener('blur', () => {
+            const exact = options.find((option) => option.dataset.directValue !== undefined && normalize(option.dataset.directValue) === normalize(input.value.trim()));
+            if (exact) choose(exact);
+          });
           input.addEventListener('keydown', (event) => {
             const visible = options.filter((option) => !option.hidden);
             const current = visible.indexOf(document.activeElement);

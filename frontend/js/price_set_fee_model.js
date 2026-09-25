@@ -217,6 +217,7 @@
     });
     return {
       id: item.id || nextItemId(),
+      logic_group_code: item.logic_group_code || null,
       name: item.name || '',
       billing_summary_template: item.billing_summary_template || '{企業名} {料金名}',
       payment_summary_template: item.payment_summary_template || '{パートナー名} {料金名}',
@@ -435,6 +436,7 @@
   function feeItemsForExtraData(items) {
     return (items || []).map((it) => ({
       id: it.id,
+      logic_group_code: it.logic_group_code || null,
       name: it.name,
       billing_summary_template: it.billing_summary_template,
       payment_summary_template: it.payment_summary_template,
