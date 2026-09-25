@@ -284,6 +284,12 @@ function paymentRowsHtml(rows, minimumRows = 5) {
   return body + blanks;
 }
 
+function closingPeriodsHtml(document) {
+  const periods = document.closing_periods || parseJson(document.extra_data).closing_periods || [];
+  const labels = [...new Set(periods.map(p => `${p.period_start}〜${p.period_end}`))];
+  return labels.length ? `<p class="note">対象期間：${labels.map(escape).join('、')}</p>` : '';
+}
+
 function renderInvoice(document, lines, summary) {
   const recipient = document.recipient || { name:document.company_name };
   const rows = [
@@ -297,6 +303,7 @@ function renderInvoice(document, lines, summary) {
     ? `${formatMonth(document.target_year_month)}度 請求取纏書`
     : `${formatMonth(document.target_year_month)}度ご請求書`;
   return `<section class="sheet invoice-sheet">
+    ${closingPeriodsHtml(document)}
     <div class="top-grid">${recipientBlock(recipient, '御中')}<div><h1>${title}</h1><div class="rule-title"></div><div class="issue-date">${formatDate(document.issued_date)}</div>${issuerBlock(document)}</div></div>
     <div class="invoice-meta"><div>毎度、お引き立てにあずかり誠にありがとうございます。<br>下記の通りご請求申し上げますので、ご査収下さい。</div><div><strong>お支払期日　</strong>${formatDate(document.due_date)}</div></div>
     <div class="invoice-amounts"><div class="amount-box"><div><strong>ご請求額</strong><span>${yen(total, '-')}</span></div><div><strong>内消費税</strong><span>${yen(tax, '-')}</span></div></div>
@@ -343,6 +350,7 @@ function renderPayment(document, lines) {
   });
   const workSubtotal = workInvoiceRows.reduce((sum, row) => sum + number(row.amount), 0);
   return `<section class="sheet payment-sheet">
+    ${closingPeriodsHtml(document)}
     <div class="top-grid payment-top">${recipientBlock(recipient, '様')}<div><h1>${formatMonth(document.target_year_month)}度支払明細書</h1><div class="rule-title"></div>${issuerBlock(document, true)}<div class="pay-date"><strong>お振込日　</strong>${formatDate(document.payment_date)}</div></div></div>
     <div class="payment-total"><span>お支払金額</span><strong>${yen(total)}</strong></div>
     <table class="lines compact-lines"><thead><tr><th class="no">NO.</th><th>摘　要</th><th>数　量</th><th>単　価</th><th>金　額</th></tr></thead><tbody>${paymentRowsHtml(rows, 5)}<tr class="sum"><td colspan="2">※ お問い合わせ等は各営業担当までご連絡下さい。</td><th colspan="2">合計</th><td class="money">${yen(total)}</td></tr></tbody></table>

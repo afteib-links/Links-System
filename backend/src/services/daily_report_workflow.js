@@ -9,14 +9,14 @@ function canChangeDailyStatus(current, next) {
   return (DAILY_STATUS_TRANSITIONS[current] || []).includes(next);
 }
 
-function uncheckedDatesForMonth(reports, targetYearMonth) {
+function uncheckedDatesForMonth(reports, targetYearMonth, period = null) {
   const [year, month] = String(targetYearMonth || '').split('-').map(Number);
   if (!year || !month || month < 1 || month > 12) return [];
 
   const statusesByDate = new Map();
   for (const row of reports || []) {
     const date = String(row.work_date || '').slice(0, 10);
-    if (!date.startsWith(`${targetYearMonth}-`)) continue;
+    if (period ? (date < period.period_start || date > period.period_end) : !date.startsWith(`${targetYearMonth}-`)) continue;
     if (!statusesByDate.has(date)) statusesByDate.set(date, []);
     statusesByDate.get(date).push(String(row.status || ''));
   }
@@ -28,8 +28,9 @@ function uncheckedDatesForMonth(reports, targetYearMonth) {
   );
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const unchecked = [];
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = `${targetYearMonth}-${String(day).padStart(2, '0')}`;
+  const dates = period ? require('./daily_report_periods').periodDates(period)
+    : Array.from({ length: daysInMonth }, (_, i) => `${targetYearMonth}-${String(i + 1).padStart(2, '0')}`);
+  for (const date of dates) {
     if (!confirmedDates.has(date)) unchecked.push(date);
   }
   return unchecked;
