@@ -460,9 +460,14 @@ router.get('/input-defaults', async (req, res) => {
     const projectId = Number(req.query.project_id || 0);
     if (!projectId) return res.status(400).json({ ok: false, message: '案件は必須です' });
     const rows = await query(
-      `SELECT execution_time_start, execution_time_end, break_time
-       FROM projects
-       WHERE project_id = ? AND is_deleted = 0
+      `SELECT p.execution_time_start, p.execution_time_end, p.break_time,
+              p.company_id, p.partner_id, p.business_type, p.closing_date,
+              c.company_name, pt.partner_name, b.template_name
+       FROM projects p
+       LEFT JOIN companies c ON c.company_id = p.company_id
+       LEFT JOIN partners pt ON pt.partner_id = p.partner_id
+       LEFT JOIN base_projects b ON b.base_project_id = p.base_project_id
+       WHERE p.project_id = ? AND p.is_deleted = 0
        LIMIT 1`,
       [projectId]
     );
@@ -472,6 +477,12 @@ router.get('/input-defaults', async (req, res) => {
     return res.json({
       ok: true,
       defaults: {
+        company_id: project.company_id,
+        partner_id: project.partner_id,
+        company_name: project.company_name,
+        partner_name: project.partner_name,
+        project_name: project.template_name || project.business_type || null,
+        closing_date: project.closing_date,
         start_time: project.execution_time_start || null,
         end_time: project.execution_time_end || null,
         break_minutes: Number.isFinite(breakHours) ? Math.max(0, Math.round(breakHours * 60)) : 0,

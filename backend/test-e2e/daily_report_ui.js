@@ -104,8 +104,9 @@ async function seed(pool, yearMonth) {
   const [priceSet] = await pool.execute(
     `INSERT INTO price_sets
       (price_set_no, price_set_name, company_id, project_id, apply_start_date, extra_data)
-     VALUES ('PS-E2E-001', 'E2E料金設定', ?, ?, ?, ?)`,
+     VALUES (?, 'E2E料金設定', ?, ?, ?, ?)`,
     [
+      `PS-E2E-${project.insertId}`,
       company.insertId,
       project.insertId,
       `${yearMonth}-01`,
@@ -214,6 +215,8 @@ async function main() {
       /自動: E2E通常料金/,
       '自動選択された料金名を料金名欄に表示すること'
     );
+    await detail.locator('summary').filter({hasText:'計算根拠'}).click();
+    await detail.locator('summary').filter({hasText:'料金の一時変更'}).click();
     await detail.getByText(/不足 5:00 \/ ￥-6,000/).waitFor();
     await detail.getByText(/不足 6:00 \/ ￥-5,400/).waitFor();
     assert.equal(await detail.locator('.dr-rate-table .dt-filter-row').count(), 0, '契約料金表へ一覧検索行を追加しないこと');
@@ -223,6 +226,7 @@ async function main() {
     );
     await detail.locator('[data-fee-item]').selectOption('e2e-special');
     await previewResponse;
+    await page.waitForFunction(() => document.querySelector('tr.dr-expand [data-rate-side="billing"][data-rate-type="basic"]')?.getAttribute('placeholder') === '30000');
     detail = page.locator('tr.dr-expand').first();
     assert.equal(
       await detail.locator('[data-rate-side="billing"][data-rate-type="basic"]').getAttribute('placeholder'),
