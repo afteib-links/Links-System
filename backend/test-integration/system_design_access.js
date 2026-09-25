@@ -9,6 +9,8 @@ async function request(base, route, cookie = '', options = {}) {
   const headers = { connection: 'close', ...(cookie ? { cookie } : {}), ...(options.headers || {}) };
   if (options.body) headers['content-type'] = 'application/json';
   const response = await fetch(`${base}${route}`, { ...options, headers, redirect: 'manual' });
+  // 大きなHTMLも読み切り、未消費の応答でserver.closeが待ち続けないようにする。
+  await response.arrayBuffer();
   return { response, cookie: response.headers.get('set-cookie')?.split(';', 1)[0] || cookie };
 }
 
