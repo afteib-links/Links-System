@@ -47,6 +47,14 @@ async function main() {
     }
     const soumu = created.find((item) => item.role === 'soumu');
     assert.equal((await request(base, '/system-design/', soumu.cookie)).response.status, 403);
+    for (const asset of ['source.js', 'source.css', 'sources/feature-companies.html', 'sources/feature-companies.md']) {
+      const route = `/system-design/${asset}`;
+      assert.equal((await request(base, route)).response.status, 401, asset);
+      assert.equal((await request(base, route, soumu.cookie)).response.status, 403, asset);
+      for (const role of ['admin', 'system']) {
+        assert.equal((await request(base, route, created.find((item) => item.role === role).cookie)).response.status, 200, `${role}: ${asset}`);
+      }
+    }
     console.log('[integration] system design access verified');
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));

@@ -4544,7 +4544,7 @@ version int(10) unsigned NOT NULL
 created_at datetime NOT NULL
 updated_at datetime NOT NULL
 is_deleted tinyint(1) NOT NULL [MUL]
-extra_data longtext transfer_fee_pattern_id → transfer_fee_patterns.transfer_fee_pattern_id"><h3>partners</h3><div class="schema-grid"><div><h4>カラム</h4><pre>partner_id bigint(20) unsigned NOT NULL [PRI]
+extra_data longtext 外部キーなし"><h3>partners</h3><div class="schema-grid"><div><h4>カラム</h4><pre>partner_id bigint(20) unsigned NOT NULL [PRI]
 partner_name varchar(200) NOT NULL [MUL]
 partner_name_kana varchar(200)
 transfer_fee_pattern_id bigint(20) unsigned [MUL]
@@ -4584,7 +4584,7 @@ version int(10) unsigned NOT NULL
 created_at datetime NOT NULL
 updated_at datetime NOT NULL
 is_deleted tinyint(1) NOT NULL [MUL]
-extra_data longtext</pre></div><div><h4>外部キー</h4><pre>transfer_fee_pattern_id → transfer_fee_patterns.transfer_fee_pattern_id</pre><h4>インデックス</h4><pre>idx_partners_is_deleted: is_deleted
+extra_data longtext</pre></div><div><h4>外部キー</h4><pre>外部キーなし</pre><h4>インデックス</h4><pre>idx_partners_is_deleted: is_deleted
 idx_partners_name: partner_name
 idx_partner_transfer_fee_pattern: transfer_fee_pattern_id
 PRIMARY: partner_id (UNIQUE)</pre></div></div></article><article class="schema-card searchable" id="table-partner_vehicles" data-search="partner_vehicles vehicle_id bigint(20) unsigned NOT NULL [PRI]
@@ -4850,8 +4850,7 @@ is_deleted tinyint(1) NOT NULL
 extra_data longtext base_project_id → base_projects.base_project_id
 billing_id → company_billings.billing_id
 company_id → companies.company_id
-partner_id → partners.partner_id
-transfer_fee_pattern_id → transfer_fee_patterns.transfer_fee_pattern_id"><h3>projects</h3><div class="schema-grid"><div><h4>カラム</h4><pre>project_id bigint(20) unsigned NOT NULL [PRI]
+partner_id → partners.partner_id"><h3>projects</h3><div class="schema-grid"><div><h4>カラム</h4><pre>project_id bigint(20) unsigned NOT NULL [PRI]
 base_project_id bigint(20) unsigned [MUL]
 company_id bigint(20) unsigned NOT NULL [MUL]
 billing_id bigint(20) unsigned NOT NULL [MUL]
@@ -4889,8 +4888,7 @@ is_deleted tinyint(1) NOT NULL
 extra_data longtext</pre></div><div><h4>外部キー</h4><pre>base_project_id → base_projects.base_project_id
 billing_id → company_billings.billing_id
 company_id → companies.company_id
-partner_id → partners.partner_id
-transfer_fee_pattern_id → transfer_fee_patterns.transfer_fee_pattern_id</pre><h4>インデックス</h4><pre>idx_projects_base: base_project_id
+partner_id → partners.partner_id</pre><h4>インデックス</h4><pre>idx_projects_base: base_project_id
 idx_projects_billing: billing_id
 idx_projects_company: company_id
 idx_projects_partner: partner_id

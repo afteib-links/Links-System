@@ -9383,14 +9383,7 @@
           "comment": ""
         }
       ],
-      "foreign_keys": [
-        {
-          "name": "fk_partner_transfer_fee_pattern",
-          "column": "transfer_fee_pattern_id",
-          "referenced_table": "transfer_fee_patterns",
-          "referenced_column": "transfer_fee_pattern_id"
-        }
-      ],
+      "foreign_keys": [],
       "indexes": [
         {
           "name": "idx_partners_is_deleted",
@@ -11082,12 +11075,6 @@
           "column": "partner_id",
           "referenced_table": "partners",
           "referenced_column": "partner_id"
-        },
-        {
-          "name": "fk_project_transfer_fee_pattern",
-          "column": "transfer_fee_pattern_id",
-          "referenced_table": "transfer_fee_patterns",
-          "referenced_column": "transfer_fee_pattern_id"
         }
       ],
       "indexes": [
