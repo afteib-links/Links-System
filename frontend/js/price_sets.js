@@ -354,6 +354,28 @@
       return settings;
     },
 
+    legacyAnalysis(extra) {
+      try { return (typeof extra === 'string' ? JSON.parse(extra) : extra)?.legacy_analysis || null; }
+      catch (_) { return null; }
+    },
+
+    legacyAnalysisHtml(extra) {
+      const a = this.legacyAnalysis(extra);
+      if (!a) return '';
+      const esc = (value) => this.ctx.escapeHtml(String(value ?? ''));
+      const sources = [a, ...(a.alternate_sources || [])];
+      const sourceHtml = sources.map((source, index) => `<details ${index === 0 ? 'open' : ''}>
+        <summary>${index ? '同月の別資料' : '採用した原本'}：${esc(source.source_file)} / ${esc(source.source_sheet)}</summary>
+        <p>時間条件：${esc(source.header || '記載なし')} ／ 分類モデル：${esc(source.model || a.model)}</p>
+        <div style="overflow:auto;max-height:420px"><table class="data-table"><thead><tr><th>区分</th><th>項目</th><th>単価（円）</th><th>単価セル</th><th>数量の式</th><th>金額の式</th><th>検算差額</th></tr></thead><tbody>
+        ${(source.source_rows || []).map(r => `<tr><td>${r.side === 'billing' ? '請求' : '支払'}</td><td>${esc(r.label)}</td><td>${r.unit_price == null ? '未記入' : esc(r.unit_price)}</td><td>${esc(r.unit_cell)}</td><td>${esc(r.quantity_formula)}</td><td>${esc(r.amount_formula)}</td><td>${r.amount_difference == null ? '未検算' : esc(r.amount_difference)}</td></tr>`).join('')}
+        </tbody></table></div></details>`).join('');
+      return `<section class="form-section-card legacy-analysis-panel"><h3>原本照合・計算ロジック</h3>
+        <p>${a.calculation_status === 'review_required' ? '要確認：料金は保存済みです。未確認条件があるため自動計算は保留しています。' : '基本計算へ登録済み。過去の請求・支払金額は再計算していません。'}</p>
+        ${a.base_source_project_id ? `<p>企業基本料金：最初のデータ一式（元案件ID ${esc(a.base_source_project_id)}）を採用</p>` : ''}
+        ${(a.warnings || []).length ? `<ul>${[...new Set(a.warnings)].map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${sourceHtml}</section>`;
+    },
+
     async showList(message = '') {
       this.ctx.renderLoading();
       const params = new URLSearchParams({ q: this.q || '' });
@@ -379,6 +401,7 @@
           { key: 'apply_start_date', label: '適用開始', getValue: (ps) => this.kit.dateValue(ps.apply_start_date) || '-' },
           { key: 'apply_end_date', label: '適用終了', getValue: (ps) => this.kit.dateValue(ps.apply_end_date) || '〜' },
           { key: 'line_count', label: '行数' },
+          { key: 'analysis_status', label: '原本照合', getValue: ps => { const a = this.legacyAnalysis(ps.extra_data); return a ? (a.calculation_status === 'review_required' ? '要確認' : '登録済') : '-'; } },
         ],
         rows: this.priceSets,
         layout: this.layout,
@@ -955,6 +978,7 @@
             <p class="hint">請求詳細名・支払詳細名は保存のみです。帳票への反映は後続作業で行います。</p>
             </section>
             <section class="form-section-card price-set-note-card"><label>備考<input name="note" value="${this.ctx.escapeHtml(row.note || '')}" /></label></section></div>
+            ${this.legacyAnalysisHtml(row.extra_data)}
             <div class="btn-row form-actions-sticky">
               <button class="btn" type="submit">保存</button>
               ${id ? '<button type="button" class="btn btn-ghost" id="copy-revision">コピーして改定</button>' : ''}
@@ -968,6 +992,12 @@
           .price-set-meta-fields input, .price-set-meta-fields select { width:100%; margin:0; }
           .price-set-note-card label { display:flex; flex-direction:column; gap:4px; font-weight:700; }
           .price-set-note-card input { width:100%; margin:0; }
+          .legacy-analysis-panel table { min-width:1200px; }
+          .legacy-analysis-panel th, .legacy-analysis-panel td { vertical-align:top; }
+          .legacy-analysis-panel th:nth-child(-n+4), .legacy-analysis-panel td:nth-child(-n+4) { white-space:nowrap; }
+          .legacy-analysis-panel td:nth-child(2) { min-width:125px; }
+          .legacy-analysis-panel td:nth-child(5) { min-width:330px; overflow-wrap:anywhere; }
+          .legacy-analysis-panel td:nth-child(6) { min-width:215px; }
           .price-set-fee-card { padding-top:6px !important; }
           .price-set-fee-card .section-head { min-height:0; margin:0 0 4px; }
           .price-set-fee-card .section-title { margin:0; line-height:1.15; }
@@ -1074,6 +1104,7 @@
         }
         const lines = Fee().itemsToLines(this.detailState.items);
         const extra_data = {
+          ...(this.legacyAnalysis(row.extra_data) ? { legacy_analysis: this.legacyAnalysis(row.extra_data) } : {}),
           schema: 'fee_items_v2',
           fee_items: Fee().feeItemsForExtraData(this.detailState.items),
           night_rules: nightSettings.night_rules,
