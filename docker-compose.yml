@@ -20,6 +20,9 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
+    networks:
+      - default
+      - ocr_internal
 
   app:
     build: .
@@ -56,3 +59,35 @@ services:
       - type: bind
         source: ${LINKS_DATA_ROOT:-.}/data/pdf
         target: /app/pdf
+
+  ocr:
+    build:
+      context: .
+      dockerfile: ocr/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-links_system}
+      DB_USER: ${DB_USER:-links}
+      DB_PASSWORD: ${DB_PASSWORD:-links_pass_change_me}
+      DAILY_REPORT_IMPORT_DIR: ${DAILY_REPORT_IMPORT_DIR:-/app/uploads/daily-report-imports}
+    volumes:
+      - type: bind
+        source: ${LINKS_DATA_ROOT:-.}/data/uploads
+        target: /app/uploads
+    networks:
+      - ocr_internal
+    mem_limit: ${OCR_MEMORY_LIMIT:-1g}
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  ocr_internal:
+    internal: true

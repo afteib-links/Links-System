@@ -2679,3 +2679,64 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-entry-reference { display:block; }
   .dr-entry-reference span { display:block; }
 }
+/* PDFの原本・OCR・日報を同じ行で比較する。 */
+.pdf-import-toolbar { position: sticky; top: 0; z-index: 4; background: var(--surface, #fff); padding-bottom: 12px; }
+.pdf-comparison-heading { display: grid; grid-template-columns: 72px minmax(200px, 1fr) minmax(260px, 1fr) minmax(290px, 1fr); gap: 12px; padding: 10px; background: #e8eef7; color: #17263c; font-weight: 700; }
+.pdf-compare-row { display: grid; grid-template-columns: 72px minmax(200px, 1fr) minmax(562px, 2fr); gap: 12px; padding: 16px 10px; border-bottom: 2px solid #d6dfeb; align-items: start; }
+.pdf-row-select, .pdf-original-row { display: grid; gap: 10px; }
+.pdf-crop-button { border: 1px solid #c3ccda; background: #fff; padding: 0; cursor: zoom-in; width: 100%; }
+.pdf-crop-button img { display: block; width: 100%; min-height: 60px; object-fit: contain; }
+.pdf-values { min-width: 0; }
+.pdf-target { display: grid; gap: 8px; margin-bottom: 12px; }
+.pdf-target label, .pdf-field label { display: block; }
+.pdf-field { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid #e1e5ec; }
+.pdf-field > div { min-width: 0; }
+.pdf-values { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pdf-target, .pdf-row-error { grid-column: 1 / -1; }
+.pdf-field { display: contents; }
+.pdf-field > div { border-top: 1px solid var(--line); padding-top: 8px; }
+.pdf-field[data-field=work_date] > div:first-child { grid-area: 2 / 1; }
+.pdf-field[data-field=start_time] > div:first-child { grid-area: 2 / 2; }
+.pdf-field[data-field=end_time] > div:first-child { grid-area: 3 / 1; }
+.pdf-field[data-field=break_minutes] > div:first-child { grid-area: 3 / 2; }
+.pdf-field[data-field=work_date] > div:last-child { grid-area: 2 / 3; }
+.pdf-field[data-field=start_time] > div:last-child { grid-area: 2 / 4; }
+.pdf-field[data-field=end_time] > div:last-child { grid-area: 3 / 3; }
+.pdf-field[data-field=break_minutes] > div:last-child { grid-area: 3 / 4; }
+.pdf-extra-field > div { grid-column: span 2; }
+.pdf-import-screen input[type=checkbox] { width: 18px; height: 18px; min-height: 18px; margin: 0 5px 0 0; vertical-align: middle; display: inline-block; }
+.pdf-import-screen label { margin-bottom: 4px; }
+.pdf-target { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.pdf-target > label:last-child { grid-column: 1 / -1; }
+.pdf-clear { font-weight: normal; font-size: 12px; }
+.pdf-field small { display: block; overflow-wrap: anywhere; }
+.pdf-input-control { display: flex; gap: 2px; align-items: center; }
+.pdf-import-screen input:not([type=checkbox]), .pdf-import-screen select { width: 100%; min-width: 0; min-height: 38px; font-size: 16px; }
+.pdf-input-control button { flex: 0 0 30px; padding: 4px; }
+.pdf-warning, .pdf-row-error { color: #9a3a00; }
+.pdf-different { background: #fff8e8; }
+.pdf-extra-field { display: none; }
+.pdf-show-extras .pdf-extra-field { display: grid; }
+.pdf-clear { font-size: 12px; color: #596675; }
+.pdf-original-dialog { width: min(96vw, 1100px); max-height: 96vh; overflow: auto; }
+.pdf-original-image { position: relative; }
+.pdf-original-image img { display: block; width: 100%; }
+.pdf-highlight { position: absolute; border: 3px solid #e08400; background: #ffcc3326; pointer-events: none; }
+#pdf-template-pages fieldset { margin: 16px 0; padding: 12px; }
+#pdf-template-pages [data-column] { width: 80px; display: inline-block; margin-left: 8px; }
+@media (max-width: 1050px) {
+  .pdf-comparison-heading { display: none; }
+  .pdf-compare-row { grid-template-columns: 1fr; }
+  .pdf-row-select { display: flex; gap: 16px; align-items: center; }
+  .pdf-field { grid-template-columns: 1fr 1fr; }
+  .pdf-values { display: block; }
+  .pdf-field { display: grid; }
+  .pdf-field[data-field] > div { grid-area: auto; }
+  .pdf-import-toolbar { position: static; }
+}
+@media (max-width: 600px) {
+  .pdf-field { grid-template-columns: 1fr; }
+  .pdf-target { grid-template-columns: 1fr; }
+  .pdf-field > div:first-child::before { content: 'OCR候補・修正'; font-weight: 700; }
+  .pdf-field > div:last-child::before { content: '現在値・反映予定'; font-weight: 700; }
+}
