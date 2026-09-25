@@ -456,9 +456,6 @@
 
   async function openFeature(featureKey, options = {}) {
     if (!can(featureKey)) return showToast('この機能を利用する権限がありません');
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set('feature', featureKey);
-    window.history.replaceState(null, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     currentView = featureKey;
     renderLoading();
     try {
@@ -761,6 +758,10 @@
   async function showInitialView() {
     const requested = new URL(window.location.href).searchParams.get('feature');
     if (requested && can(requested)) {
+      // 外部リンクはログイン後に一度だけ消費し、通常の再読込動作を維持する。
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete('feature');
+      window.history.replaceState(null, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
       await openFeature(requested);
       return;
     }
