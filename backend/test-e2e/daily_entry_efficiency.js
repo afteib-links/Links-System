@@ -92,6 +92,15 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await time('break_minutes',0).fill('2.3'); await page.keyboard.press('Tab');
     await page.locator('[data-expand="2"]').click();
     assert.equal(await time('break_minutes',0).inputValue(),'2.3');
+    await page.evaluate(() => window.LinksDailyReports.leaveGrid(() => { window.leftGrid=true; }));
+    assert.equal(await page.evaluate(() => !!window.leftGrid),false);
+    await page.locator('[data-expand-row="0"] [data-common-minutes="night_adjustment"]').fill('2.3');
+    await page.keyboard.press('Tab');
+    await page.locator('[data-expand="0"]').click();
+    await time('break_minutes',0).fill('1.00'); await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => window.LinksDailyReports.saveAll()),false,'折り畳んだ詳細の不正値も保存しない');
+    await page.locator('[data-expand="0"]').click();
+    assert.equal(await page.locator('[data-expand-row="0"] [data-common-minutes="night_adjustment"]').inputValue(),'2.3');
     const output = path.resolve(__dirname,'../test-results/daily-entry'); fs.mkdirSync(output,{recursive:true});
     for (const width of [1920,1366,390]) {
       await page.setViewportSize({width,height:900});

@@ -3,6 +3,9 @@
   const inputSelector = 'input:not([type="hidden"]), select, textarea';
   const visibleEditable = (el) => !el.disabled && !el.readOnly && el.getClientRects().length > 0;
   window.LinksDailyEntryUI = {
+    entryFieldKey(el) {
+      return el.dataset.f || el.dataset.minutesF || el.dataset.signedMinutesF || el.dataset.commonMinutes || (el.dataset.rateSide ? `rate:${el.dataset.rateSide}:${el.dataset.rateType}` : '');
+    },
     entryTimeOptions(el) {
       const clock = ['start_time', 'end_time'].includes(el.dataset.f);
       return { signed: el.hasAttribute('data-signed-minutes-f') || el.dataset.commonMinutes === 'night_adjustment', maxMinutes: clock ? 2879 : 59999, padHours: clock };
@@ -23,6 +26,9 @@
       if (message) el.setAttribute('aria-describedby', id);
       else el.removeAttribute('aria-describedby');
       el.setCustomValidity(message);
+      const row = el.dataset.idx != null ? this.gridRows[Number(el.dataset.idx)] : null;
+      const key = this.entryFieldKey(el);
+      if (row && key) { row._inputErrors ||= {}; if (message) row._inputErrors[key] = message; else delete row._inputErrors[key]; }
       this.updateEntrySummary();
     },
     validateEntryInput(el) {
@@ -50,10 +56,12 @@
         else if (el.matches(timeSelector) || el.hasAttribute('data-f')) el.dispatchEvent(new Event('change', { bubbles: true }));
       });
       if (firstError) { firstError.focus(); return false; }
+      const invalidRow = this.gridRows.find((row, rowIdx) => (idx == null || idx === rowIdx) && Object.keys(row._inputErrors || {}).length);
+      if (invalidRow) { this.ctx.showToast(`${this.formatDateWithWeekday(invalidRow.work_date)} の入力エラーを修正してください（詳細欄も確認）`); return false; }
       return true;
     },
     entryRowLabel(row, idx) {
-      if (this.ctx.app.querySelector(`.dr-main[data-idx="${idx}"] [aria-invalid="true"], .dr-expand[data-expand-row="${idx}"] [aria-invalid="true"]`)) return '入力エラー';
+      if (Object.keys(row._inputErrors || {}).length) return '入力エラー';
       if (row._dirty) return '未保存';
       return row.daily_report_id ? (row.status === 'draft' ? '保存済み' : this.statusLabel(row.status)) : '未入力';
     },
@@ -137,7 +145,12 @@
       const screen = this.ctx.app.querySelector('.dr-grid-screen');
       if (!screen) return;
       this.applyEntryMode();
-      screen.querySelectorAll('[data-rate-side]').forEach(el => { el.dataset.initialValue = el.value; });
+      screen.querySelectorAll('[data-rate-side]').forEach(el => {
+        const row = this.gridRows[Number(el.dataset.idx)], key = this.entryFieldKey(el);
+        row._rateInitials ||= {};
+        if (!Object.hasOwn(row._rateInitials, key)) row._rateInitials[key] = el.value;
+        el.dataset.initialValue = row._rateInitials[key];
+      });
       screen.querySelectorAll(timeSelector).forEach(el => {
         el.inputMode = 'decimal';
         if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', el.closest('label')?.textContent.trim() || el.dataset.f || el.dataset.minutesF);
@@ -151,7 +164,7 @@
       });
       screen.querySelectorAll('[data-idx]').forEach(el => {
         const row = this.gridRows[Number(el.dataset.idx)];
-        const key = el.dataset.f || el.dataset.minutesF || el.dataset.signedMinutesF || el.dataset.commonMinutes;
+        const key = this.entryFieldKey(el);
         if (key && row?._inputDrafts && Object.hasOwn(row._inputDrafts, key)) {
           if (el.type !== 'checkbox') el.value = row._inputDrafts[key];
           this.validateEntryInput(el);
@@ -174,7 +187,7 @@
         if (event.target.dataset.idx != null && this.gridRows[idx]) {
           this.gridRows[idx]._dirty = true;
           this.gridRows[idx]._editRevision = (this.gridRows[idx]._editRevision || 0) + 1;
-          const key = event.target.dataset.f || event.target.dataset.minutesF || event.target.dataset.signedMinutesF || event.target.dataset.commonMinutes;
+          const key = this.entryFieldKey(event.target);
           if (key && event.target.type !== 'checkbox') {
             this.gridRows[idx]._inputDrafts ||= {};
             this.gridRows[idx]._inputDrafts[key] = event.target.value;

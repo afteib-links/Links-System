@@ -699,7 +699,7 @@
             <div class="dr-entry-context">${this.ctx.escapeHtml(this.gridMeta.company_name || `企業#${this.gridMeta.company_id || ''}`)} / ${this.ctx.escapeHtml(this.gridMeta.project_name || `案件#${this.gridMeta.project_id}`)} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} / ${this.ctx.escapeHtml(this.ym)}</div>
             <div class="dr-entry-modes btn-row"><button type="button" class="btn btn-secondary" data-entry-mode="time">時間入力</button><button type="button" class="btn btn-secondary" data-entry-mode="all">全項目入力</button><small data-hidden-extras></small></div>
             <div class="dr-summary">
-              <span>稼働日数: <strong>${sum.workDays}</strong></span>
+              <span>入力行数: <strong>${sum.workDays}</strong></span>
               <span>超過合計: <strong>${sum.overtime}</strong></span>
               <span>不足合計（請求）: <strong>${sum.shortage}</strong></span>
               <span>総距離: <strong>${sum.distance}</strong></span>
@@ -712,7 +712,7 @@
               ${this.canImport() ? '<button type="button" class="btn btn-secondary" id="open-daily-import">データ取り込み</button>' : ''}
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
               <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
-              <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
+              <button type="button" class="btn btn-ghost" id="back-month">保存して一覧へ</button>
             </div>
           </div>
           <div class="dr-entry-reference"><span data-entry-totals></span><span data-entry-selected></span></div>
@@ -731,9 +731,9 @@
             </table>
           </div>
         </section>`,
-        { onBack: () => this.showMonthList(), wide: true, scrollBodyOnly: true }
+        { onBack: () => this.leaveGrid(() => this.showMonthList()), wide: true, scrollBodyOnly: true }
       );
-      this.kit.bindShell({ onBack: () => this.showMonthList() });
+      this.kit.bindShell({ onBack: () => this.leaveGrid(() => this.showMonthList()) });
       this.bindGrid();
       this.bindEntryUI();
       if (previousScroll) {
@@ -959,12 +959,12 @@
         }
         window.alert(`請求合計: ${billing}\n支払合計: ${payment}`);
       });
-      document.getElementById('back-month')?.addEventListener('click', () => this.showMonthList());
+      document.getElementById('back-month')?.addEventListener('click', () => this.leaveGrid(() => this.showMonthList()));
       document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
-      document.getElementById('open-daily-import')?.addEventListener('click', () => this.openImports({
+      document.getElementById('open-daily-import')?.addEventListener('click', () => this.leaveGrid(() => this.openImports({
         projectId: this.gridMeta.project_id,
         back: () => this.showInputGrid(this.gridMeta),
-      }));
+      })));
       document.querySelectorAll('[data-month-action]').forEach((btn) =>
         btn.addEventListener('click', () => this.handleMonthlyAction(btn.getAttribute('data-month-action')))
       );
@@ -1089,6 +1089,15 @@
           this.renderGridWithViewState(viewState, idx);
         })
       );
+    },
+
+    async leaveGrid(next) {
+      if (!(await this.saveAll())) return;
+      if (this.gridRows.some(row => row._dirty)) {
+        this.ctx.showToast('保存中の追加入力があります。もう一度保存してから移動してください');
+        return;
+      }
+      return next();
     },
 
     async handleMonthlyAction(action) {
