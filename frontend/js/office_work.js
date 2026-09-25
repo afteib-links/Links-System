@@ -158,7 +158,7 @@
         </div>
         <nav class="office-breadcrumb" id="office-breadcrumb" aria-label="現在の選択"></nav>
         <div class="office-workspace ${this.companyToolsOpen ? 'is-company-tools-open' : ''}">
-          <section class="office-column"><div class="office-column-head"><div><h2>企業</h2><span id="office-company-count"></span></div><div class="office-head-actions office-company-primary-actions" data-action-area-ready><button type="button" class="btn btn-ghost btn-small" id="office-all-companies">全対象</button><button type="button" class="btn btn-ghost btn-small office-filter-toggle ${this.companyToolsOpen ? 'is-active' : ''}" id="office-filter-toggle" aria-expanded="${this.companyToolsOpen}" aria-controls="office-company-tools">ソート・フィルタ</button></div>${this.companyToolsHtml()}</div><div class="office-column-list" id="office-companies"></div></section>
+          <section class="office-column"><div class="office-column-head"><div><h2>企業</h2><span id="office-company-count"></span></div><div class="office-head-actions office-company-primary-actions" data-action-area-ready><button type="button" class="btn btn-ghost btn-small" id="office-all-companies">全対象</button><button type="button" class="btn btn-ghost btn-small office-filter-toggle ${this.companyToolsOpen ? 'is-active' : ''}" id="office-filter-toggle" aria-expanded="${this.companyToolsOpen}" aria-controls="office-company-tools" title="企業を抽出">抽</button></div>${this.companyToolsHtml()}</div><div class="office-column-list" id="office-companies"></div></section>
           <section class="office-column"><div class="office-column-head"><div><h2>パートナー</h2><span id="office-partner-count"></span></div><div class="office-head-actions"><button type="button" class="btn btn-ghost btn-small" id="office-all-partners">全対象</button></div></div><div class="office-column-list" id="office-partners"></div></section>
           <section class="office-column"><div class="office-column-head"><div><h2>業務項目</h2><span id="office-type-count"></span></div><div class="office-head-actions">${Object.entries(TYPES).map(([key, item]) => `<button type="button" class="btn btn-ghost btn-small" data-type-filter="${key}">${item.label}</button>`).join('')}</div></div><div class="office-column-list" id="office-types"></div></section>
           <div class="office-all-table" id="office-all-table" hidden></div>
@@ -201,7 +201,12 @@
 
     renderColumns() {
       const companies = this.companies();
-      if (this.companyId && !companies.some((x) => x.id === this.companyId)) this.companyId = null;
+      if (this.companyId && !companies.some((x) => x.id === this.companyId)) {
+        this.companyId = null;
+        this.partnerId = null;
+        this.type = null;
+        this.allPartners = false;
+      }
       const companyRows = companies.map((c) => this.columnRow('company', c.id, c.name, `No.${c.id}　締日 ${c.closing === 'end' ? '末日' : `${c.closing || '-'}日`}　${c.kana}`, this.companyId === c.id)).join('');
       document.getElementById('office-companies').innerHTML = companyRows || '<p class="office-empty">対象企業がありません</p>';
 

@@ -34,7 +34,7 @@ async function main() {
     await page.locator('[data-nav-feature="office_work"]').click();
     await page.locator('.office-screen').waitFor();
     assert.equal(await page.locator('#office-all-companies').textContent(),'全対象');
-    assert.equal(await page.locator('#office-filter-toggle').textContent(),'ソート・フィルタ');
+    assert.equal(await page.locator('#office-filter-toggle').textContent(),'抽');
     await page.setViewportSize({ width:900,height:800 });
     const bounds = await page.locator('.office-company-primary-actions').evaluate((element) => {
       const container = element.getBoundingClientRect();
@@ -64,7 +64,7 @@ async function main() {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
   }
-  console.log('[office-work-filter-ui] タブレット表示と企業ソート・フィルタを確認しました');
+  console.log('[office-work-filter-ui] タブレット表示と企業の抽ボタンを確認しました');
 }
 
 main().catch((error) => { console.error('[office-work-filter-ui] failed:',error); process.exit(1); });

@@ -2523,7 +2523,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .office-head-actions .btn { min-height:38px; padding:6px 9px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:14px; font-weight:600; white-space:nowrap; }
 .office-head-actions .btn.is-active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
 .office-company-primary-actions .btn { flex:1 1 0; }
-.office-filter-toggle { min-width:142px; }
+.office-company-primary-actions .office-filter-toggle { flex:0 0 40px; min-width:40px; }
 .office-company-tools { margin-top:8px; }
 .office-company-tools[hidden] { display:none; }
 .office-company-sort { display:grid; grid-template-columns:1.35fr 1fr .85fr; gap:4px; }

@@ -37,11 +37,11 @@ test('事務作業プレビューは案件一覧を置かず進行状況を表�
   assert.match(css, /\.office-column-row \{[^}]*padding:18px 12px 10px[^}]*align-items:flex-start/s);
 });
 
-test('全対象とタブレットでも見えるソート・フィルタを提供する', () => {
+test('全対象とタブレットでも見える抽ボタンを提供する', () => {
   const css = read('frontend/css/styles.css');
   const source = read('frontend/js/office_work.js');
   assert.match(source, /id="office-all-companies">全対象/);
-  assert.match(source, /id="office-filter-toggle"[^>]*>ソート・フィルタ<\/button>/);
+  assert.match(source, /id="office-filter-toggle"[^>]*title="企業を抽出"[^>]*>抽<\/button>/);
   assert.match(source, /data-company-sort="number">企業No/);
   assert.match(source, /data-company-sort="closing">締日/);
   assert.match(source, /data-company-sort="kana"[^>]*>フリ<\/button>/);
@@ -58,6 +58,7 @@ test('全対象とタブレットでも見えるソート・フィルタを提�
   assert.match(css, /\.office-column-row strong,[^}]*font-size:18px/s);
   assert.match(css, /\.office-head-actions \.btn \{[^}]*min-height:38px[^}]*font-size:14px/s);
   assert.match(css, /\.office-company-primary-actions \.btn \{[^}]*flex:1 1 0/s);
+  assert.match(css, /\.office-company-primary-actions \.office-filter-toggle \{[^}]*flex:0 0 40px/s);
   assert.match(css, /\.office-company-sort \{[^}]*grid-template-columns/s);
   assert.match(css, /\.office-kana-filter \{[^}]*grid-template-columns:repeat\(6/s);
 });
