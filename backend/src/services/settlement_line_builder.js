@@ -119,6 +119,16 @@ function buildAggregatedLines(reports, kind, config = COMPONENT_ORDER) {
   }
 
   // Month-level distance is separate from daily amounts. Add once per approved project/month,
+  const extraSeen = new Set();
+  for (const report of reports) for (const item of report.additional_items || []) {
+    if(extraSeen.has(Number(item.additional_item_id)))continue;
+    extraSeen.add(Number(item.additional_item_id));
+    const amount=money(item[`${side}_amount`]);
+    if(amount===0)continue;
+    add(report,`additional_${item.additional_item_id}`,'additional',amount,1,amount,report.project_name||`案件 #${report.project_id}`,`${item.item_name}${item.tax_category==='tax_inclusive'?'（税込）':''}`,item.tax_category);
+  }
+
+  // Month-level distance is separate from daily amounts. Add once per approved project/month,
   // using the frozen approval result rather than today's rules or each daily candidate amount.
   const monthlySeen = new Set();
   for (const report of reports) {

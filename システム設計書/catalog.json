@@ -778,6 +778,66 @@
   "endpoints": [
     {
       "method": "GET",
+      "path": "/api/additional-items",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/:id/delete",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/additional-items/fuel",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/fuel/conditions",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/fuel/prices",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/fuel/schedule",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/additional-items/masters",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/masters",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/additional-items/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/additional_items.js"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/ping",
       "guard": "ロール: admin",
       "source": "backend/src/server.js"
@@ -2278,7 +2338,7 @@
     }
   ],
   "schema_summary": {
-    "tables": 105,
+    "tables": 112,
     "foreign_keys": 161
   }
 }

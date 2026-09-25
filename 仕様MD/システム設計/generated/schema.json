@@ -3,6 +3,164 @@
   "source": "information_schema",
   "tables": [
     {
+      "name": "additional_item_audits",
+      "comment": "",
+      "columns": [
+        {
+          "name": "additional_item_audit_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "additional_item_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "before_data",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "after_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "additional_item_audit_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "additional_item_masters",
+      "comment": "",
+      "columns": [
+        {
+          "name": "additional_item_master_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "item_name",
+          "type": "varchar(120)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "calculation_method",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'direct'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "applies_to",
+          "type": "varchar(16)",
+          "nullable": false,
+          "key": "",
+          "default": "'both'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "tax_category",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'taxable'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "is_active",
+          "type": "tinyint(4)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "additional_item_master_id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "advance_cycle_settings",
       "comment": "",
       "columns": [
@@ -4299,6 +4457,210 @@
       ]
     },
     {
+      "name": "daily_additional_items",
+      "comment": "",
+      "columns": [
+        {
+          "name": "additional_item_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_period_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "target_year_month",
+          "type": "char(7)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "work_date",
+          "type": "date",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "additional_item_master_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "item_name",
+          "type": "varchar(120)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "calculation_method",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "applies_to",
+          "type": "varchar(16)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "tax_category",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "billing_amount",
+          "type": "decimal(15,0)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "payment_amount",
+          "type": "decimal(15,0)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "calculation_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "request_key",
+          "type": "varchar(80)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "is_deleted",
+          "type": "tinyint(4)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "on update current_timestamp()",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_additional_period",
+          "unique": false,
+          "columns": [
+            "project_id",
+            "target_year_month",
+            "work_date"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "additional_item_id"
+          ]
+        },
+        {
+          "name": "uq_additional_request",
+          "unique": true,
+          "columns": [
+            "project_id",
+            "request_key"
+          ]
+        }
+      ]
+    },
+    {
       "name": "daily_reports",
       "comment": "",
       "columns": [
@@ -7516,6 +7878,337 @@
           "unique": true,
           "columns": [
             "singleton_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fuel_conditions",
+      "comment": "",
+      "columns": [
+        {
+          "name": "fuel_condition_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "scope_type",
+          "type": "varchar(16)",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "scope_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "valid_from",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "efficiency",
+          "type": "decimal(12,4)",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "roundtrip_km",
+          "type": "decimal(12,4)",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "prefecture_code",
+          "type": "varchar(2)",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_fuel_scope",
+          "unique": false,
+          "columns": [
+            "scope_type",
+            "scope_id",
+            "valid_from"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "fuel_condition_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fuel_fetch_runs",
+      "comment": "",
+      "columns": [
+        {
+          "name": "fuel_fetch_run_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "scheduled_date",
+          "type": "date",
+          "nullable": false,
+          "key": "UNI",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "status",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "fuel_fetch_run_id"
+          ]
+        },
+        {
+          "name": "scheduled_date",
+          "unique": true,
+          "columns": [
+            "scheduled_date"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fuel_fetch_settings",
+      "comment": "",
+      "columns": [
+        {
+          "name": "setting_id",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "fetch_time_jst",
+          "type": "time",
+          "nullable": false,
+          "key": "",
+          "default": "'10:00:00'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "enabled",
+          "type": "tinyint(4)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "setting_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fuel_prices",
+      "comment": "",
+      "columns": [
+        {
+          "name": "fuel_price_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "prefecture_code",
+          "type": "varchar(2)",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "price_date",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "regular_price",
+          "type": "decimal(12,4)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "source_code",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'manual'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_fuel_price",
+          "unique": false,
+          "columns": [
+            "prefecture_code",
+            "price_date"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "fuel_price_id"
           ]
         }
       ]
@@ -13259,7 +13952,7 @@
         },
         {
           "name": "tax_category",
-          "type": "enum('taxable','non_taxable','tax_exempt')",
+          "type": "enum('taxable','non_taxable','tax_exempt','tax_inclusive')",
           "nullable": false,
           "key": "",
           "default": "'taxable'",

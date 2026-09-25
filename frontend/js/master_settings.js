@@ -178,6 +178,7 @@
           <p class="muted">共通小口マスタへの入口です。各カードの「？」で登録方法と影響画面を確認できます。</p>
           ${foundationWarnings.length ? `<div class="foundation-master-warning"><strong>初期マスターの確認が必要です（${foundationWarnings.length}件）</strong><p>削除・無効化された初期値は自動復活していません。意図した変更か確認してください。</p><ul>${foundationWarnings.map((line) => `<li>${this.ctx.escapeHtml(line)}</li>`).join('')}</ul></div>` : ''}
           <div class="hub-grid">
+            ${(this.ctx.currentUser?.roles||[]).some(r=>['admin','soumu'].includes(r))?'<button class="btn btn-secondary" id="master-additional">追加項目・燃料設定</button>':''}
             ${hubCardHtml(this.ctx, 'staff', '営業担当者マスタ', hub.staff_masters)}
             ${hubCardHtml(this.ctx, 'offices', '事業所マスタ', hub.office_masters)}
             ${hubCardHtml(this.ctx, 'numbering', '採番ルール', hub.numbering_rules)}
@@ -192,6 +193,7 @@
       );
       this.kit.bindShell();
       this.bindHelp();
+      document.getElementById('master-additional')?.addEventListener('click',()=>window.LinksAdditionalItems.open(this.ctx,{onBack:()=>this.showHub()}));
       document.querySelectorAll('[data-hub]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-hub');

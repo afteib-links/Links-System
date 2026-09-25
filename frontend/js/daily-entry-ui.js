@@ -82,7 +82,8 @@
       const extras = screen.querySelector('[data-hidden-extras]');
       if (extras) extras.textContent = `距離・経費の入力あり ${extraCount}行 / 経費 ${this.kit.money(expenses)}`;
       const totals = screen.querySelector('[data-entry-totals]');
-      if (totals) totals.textContent = `期間合計（保存時の計算） 請求 ${this.kit.money(billing)} / 支払 ${this.kit.money(payment)}`;
+      const items=this.additionalItems||[],extraBilling=items.reduce((sum,r)=>sum+Number(r.billing_amount),0),extraPayment=items.reduce((sum,r)=>sum+Number(r.payment_amount),0);
+      if (totals) totals.textContent = `期間合計（保存時の計算） 請求 ${this.kit.money(billing+extraBilling)} / 支払 ${this.kit.money(payment+extraPayment)}${items.length?`（追加項目 ${items.length}件: 請求 ${this.kit.money(extraBilling)} / 支払 ${this.kit.money(extraPayment)}を含む）`:''}`;
       const selected = this.gridRows[this.activeEntryIdx];
       const active = screen.querySelector('[data-entry-selected]');
       if (active) active.textContent = selected ? `${this.formatDateWithWeekday(selected.work_date)} 選択行: 請求 ${this.kit.money(this.rowEffectiveAmount(selected, 'billing'))} / 支払 ${this.kit.money(this.rowEffectiveAmount(selected, 'payment'))}${selected._dirty ? '（未保存・再計算前）' : ''}` : '入力する行を選択してください';

@@ -128,6 +128,8 @@ async function migrationPreview(conn, projectId) {
   const [reports] = await conn.query('SELECT * FROM daily_reports WHERE project_id=? AND is_deleted=0 ORDER BY daily_report_id FOR UPDATE', [projectId]);
   const [approvals] = await conn.query('SELECT target_year_month,status FROM daily_report_monthly_approvals WHERE project_id=?', [projectId]);
   const protectedMonths = new Set(approvals.filter(a => ['submitted', 'approved'].includes(a.status)).map(a => a.target_year_month));
+  const [additionalMonths] = await conn.query('SELECT DISTINCT target_year_month FROM daily_additional_items WHERE project_id=? AND is_deleted=0',[projectId]);
+  additionalMonths.forEach(row=>protectedMonths.add(row.target_year_month));
   for (const r of reports) if (['confirmed', 'approved'].includes(r.status)
     || (r.billing_status && r.billing_status !== 'none') || (r.payment_status && r.payment_status !== 'none')) protectedMonths.add(r.target_year_month);
   const fixed = periods.filter(p => protectedMonths.has(p.target_year_month));

@@ -453,6 +453,7 @@
         byDate.get(date).push({ ...r, _dirty: false, _expanded: false });
       }
       this.period = data.period || null;
+      this.additionalItems = data.additional_items || [];
       const dates = data.period?.dates || Array.from({ length: this.daysInMonth(this.ym) }, (_, i) => `${this.ym}-${String(i + 1).padStart(2, '0')}`);
       this.gridRows = [];
       for (const dateStr of dates) {
@@ -709,6 +710,7 @@
                     </section>
                     <section class="dr-detail-section"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
                     <section class="dr-detail-section"><h4>日別経費・距離</h4><div class="form-grid">${[['total_distance','業務走行距離（km）'],['toll_fee','通行料（円）'],['parking_fee','駐車料（円）'],['transport_fee','交通費（円）']].map(([field,label]) => `<label>${label}<input type="number" min="0" step="${field === 'total_distance' ? distanceStep : expenseStep}" inputmode="numeric" data-f="${field}" data-idx="${idx}" value="${this.ctx.escapeHtml(r[field] === '' || r[field] == null ? '' : Number(r[field]))}" ${locked ? 'disabled' : ''}></label>`).join('')}</div></section>
+                    ${this.canImport()?`<section class="dr-detail-section"><h4>追加請求・支払項目</h4><p>${(this.additionalItems||[]).filter(item=>item.work_date===r.work_date).map(item=>`${this.ctx.escapeHtml(item.item_name)}: 請求 ${this.kit.money(item.billing_amount)} / 支払 ${this.kit.money(item.payment_amount)}`).join('<br>')||'この日の追加項目はありません'}</p><button type="button" class="btn btn-secondary" data-extra-date="${this.ctx.escapeHtml(r.work_date)}">追加項目を確認・登録</button></section>`:''}
                     <details class="dr-detail-section"><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary>${this.rateTableHtml(r, idx, locked)}</details>
                     <details class="dr-detail-section"><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
                     <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
@@ -748,6 +750,7 @@
             <div class="btn-row">
               ${this.monthlyButtonsHtml()}
               <button type="button" class="btn" id="save-all">一括保存</button>
+              ${this.canImport() ? '<button type="button" class="btn btn-secondary" id="open-additional-items">追加項目・燃料費</button>' : ''}
               ${this.canImport() ? '<button type="button" class="btn btn-secondary" id="open-daily-import">データ取り込み</button>' : ''}
               ${this.canImport() ? '<button type="button" class="btn btn-ghost" id="open-period-migration">締め期間の確認・移行</button>' : ''}
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
@@ -1002,6 +1005,8 @@
       document.getElementById('back-month')?.addEventListener('click', () => this.leaveGrid(() => this.showMonthList()));
       document.getElementById('save-all')?.addEventListener('click', () => this.saveAll());
       document.getElementById('open-period-migration')?.addEventListener('click', () => this.leaveGrid(() => this.showPeriodMigration()));
+      document.getElementById('open-additional-items')?.addEventListener('click', () => this.leaveGrid(() => window.LinksAdditionalItems.open(this.ctx,{projectId:this.gridMeta.project_id,projectName:this.gridMeta.project_name,ym:this.ym,onBack:()=>this.showInputGrid(this.gridMeta)})));
+      document.querySelectorAll('[data-extra-date]').forEach(button=>button.addEventListener('click',()=>this.leaveGrid(()=>window.LinksAdditionalItems.open(this.ctx,{projectId:this.gridMeta.project_id,projectName:this.gridMeta.project_name,ym:this.ym,workDate:button.dataset.extraDate,onBack:()=>this.showInputGrid(this.gridMeta)}))));
       document.getElementById('open-daily-import')?.addEventListener('click', () => this.leaveGrid(() => this.openImports({
         projectId: this.gridMeta.project_id,
         back: () => this.showInputGrid(this.gridMeta),

@@ -28,7 +28,7 @@ async function loadWarningPercent() {
 }
 
 async function loadReports(fromYm, toYm) {
-  return query(
+  const reports = await query(
     `SELECT dr.target_year_month, dr.company_id, c.company_name, dr.partner_id, p.partner_name, p.employment_type_code,
             SUM(COALESCE(dr.override_billing_amount, dr.calculated_billing_amount, 0)) AS sales,
             SUM(COALESCE(dr.override_payment_amount, dr.calculated_payment_amount, 0)) AS pay,
@@ -45,6 +45,14 @@ async function loadReports(fromYm, toYm) {
      GROUP BY dr.target_year_month, dr.company_id, c.company_name, dr.partner_id, p.partner_name, p.employment_type_code`,
     [fromYm, toYm]
   );
+  const approvals=await query(`SELECT a.snapshot_data,a.target_year_month,p.company_id,p.partner_id FROM daily_report_monthly_approvals a JOIN projects p ON p.project_id=a.project_id
+    WHERE a.status='approved' AND a.target_year_month BETWEEN ? AND ? AND NOT EXISTS (SELECT 1 FROM daily_report_monthly_approvals newer WHERE newer.project_id=a.project_id AND newer.target_year_month=a.target_year_month AND newer.status='approved' AND newer.approval_version>a.approval_version)`,[fromYm,toYm]);
+  for(const approval of approvals) {
+    const snapshot=typeof approval.snapshot_data==='string'?JSON.parse(approval.snapshot_data):approval.snapshot_data;
+    const target=reports.find(r=>r.target_year_month===approval.target_year_month && Number(r.company_id)===Number(approval.company_id) && Number(r.partner_id)===Number(approval.partner_id));
+    if(target) for(const item of snapshot?.additional_items||[]) {target.sales=Number(target.sales)+Number(item.billing_amount);target.pay=Number(target.pay)+Number(item.payment_amount);}
+  }
+  return reports;
 }
 
 async function loadInvoices(fromYm, toYm) {
