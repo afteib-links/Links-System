@@ -4,7 +4,7 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 const { buildDailyCalculationContext, parseJson } = require('../services/price_calc');
 const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
-const { getPeriod, resolvePeriod, validMonth, bindReportPeriod, assertPeriodEditable,
+const { getPeriod, resolvePeriod, closingPeriod, validMonth, bindReportPeriod, assertPeriodEditable,
   migrationPreview, applyMigration, periodError, periodForDate } = require('../services/daily_report_periods');
 
 const { calculateMonthlyDistance } = require('../services/distance_calc');
@@ -314,6 +314,11 @@ router.get('/month-projects', async (req, res) => {
        WHERE a.target_year_month=?`, [ym,ym]
     );
     const approvalByProject = new Map(approvals.map((row) => [Number(row.project_id), row]));
+    for (const projectId of new Set([...reports, ...approvals].map(row => Number(row.project_id)))) {
+      if (!periods.some(p => Number(p.project_id) === projectId && p.target_year_month === ym)) {
+        periods.push({ ...closingPeriod(ym, 'end'), project_id: projectId, period_mode: 'legacy_calendar' });
+      }
+    }
 
     const byProject = new Map();
     for (const r of reports) {

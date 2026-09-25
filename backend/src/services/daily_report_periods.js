@@ -69,6 +69,14 @@ async function projectPeriods(conn, projectId, lock = false) {
      WHERE p.project_id=? AND p.is_deleted=0 ${lock ? 'FOR UPDATE' : ''}`, [projectId]);
   if (!projects.length) throw periodError('案件が見つかりません', 404);
   const [periods] = await conn.query('SELECT * FROM daily_report_periods WHERE project_id=? ORDER BY target_year_month', [projectId]);
+  // 旧形式のDB取込・検証データ生成にも同じ互換性を適用する。
+  const [legacyMonths] = await conn.query(`SELECT DISTINCT target_year_month FROM daily_reports
+    WHERE project_id=? AND is_deleted=0 AND daily_report_period_id IS NULL
+    UNION SELECT target_year_month FROM daily_report_monthly_approvals WHERE project_id=?`, [projectId, projectId]);
+  for (const row of legacyMonths) if (validMonth(row.target_year_month) && !periods.some(p => p.target_year_month === row.target_year_month)) {
+    periods.push({ ...closingPeriod(row.target_year_month, 'end'), project_id: Number(projectId), period_mode: 'legacy_calendar' });
+  }
+  periods.sort((a, b) => a.target_year_month.localeCompare(b.target_year_month));
   return { project: projects[0], periods };
 }
 async function getPeriod(projectId, ym, conn = getPool(), persist = false) {
@@ -80,6 +88,8 @@ async function getPeriod(projectId, ym, conn = getPool(), persist = false) {
        VALUES (?,?,?,?,?,?)`, [projectId, ym, period.period_start, period.period_end, period.closing_day, period.period_mode]);
     period.daily_report_period_id = result.insertId;
     period.version = 1;
+    await conn.query(`UPDATE daily_reports SET daily_report_period_id=? WHERE project_id=? AND target_year_month=? AND daily_report_period_id IS NULL`,
+      [result.insertId, projectId, ym]);
   }
   return period;
 }
