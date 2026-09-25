@@ -82,6 +82,7 @@ router.post('/',edit,route(async(req,conn)=>{
   if(calculated.calculation_data.fuel?.missing.length)throw periodError('燃料の設定・価格の不足を解消してください',400);
   if(calculated.preview_token!==b.preview_token)throw periodError('勤務実績・設定・価格が変更されました。計算結果を再確認してください');
   const {preview_token,period,...values}=calculated;
+  await require('../services/annual_closing').assertItemEditable(conn,before,values);
   values.calculation_data.request_digest=service.digest({...b,preview_token:undefined});
   values.calculation_data=JSON.stringify(values.calculation_data);
   const keys=Object.keys(values);let itemId=before?.additional_item_id;
@@ -93,6 +94,7 @@ router.post('/:id/delete',edit,route(async(req,conn)=>{
   const [rows]=await conn.query('SELECT * FROM daily_additional_items WHERE additional_item_id=?',[req.params.id]);const item=rows[0];
   if(!item)throw periodError('追加項目が見つかりません',404);
   await service.assertEditable(conn,item.project_id,item.target_year_month,item.work_date);
+  await require('../services/annual_closing').assertItemEditable(conn,item,null);
   if(!String(req.body.reason||'').trim())throw periodError('削除理由を入力してください',400);
   const [r]=await conn.query('UPDATE daily_additional_items SET is_deleted=1,version=version+1 WHERE additional_item_id=? AND version=? AND is_deleted=0',[req.params.id,req.body.version]);if(!r.affectedRows)throw periodError('追加項目が更新されています');
   await audit(conn,item.additional_item_id,item,{is_deleted:true},req.body.reason,req.session.user.user_id);return {};

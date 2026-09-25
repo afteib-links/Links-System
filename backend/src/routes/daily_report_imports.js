@@ -541,6 +541,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
       if (!projects.length) throw badRequest(`行${row.source_row_number}の案件が見つかりません`);
       const project = projects[0];
       const period = await periodForDate(project.project_id, data.work_date, conn, true);
+      await require('../services/annual_closing').assertDailyEditable(conn,project.project_id,data.work_date);
       const [monthly] = await conn.query(
         `SELECT status FROM daily_report_monthly_approvals WHERE project_id=? AND target_year_month=?
          ORDER BY approval_version DESC LIMIT 1 FOR UPDATE`,

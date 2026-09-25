@@ -475,8 +475,11 @@ async function withPdfBatch(callback) {
 }
 
 async function writePdf(document, lines) {
+  return writeHtmlPdf(`${document.document_number}.pdf`,renderHtml(document,lines));
+}
+async function writeHtmlPdf(fileName, html) {
+  if(path.basename(fileName)!==fileName || !fileName.endsWith('.pdf'))throw new Error('Invalid PDF file name');
   await fs.mkdir(PDF_DIR, { recursive:true });
-  const fileName = `${document.document_number}.pdf`;
   const absolutePath = path.join(PDF_DIR, fileName);
   let chromium;
   try { ({ chromium } = require('playwright')); } catch (_error) { throw new Error('PDF生成用Chromiumがインストールされていません'); }
@@ -487,7 +490,7 @@ async function writePdf(document, lines) {
   let page;
   try {
     page = batchPage || await browser.newPage();
-    await page.setContent(renderHtml(document, lines), { waitUntil: batchBrowser ? 'load' : 'networkidle' });
+    await page.setContent(html, { waitUntil: batchBrowser ? 'load' : 'networkidle' });
     const fontReady = await page.evaluate(async () => {
       await document.fonts.ready;
       return document.fonts.check('12px "BIZ UDPGothic"', '日本語 請求 支払 先払');
@@ -505,5 +508,6 @@ module.exports = {
   salaryComponents,
   summaryRows,
   writePdf,
+  writeHtmlPdf,
   withPdfBatch,
 };

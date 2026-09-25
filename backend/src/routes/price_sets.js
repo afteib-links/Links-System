@@ -661,6 +661,8 @@ router.post('/:id/recalculate-unconfirmed', async (req, res) => {
       [source.price_set_id]
     );
     for (const report of reports) {
+      await conn.query('SELECT project_id FROM projects WHERE project_id=? FOR UPDATE',[report.project_id]);
+      await require('../services/annual_closing').assertDailyEditable(conn,report.project_id,report.work_date);
       const calculated = await applyDailyPriceCalcWithRules({ ...report });
       const fields = RECALCULATED_REPORT_FIELDS.filter((key) => Object.prototype.hasOwnProperty.call(calculated, key));
       await conn.query(

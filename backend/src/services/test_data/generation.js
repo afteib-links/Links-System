@@ -88,6 +88,8 @@ function createGenerationService(deps = {}) {
             const sample = applyLifecycle(originalSample, binding);
             if (sample !== originalSample) lifecycleAdjusted += 1;
             const input = buildInput(sample, binding, jobId), calculated = await calculate(input);
+            await conn.query('SELECT project_id FROM projects WHERE project_id=? FOR UPDATE',[input.project_id]);
+            await require('../annual_closing').assertDailyEditable(conn,input.project_id,input.work_date);
             const status = shouldConfirm(sample) ? 'confirmed' : 'draft';
             const data = { ...input, ...calculated, status };
             const record = Object.fromEntries(REPORT_FIELDS.filter(k => Object.hasOwn(data,k) && data[k] !== undefined).map(k => [k,data[k]]));

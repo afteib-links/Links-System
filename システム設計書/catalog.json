@@ -940,6 +940,66 @@
     },
     {
       "method": "GET",
+      "path": "/api/annual-closings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/annual-closings/:id",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/annual-closings/:id/documents/:documentId",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/:id/finalize",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/:id/review",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/:id/submit",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/draft",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/preview",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/annual-closings/settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/annual-closings/settings",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/annual_closings.js"
+    },
+    {
+      "method": "GET",
       "path": "/api/auth/features",
       "guard": "ルート定義による",
       "source": "backend/src/routes/auth.js"
@@ -2338,7 +2398,7 @@
     }
   ],
   "schema_summary": {
-    "tables": 112,
+    "tables": 118,
     "foreign_keys": 161
   }
 }

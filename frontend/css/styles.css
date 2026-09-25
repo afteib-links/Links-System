@@ -30,6 +30,13 @@
   --radius: 8px;
 }
 
+.annual-totals { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+.annual-screen input[type=checkbox] { width: 18px; min-height: 18px; height: 18px; display: inline-block; vertical-align: middle; }
+.annual-screen fieldset { border: 1px solid var(--line); margin: 16px 0; }
+.annual-screen #annual-error { white-space: pre-line; }
+@media (max-width: 900px) { .annual-totals { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 520px) { .annual-totals { grid-template-columns: 1fr; } }
+
 * {
   box-sizing: border-box;
 }

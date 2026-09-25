@@ -153,6 +153,7 @@
       const body = `<section class="office-screen">
         <div class="office-toolbar">
           ${this.kit.monthNavigatorHtml(this.ym, 'office-month')}
+          <button class="btn btn-secondary" id="office-annual">年度締め</button>
           <label class="office-search"><span>絞り込み</span><input id="office-q" value="${this.ctx.escapeHtml(this.query)}" placeholder="案件No・名称・企業・パートナー"></label>
           <p class="office-guide"><strong>操作：</strong>シングルクリック＝詳細表示 ／ ダブルクリック＝入力画面</p>
         </div>
@@ -169,6 +170,7 @@
       this.kit.bindShell();
       this.kit.bindMonthNavigator('office-month', () => this.ym, (value) => { this.ym = value; }, () => this.load());
       document.getElementById('office-q').addEventListener('input', (event) => { this.query = event.target.value.trim(); this.renderColumns(); });
+      document.getElementById('office-annual').onclick=()=>window.LinksAnnualClosings.open(this.ctx,{onBack:()=>this.render()});
       document.getElementById('office-all-companies').addEventListener('click', () => { this.allCompanies = !this.allCompanies; this.allPartners = false; this.companyId = null; this.partnerId = null; this.type = null; this.renderColumns(); });
       document.getElementById('office-filter-toggle').addEventListener('click', () => {
         this.companyToolsOpen = !this.companyToolsOpen;

@@ -1213,6 +1213,567 @@
       ]
     },
     {
+      "name": "annual_closings",
+      "comment": "",
+      "columns": [
+        {
+          "name": "annual_closing_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "fiscal_year",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "revision_no",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "status",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'draft'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "correction_of_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "input_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "snapshot_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "source_token",
+          "type": "char(64)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "finalized_by_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "finalized_at",
+          "type": "datetime",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "annual_closing_id"
+          ]
+        },
+        {
+          "name": "uq_annual_revision",
+          "unique": true,
+          "columns": [
+            "fiscal_year",
+            "revision_no"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "annual_closing_audits",
+      "comment": "",
+      "columns": [
+        {
+          "name": "annual_audit_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "annual_closing_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "action_code",
+          "type": "varchar(32)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "before_data",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "after_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "annual_audit_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "annual_closing_documents",
+      "comment": "",
+      "columns": [
+        {
+          "name": "annual_document_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "annual_closing_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "document_type",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "document_number",
+          "type": "varchar(120)",
+          "nullable": false,
+          "key": "UNI",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "file_name",
+          "type": "varchar(180)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "sha256",
+          "type": "char(64)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "snapshot_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "document_number",
+          "unique": true,
+          "columns": [
+            "document_number"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "annual_document_id"
+          ]
+        },
+        {
+          "name": "uq_annual_document",
+          "unique": true,
+          "columns": [
+            "annual_closing_id",
+            "document_type"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "annual_closing_locks",
+      "comment": "",
+      "columns": [
+        {
+          "name": "annual_lock_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "annual_closing_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_start",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_end",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "is_active",
+          "type": "tinyint(4)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_annual_project_lock",
+          "unique": false,
+          "columns": [
+            "project_id",
+            "is_active",
+            "period_start",
+            "period_end"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "annual_lock_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "annual_closing_reviews",
+      "comment": "",
+      "columns": [
+        {
+          "name": "annual_review_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "annual_closing_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reviewer_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "assignment_source",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "status",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'pending'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "decided_at",
+          "type": "datetime",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "annual_review_id"
+          ]
+        },
+        {
+          "name": "uq_annual_reviewer",
+          "unique": true,
+          "columns": [
+            "annual_closing_id",
+            "project_id",
+            "reviewer_user_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "annual_closing_settings",
+      "comment": "",
+      "columns": [
+        {
+          "name": "setting_id",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "include_previous_tail",
+          "type": "tinyint(4)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "setting_id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "bank_export_columns",
       "comment": "",
       "columns": [

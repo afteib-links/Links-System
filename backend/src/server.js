@@ -111,6 +111,7 @@ async function createApp() {
   app.use('/api/daily-report-imports', dailyReportImportsRoutes);
   app.use('/api/daily-report-submissions', dailyReportSubmissionsRoutes);
   app.use('/api/additional-items', require('./routes/additional_items'));
+  app.use('/api/annual-closings', require('./routes/annual_closings'));
   app.use('/api/advances', advancesRoutes);
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/payments', paymentsRoutes);
