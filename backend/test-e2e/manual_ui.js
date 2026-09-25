@@ -47,6 +47,13 @@ async function main() {
     desktop.on('pageerror', (error) => errors.push(error.message));
     await desktop.goto(base, { waitUntil: 'networkidle' });
     assert.equal(await desktop.locator('.feature-chapter').count(), featureKeys.length);
+    assert.equal(await desktop.locator('.operation-image').count(), featureKeys.length + 4);
+    assert.equal(await desktop.locator('.input-image').count(), featureKeys.length + 4);
+    for (const chapter of await desktop.locator('[data-chapter]').all()) {
+      assert.equal(await chapter.getByRole('heading', { name: '運用イメージ', exact: true }).count(), 1);
+      assert.equal(await chapter.getByRole('heading', { name: '入力イメージ', exact: true }).count(), 1);
+      assert.ok(await chapter.locator('.sample-fields samp').count() >= 2);
+    }
     for (const key of featureKeys) {
       assert.equal(await desktop.locator(`#${key} .examples section`).count(), 3, `${key}の具体例`);
     }
@@ -73,6 +80,9 @@ async function main() {
       document.querySelectorAll('[data-chapter]').forEach((chapter) => chapter.classList.toggle('print-target', chapter.id === 'daily_reports'));
     });
     assert.equal(await desktop.locator('#daily_reports').evaluate((node) => getComputedStyle(node).display), 'block');
+    assert.equal(await desktop.locator('#daily_reports .input-image').isVisible(), true);
+    assert.equal(await desktop.locator('#daily_reports .operation-image').isVisible(), true);
+    assert.equal(await desktop.locator('.manual-footer').isVisible(), false);
     assert.equal(await desktop.locator('#companies').evaluate((node) => getComputedStyle(node).display), 'none');
     await desktop.pdf({ path: path.join(outputDir, 'daily-report-chapter.pdf'), format: 'A4', printBackground: true });
     await desktop.evaluate(() => { document.body.dataset.printScope = 'all'; });
@@ -87,6 +97,11 @@ async function main() {
     await assertNoHorizontalOverflow(mobile, 'スマートフォン表示');
     assert.equal(await mobile.locator('.start-grid .start-card').count(), 4);
     await mobile.screenshot({ path: path.join(outputDir, 'manual-mobile.png'), fullPage: false });
+    await mobile.locator('#daily_reports .input-image').scrollIntoViewIfNeeded();
+    await assertNoHorizontalOverflow(mobile, '入力イメージのスマートフォン表示');
+    await mobile.screenshot({ path: path.join(outputDir, 'manual-input-mobile.png'), fullPage: false });
+    await desktop.emulateMedia({ media: 'screen' });
+    await desktop.locator('#daily_reports .input-image').screenshot({ path: path.join(outputDir, 'manual-input-desktop.png') });
 
     assert.deepEqual(errors, []);
     console.log('manual UI verified');
