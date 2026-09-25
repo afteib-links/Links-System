@@ -58,6 +58,8 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.locator('dialog [name=hour]').selectOption('28');
     await page.locator('dialog [name=minute]').selectOption('15');
     await page.locator('dialog button[value=apply]').click();
+    // Values and focus are committed by the asynchronous dialog close event.
+    await page.locator('dialog.dr-time-picker').waitFor({ state: 'detached' });
     assert.equal(await time('end_time',0).inputValue(),'28:15');
     await page.keyboard.press('F2');
     await page.waitForSelector('[data-expand-row="0"]');
