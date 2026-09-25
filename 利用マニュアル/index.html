@@ -47,6 +47,15 @@
       <a href="#help_settings" data-nav="help_settings">ヘルプ編集設定</a>
       <a href="#ui_builder" data-nav="ui_builder">UIビルダー</a>
       <a href="#users" data-nav="users">ユーザー管理</a>
+      <p class="sidebar-label">システム専用</p>
+      <a href="#master_data_preparation" data-nav="master_data_preparation">マスターデータ取込</a>
+      <a href="#db_import" data-nav="db_import">DB取込</a>
+      <a href="#db_export" data-nav="db_export">DB出力</a>
+      <a href="#master_data_export" data-nav="master_data_export">マスターデータ出力</a>
+      <a href="#test_data" data-nav="test_data">検証用データ</a>
+      <a href="#calculation_rules" data-nav="calculation_rules">計算ルール管理</a>
+      <a href="#menu_access_settings" data-nav="menu_access_settings">利用可能メニュー選択</a>
+      <a href="#release-status" data-nav="release-status">今回の更新と今後の機能</a>
     </aside>
 
     <main id="manual-main" tabindex="-1">
@@ -113,7 +122,14 @@
               <button type="button" data-flow="master_settings" data-links="daily_reports,advances,cash_management">マスター設定</button>
               <button type="button" data-flow="help_settings" data-links="master_settings,ui_builder,users">ヘルプ編集</button>
               <button type="button" data-flow="ui_builder" data-links="master_settings,users">UIビルダー</button>
-              <button type="button" data-flow="users" data-links="master_settings,help_settings,ui_builder">ユーザー</button>
+              <button type="button" data-flow="users" data-links="master_settings,help_settings,ui_builder,menu_access_settings">ユーザー</button>
+              <button type="button" data-flow="master_data_preparation" data-links="db_import,master_data_export,master_settings">マスターデータ取込</button>
+              <button type="button" data-flow="db_import" data-links="master_data_preparation,db_export,companies,projects,price_sets">DB取込</button>
+              <button type="button" data-flow="db_export" data-links="db_import,companies,partners,projects,price_sets">DB出力</button>
+              <button type="button" data-flow="master_data_export" data-links="master_data_preparation,master_settings,db_export">マスターデータ出力</button>
+              <button type="button" data-flow="test_data" data-links="daily_reports,invoices,payments,menu_access_settings">検証用データ</button>
+              <button type="button" data-flow="calculation_rules" data-links="price_sets,daily_reports,invoices,payments">計算ルール管理</button>
+              <button type="button" data-flow="menu_access_settings" data-links="users,help_settings,test_data">利用可能メニュー選択</button>
             </div></section>
           </div>
           <div class="flow-result" aria-live="polite" data-flow-result>機能を選択すると、ここに役割と前後関係が表示されます。</div>
@@ -144,6 +160,10 @@
           <section><h2>先払い・支払・入出金管理</h2><p><strong>先払い</strong>は月途中の前払い、<strong>支払</strong>は月次の最終精算、<strong>入出金管理</strong>は銀行で動かす予定と実績です。同じ支出でも処理段階が違います。</p></section>
           <section><h2>マスター設定・ヘルプ編集・UIビルダー・ユーザー</h2><p>順に、業務値、画面説明、一覧の見え方、利用権限を管理します。設定変更の影響範囲を限定するため、別機能になっています。</p></section>
           <section><h2>画面ヘルプ と 利用マニュアル</h2><p><strong>画面ヘルプ</strong>は今開いている画面の短い説明、<strong>利用マニュアル</strong>は業務の前後関係や運用例まで学ぶ資料です。</p></section>
+          <section><h2>マスターデータ取込 と DB取込</h2><p>前者は原本を編集用Excelへ変換し、後者は完成Excelを検証してDBへ登録します。変換と登録を分けることで、内容を修正・確認する工程を確保しています。初期値の選択復旧はマスターデータ取込にある別操作です。</p></section>
+          <section><h2>DB出力 と マスターデータ出力</h2><p>DB出力は現在の業務マスター値、マスターデータ出力はシステム同梱の初期定義です。「いまの登録値」と「初期値」を混同して上書きしないために分けています。</p></section>
+          <section><h2>金額データ と 計算ルール管理</h2><p>金額データは契約ごとの単価・料金条件、計算ルールは日次・月次・控除・税などの処理を版管理します。契約単価の改定と計算処理の公開は別の変更です。</p></section>
+          <section><h2>ユーザー管理 と 利用可能メニュー選択</h2><p>ユーザー管理は「誰がどの役割か」、利用可能メニュー選択は「その役割が何を使えるか」です。複数役割では許可を合わせて判定し、承認・取消の操作制限は別に適用します。</p></section>
         </div>
       </article>
 
@@ -153,15 +173,15 @@
         <figure><img src="screenshots/base_management.png" alt="企業から金額データまでを横断する基本管理画面"><figcaption>上位を選ぶと下位が絞られます。編集は対象をダブルクリックして各マスタへ進みます。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 料金のつながりを調べる</h3><p>企業を選び、基本案件、個別案件、金額データの順に選びます。右のプレビューで適用期間と単価を確認します。</p></section>
-          <section><h3>2. 下位がない登録を探す</h3><p>「全対象」で表示し、個別案件や金額データが空の行を確認します。必要なら該当マスタへ移動して登録します。</p></section>
-          <section><h3>3. 問い合わせから契約を特定する</h3><p>企業名を起点に関連案件を絞り、対象の個別案件をダブルクリックして契約詳細を開きます。</p></section>
+          <section><h3>2. 下位の情報を追加する</h3><p>企業・基本案件などの親を選び、対象列の「追加」から登録画面を開きます。引き継がれた親の情報を確認して保存します。未選択時は先に親を選びます。</p></section>
+          <section><h3>3. 同じ条件の契約を作る</h3><p>コピー元を選択して対象列のコピー操作を使います。新しい案件のパートナー・期間と、コピーされた料金を確認します。単価改定だけなら金額データの「コピーして改定」を使います。</p></section>
         </div><p class="connection"><strong>使い分け：</strong>ここでは関係を確認し、企業名や契約条件そのものの修正は企業・案件・金額データの各画面で行います。</p>
       </article>
 
       <article class="manual-chapter feature-chapter" id="companies" data-chapter="companies">
         <div class="chapter-head"><div><p class="eyebrow">取引先の正本</p><h1>企業マスタ</h1></div><span class="role-badge">管理者・システム・総務</span></div>
         <p class="purpose">請求先となる企業の基本情報、請求先、車両、担当を管理します。請求書の宛先や案件選択に使われるため、表記を統一します。</p>
-        <figure><img src="screenshots/03_companies_list.png" alt="企業マスタの一覧画面"><figcaption>一覧で対象企業を探し、詳細で住所・請求先・担当などを編集します。</figcaption></figure>
+        <figure><img src="screenshots/03_companies_list.png" alt="企業マスタの一覧画面"><figcaption>検索で対象企業を絞り、詳細で住所・請求先・担当などを編集します。並び順や絞り込みを確認してから新規登録します。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新規取引先を登録する</h3><p>「新規登録」から正式名称、略称、住所、締日などを入力します。保存後、既定の請求先No.0を確認します。</p></section>
           <section><h3>2. 部門別の請求先を追加する</h3><p>企業詳細の請求先欄で企業情報をコピーし、部門名・住所・取纏No.を変更して保存します。</p></section>
@@ -183,7 +203,7 @@
       <article class="manual-chapter feature-chapter" id="base_projects" data-chapter="base_projects">
         <div class="chapter-head"><div><p class="eyebrow">仕事のひな形</p><h1>基本案件</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
         <p class="purpose">繰り返し使う業務条件のテンプレートです。ここから個別案件を作ると、属性と料金一式がコピーされ、実契約側を独立して編集できます。</p>
-        <figure><img src="screenshots/08_base_projects_detail.png" alt="基本案件の詳細画面"><figcaption>基本時刻や企業、締日など、個別案件を作るときの初期値を整えます。</figcaption></figure>
+        <figure><img src="screenshots/07_base_projects_list.png" alt="基本案件の一覧画面"><figcaption>一覧から基本案件を登録・編集し、基本時刻や企業、締日など個別案件を作るときの初期値を整えます。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 定期便のひな形を作る</h3><p>企業、業務名、基本時刻、締日を登録し、標準の金額データを用意します。</p></section>
           <section><h3>2. 似た業務を複製する</h3><p>既存の基本案件をコピーし、名称や時刻だけを変更します。元のひな形は変わりません。</p></section>
@@ -227,11 +247,15 @@
       <article class="manual-chapter feature-chapter" id="daily_reports" data-chapter="daily_reports">
         <div class="chapter-head"><div><p class="eyebrow">請求・支払の根拠</p><h1>日報</h1></div><span class="role-badge">管理者・総務・営業・パートナー・経営者</span></div>
         <p class="purpose">案件ごとに勤務日、開始・終了、休憩、距離、経費を入力します。料金設定を使って請求側と支払側を再計算し、日次確認と月次承認を行います。</p>
-        <figure><img src="screenshots/14_daily_grid.png" alt="1か月の日報入力グリッド"><figcaption>1行が1日の作業です。自動計算欄は直接変更せず、必要な場合は理由付き調整を使います。</figcaption></figure>
+        <figure><img src="screenshots/14_daily_grid.png" alt="時間入力を優先する日報入力画面"><figcaption>時間入力を初期表示します。距離・経費は「全項目入力」で確認します。1日には複数の作業行を登録でき、詳細は選択行の下に開きます。</figcaption></figure>
+        <h2>時間入力とキーボード操作</h2>
+        <p>開始・終了・休憩は、230・2.30・2:30を02:30、1730を17:30、8を08:00へ変換します。全角数字も入力できます。2.3は曖昧なためエラーになります。2.03または2.30と入力してください。翌4時は28:00、開始・終了の上限は47:59です。</p>
+        <p>Tabで開始→終了→休憩→次行、Shift＋Tabで逆順に移動します。全項目入力では表示中の編集可能な入力欄を移動します。Ctrl＋Sで保存、F2で行詳細、Alt＋↓で時分選択、Escで詳細から行へ戻れます。詳細内にいる間は詳細の入力欄を巡回します。</p>
+        <p class="note">時間入力で隠れている距離・経費も保持されます。非表示項目の件数と合計を確認し、必要なら全項目入力へ切り替えます。不正な値は修正してから保存してください。未保存のまま画面を移動すると確認が表示されます。</p>
         <div class="examples"><h2>具体例</h2>
-          <section><h3>1. FAXの日報を手入力する</h3><p>8:00～17:00、休憩1:00、距離120km、通行料1,500円を同じ日の行へ入力して保存し、内容確認後に日次確認を付けます。</p></section>
+          <section><h3>1. FAXの日報を連続入力する</h3><p>時間入力で開始に8、Tabで終了へ移動して17、Tabで休憩へ移動して1と入力します。次の日へ進み、全項目入力に切り替えて距離120km・通行料1,500円を登録します。Ctrl＋Sで保存し、原本と照合して日次確認を付けます。</p></section>
           <section><h3>2. Excelをまとめて取り込む</h3><p>一覧の「データ取り込み」でファイルと列対応を確認します。外部ファイルの金額は採用せず、システムの料金で再計算します。</p></section>
-          <section><h3>3. 翌朝までの勤務と臨時単価を登録する</h3><p>20時～翌4時は20:00～28:00と入力します。その日だけ単価を変える場合は詳細を開き、変更額と理由を登録します。</p></section>
+          <section><h3>3. 翌朝までの勤務と臨時単価を登録する</h3><p>20時～翌4時は20:00～28:00と入力します。F2で行詳細を開き、一時単価変更で金額と理由を入力します。契約料金・計算根拠を展開して確認し、保存します。日次確認済みなら先に確認を外し、修正後に再確認します。</p></section>
         </div><p class="connection"><strong>次につながる：</strong>月次承認済みの日報が請求・支払の本番確定の根拠になります。日報提出の受領状態とは別管理です。</p>
       </article>
 
@@ -260,7 +284,7 @@
       <article class="manual-chapter feature-chapter" id="invoices" data-chapter="invoices">
         <div class="chapter-head"><div><p class="eyebrow">企業から受け取る金額</p><h1>請求</h1></div><span class="role-badge">管理者・経営者・総務・営業・企業</span></div>
         <p class="purpose">日報の請求側計算を月額明細にまとめ、営業確認・一括承認・帳票発行を行います。請求先や条件が一致する案件は取りまとめられます。</p>
-        <figure><img src="screenshots/18_invoices_detail.png" alt="請求の明細と承認状態を確認する画面"><figcaption>対象を選んで下書きを作り、明細・承認・発行状態を確認します。</figcaption></figure>
+        <figure><img src="screenshots/17_invoices_list.png" alt="請求の対象月と登録内容を確認する一覧画面"><figcaption>対象を選んで下書きを作り、詳細で明細・承認・発行状態を確認します。検証例では未作成のため一覧は空です。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 1案件の請求書を作る</h3><p>対象月・企業・案件を確認して下書きを作り、日報から再反映、明細確認、営業確認依頼へ進みます。</p></section>
           <section><h3>2. 同じ請求先の2案件をまとめる</h3><p>請求先・取纏No.・締日などの条件が一致する案件を選び、1枚の請求へまとめます。条件が違う場合は分けます。</p></section>
@@ -271,7 +295,7 @@
       <article class="manual-chapter feature-chapter" id="payments" data-chapter="payments">
         <div class="chapter-head"><div><p class="eyebrow">パートナーへ渡す金額</p><h1>支払</h1></div><span class="role-badge">管理者・経営者・総務・営業・パートナー</span></div>
         <p class="purpose">日報の支払側計算を月額明細にまとめ、先払い、振込手数料、定額控除を反映して最終振込額を確定します。</p>
-        <figure><img src="screenshots/20_payments_detail.png" alt="支払の明細と控除を確認する画面"><figcaption>下書きの内訳と控除を確認し、承認後に支払帳票を発行します。</figcaption></figure>
+        <figure><img src="screenshots/19_payments_list.png" alt="支払の対象月と登録内容を確認する一覧画面"><figcaption>対象月から下書きを作り、詳細で内訳と控除を確認して承認後に帳票を発行します。検証例では未作成のため一覧は空です。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 通常の月次支払を作る</h3><p>対象案件の下書きを作り、日報明細、支払単価、控除を確認して営業確認へ進みます。</p></section>
           <section><h3>2. 先払い済み金額を精算する</h3><p>先払い実績と手数料が控除側に反映されていることを確認し、月次総額との差額を最終振込額とします。</p></section>
@@ -284,10 +308,10 @@
         <p class="purpose">請求入金、通常支払、先払いなどを管理回・予定・実績に分けて確認し、銀行CSVを出力します。CSV出力だけでは実行済みになりません。</p>
         <figure><img src="screenshots/21_cash_management.png" alt="入出金予定を一覧とカレンダーで管理する画面"><figcaption>業務上の管理回、銀行予定日、実際の実行日を分けて記録します。</figcaption></figure>
         <div class="examples"><h2>具体例</h2>
-          <section><h3>1. 25日回の振込予定を確認する</h3><p>対象月と25日回を選び、出金予定、口座、金額を確認します。休日の場合は営業日調整後の日付を確認します。</p></section>
+          <section><h3>1. 締日25日の振込予定を確認する</h3><p>対象月と「締日」の25日を選び、出金予定、口座、金額を確認します。休日の出金は前営業日、入金は翌営業日に調整されます。カレンダーの日付は1回押すと強調表示、ダブルクリックでその日の一覧へ切り替わります。</p></section>
           <section><h3>2. 銀行CSVを出力する</h3><p>公開済みの銀行設定と振込元口座を選び、対象予定からCSVを出力します。出力後の状態は「出力済み」です。</p></section>
           <section><h3>3. 銀行処理後に実績を登録する</h3><p>銀行の結果と照合し、実行日・実績を登録します。CSVを作っただけで実行済みにしません。</p></section>
-        </div><p class="connection"><strong>現在の範囲：</strong>銀行別CSVと予定・実績管理が利用できます。銀行サービス仕様が未確定の設定は、銀行取込用として公開しません。</p>
+        </div><p class="connection"><strong>現在の範囲：</strong>銀行別CSVと予定・実績管理が利用できます。銀行サービス仕様が未確定の設定は、銀行取込用として公開しません。銀行預金残高は期首残高と口座調整で管理し、請求・支払の実績から自動更新されません。</p>
       </article>
 
       <article class="manual-chapter feature-chapter" id="analytics" data-chapter="analytics">
@@ -345,9 +369,95 @@
         </div><p class="connection"><strong>注意：</strong>画面が表示されない問題は、まずユーザーの権限と所属範囲を確認します。</p>
       </article>
 
+      <article class="manual-chapter feature-chapter" id="master_data_preparation" data-chapter="master_data_preparation">
+        <div class="chapter-head"><div><p class="eyebrow">原本を編集用Excelへ整える</p><h1>マスターデータ取込</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">旧原本Excelを編集用の形式へ変換します。通常の変換では業務データをDBへ登録しません。基盤マスター初期値の選択復旧は、この画面の別操作です。</p>
+        <figure><img src="screenshots/master_data_preparation.png" alt="マスターデータ取込の画面"><figcaption>原本Excelを編集用に変換／基盤マスター初期値を選択復旧。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 旧Excelを移行する</h3><p>原本Excelを選んで「変換する」を押し、件数と要確認箇所を見て「編集用Excelをダウンロード」します。修正したファイルはDB取込へ渡します。</p></section>
+          <section><h3>2. 共通区分を元に戻す</h3><p>マスターデータ出力で取得した同じシステム版の初期値Excelを選び、「初期値との差分を確認」を押します。現在値と初期値を照合し、必要な行だけ選択して復旧します。</p></section>
+          <section><h3>3. 採番の復旧で競合が出る</h3><p>競合行を無理に登録せず管理者へ確認します。使用済み番号を再発行しないため、次番号は初期値復旧の対象外です。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#db_import">DB取込</a> / <a href="#master_data_export">マスターデータ出力</a> / <a href="#master_settings">マスター設定</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="db_import" data-chapter="db_import">
+        <div class="chapter-head"><div><p class="eyebrow">完成Excelを検証して登録する</p><h1>DB取込</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">編集済みExcelをDBへ登録・更新する工程です。新規、更新、変更なし、エラー、依存先エラー、競合を先に確認し、正常行だけを登録します。</p>
+        <figure><img src="screenshots/db_import.png" alt="DB取込の画面"><figcaption>完成Excelを検証・登録。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 住所を一括修正する</h3><p>DB出力で取得したExcelの住所を編集し、この画面でファイルを選んで「検証する」を押します。更新件数と内容を確認して「正常行を登録」を実行します。</p></section>
+          <section><h3>2. 参照先エラーを直す</h3><p>案件の企業・パートナー参照にエラーがあれば、エラーExcelを取得して取込キーと親データを修正し、再検証します。</p></section>
+          <section><h3>3. 出力後に別担当が更新した</h3><p>競合行は除外されます。DB出力を取り直して現行値と修正内容を照合してください。Excelから行を消してもDBの行は削除されません。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#master_data_preparation">マスターデータ取込</a> / <a href="#db_export">DB出力</a> / <a href="#companies">企業マスタ</a> / <a href="#projects">個別案件</a> / <a href="#price_sets">金額データ</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="db_export" data-chapter="db_export">
+        <div class="chapter-head"><div><p class="eyebrow">現在の登録値をExcelへ取り出す</p><h1>DB出力</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">現行DBの企業・請求先・車両・パートナー・案件・料金を編集用Excelに出力します。手入力したレコードも対象です。</p>
+        <figure><img src="screenshots/db_export.png" alt="DB出力の画面"><figcaption>現行DBのマスターをExcelへ出力。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 現在値を確認する</h3><p>「Excelを作成」を押し、作成後に「ダウンロード」します。出力はマスター情報の確認用で、日報・帳票を含むDB全体のバックアップではありません。</p></section>
+          <section><h3>2. 複数のマスターを修正する</h3><p>出力Excelの取込キーと項目コードを保持して値を編集し、DB取込で差分を検証します。</p></section>
+          <section><h3>3. 過去の料金を確認する</h3><p>過去改定版もExcelで確認できますが、再取込では変更できません。訂正が必要な場合は金額データ管理の理由・履歴を残す操作を使います。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#db_import">DB取込</a> / <a href="#companies">企業マスタ</a> / <a href="#partners">パートナー</a> / <a href="#projects">個別案件</a> / <a href="#price_sets">金額データ</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="master_data_export" data-chapter="master_data_export">
+        <div class="chapter-head"><div><p class="eyebrow">システムの初期定義を取得する</p><h1>マスターデータ出力</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">システムに同梱された基盤マスター初期値Excelを取得します。現在の企業・パートナーなどの登録値を取り出すDB出力とは内容が異なります。</p>
+        <figure><img src="screenshots/master_data_export.png" alt="マスターデータ出力の画面"><figcaption>基盤マスター初期値Excelの出力。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 初期の区分を調べる</h3><p>「Excelを作成」から「ダウンロード」へ進み、初期値のシートと項目を確認します。</p></section>
+          <section><h3>2. 誤変更した区分を復旧する</h3><p>取得した初期値Excelをマスターデータ取込の復旧欄へ渡します。差分を確認し、必要な行だけを選択して復旧します。</p></section>
+          <section><h3>3. 現行値が見当たらない</h3><p>このExcelは初期定義です。現在DBに登録されている企業・案件・料金を見たい場合はDB出力へ進みます。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#master_data_preparation">マスターデータ取込</a> / <a href="#master_settings">マスター設定</a> / <a href="#db_export">DB出力</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="test_data" data-chapter="test_data">
+        <div class="chapter-head"><div><p class="eyebrow">動作確認用のサンプルを準備する</p><h1>検証用データ</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">検証専用環境・検証専用DBでサンプル確認から日報、月次承認、精算、帳票まで段階的に生成します。メニューが表示されても通常環境では生成できません。</p>
+        <figure><img src="screenshots/test_data.png" alt="検証用データの画面"><figcaption>通常環境では生成不可の案内、検証環境ではサンプル設計。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 日報入力を練習する</h3><p>管理者が用意した検証環境で元データと稼働パターンを設定し、サンプルを表示します。補完内容を確認してその設定版を承認した後、日報を生成します。</p></section>
+          <section><h3>2. 月末処理を確認する</h3><p>日報生成の完了を確認し、日報提出・月次承認、先払・請求・支払、確定・帳票・入出金の順に生成して結果を確認します。</p></section>
+          <section><h3>3. 生成できないと表示される</h3><p>通常DBの保護動作です。利用可能メニューのチェックを付けても解除されません。検証環境のURLを管理者へ確認してください。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#daily_reports">日報</a> / <a href="#invoices">請求</a> / <a href="#payments">支払</a> / <a href="#menu_access_settings">利用可能メニュー選択</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="calculation_rules" data-chapter="calculation_rules">
+        <div class="chapter-head"><div><p class="eyebrow">計算処理を版ごとに検証する</p><h1>計算ルール管理</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">日次計算、月次集約、控除、税・丸めなどの処理を版管理します。金額データは契約単価、この画面は計算の処理条件を管理するために分かれています。</p>
+        <figure><img src="screenshots/calculation_rules.png" alt="計算ルール管理の画面"><figcaption>ルール版一覧から詳細・検証・公開へ。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 次の計算版を準備する</h3><p>既存版の「詳細」から「この版から下書きを作る」を押し、名称・適用期間・処理を確認して下書き保存します。公開済み版は直接編集できません。</p></section>
+          <section><h3>2. 変更の影響を確認する</h3><p>下書きで「検証」と「現行版と比較」を行い、問題を修正してから「公開」します。比較は標準例であり、実データ全件の差分ではありません。</p></section>
+          <section><h3>3. 未確定の下書きを更新する</h3><p>公開版から「選択して再計算」を開き、必要な日報・請求・支払だけチェックして実行します。公開しただけで既存下書きは更新されず、確定済み結果も変更しません。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#price_sets">金額データ</a> / <a href="#daily_reports">日報</a> / <a href="#invoices">請求</a> / <a href="#payments">支払</a></p>
+      </article>
+
+      <article class="manual-chapter feature-chapter" id="menu_access_settings" data-chapter="menu_access_settings">
+        <div class="chapter-head"><div><p class="eyebrow">役割ごとの利用範囲を設定する</p><h1>利用可能メニュー選択</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
+        <p class="purpose">役割と機能のチェック表でメニュー利用を設定します。ユーザー管理で人に役割を付け、この画面で役割に機能を割り当てます。</p>
+        <figure><img src="screenshots/menu_access_settings.png" alt="利用可能メニュー選択の画面"><figcaption>役割×機能のチェック表と保存するボタン。画面例は匿名検証環境です。</figcaption></figure>
+        <div class="examples"><h2>具体例</h2>
+          <section><h3>1. 総務に必要な機能を許可する</h3><p>総務列の対象機能を確認してチェックし、「保存する」を押します。変更は利用者の次の操作から反映されます。</p></section>
+          <section><h3>2. 複数役割の利用者を確認する</h3><p>総務と営業を持つ利用者は、どちらかの役割で許可された機能を利用できます。片方のチェックだけ外しても、もう片方で許可されていれば利用できます。</p></section>
+          <section><h3>3. 管理者の権限を見直す</h3><p>少なくとも有効な管理者1人がこの設定画面を開ける状態を残します。機能を許可しても承認・取消の操作別制限や担当データ範囲は別に適用されます。</p></section>
+        </div><p class="connection"><strong>関連する機能：</strong><a href="#users">ユーザー管理</a> / <a href="#help_settings">ヘルプ編集</a> / <a href="#test_data">検証用データ</a></p>
+      </article>
+
+      <article class="manual-chapter intro-chapter" id="release-status" data-chapter="release-status">
+        <h1>2026年9月25日版：今回の更新と今後の機能</h1>
+        <p>現行25機能を掲載しています。各機能に画面イメージと3件の運用例があります。画面の役割表示は標準的な担当の目安です。実際の利用可否は「利用可能メニュー選択」と操作別権限で決まります。</p>
+        <h2>今回利用できるようになった操作</h2>
+        <p>日報の時間入力・全項目入力切替、テンキー入力、Tab移動、行詳細、保存操作を更新しました。基本管理の追加・コピー、企業・パートナー検索、Excelの出入、計算ルール、メニュー権限も各章で説明しています。</p>
+        <h2>合意済み・今後実装する機能</h2>
+        <p>社内PDF OCRと欄単位の再取込、案件締め期間への統一、税込燃料費・価格履歴、11月末年度締め・専用帳票は計画段階です。この版の操作手順には含めていません。PDFを選ぶだけで手書き日報を自動読取できる状態ではありません。</p>
+        <p>現時点では既存のExcel・CSV取込と手入力を使用します。gogo.gsからの価格自動取得も有効化されていません。</p>
+      </article>
       <footer class="manual-footer">
         <p>画面例は匿名の検証データです。実在する企業・パートナー・口座情報ではありません。</p>
-        <p>更新日：2026年9月10日</p>
+        <p>更新日：2026年9月25日 ／ 現行25機能・75件の運用例</p>
       </footer>
     </main>
   </div>

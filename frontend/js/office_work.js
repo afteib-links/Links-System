@@ -14,6 +14,9 @@
       this.companyId = options.companyId ? Number(options.companyId) : null;
       this.partnerId = options.partnerId ? Number(options.partnerId) : null;
       this.query = '';
+      this.companyToolsOpen = false;
+      this.companyFilter = { query: '', closing: '', kanaGroup: '' };
+      this.companyFilterComposing = false;
       this.allCompanies = false;
       this.allPartners = false;
       this.typeFilter = null;
@@ -51,12 +54,53 @@
           kana: projects[0]?.company_name_kana || company.name
         };
       });
+      const query = this.normalizeJapanese(this.companyFilter.query);
+      const filtered = rows.filter((company) => {
+        const haystack = this.normalizeJapanese(`${company.name} ${company.kana}`);
+        if (query && !haystack.includes(query)) return false;
+        if (this.companyFilter.closing && String(company.closing) !== this.companyFilter.closing) return false;
+        if (this.companyFilter.kanaGroup && this.kanaGroup(company.kana || company.name) !== this.companyFilter.kanaGroup) return false;
+        return true;
+      });
       const direction = this.companySortAsc ? 1 : -1;
-      return rows.sort((a, b) => direction * (this.companySort === 'number'
+      return filtered.sort((a, b) => direction * (this.companySort === 'number'
         ? a.id - b.id
         : this.companySort === 'closing'
           ? String(a.closing).localeCompare(String(b.closing), 'ja', { numeric: true })
           : a.kana.localeCompare(b.kana, 'ja')));
+    },
+
+    normalizeJapanese(value) {
+      return String(value || '').normalize('NFKC').toLocaleLowerCase('ja').replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+    },
+
+    kanaGroup(value) {
+      const first = this.normalizeJapanese(value).replace(/^[\s「」『』【】（）()・ー]+/, '').charAt(0);
+      const groups = {
+        a: 'ぁあぃいうぇえぉおゔ', k: 'かがきぎくぐけげこご', s: 'さざしじすずせぜそぞ',
+        t: 'ただちぢっつづてでとど', n: 'なにぬねの', h: 'はばぱひびぴふぶぷへべぺほぼぽ',
+        m: 'まみむめも', y: 'ゃやゅゆょよ', r: 'らりるれろ', w: 'ゎわゐゑをん',
+      };
+      return Object.entries(groups).find(([, chars]) => chars.includes(first))?.[0] || 'other';
+    },
+
+    companyToolsHtml() {
+      const filter = this.companyFilter;
+      const closings = [...new Set(this.projects.map((row) => String(row.company_closing_date || row.closing_date || '')).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b), 'ja', { numeric: true }));
+      const groups = [['a','あ'],['k','か'],['s','さ'],['t','た'],['n','な'],['h','は'],['m','ま'],['y','や'],['r','ら'],['w','わ'],['other','他']];
+      return `<div class="office-company-tools" id="office-company-tools" ${this.companyToolsOpen ? '' : 'hidden'}>
+        <div class="office-company-sort" aria-label="企業の並び順">
+          <button type="button" class="btn btn-ghost btn-small is-active" data-company-sort="number">企業No ▲</button>
+          <button type="button" class="btn btn-ghost btn-small" data-company-sort="closing">締日</button>
+          <button type="button" class="btn btn-ghost btn-small" data-company-sort="kana" aria-label="フリガナ順" title="フリガナ順">フリ</button>
+        </div>
+        <div class="office-company-filter-fields">
+          <input type="search" id="office-company-query" value="${this.ctx.escapeHtml(filter.query)}" placeholder="企業名・カナで検索" autocomplete="off" aria-label="企業名・カナで絞り込み">
+          <select id="office-company-closing" aria-label="締日で絞り込み"><option value="">全締日</option>${closings.map((value) => `<option value="${this.ctx.escapeHtml(value)}" ${filter.closing === value ? 'selected' : ''}>${value === 'end' ? '末日' : `${this.ctx.escapeHtml(value)}日`}</option>`).join('')}</select>
+        </div>
+        <div class="office-kana-filter" aria-label="五十音で絞り込み"><button type="button" data-office-kana-group="" class="${filter.kanaGroup ? '' : 'is-active'}">全</button>${groups.map(([value, label]) => `<button type="button" data-office-kana-group="${value}" class="${filter.kanaGroup === value ? 'is-active' : ''}">${label}</button>`).join('')}</div>
+      </div>`;
     },
 
     partners() {
@@ -113,8 +157,8 @@
           <p class="office-guide"><strong>操作：</strong>シングルクリック＝詳細表示 ／ ダブルクリック＝入力画面</p>
         </div>
         <nav class="office-breadcrumb" id="office-breadcrumb" aria-label="現在の選択"></nav>
-        <div class="office-workspace">
-          <section class="office-column"><div class="office-column-head"><div><h2>企業</h2><span id="office-company-count"></span></div><div class="office-head-actions"><button type="button" class="btn btn-ghost btn-small" id="office-all-companies">全対象</button><button type="button" class="btn btn-ghost btn-small is-active" data-company-sort="number">企業No ▲</button><button type="button" class="btn btn-ghost btn-small" data-company-sort="closing">締日</button><button type="button" class="btn btn-ghost btn-small" data-company-sort="kana">フリガナ</button></div></div><div class="office-column-list" id="office-companies"></div></section>
+        <div class="office-workspace ${this.companyToolsOpen ? 'is-company-tools-open' : ''}">
+          <section class="office-column"><div class="office-column-head"><div><h2>企業</h2><span id="office-company-count"></span></div><div class="office-head-actions office-company-primary-actions" data-action-area-ready><button type="button" class="btn btn-ghost btn-small" id="office-all-companies">全対象</button><button type="button" class="btn btn-ghost btn-small office-filter-toggle ${this.companyToolsOpen ? 'is-active' : ''}" id="office-filter-toggle" aria-expanded="${this.companyToolsOpen}" aria-controls="office-company-tools" title="企業を抽出">抽</button></div>${this.companyToolsHtml()}</div><div class="office-column-list" id="office-companies"></div></section>
           <section class="office-column"><div class="office-column-head"><div><h2>パートナー</h2><span id="office-partner-count"></span></div><div class="office-head-actions"><button type="button" class="btn btn-ghost btn-small" id="office-all-partners">全対象</button></div></div><div class="office-column-list" id="office-partners"></div></section>
           <section class="office-column"><div class="office-column-head"><div><h2>業務項目</h2><span id="office-type-count"></span></div><div class="office-head-actions">${Object.entries(TYPES).map(([key, item]) => `<button type="button" class="btn btn-ghost btn-small" data-type-filter="${key}">${item.label}</button>`).join('')}</div></div><div class="office-column-list" id="office-types"></div></section>
           <div class="office-all-table" id="office-all-table" hidden></div>
@@ -126,6 +170,13 @@
       this.kit.bindMonthNavigator('office-month', () => this.ym, (value) => { this.ym = value; }, () => this.load());
       document.getElementById('office-q').addEventListener('input', (event) => { this.query = event.target.value.trim(); this.renderColumns(); });
       document.getElementById('office-all-companies').addEventListener('click', () => { this.allCompanies = !this.allCompanies; this.allPartners = false; this.companyId = null; this.partnerId = null; this.type = null; this.renderColumns(); });
+      document.getElementById('office-filter-toggle').addEventListener('click', () => {
+        this.companyToolsOpen = !this.companyToolsOpen;
+        document.getElementById('office-company-tools').hidden = !this.companyToolsOpen;
+        document.querySelector('.office-workspace').classList.toggle('is-company-tools-open', this.companyToolsOpen);
+        document.getElementById('office-filter-toggle').classList.toggle('is-active', this.companyToolsOpen);
+        document.getElementById('office-filter-toggle').setAttribute('aria-expanded', String(this.companyToolsOpen));
+      });
       document.getElementById('office-all-partners').addEventListener('click', () => { if (!this.companyId) return this.ctx.showToast('先に企業を選択してください'); this.allPartners = !this.allPartners; this.allCompanies = false; this.partnerId = null; this.type = null; this.renderColumns(); });
       document.querySelectorAll('[data-company-sort]').forEach((button) => button.addEventListener('click', () => {
         const key = button.dataset.companySort;
@@ -133,6 +184,12 @@
         else { this.companySort = key; this.companySortAsc = true; }
         this.renderColumns();
       }));
+      const companyQuery = document.getElementById('office-company-query');
+      companyQuery.addEventListener('compositionstart', () => { this.companyFilterComposing = true; });
+      companyQuery.addEventListener('compositionend', (event) => { this.companyFilterComposing = false; this.companyFilter.query = event.target.value.trim(); this.renderColumns(); });
+      companyQuery.addEventListener('input', (event) => { if (this.companyFilterComposing || event.isComposing) return; this.companyFilter.query = event.target.value.trim(); this.renderColumns(); });
+      document.getElementById('office-company-closing').addEventListener('change', (event) => { this.companyFilter.closing = event.target.value; this.renderColumns(); });
+      document.querySelectorAll('[data-office-kana-group]').forEach((button) => button.addEventListener('click', () => { this.companyFilter.kanaGroup = button.dataset.officeKanaGroup; this.renderColumns(); }));
       document.querySelectorAll('[data-type-filter]').forEach((button) => button.addEventListener('click', () => {
         const key = button.dataset.typeFilter;
         this.typeFilter = this.typeFilter === key ? null : key;
@@ -144,7 +201,12 @@
 
     renderColumns() {
       const companies = this.companies();
-      if (this.companyId && !companies.some((x) => x.id === this.companyId)) this.companyId = null;
+      if (this.companyId && !companies.some((x) => x.id === this.companyId)) {
+        this.companyId = null;
+        this.partnerId = null;
+        this.type = null;
+        this.allPartners = false;
+      }
       const companyRows = companies.map((c) => this.columnRow('company', c.id, c.name, `No.${c.id}　締日 ${c.closing === 'end' ? '末日' : `${c.closing || '-'}日`}　${c.kana}`, this.companyId === c.id)).join('');
       document.getElementById('office-companies').innerHTML = companyRows || '<p class="office-empty">対象企業がありません</p>';
 
@@ -167,9 +229,10 @@
       document.querySelectorAll('[data-company-sort]').forEach((button) => {
         const active = button.dataset.companySort === this.companySort;
         button.classList.toggle('is-active', active);
-        const labels = { number: '企業No', closing: '締日', kana: 'フリガナ' };
+        const labels = { number: '企業No', closing: '締日', kana: 'フリ' };
         button.textContent = `${labels[button.dataset.companySort]}${active ? (this.companySortAsc ? ' ▲' : ' ▼') : ''}`;
       });
+      document.querySelectorAll('[data-office-kana-group]').forEach((button) => button.classList.toggle('is-active', button.dataset.officeKanaGroup === this.companyFilter.kanaGroup));
       document.querySelectorAll('[data-type-filter]').forEach((button) => button.classList.toggle('is-active', button.dataset.typeFilter === this.typeFilter));
       const allTable = document.getElementById('office-all-table');
       const allMode = this.allCompanies || this.allPartners;

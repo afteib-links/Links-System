@@ -251,6 +251,9 @@ jobs:
       - name: Run daily report browser E2E
         run: npm run test:e2e --prefix backend
 
+      - name: Run daily entry keyboard and responsive E2E
+        run: node backend/test-e2e/daily_entry_efficiency.js
+
       - name: Run redesigned shell browser E2E
         run: npm run test:e2e-ui --prefix backend
 

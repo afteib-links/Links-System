@@ -17,6 +17,24 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot "docker-compose.yml") -Pat
     throw "docker-compose.yml not found: $repoRoot"
 }
 
+$dataRoot = $env:LINKS_DATA_ROOT
+if ([string]::IsNullOrWhiteSpace($dataRoot)) {
+    $dataRoot = $repoRoot
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $gitCommonDirOutput = @(& git -C $repoRoot rev-parse --path-format=absolute --git-common-dir 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $gitCommonDirOutput.Count -gt 0) {
+            $gitCommonDir = [string]$gitCommonDirOutput[0]
+            if ((Split-Path -Leaf $gitCommonDir) -eq ".git") {
+                $candidateRoot = Split-Path -Parent $gitCommonDir
+                if (Test-Path -LiteralPath $candidateRoot -PathType Container) {
+                    $dataRoot = $candidateRoot
+                }
+            }
+        }
+    }
+    $env:LINKS_DATA_ROOT = $dataRoot
+}
+
 function Format-Command {
     param([string]$Command, [string[]]$Arguments)
     return (($Command) + " " + (($Arguments | ForEach-Object {
@@ -37,6 +55,7 @@ function Invoke-CheckedCommand {
 Write-Host "Links-System Docker update"
 Write-Host "  mode: local"
 Write-Host "  root: $repoRoot"
+Write-Host "  data root: $dataRoot"
 Write-Host "  dry-run: $DryRun"
 
 Push-Location -LiteralPath $repoRoot

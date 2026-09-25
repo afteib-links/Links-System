@@ -20,6 +20,21 @@ test('Docker更新ツールはCompose検証・再構築・DBヘルス確認を�
   }
 });
 
+test('linked worktreeからの更新もGit共通リポジトリの永続データを使用する', () => {
+  const compose = read('docker-compose.yml');
+  const shell = read('scripts/docker-update.sh');
+  const powershell = read('scripts/docker-update.ps1');
+
+  for (const pathSuffix of ['data/mysql', 'data/uploads', 'data/pdf']) {
+    assert.match(compose, new RegExp(`\\$\\{LINKS_DATA_ROOT:-\\.\\}/${pathSuffix}`));
+  }
+  for (const source of [shell, powershell]) {
+    assert.match(source, /LINKS_DATA_ROOT/);
+    assert.match(source, /git-common-dir/);
+    assert.match(source, /data root:/);
+  }
+});
+
 test('NASモードはfast-forward同期と任意バックアップを提供する', () => {
   const source = read('scripts/docker-update.sh');
   assert.match(source, /--nas/);
