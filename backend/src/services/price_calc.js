@@ -19,6 +19,7 @@ const {
 } = require('./price_calc_config');
 const { calculateDistanceSide } = require('./distance_calc');
 const { materializeFeeItem, isRowsModel } = require('./fee_item_rules');
+const { assertLegacyRateReady } = require('./legacy_rate_guard');
 
 const DAY_TYPE_FALLBACK_ORDER = [
   'weekday', 'half', 'sat', 'sun', 'holiday', 'other', 'all',
@@ -139,6 +140,7 @@ async function buildDailyCalculationContext(projectId, workDate, selectedFeeItem
   return {
     price_set_id: context.priceSet.price_set_id,
     price_set_name: context.priceSet.price_set_name,
+    legacy_analysis: context.extra.legacy_analysis || null,
     selected_fee_item_id: resolved.item?.id || null,
     selected_fee_item_name: resolved.item?.name || null,
     billing_summary_template: resolved.item?.billing_summary_template || '{企業名} {料金名}',
@@ -186,6 +188,7 @@ async function applyDailyPriceCalc(data) {
     Boolean(Number(data.is_training || 0)),
     data
   );
+  assertLegacyRateReady(context?.legacy_analysis);
   if (!context || !context.fee_item) {
     data.applied_price_set_id = context?.price_set_id || null;
     data.calculated_billing_amount = 0;

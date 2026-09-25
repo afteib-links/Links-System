@@ -104,6 +104,7 @@
             { key: 'apply_start_date', label: '適用開始' },
             { key: 'apply_end_date', label: '適用終了' },
             { key: 'line_count', label: '行数' },
+            { key: 'analysis_status', label: '原本照合' },
           ],
         },
       ],
