@@ -10,7 +10,8 @@ const featureKeys = [
   'base_management', 'companies', 'partners', 'base_projects', 'projects', 'price_sets',
   'office_work', 'daily_reports', 'daily_report_submissions', 'advances', 'invoices',
   'payments', 'cash_management', 'analytics', 'master_settings', 'help_settings',
-  'ui_builder', 'users',
+  'ui_builder', 'users', 'master_data_preparation', 'db_import', 'db_export',
+  'master_data_export', 'test_data', 'calculation_rules', 'menu_access_settings',
 ];
 
 function localBrowserPath() {
@@ -50,6 +51,10 @@ async function main() {
       assert.equal(await desktop.locator(`#${key} .examples section`).count(), 3, `${key}の具体例`);
     }
     await assertNoHorizontalOverflow(desktop, 'PC表示');
+    assert.deepEqual(await desktop.locator('a[href^="#"]').evaluateAll((links) => links.map(a => a.getAttribute('href').slice(1)).filter(id => !document.getElementById(id))), [], '章リンク切れ');
+    assert.equal(await desktop.locator('figure img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0)), true, '画面画像の読み込み');
+    await desktop.getByRole('button', { name: 'DB取込', exact: true }).click();
+    assert.match(await desktop.locator('[data-flow-result]').innerText(), /正常行/);
 
     await desktop.getByRole('button', { name: '企業', exact: true }).click();
     assert.equal(await desktop.locator('[data-flow="companies"]').getAttribute('class'), 'is-selected');
@@ -69,6 +74,12 @@ async function main() {
     });
     assert.equal(await desktop.locator('#daily_reports').evaluate((node) => getComputedStyle(node).display), 'block');
     assert.equal(await desktop.locator('#companies').evaluate((node) => getComputedStyle(node).display), 'none');
+    await desktop.pdf({ path: path.join(outputDir, 'daily-report-chapter.pdf'), format: 'A4', printBackground: true });
+    await desktop.evaluate(() => { document.body.dataset.printScope = 'all'; });
+    assert.equal(await desktop.locator('#companies').evaluate((node) => getComputedStyle(node).display), 'block');
+    assert.equal(await desktop.locator('#menu_access_settings').evaluate((node) => getComputedStyle(node).display), 'block');
+    await desktop.pdf({ path: path.join(outputDir, 'manual-all.pdf'), format: 'A4', printBackground: true });
+    await desktop.screenshot({ path: path.join(outputDir, 'manual-print.png'), fullPage: false });
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
     mobile.on('pageerror', (error) => errors.push(error.message));
