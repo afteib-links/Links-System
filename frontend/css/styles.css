@@ -595,6 +595,16 @@ select {
   margin-bottom: 0;
 }
 
+.toolbar .check-item input[type="checkbox"],
+.toolbar .check-item input[type="radio"] {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  flex: 0 0 18px;
+}
+
 .form-grid textarea {
   width: 100%;
   padding: 12px 14px;

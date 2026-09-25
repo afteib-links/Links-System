@@ -209,7 +209,7 @@
         this.type = null;
         this.allPartners = false;
       }
-      const companyRows = companies.map((c) => this.columnRow('company', c.id, c.name, `No.${c.id}　締日 ${c.closing === 'end' ? '末日' : `${c.closing || '-'}日`}　${c.kana}`, this.companyId === c.id)).join('');
+      const companyRows = companies.map((c) => this.columnRow('company', c.id, c.name, `No.${c.id}　締日 ${c.closing === 'end' ? '末日' : c.closing ? `${c.closing}日` : '未設定'}　${c.kana}`, this.companyId === c.id)).join('');
       document.getElementById('office-companies').innerHTML = companyRows || '<p class="office-empty">対象企業がありません</p>';
 
       const partners = this.partners();
@@ -265,7 +265,7 @@
             const firstCompany = partnerIndex === 0 && typeIndex === 0;
             const firstPartner = typeIndex === 0;
             const summary = this.statusSummary(partnerProjects, type);
-            html += `<tr class="office-all-business ${this.companyId === company.id && this.partnerId === partnerId && this.type === type ? 'is-selected' : ''}" data-all-company="${company.id}" data-all-partner="${partnerId}" data-all-type="${type}">${firstCompany ? `<td rowspan="${companySpan}" class="office-all-company"><strong>${this.ctx.escapeHtml(company.name)}</strong><span class="office-all-meta">No.${company.id}　締日 ${company.closing === 'end' ? '末日' : `${company.closing || '-'}日`}　${this.ctx.escapeHtml(company.kana)}</span></td>` : ''}${firstPartner ? `<td rowspan="${typeKeys.length}" class="office-all-partner"><strong>${this.ctx.escapeHtml(partnerName)}</strong><span class="office-all-meta">${partnerProjects.length}案件</span></td>` : ''}<td class="office-all-type"><strong>${TYPES[type].label}</strong><span class="office-row-meta"><span class="office-status office-status-${summary.tone}">${summary.label}</span><small>${partnerProjects.length}案件</small></span><em>ダブルクリックで入力画面</em></td></tr>`;
+            html += `<tr class="office-all-business ${this.companyId === company.id && this.partnerId === partnerId && this.type === type ? 'is-selected' : ''}" data-all-company="${company.id}" data-all-partner="${partnerId}" data-all-type="${type}">${firstCompany ? `<td rowspan="${companySpan}" class="office-all-company"><strong>${this.ctx.escapeHtml(company.name)}</strong><span class="office-all-meta">No.${company.id}　締日 ${company.closing === 'end' ? '末日' : company.closing ? `${this.ctx.escapeHtml(company.closing)}日` : '未設定'}　${this.ctx.escapeHtml(company.kana)}</span></td>` : ''}${firstPartner ? `<td rowspan="${typeKeys.length}" class="office-all-partner"><strong>${this.ctx.escapeHtml(partnerName)}</strong><span class="office-all-meta">${partnerProjects.length}案件</span></td>` : ''}<td class="office-all-type"><strong>${TYPES[type].label}</strong><span class="office-row-meta"><span class="office-status office-status-${summary.tone}">${summary.label}</span><small>${partnerProjects.length}案件</small></span><em>ダブルクリックで入力画面</em></td></tr>`;
           });
         });
       });
@@ -373,7 +373,7 @@
     },
 
     closingSummary(projects) {
-      const values = [...new Set(projects.map((p) => p.closing_date === 'end' ? '末日' : `${p.closing_date || '-'}日`))];
+      const values = [...new Set(projects.map((p) => p.closing_date === 'end' ? '末日' : p.closing_date ? `${p.closing_date}日` : '未設定'))];
       return values.length > 2 ? `${values.slice(0, 2).join('・')}ほか` : values.join('・') || '-';
     },
 
@@ -384,7 +384,7 @@
       const rows = projects.map((p) => {
         const target = this.targetFor(type, p.project_id);
         const amount = type === 'invoice' ? Number(target?.total_amount || target?.subtotal_amount || 0) : type === 'payment' ? Number(target?.final_transfer_amount || 0) : null;
-        return `<tr data-pick-project="${p.project_id}"><td>#${p.project_id}</td><td>${this.ctx.escapeHtml(p.template_name || '-')}</td><td>${p.closing_date === 'end' ? '末日' : `${this.ctx.escapeHtml(p.closing_date || '-')}日`}</td><td>${this.ctx.escapeHtml(this.status(type, p))}</td><td class="num">${amount == null ? '-' : this.kit.money(amount)}</td></tr>`;
+        return `<tr data-pick-project="${p.project_id}"><td>#${p.project_id}</td><td>${this.ctx.escapeHtml(p.template_name || '-')}</td><td>${p.closing_date === 'end' ? '末日' : p.closing_date ? `${this.ctx.escapeHtml(p.closing_date)}日` : '未設定'}</td><td>${this.ctx.escapeHtml(this.status(type, p))}</td><td class="num">${amount == null ? '-' : this.kit.money(amount)}</td></tr>`;
       }).join('');
       document.body.insertAdjacentHTML('beforeend', this.kit.modalHtml('案件を選択', `<p class="muted">行をダブルクリックするか、選択して開いてください。</p><div class="table-wrap office-picker"><table class="data-table"><thead><tr><th>案件No</th><th>案件名</th><th>締日</th><th>進捗・状態</th><th>金額</th></tr></thead><tbody>${rows}</tbody></table></div>`, '<button type="button" class="btn btn-ghost" data-modal-close>キャンセル</button><button type="button" class="btn" id="office-pick-open" disabled>選択して開く</button>'));
       const close = this.kit.bindModal();

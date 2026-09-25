@@ -3,6 +3,9 @@ import hashlib
 import pathlib
 import tarfile
 import urllib.request
+import urllib.error
+import shutil
+import time
 
 MODELS = {
     "PP-OCRv5_mobile_det": "50446E5D01AC2A73D5319C89513281F6578414C888C602F9AF13F93FEEFFFC58".lower(),
@@ -13,7 +16,17 @@ root.mkdir(exist_ok=True)
 for name, checksum in MODELS.items():
     archive = root / (name + '.tar')
     url = 'https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/' + name + '_infer.tar'
-    urllib.request.urlretrieve(url, archive)
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response, archive.open('wb') as target:
+                shutil.copyfileobj(response, target)
+            break
+        except (OSError, urllib.error.URLError) as error:
+            archive.unlink(missing_ok=True)
+            if attempt == 3:
+                raise
+            print(f'Model download retry {attempt + 1}: {name}: {error}', flush=True)
+            time.sleep(2 ** (attempt + 1))
     if hashlib.sha256(archive.read_bytes()).hexdigest() != checksum:
         raise RuntimeError('Model checksum mismatch: ' + name)
     destination = root / name
