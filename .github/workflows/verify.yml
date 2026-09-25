@@ -260,6 +260,12 @@ jobs:
       - name: Run PDF comparison input E2E
         run: node backend/test-e2e/pdf_import_ui.js
 
+      - name: Run additional items and fuel integration
+        run: node backend/test-integration/additional_items_api.js
+
+      - name: Run additional items input E2E
+        run: node backend/test-e2e/additional_items_ui.js
+
       - name: Run redesigned shell browser E2E
         run: npm run test:e2e-ui --prefix backend
 

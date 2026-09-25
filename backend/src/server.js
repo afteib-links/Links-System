@@ -110,6 +110,7 @@ async function createApp() {
   app.use('/api/daily-reports', dailyReportsRoutes);
   app.use('/api/daily-report-imports', dailyReportImportsRoutes);
   app.use('/api/daily-report-submissions', dailyReportSubmissionsRoutes);
+  app.use('/api/additional-items', require('./routes/additional_items'));
   app.use('/api/advances', advancesRoutes);
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/payments', paymentsRoutes);
@@ -235,6 +236,9 @@ async function start() {
   console.log('[boot] waiting for DB and applying migrations...');
   await runMigrationsAndSeed();
   const app = await createApp();
+  const fuelTick=()=>require('./services/additional_items').fetchTick(require('./db').getPool()).catch(error=>console.error('[fuel-schedule]',error.message));
+  fuelTick();
+  setInterval(fuelTick,60000).unref();
   app.listen(config.appPort, '0.0.0.0', () => {
     console.log(`[boot] Links-System listening on :${config.appPort}`);
   });

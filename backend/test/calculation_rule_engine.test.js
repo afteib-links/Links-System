@@ -29,6 +29,11 @@ test('請求は集約後に課税・丸め・合計を順番どおり計算す�
   assert.deepEqual(result.trace.map((row) => row.rule_code),['daily','aggregate','tax','finalize']);
 });
 
+test('税込燃料費に外税を二重加算せず、内税と税別勤務額を集計する',async()=>{
+  const result=await executeRuleSet(set,rules,{side:'billing',lines:[{line_type:'work',amount:10000,tax_category:'taxable'},{line_type:'work',amount:9920,tax_category:'tax_inclusive'}],input:{}},{dailyCalculator:async()=>({})});
+  assert.equal(result.total_amount,20920);assert.equal(result.tax_amount,1901);assert.equal(result.subtotal_amount,19019);assert.equal(result.work_amount+result.tax_amount,20920);
+});
+
 test('支払は控除を差し引き、日次だけの実行では既存計算器を版付きで包む',async () => {
   const payment = await executeRuleSet(set,rules,{ side:'payment',lines:[{ amount:20000 }],deductions:[{ amount:1100 },{ amount:-500 }],input:{} },{ dailyCalculator:async () => ({ calculated_billing_amount:0,calculated_payment_amount:0 }) });
   assert.equal(payment.deduction_total,1600);

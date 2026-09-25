@@ -9,6 +9,7 @@ const { buildAggregatedLines } = require('../services/settlement_line_builder');
 const { executeRuleSet,loadRuleSet,resolvePublishedRuleSet } = require('../services/calculation_rule_engine');
 const { SYSTEM_TAX_RATE,resolveInvoiceTax } = require('../services/settlement_tax');
 const { getPeriod } = require('../services/daily_report_periods');
+const additionalItems = require('../services/additional_items');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -72,7 +73,8 @@ async function approvedSnapshotReports(conn, reports, ym) {
       [projectId, ym]
     );
     if (!approvals.length) {
-      reports.filter((row)=>Number(row.project_id)===projectId).forEach((row)=>byId.set(Number(row.daily_report_id),{
+      const [allReports]=await conn.query('SELECT * FROM daily_reports WHERE project_id=? AND target_year_month=? AND is_deleted=0 ORDER BY work_date,daily_report_id',[projectId,ym]);
+      additionalItems.attachItems(allReports,await additionalItems.loadItems(conn,projectId,ym)).forEach((row)=>byId.set(Number(row.daily_report_id),{
         ...row, monthly_approval_id:null, monthly_approval_version:null,
       }));
       continue;
@@ -464,7 +466,14 @@ async function reportsForSettlementProjects(conn,kind,id,ym,lock=false,includeCu
 
 async function currentAggregateForSettlement(conn,kind,id,ym,includeCurrent=false){
   const reports=await reportsForSettlementProjects(conn,kind,id,ym,false,includeCurrent);
-  if(includeCurrent) return buildAggregatedLines(reports.map((row)=>({...row,monthly_approval_id:null})),kind,await settlementLineConfig(conn));
+  if(includeCurrent) {
+    const itemsByReport=new Map();
+    for(const projectId of [...new Set(reports.map(r=>r.project_id))]) {
+      const [all]=await conn.query('SELECT * FROM daily_reports WHERE project_id=? AND target_year_month=? AND is_deleted=0 ORDER BY work_date,daily_report_id',[projectId,ym]);
+      additionalItems.attachItems(all,await additionalItems.loadItems(conn,projectId,ym)).forEach(r=>itemsByReport.set(Number(r.daily_report_id),r.additional_items));
+    }
+    return buildAggregatedLines(reports.map((row)=>({...row,additional_items:itemsByReport.get(Number(row.daily_report_id))||[],monthly_approval_id:null})),kind,await settlementLineConfig(conn));
+  }
   const [projectRows]=await conn.query(`SELECT project_id FROM settlement_projects WHERE settlement_type=? AND settlement_id=?`,[kind,id]);
   for(const project of projectRows){
     const [approvals]=await conn.query(`SELECT 1 FROM daily_report_monthly_approvals WHERE project_id=? AND target_year_month=? AND status='approved' LIMIT 1`,[project.project_id,ym]);
@@ -784,10 +793,10 @@ async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDa
       const ruleResult=await executeRuleSet(selectedRuleSet.rule_set,selectedRuleSet.rules,{side:'billing',lines:finalLines,deductions:[],tax_rate:taxRate,tax_rounding:{mode:taxMode,unit:1},input:{}},{dailyCalculator:ruleDailyCalculator});
       const taxable=asMoney(ruleResult.taxable_amount),tax=asMoney(ruleResult.tax_amount),total=asMoney(ruleResult.total_amount);
       pdfLines=invoiceDisplayLines(finalLines,invoiceDisplayMode);
-      await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[finalLines.filter(x=>x.line_type==='work').reduce((n,x)=>n+x.amount,0),finalLines.filter(x=>x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode,calculation_rule_set_id:header.calculation_rule_set_id,calculation_engine_code:'typed-rules-v1'}),id]);
+      await conn.query(`UPDATE invoices SET subtotal_amount=?,adjustment_amount=?,taxable_amount=?,tax_amount=?,total_amount=?,invoice_status='finalized',settlement_status='finalized',finalized_snapshot=? WHERE invoice_id=?`,[asMoney(ruleResult.work_amount),asMoney(ruleResult.adjustment_amount),taxable,tax,total,JSON.stringify({header,lines:finalLines,display_lines:pdfLines,tax_rate:taxRate,tax_rounding:taxMode,calculation_rule_set_id:header.calculation_rule_set_id,calculation_engine_code:'typed-rules-v1'}),id]);
       invoiceTaxRate=taxRate;
       invoiceTaxAmount=tax;
-      invoiceSubtotal=asMoney(finalLines.reduce((n,x)=>n+x.amount,0));
+      invoiceSubtotal=asMoney(ruleResult.subtotal_amount);
       header.total_amount=total;
     } else {
       const gross=finalLines.filter(x=>x.line_type==='work'||x.line_type==='adjustment').reduce((n,x)=>n+x.amount,0);

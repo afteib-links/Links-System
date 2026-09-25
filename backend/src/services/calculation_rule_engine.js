@@ -50,6 +50,18 @@ const HANDLERS = Object.freeze({
     const rate = Number(state.tax_rate ?? params.rate ?? 0.1);
     const rounding = { ...json(rule.rounding_json),...(state.tax_rounding || {}) };
     state.tax_amount = roundAmount(Number(state.taxable_amount || 0) * rate,rounding);
+    const inclusive=(state.lines || []).filter(line=>line.tax_category==='tax_inclusive');
+    if(inclusive.length) {
+      const amount=inclusive.reduce((sum,line)=>sum+Number(line.amount||0),0);
+      const inside=roundAmount(amount*rate/(1+rate),rounding);
+      const adjustments=inclusive.filter(line=>line.line_type==='adjustment').reduce((sum,line)=>sum+Number(line.amount||0),0);
+      const adjustmentTax=roundAmount(adjustments*rate/(1+rate),rounding);
+      state.subtotal_amount-=inside;
+      state.work_amount-=inside-adjustmentTax;
+      state.adjustment_amount-=adjustmentTax;
+      state.taxable_amount+=amount-inside;
+      state.tax_amount+=inside;
+    }
   },
   finalize_v1: async (state, rule) => {
     const side = rule.side_code === 'both' ? state.side : rule.side_code;

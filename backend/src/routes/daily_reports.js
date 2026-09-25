@@ -1,4 +1,5 @@
 const express = require('express');
+const additionalItems = require('../services/additional_items');
 const { getPool, query } = require('../db');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { buildDailyCalculationContext, parseJson } = require('../services/price_calc');
@@ -270,7 +271,8 @@ router.get('/', async (req, res) => {
       effective_payment_amount: effectiveAmount(r, 'payment'),
     }));
     const period = projectId && ym ? await getPeriod(projectId, ym) : null;
-    return res.json({ ok: true, reports, period });
+    const extra = projectId && ym ? await additionalItems.loadItems(getPool(),projectId,ym) : [];
+    return res.json({ ok: true, reports, period, additional_items:extra });
   } catch (err) {
     return routeError(res, err, '日報一覧の取得に失敗しました');
   }
@@ -671,6 +673,8 @@ router.post('/monthly-approval', async (req, res) => {
         return res.status(409).json({ ok: false, message: 'すでに承認依頼中です' });
       }
       const nextVersion = Number(latest?.approval_version || 0) + 1;
+      const additional = await additionalItems.loadItems(conn,projectId,ym);
+      additionalItems.validateAttendance(reports,additional);
       const snapshot = {
         project_id: projectId,
         target_year_month: ym,
@@ -678,7 +682,8 @@ router.post('/monthly-approval', async (req, res) => {
         submitted_at: new Date().toISOString(),
         unchecked_dates: unchecked,
         monthly_distance_results: monthlyDistanceResults,
-        reports,
+        additional_items: additional,
+        reports: additionalItems.attachItems(reports,additional),
       };
       const [approvalResult] = await conn.query(
         `INSERT INTO daily_report_monthly_approvals
@@ -779,11 +784,13 @@ router.post('/monthly-approval', async (req, res) => {
         }
         await conn.query(`UPDATE monthly_closing_workflows SET status='approved',version=version+1 WHERE monthly_closing_workflow_id=?`,[closings[0].monthly_closing_workflow_id]);
         const approvalSnapshot = {
+          ...parseJson(latest.snapshot_data,{}),
           project_id: projectId,
           target_year_month: ym,
+          period,
           approved_at: new Date().toISOString(),
           monthly_distance_results: monthlyDistanceResults,
-          reports,
+          reports: additionalItems.attachItems(reports,parseJson(latest.snapshot_data,{}).additional_items||[]),
         };
         await conn.query(
           `UPDATE daily_report_monthly_approvals
@@ -952,6 +959,7 @@ router.post('/day-status', async (req, res) => {
         work_date: workDate,
         confirmation_version: confirmationVersion,
         reports: confirmedReports,
+        additional_items: (await additionalItems.loadItems(conn,projectId,period.target_year_month)).filter(item=>item.work_date===workDate),
       };
       await conn.query(
         `UPDATE daily_reports
@@ -1091,6 +1099,10 @@ router.put('/:id', async (req, res) => {
     await conn.beginTransaction();
     await getPeriod(current.project_id, current.target_year_month, conn, true);
     await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    if((req.body.work_date && req.body.work_date!==current.work_date)||(req.body.project_id && Number(req.body.project_id)!==Number(current.project_id))||(req.body.target_year_month && req.body.target_year_month!==current.target_year_month)) {
+      const extras=await additionalItems.loadItems(conn,current.project_id,current.target_year_month);
+      if(extras.some(item=>!item.work_date||item.work_date===current.work_date))throw periodError('追加項目が紐付いています。追加項目を確認・削除してから勤務日や案件を変更してください');
+    }
     const [lockedRows] = await conn.query('SELECT version FROM daily_reports WHERE daily_report_id=? FOR UPDATE', [id]);
     if (Number(lockedRows[0]?.version) !== Number(current.version)) throw periodError('日報が更新されました。再読み込みしてください');
     let data;
@@ -1216,6 +1228,7 @@ router.post('/:id/status', async (req, res) => {
       );
       const confirmationVersion = Number(versions[0]?.max_version || 0) + 1;
       const confirmed = { ...current, status: 'confirmed', confirmation_version: confirmationVersion };
+      confirmed.additional_items=(await additionalItems.loadItems(conn,current.project_id,current.target_year_month)).filter(item=>item.work_date===current.work_date);
       await conn.query(
         `INSERT INTO daily_report_confirmation_snapshots
           (daily_report_id, confirmation_version, snapshot_data, confirmed_by_user_id)
@@ -1264,6 +1277,9 @@ router.delete('/:id', async (req, res) => {
     await conn.beginTransaction();
     await getPeriod(current.project_id, current.target_year_month, conn, true);
     await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    const extras=await additionalItems.loadItems(conn,current.project_id,current.target_year_month);
+    const [remaining]=await conn.query('SELECT work_date FROM daily_reports WHERE project_id=? AND target_year_month=? AND daily_report_id<>? AND is_deleted=0',[current.project_id,current.target_year_month,id]);
+    if(extras.some(item=>item.work_date===current.work_date&&!remaining.some(r=>r.work_date===current.work_date))||(!remaining.length&&extras.length))throw periodError('追加項目の対象日報をすべて削除できません。先に追加項目を確認してください');
     const [result] = await conn.query(
       `UPDATE daily_reports
        SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
