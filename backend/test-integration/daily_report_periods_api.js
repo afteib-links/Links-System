@@ -5,7 +5,9 @@ const { migrationPreview, applyMigration } = require('../src/services/daily_repo
 
 async function main() {
   // 書込み対象を専用の匿名DBに限定する。
-  assert.match(process.env.DB_NAME || '', /test|ci|verification/i);
+  const ephemeralCi = process.env.GITHUB_ACTIONS === 'true' && process.env.DB_HOST === '127.0.0.1'
+    && process.env.ADMIN_LOGIN_ID === 'ci-admin';
+  assert.ok(ephemeralCi || /test|ci|verification/i.test(process.env.DB_NAME || ''), '専用匿名DBまたはGitHub CIの一時DBだけで実行できます');
   const pool = getPool();
   let server;
   const conn = await pool.getConnection();
