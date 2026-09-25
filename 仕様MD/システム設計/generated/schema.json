@@ -4940,6 +4940,15 @@
           "default": "NULL",
           "extra": "",
           "comment": ""
+        },
+        {
+          "name": "daily_report_period_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
         }
       ],
       "foreign_keys": [
@@ -5326,6 +5335,111 @@
             "project_id",
             "target_year_month",
             "side_code"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_import_applications",
+      "comment": "",
+      "columns": [
+        {
+          "name": "import_application_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_import_row_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "request_hash",
+          "type": "char(64)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "before_data",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "after_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "import_application_id"
+          ]
+        },
+        {
+          "name": "uq_import_application",
+          "unique": true,
+          "columns": [
+            "daily_report_import_row_id",
+            "request_hash"
           ]
         }
       ]
@@ -6398,6 +6512,42 @@
           "default": "current_timestamp()",
           "extra": "on update current_timestamp()",
           "comment": ""
+        },
+        {
+          "name": "pdf_page_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "source_region",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "ocr_confidence",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "source_image_path",
+          "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
         }
       ],
       "foreign_keys": [
@@ -6673,6 +6823,445 @@
             "project_id",
             "target_year_month",
             "approval_version"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_ocr_jobs",
+      "comment": "",
+      "columns": [
+        {
+          "name": "ocr_job_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_import_batch_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "job_type",
+          "type": "varchar(16)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "status",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "MUL",
+          "default": "'queued'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "payload",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "progress",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "attempts",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "metrics",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "started_at",
+          "type": "datetime",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "heartbeat_at",
+          "type": "datetime",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "finished_at",
+          "type": "datetime",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_ocr_queue",
+          "unique": false,
+          "columns": [
+            "status",
+            "ocr_job_id"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "ocr_job_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_pdf_pages",
+      "comment": "",
+      "columns": [
+        {
+          "name": "pdf_page_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "source_file_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "page_number",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "image_path",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "width",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "height",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "rotation",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "0",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "deskew_angle",
+          "type": "decimal(8,4)",
+          "nullable": false,
+          "key": "",
+          "default": "0.0000",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "pdf_page_id"
+          ]
+        },
+        {
+          "name": "uq_pdf_page",
+          "unique": true,
+          "columns": [
+            "source_file_id",
+            "page_number"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_periods",
+      "comment": "",
+      "columns": [
+        {
+          "name": "daily_report_period_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "target_year_month",
+          "type": "char(7)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_start",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_end",
+          "type": "date",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "closing_day",
+          "type": "varchar(10)",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "period_mode",
+          "type": "varchar(24)",
+          "nullable": false,
+          "key": "",
+          "default": "'closing'",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "version",
+          "type": "int(11)",
+          "nullable": false,
+          "key": "",
+          "default": "1",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "on update current_timestamp()",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_daily_period_dates",
+          "unique": false,
+          "columns": [
+            "project_id",
+            "period_start",
+            "period_end"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "daily_report_period_id"
+          ]
+        },
+        {
+          "name": "uq_daily_period",
+          "unique": true,
+          "columns": [
+            "project_id",
+            "target_year_month"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_period_audits",
+      "comment": "",
+      "columns": [
+        {
+          "name": "daily_report_period_audit_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "project_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "before_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "after_data",
+          "type": "longtext",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "actor_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "daily_report_period_audit_id"
           ]
         }
       ]

@@ -15,11 +15,13 @@
 <textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
 feature_key: daily_reports
 related_features: projects, price_sets, daily_report_submissions, calculation_rules, invoices, payments
-primary_tables: daily_reports, daily_report_audit_logs, daily_report_confirmation_snapshots, daily_report_monthly_approvals, daily_report_distance_monthly_results
+primary_tables: daily_reports, daily_report_periods, daily_report_period_audits, daily_report_audit_logs, daily_report_confirmation_snapshots, daily_report_monthly_approvals, daily_report_distance_monthly_results
 api_prefixes: /api/daily-reports, /api/daily-report-imports
 specs: 仕様MD/個別機能仕様書：2-1. 日報登録・一覧管理画面.md, 仕様MD/04_calculation_logic.md, 仕様MD/09_日報・精算・帳票_業務要件.md
 ---
 # 日報
+
+PDF取込は `/api/daily-report-imports/pdf` で受け付け、独立したCPUワーカーが永続ジョブを処理します。実際の原本行画像・原読取値・修正値・現在値を比較し、期待する日報版と反映項目を指定して保存します。原読取と初回入力元は変更しません。空欄は削除扱いにせず、確認・月次承認・精算済みは保護します。様式設定、手入力継続、失敗再試行を提供します。構成と検証限界は `ocr/README.md` に記載しています。
 
 ## 目的と設計意図
 
@@ -63,9 +65,15 @@ specs: 仕様MD/個別機能仕様書：2-1. 日報登録・一覧管理画面.m
 
 日報本体、監査ログ、確認スナップショット、月次承認、距離月次結果を分けて保持します。Excel取込はバッチ・ファイル・行・監査を別管理します。
 
+対象月は案件の締め期間を表します。20日締めの11月分は10月21日〜11月20日です。日報一覧APIの `period` は開始日・終了日・適用締日・入力日一覧を返し、承認スナップショットと精算下書きにも保存します。Excel/CSV取込は同じ勤務日判定を使います。
+
+`GET /api/daily-reports/period-migration?project_id=...` は既存暦月の移行差分と署名を返します。事務・管理者が画面で前後期間と移動する日報を確認し、理由と署名を `POST /api/daily-reports/period-migration` へ渡すと未確定分だけを一括移行します。金額は再計算しません。別担当者による変更があれば再プレビューを求めます。
+
 ## 状態・制御・注意点
 
 未入力、入力中、申請可能、承認待ち、承認済み、差戻し、訂正中を区別します。承認後の直接上書きを避け、差異が出た場合は訂正中として扱います。
+
+既存期間は `legacy_calendar` として保持し、日次確認・月次承認・精算で保護された期間は移行しません。締日変更は保存済み期間を変更しません。前期間から引き継ぐ境界調整は「移行期間」と表示し、保存済み後続期間と矛盾する登録は拒否します。
 
 ## 現行業務との乖離・確認事項
 

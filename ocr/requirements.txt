@@ -1,0 +1,8 @@
+paddlepaddle==3.1.1
+paddleocr==3.2.0
+paddlex==3.2.1
+pypdfium2==4.30.0
+PyMySQL==1.1.1
+Pillow==11.3.0
+numpy==1.26.4
+opencv-contrib-python==4.10.0.84

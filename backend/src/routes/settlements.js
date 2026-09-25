@@ -8,6 +8,7 @@ const { PDF_DIR, renderHtml, writePdf } = require('../services/settlement_pdf');
 const { buildAggregatedLines } = require('../services/settlement_line_builder');
 const { executeRuleSet,loadRuleSet,resolvePublishedRuleSet } = require('../services/calculation_rule_engine');
 const { SYSTEM_TAX_RATE,resolveInvoiceTax } = require('../services/settlement_tax');
+const { getPeriod } = require('../services/daily_report_periods');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -302,7 +303,9 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
     const approvedReports = reports.length ? await approvedSnapshotReports(conn, reports, ym) : [];
     const workLines = buildAggregatedLines(approvedReports, kind, await settlementLineConfig(conn));
     const projectIds=requestedProjectIds;
-    const closingDates=[...new Set(projectRows.map((row)=>String(row.closing_date||'end')))];
+    const closingPeriods = [];
+    for (const project of projectRows) closingPeriods.push({ project_id: project.project_id, ...await getPeriod(project.project_id, ym, conn, true) });
+    const closingDates=[...new Set(closingPeriods.map((row)=>String(row.closing_day||'end')))];
     if(closingDates.length!==1)throw new Error('締日が異なる案件は同じ請求書・支払明細にまとめられません');
     const resolvedClosingDate=closingDates[0];
     const manual = Array.isArray(b.adjustments) ? b.adjustments.map((x,index) => ({
@@ -326,6 +329,7 @@ router.post('/:kind/drafts', requireRole('admin', 'soumu'), async (req, res) => 
     for (const projectId of projectIds) {
       await conn.query(`INSERT INTO settlement_projects (settlement_type,settlement_id,project_id) VALUES (?,?,?)`, [kind,settlementId,projectId]);
     }
+    await conn.query(`UPDATE ${tableFor(kind)} SET extra_data=JSON_SET(COALESCE(extra_data,JSON_OBJECT()),'$.closing_periods',JSON_EXTRACT(?,'$')) WHERE ${idFor(kind)}=?`, [JSON.stringify(closingPeriods), settlementId]);
     await insertLines(conn,kind,settlementId,lines,req.session.user.user_id,'月次承認済み日報から下書きを作成');
     for (const r of reports) await conn.query(kind === 'invoice' ? 'INSERT INTO invoice_daily_reports (invoice_id,daily_report_id) VALUES (?,?)' : 'INSERT INTO payment_daily_reports (payment_id,daily_report_id) VALUES (?,?)',[settlementId,r.daily_report_id]);
     for (const r of reports) await conn.query(kind === 'invoice' ? "UPDATE daily_reports SET billing_status='reserved',version=version+1 WHERE daily_report_id=?" : "UPDATE daily_reports SET payment_status='reserved',version=version+1 WHERE daily_report_id=?", [r.daily_report_id]);
@@ -847,6 +851,7 @@ async function finalizeSettlement({ kind, id, cashCycleId, actorUserId, issuedDa
         due_date:cycles[0].planned_incoming_date,
         payment_date:cycles[0].planned_outgoing_date,
         target_year_month:header.target_year_month,
+        closing_periods:json(header.extra_data).closing_periods || [],
         total_amount:header.total_amount,
         gross_amount:header.gross_amount,
         subtotal_amount:kind==='invoice'?invoiceSubtotal:undefined,

@@ -3,6 +3,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const express = require('express');
+const { periodForDate } = require('../services/daily_report_periods');
 const multer = require('multer');
 const unzipper = require('unzipper');
 const { getPool, query } = require('../db');
@@ -68,6 +69,7 @@ const upload = multer({
 const requireImportViewer = requireRole('admin', 'soumu', 'executive');
 const requireImportEditor = requireRole('admin', 'soumu');
 router.use(requireAuth, requirePermission('daily_reports'), requireImportViewer);
+router.use('/pdf', require('./daily_report_pdf_imports'));
 
 function parseJson(value, fallback = null) {
   if (value == null || value === '') return fallback;
@@ -350,7 +352,7 @@ router.post('/mappings', requireImportEditor, async (req, res) => {
 
 router.get('/files/:fileId', async (req, res) => {
   try {
-    const rows = await query('SELECT * FROM daily_report_import_files WHERE daily_report_import_file_id=? AND is_active=1 AND deleted_at IS NULL', [Number(req.params.fileId)]);
+    const rows = await query('SELECT * FROM daily_report_import_files WHERE daily_report_import_file_id=? AND is_active=1 AND deleted_at IS NULL AND retention_until>=CURDATE()', [Number(req.params.fileId)]);
     if (!rows.length) return res.status(404).json({ ok: false, message: '原本ファイルが見つかりません' });
     const file = rows[0];
     const resolved = path.resolve(file.storage_path);
@@ -397,6 +399,7 @@ router.post('/:id/parse', requireImportEditor, async (req, res) => {
     await conn.beginTransaction();
     const [batches] = await conn.query('SELECT * FROM daily_report_import_batches WHERE daily_report_import_batch_id=? FOR UPDATE', [batchId]);
     if (!batches.length) throw requestError(404, '取込バッチが見つかりません', 'not_found');
+    if (batches[0].source_type === 'pdf') throw badRequest('PDFは原本比較画面から解析してください');
     if (['applied', 'cancelled'].includes(batches[0].status)) throw badRequest('反映済みまたは取消済みの取込は再解析できません');
     const [files] = await conn.query('SELECT * FROM daily_report_import_files WHERE daily_report_import_batch_id=? AND is_active=1 ORDER BY daily_report_import_file_id LIMIT 1', [batchId]);
     if (!files.length) throw badRequest('取込ファイルが見つかりません');
@@ -418,7 +421,14 @@ router.post('/:id/parse', requireImportEditor, async (req, res) => {
       const warnings = [...validation.warnings];
       const matched = matchProject(row.parsedData, projects);
       if (matched.error) errors.push(matched.error);
-      const month = row.parsedData.work_date?.slice(0, 7) || null;
+      let month = row.parsedData.work_date?.slice(0, 7) || null;
+      if (matched.project && row.parsedData.work_date) {
+        try {
+          const period = await periodForDate(matched.project.project_id, row.parsedData.work_date, conn);
+          month = period.target_year_month;
+          row.parsedData.target_year_month = month;
+        } catch (error) { errors.push(error.message); }
+      }
       if (month && minMonth && month !== minMonth) mixedMonth = true;
       if (month && !minMonth) minMonth = month;
       const rowFingerprint = fingerprint(row.parsedData);
@@ -461,6 +471,8 @@ router.put('/:id/rows/:rowId', requireImportEditor, async (req, res) => {
     const rowId = Number(req.params.rowId);
     const [rows] = await conn.query('SELECT * FROM daily_report_import_rows WHERE daily_report_import_row_id=? AND daily_report_import_batch_id=? FOR UPDATE', [rowId, batchId]);
     if (!rows.length) throw requestError(404, '取込行が見つかりません', 'not_found');
+    const [batchTypes] = await conn.query('SELECT source_type FROM daily_report_import_batches WHERE daily_report_import_batch_id=?', [batchId]);
+    if (batchTypes[0]?.source_type === 'pdf') throw badRequest('PDFは原本比較画面から修正してください');
     if (rows[0].status === 'applied') throw badRequest('反映済みの取込行は変更できません');
     const data = req.body.reviewed_data && typeof req.body.reviewed_data === 'object' ? req.body.reviewed_data : {};
     const validation = validateParsedRow(data);
@@ -469,6 +481,8 @@ router.put('/:id/rows/:rowId', requireImportEditor, async (req, res) => {
     if (matched.error) validation.errors.push(matched.error);
     const warnings = [...validation.warnings];
     if (matched.project && data.work_date) {
+      try { data.target_year_month = (await periodForDate(matched.project.project_id, data.work_date, conn)).target_year_month; }
+      catch (error) { validation.errors.push(error.message); }
       const [sameDay] = await conn.query('SELECT daily_report_id,status FROM daily_reports WHERE project_id=? AND work_date=? AND is_deleted=0 LIMIT 5', [matched.project.project_id, data.work_date]);
       if (sameDay.length) warnings.push(`同じ案件・勤務日に${sameDay.length}件の日報があります`);
     }
@@ -504,6 +518,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
     await conn.beginTransaction();
     const [batches] = await conn.query('SELECT * FROM daily_report_import_batches WHERE daily_report_import_batch_id=? FOR UPDATE', [batchId]);
     if (!batches.length) throw badRequest('取込バッチが見つかりません');
+    if (batches[0].source_type === 'pdf') throw badRequest('PDFは原本比較画面から項目を選択して反映してください');
     if (batches[0].status === 'cancelled') throw badRequest('取消済みの取込は反映できません');
     const [rows] = await conn.query(
       `SELECT * FROM daily_report_import_rows WHERE daily_report_import_batch_id=?
@@ -525,10 +540,11 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
       const [projects] = await conn.query('SELECT * FROM projects WHERE project_id=? AND is_deleted=0 LIMIT 1', [row.matched_project_id]);
       if (!projects.length) throw badRequest(`行${row.source_row_number}の案件が見つかりません`);
       const project = projects[0];
+      const period = await periodForDate(project.project_id, data.work_date, conn, true);
       const [monthly] = await conn.query(
         `SELECT status FROM daily_report_monthly_approvals WHERE project_id=? AND target_year_month=?
          ORDER BY approval_version DESC LIMIT 1 FOR UPDATE`,
-        [project.project_id, data.work_date.slice(0, 7)]
+        [project.project_id, period.target_year_month]
       );
       if (monthly.length && ['submitted', 'approved'].includes(monthly[0].status)) throw badRequest(`行${row.source_row_number}の対象月は承認処理中または承認済みです`);
       const [sameDay] = await conn.query('SELECT daily_report_id,status,billing_status,payment_status FROM daily_reports WHERE project_id=? AND work_date=? AND is_deleted=0 FOR UPDATE', [project.project_id, data.work_date]);
@@ -539,7 +555,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
         project_id: Number(project.project_id),
         company_id: Number(project.company_id),
         partner_id: project.partner_id ? Number(project.partner_id) : null,
-        target_year_month: data.work_date.slice(0, 7),
+        target_year_month: period.target_year_month,
         work_date: data.work_date,
         start_time: data.start_time || null,
         end_time: data.end_time || null,
@@ -555,6 +571,7 @@ router.post('/:id/apply', requireImportEditor, async (req, res) => {
       };
       const calculated = await applyDailyPriceCalcWithRules(input);
       const insertData = {};
+      insertData.daily_report_period_id = period.daily_report_period_id;
       for (const key of DAILY_INPUT_FIELDS) if (Object.prototype.hasOwnProperty.call(input, key)) insertData[key] = input[key];
       for (const key of DAILY_SYSTEM_FIELDS) if (Object.prototype.hasOwnProperty.call(calculated, key)) insertData[key] = calculated[key];
       for (const key of ['calculation_detail']) if (insertData[key] && typeof insertData[key] !== 'string') insertData[key] = JSON.stringify(insertData[key]);

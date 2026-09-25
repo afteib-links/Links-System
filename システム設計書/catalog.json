@@ -411,6 +411,8 @@
       ],
       "primary_tables": [
         "daily_reports",
+        "daily_report_periods",
+        "daily_report_period_audits",
         "daily_report_audit_logs",
         "daily_report_confirmation_snapshots",
         "daily_report_monthly_approvals",
@@ -1251,6 +1253,18 @@
     {
       "method": "POST",
       "path": "/api/daily-reports/monthly-approval",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/daily-reports/period-migration",
+      "guard": "ログイン必須",
+      "source": "backend/src/routes/daily_reports.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/daily-reports/period-migration",
       "guard": "ログイン必須",
       "source": "backend/src/routes/daily_reports.js"
     },
@@ -2264,7 +2278,7 @@
     }
   ],
   "schema_summary": {
-    "tables": 100,
+    "tables": 105,
     "foreign_keys": 161
   }
 }

@@ -4,6 +4,8 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 const { buildDailyCalculationContext, parseJson } = require('../services/price_calc');
 const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 const { canChangeDailyStatus, uncheckedDatesForMonth } = require('../services/daily_report_workflow');
+const { getPeriod, resolvePeriod, closingPeriod, validMonth, bindReportPeriod, assertPeriodEditable,
+  migrationPreview, applyMigration, periodError, periodForDate } = require('../services/daily_report_periods');
 
 const { calculateMonthlyDistance } = require('../services/distance_calc');
 
@@ -267,10 +269,10 @@ router.get('/', async (req, res) => {
       effective_billing_amount: effectiveAmount(r, 'billing'),
       effective_payment_amount: effectiveAmount(r, 'payment'),
     }));
-    return res.json({ ok: true, reports });
+    const period = projectId && ym ? await getPeriod(projectId, ym) : null;
+    return res.json({ ok: true, reports, period });
   } catch (err) {
-    console.error('[daily_reports/list]', err);
-    return res.status(500).json({ ok: false, message: '日報一覧の取得に失敗しました' });
+    return routeError(res, err, '日報一覧の取得に失敗しました');
   }
 });
 
@@ -278,9 +280,8 @@ router.get('/', async (req, res) => {
 router.get('/month-projects', async (req, res) => {
   try {
     const ym = String(req.query.target_year_month || '').trim();
-    if (!ym) return res.status(400).json({ ok: false, message: '対象年月は必須です' });
-    const [y, m] = ym.split('-').map(Number);
-    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    if (!validMonth(ym)) return res.status(400).json({ ok: false, message: '対象年月を確認してください' });
+    const periods = await query('SELECT * FROM daily_report_periods ORDER BY project_id,target_year_month');
 
     const projects = await query(
       `SELECT p.project_id, p.company_id, p.partner_id, p.manager_name, p.business_type, p.closing_date,
@@ -313,6 +314,11 @@ router.get('/month-projects', async (req, res) => {
        WHERE a.target_year_month=?`, [ym,ym]
     );
     const approvalByProject = new Map(approvals.map((row) => [Number(row.project_id), row]));
+    for (const projectId of new Set([...reports, ...approvals].map(row => Number(row.project_id)))) {
+      if (!periods.some(p => Number(p.project_id) === projectId && p.target_year_month === ym)) {
+        periods.push({ ...closingPeriod(ym, 'end'), project_id: projectId, period_mode: 'legacy_calendar' });
+      }
+    }
 
     const byProject = new Map();
     for (const r of reports) {
@@ -325,6 +331,11 @@ router.get('/month-projects', async (req, res) => {
     }
 
     const rows = projects.map((p) => {
+      let period;
+      let periodWarning = null;
+      try { period = resolvePeriod(ym, p.closing_date || p.company_closing_date || 'end', periods.filter(item => Number(item.project_id) === Number(p.project_id))); }
+      catch (error) { periodWarning = error.message; }
+      const daysInMonth = period?.dates.length || 0;
       const bag = byProject.get(p.project_id) || { dates: new Set(), byStatus: {} };
       const inputDays = bag.dates.size;
       const approved = bag.byStatus.approved || 0;
@@ -352,6 +363,8 @@ router.get('/month-projects', async (req, res) => {
       const workflowLabels = {not_started:'未入力',inputting:'入力中',ready:'申請可能',submitted:'承認待ち',approved:'承認済み',rejected:'差戻し',correcting:'訂正中'};
       return {
         ...p,
+        period,
+        period_warning: periodWarning,
         input_days: inputDays,
         days_in_month: daysInMonth,
         completion_rate: daysInMonth ? Math.round((inputDays / daysInMonth) * 1000) / 10 : 0,
@@ -407,6 +420,38 @@ router.get('/month-projects', async (req, res) => {
     console.error('[daily_reports/month-projects]', err);
     return res.status(500).json({ ok: false, message: '月次案件一覧の取得に失敗しました' });
   }
+});
+
+router.get('/period-migration', async (req, res) => {
+  const conn = await getPool().getConnection();
+  try {
+    if (!(req.session.user.roles || []).some(role => ['admin', 'soumu'].includes(role))) {
+      throw periodError('期間移行は事務担当または管理者が行ってください', 403);
+    }
+    await conn.beginTransaction();
+    const preview = await migrationPreview(conn, Number(req.query.project_id));
+    await conn.commit();
+    return res.json({ ok: true, preview });
+  } catch (error) {
+    await conn.rollback();
+    return routeError(res, error, '期間の差分取得に失敗しました');
+  } finally { conn.release(); }
+});
+
+router.post('/period-migration', async (req, res) => {
+  const conn = await getPool().getConnection();
+  try {
+    if (!(req.session.user.roles || []).some(role => ['admin', 'soumu'].includes(role))) {
+      throw periodError('期間移行は事務担当または管理者が行ってください', 403);
+    }
+    await conn.beginTransaction();
+    const preview = await applyMigration(conn, Number(req.body.project_id), req.body.token, req.body.reason, req.session.user.user_id);
+    await conn.commit();
+    return res.json({ ok: true, preview });
+  } catch (error) {
+    await conn.rollback();
+    return routeError(res, error, '期間の移行に失敗しました');
+  } finally { conn.release(); }
 });
 
 router.get('/calculation-context', async (req, res) => {
@@ -501,6 +546,7 @@ router.get('/ui-settings', async (req, res) => {
       return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
     }
     const keys = Object.values(DAILY_REPORT_UI_SETTING_KEYS);
+    const period = await getPeriod(projectId, ym);
     const [settingRows, holidayRows] = await Promise.all([
       query(
         `SELECT setting_key, setting_value
@@ -512,10 +558,10 @@ router.get('/ui-settings', async (req, res) => {
         `SELECT holiday_date
          FROM holidays
          WHERE is_active = 1 AND is_deleted = 0
-           AND holiday_date >= ? AND holiday_date < DATE_ADD(?, INTERVAL 1 MONTH)
+           AND holiday_date >= ? AND holiday_date <= ?
            AND (project_id IS NULL OR project_id = ?)
          ORDER BY holiday_date ASC`,
-        [`${ym}-01`, `${ym}-01`, projectId]
+        [period.period_start, period.period_end, projectId]
       ),
     ]);
     return res.json({
@@ -574,6 +620,7 @@ router.post('/monthly-approval', async (req, res) => {
     if (!projectId || !ym) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
 
     await conn.beginTransaction();
+    const period = await getPeriod(projectId, ym, conn, true);
     const [reports] = await conn.query(
       `SELECT * FROM daily_reports
        WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0
@@ -609,7 +656,7 @@ router.post('/monthly-approval', async (req, res) => {
         await conn.rollback();
         return res.status(403).json({ ok:false, message:'事務担当だけが最終確認と営業確認依頼を実行できます' });
       }
-      const unchecked = uncheckedDatesForMonth(reports, ym);
+      const unchecked = uncheckedDatesForMonth(reports, ym, period);
       if (unchecked.length && !req.body.acknowledge_warnings) {
         await conn.rollback();
         return res.status(409).json({
@@ -627,6 +674,7 @@ router.post('/monthly-approval', async (req, res) => {
       const snapshot = {
         project_id: projectId,
         target_year_month: ym,
+        period,
         submitted_at: new Date().toISOString(),
         unchecked_dates: unchecked,
         monthly_distance_results: monthlyDistanceResults,
@@ -851,6 +899,8 @@ router.post('/day-status', async (req, res) => {
     }
 
     await conn.beginTransaction();
+    const period = await periodForDate(projectId, workDate, conn, true);
+    await assertPeriodEditable(conn, projectId, period.target_year_month);
     const [reports] = await conn.query(
       `SELECT * FROM daily_reports
        WHERE project_id = ? AND work_date = ? AND is_deleted = 0
@@ -988,6 +1038,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  const conn = await getPool().getConnection();
   try {
     const input = pick(req.body || {});
     if (!input.project_id || !input.company_id || !input.work_date || !input.target_year_month) {
@@ -999,16 +1050,15 @@ router.post('/', async (req, res) => {
     // 通常の日報作成APIは画面入力専用。取込元は専用APIだけが設定する。
     input.input_source_type = 'manual';
     delete input.scanned_image_url;
+    await conn.beginTransaction();
+    const period = await bindReportPeriod(conn, input);
     const calculated = await applySimpleCalc({ ...input });
-    const data = { ...input, ...pickSystem(calculated) };
+    const data = { ...input, ...pickSystem(calculated), daily_report_period_id: period.daily_report_period_id };
     const cols = Object.keys(data);
-    const result = await query(
+    const [result] = await conn.query(
       `INSERT INTO daily_reports (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
       cols.map((c) => data[c])
     );
-    const pool = getPool();
-    const conn = await pool.getConnection();
-    try {
       await insertAudit(
         conn,
         result.insertId,
@@ -1018,13 +1068,12 @@ router.post('/', async (req, res) => {
         data.rate_override_reason || null,
         req.session.user.user_id
       );
-    } finally {
-      conn.release();
-    }
+    await conn.commit();
     return res.status(201).json({ ok: true, report: await fetchDetail(result.insertId) });
   } catch (err) {
+    await conn.rollback();
     return routeError(res, err, '日報の作成に失敗しました');
-  }
+  } finally { conn.release(); }
 });
 
 router.put('/:id', async (req, res) => {
@@ -1039,6 +1088,11 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ ok: false, message: '承認済みの日報は編集できません' });
     }
 
+    await conn.beginTransaction();
+    await getPeriod(current.project_id, current.target_year_month, conn, true);
+    await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    const [lockedRows] = await conn.query('SELECT version FROM daily_reports WHERE daily_report_id=? FOR UPDATE', [id]);
+    if (Number(lockedRows[0]?.version) !== Number(current.version)) throw periodError('日報が更新されました。再読み込みしてください');
     let data;
     if (current.status === 'confirmed') {
       data = {
@@ -1052,8 +1106,9 @@ router.put('/:id', async (req, res) => {
       // 初回入力元は作成後に変更しない。
       delete input.input_source_type;
       delete input.scanned_image_url;
+      const period = await bindReportPeriod(conn, { ...current, ...input });
       const calculated = await applySimpleCalc({ ...current, ...input });
-      data = { ...input, ...pickSystem(calculated) };
+      data = { ...input, ...pickSystem(calculated), daily_report_period_id: period.daily_report_period_id };
     }
 
     const expectedVersion = req.body.version != null ? Number(req.body.version) : null;
@@ -1070,7 +1125,6 @@ router.put('/:id', async (req, res) => {
       sql += ' AND version = ?';
       params.push(expectedVersion);
     }
-    await conn.beginTransaction();
     const [result] = await conn.query(sql, params);
     if (!result || result.affectedRows === 0) {
       await conn.rollback();
@@ -1144,6 +1198,10 @@ router.post('/:id/status', async (req, res) => {
     }
 
     await conn.beginTransaction();
+    await getPeriod(current.project_id, current.target_year_month, conn, true);
+    await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    const [locked] = await conn.query('SELECT version FROM daily_reports WHERE daily_report_id=? FOR UPDATE', [id]);
+    if (Number(locked[0]?.version) !== Number(current.version)) throw periodError('日報が更新されました。再読み込みしてください');
     await conn.query(
       `UPDATE daily_reports
        SET status = ?, rejection_reason = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
@@ -1195,6 +1253,7 @@ router.post('/:id/status', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const conn = await getPool().getConnection();
   try {
     const id = Number(req.params.id);
     const current = await fetchDetail(id);
@@ -1202,17 +1261,22 @@ router.delete('/:id', async (req, res) => {
     if (current.status === 'approved' || current.billing_status === 'billed' || current.payment_status === 'paid') {
       return res.status(400).json({ ok: false, message: '承認済み／締め済みの日報は削除できません' });
     }
-    await query(
+    await conn.beginTransaction();
+    await getPeriod(current.project_id, current.target_year_month, conn, true);
+    await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    const [result] = await conn.query(
       `UPDATE daily_reports
        SET is_deleted = 1, version = version + 1, updated_at = CURRENT_TIMESTAMP
-       WHERE daily_report_id = ?`,
-      [id]
+       WHERE daily_report_id = ? AND version=?`,
+      [id, current.version]
     );
+    if (!result.affectedRows) throw periodError('日報が更新されました。再読み込みしてください');
+    await conn.commit();
     return res.json({ ok: true });
   } catch (err) {
-    console.error('[daily_reports/delete]', err);
-    return res.status(500).json({ ok: false, message: '日報の削除に失敗しました' });
-  }
+    await conn.rollback();
+    return routeError(res, err, '日報の削除に失敗しました');
+  } finally { conn.release(); }
 });
 
 module.exports = router;
