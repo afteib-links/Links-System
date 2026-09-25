@@ -58,6 +58,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.locator('dialog [name=hour]').selectOption('28');
     await page.locator('dialog [name=minute]').selectOption('15');
     await page.locator('dialog button[value=apply]').click();
+    await page.waitForFunction(() => document.querySelector('[data-f="end_time"][data-idx="0"]')?.value === '28:15');
     assert.equal(await time('end_time',0).inputValue(),'28:15');
     await page.keyboard.press('F2');
     await page.waitForSelector('[data-expand-row="0"]');
