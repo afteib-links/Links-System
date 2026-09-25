@@ -12,10 +12,15 @@ const featureKeys = [
   'base_management', 'companies', 'partners', 'base_projects', 'projects', 'price_sets',
   'office_work', 'daily_reports', 'daily_report_submissions', 'advances', 'invoices',
   'payments', 'cash_management', 'analytics', 'master_settings', 'help_settings',
-  'ui_builder', 'users',
+  'ui_builder', 'users', 'master_data_preparation', 'db_import', 'db_export',
+  'master_data_export', 'test_data', 'calculation_rules', 'menu_access_settings',
 ];
 
-test('利用マニュアルは全18機能と各3件の具体例を持つ', () => {
+test('利用マニュアルは現行機能カタログを網羅し各3件の具体例を持つ', () => {
+  const app = fs.readFileSync(path.join(root, 'frontend/js/app.js'), 'utf8');
+  const catalog = app.split('const FEATURE_FALLBACK = [')[1].split('];')[0];
+  const keys = [...catalog.matchAll(/key: '([^']+)'/g)].map((match) => match[1]);
+  assert.deepEqual([...featureKeys].sort(), keys.sort(), '機能が増えた場合はマニュアルも更新してください');
   for (const key of featureKeys) {
     const start = html.indexOf(`id="${key}" data-chapter="${key}"`);
     assert.ok(start >= 0, `${key} の章がありません`);
