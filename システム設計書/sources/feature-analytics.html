@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>収支分析の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-analytics">設計書のこの章へ戻る</a><h1>収支分析の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/analytics.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/analytics.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-analytics.md" download="収支分析.md">収支分析.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: analytics
+related_features: companies, partners, projects, daily_reports, invoices, payments
+primary_tables: daily_reports, invoices, payments, projects, companies, partners
+api_prefixes: /api/analytics
+specs: 仕様MD/個別機能仕様書：4-1. 収支分析画面.md, 仕様MD/計画/23_収支分析3表.md
+---
+# 収支分析
+
+## 目的と設計意図
+
+日報・請求・支払の結果を、収支一覧、企業別利益率、稼働日の3つの見方で確認します。分析結果を取引正本として編集せず、根拠データへ戻れる参照機能とします。
+
+## 利用場面と操作手順
+
+月の収支、企業ごとの利益率、パートナーの稼働状況を確認し、原因を調べるために使います。
+
+1. 対象月と企業・パートナー等の条件をそろえます。
+2. 収支一覧で売上・原価・利益を確認し、企業別利益率、稼働日の表へ切り替えて偏りを確認します。
+3. 予想と異なる値があれば、同じ対象月・案件の日報、請求、支払へ戻って確認します。
+4. 修正が必要なら元の業務画面で適切な訂正を行い、分析を再表示して結果を確認します。
+
+## なぜこの手順で利用するか
+
+利益が下がった理由は、単価だけでなく稼働日数、入力漏れ、控除、締め状況など複数あります。同じ対象範囲で3表を比較し、元データへ戻ることで、集計値を直接書き換えずに原因を直せます。収支と銀行残高は異なる指標です。
+
+## 利用例と完了の確認
+
+架空の企業Aの利益率が低い場合、企業別利益率だけで判断せず、収支一覧の対象案件と稼働日を確認します。請求・支払が下書きか確定済みかも元画面で確認し、どの時点の数字を比較したかを記録します。Excelとの照合では対象月、対象案件、除外条件をそろえます。
+
+## 作成・変更の経緯と根拠
+
+`仕様MD/計画/23_収支分析3表.md`と個別仕様書で、収支一覧・企業別利益率・稼働日の3表が整理されています。現状スナップショットにはPR #90での反映が記録されています。CSV・PDF等の後続案は、現在利用できる画面集計と区別して確認します。
+
+## 利用者・権限
+
+管理者、総務、経営者が閲覧します。
+
+## 前提・入力・処理・出力
+
+対象月、企業、パートナー、案件、担当等を入力し、売上、原価、利益、利益率、稼働日を集計表示します。
+
+## 関連機能・前後工程
+
+個別案件、日報、請求、支払を参照します。異常値は元画面で確認・訂正し、分析値を直接直しません。
+
+## 主要API・データ
+
+専用集計APIが業務テーブルを読み、3表の集計キーと合計を返します。分析専用の確定取引は作りません。
+
+## 状態・制御・注意点
+
+下書きと確定のどちらを集計するか、0除算、取消、訂正、月またぎを明示します。権限外の企業・案件を含めません。
+
+## 現行業務との乖離・確認事項
+
+Excel集計の対象範囲、締め時点、利益率分母、稼働日の定義との照合が必要です。
+
+## 今後の改善
+
+CSV・PDF、期間比較、予算差、異常値から根拠明細へのドリルダウンを検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

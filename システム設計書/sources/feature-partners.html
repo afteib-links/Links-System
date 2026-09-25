@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>パートナーマスタの原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-partners">設計書のこの章へ戻る</a><h1>パートナーマスタの原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/partners.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/partners.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-partners.md" download="パートナーマスタ.md">パートナーマスタ.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: partners
+related_features: base_management, projects, daily_reports, payments, advances
+primary_tables: partners, partner_vehicles
+api_prefixes: /api/partners
+specs: 仕様MD/個別機能仕様書：1-2. パートナーマスタ管理画面.md
+---
+# パートナーマスタ
+
+## 目的と設計意図
+
+委託先・乗務員等のパートナー情報、連絡先、振込先、車両を管理します。日報の担当者、支払先、先払先を同じ識別子で結びます。
+
+## 利用場面と操作手順
+
+稼働するパートナーの登録、連絡先・振込先・契約状況の変更時に使います。
+
+1. 名前や番号で既存登録を検索します。同じ人が別案件へ入る場合も、既存パートナーを使います。
+2. 新規または詳細画面で基本情報、契約状況、必要な支払・口座情報を登録します。
+3. 個別案件へパートナーを割り当て、稼働期間と案件の支払条件を確認します。
+4. 支払や入出金管理で相手先が正しく表示されるか確認します。口座を変更した場合は、未実行の出力対象についても確認します。
+
+## なぜこの手順で利用するか
+
+人物の情報を案件ごとに複製すると、住所・口座の修正漏れや支払の分散が起きます。人物を一つにまとめ、仕事ごとの条件は個別案件で持つことで、複数案件を担当する場合も同じ相手先として追跡できます。
+
+## 利用例と完了の確認
+
+架空の「検証パートナーA」が案件Aと案件Bを担当する場合、一つのパートナーを両案件へ紐付けます。各案件から同じ人物へ戻れ、支払対象月の明細に対象案件が反映されることを確認します。名前が同じという理由だけで別人の登録を統合しません。
+
+## 作成・変更の経緯と根拠
+
+個別機能仕様書では人物情報と案件情報を別に管理します。2026-09-12の決定ログ「登録済みマスターの日報サンプル連携」でも、同一パートナーの複数案件配属を許可しています。これは検証データの決定記録であり、人物マスタの初回導入日や当初の担当者までは特定できません。参照: `仕様MD/05_decision_log.md`、`個別機能仕様書：1-2. パートナーマスタ管理画面.md`。
+
+## 利用者・権限
+
+管理者、システム担当者、総務が登録・編集します。口座情報は必要な権限の利用者だけが扱います。
+
+## 前提・入力・処理・出力
+
+パートナーコード、名称、連絡先、振込先、車両等を入力し、必須・形式・重複を検査します。案件割当、日報、支払、銀行CSVの参照元になります。
+
+## 関連機能・前後工程
+
+個別案件へ割り当てた後、日報・先払・支払へ連携します。振込先不備は銀行CSV作成前にエラーとして扱います。
+
+## 主要API・データ
+
+基本情報は `partners`、複数車両は `partner_vehicles` に分けます。
+
+## 状態・制御・注意点
+
+口座番号・名義カナ等の機密情報をログや設計書へ表示しません。業務参照済みレコードは論理削除します。
+
+## 現行業務との乖離・確認事項
+
+個人と法人の扱い、口座名義例外、車両履歴が現行業務を満たすか確認が必要です。
+
+## 今後の改善
+
+口座変更の承認・履歴、銀行マスターとの自動検証、本人向け閲覧範囲の精緻化を候補とします。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>計算ルール管理の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-calculation_rules">設計書のこの章へ戻る</a><h1>計算ルール管理の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/calculation_rules.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/calculation_rules.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-calculation_rules.md" download="計算ルール管理.md">計算ルール管理.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: calculation_rules
+related_features: price_sets, daily_reports, invoices, payments, test_data
+primary_tables: calculation_rule_sets, calculation_rules, calculation_rule_audit_logs
+api_prefixes: /api/calculation-rules
+specs: 仕様MD/04_calculation_logic.md, 仕様MD/計画/29_基盤マスターと計算ルール.md
+---
+# 計算ルール管理
+
+## 目的と設計意図
+
+日報から請求・支払金額を導く計算式と優先順位を版として管理します。編集、検証、比較、公開を分け、公開済み計算を黙って変更しません。
+
+## 利用場面と操作手順
+
+契約単価の変更ではなく、計算の式・適用条件・処理順序を保守するときに使います。
+
+1. 変更する業務規則を仕様と決定ログで確認し、公開中の版から下書きを用意します。
+2. 対象の規則・条件・式を編集し、構文と必須処理の検証を実行します。
+3. 旧版との比較と、通常・休日・不足・控除など対象ケースの期待値を確認します。
+4. 合意した結果を確認して公開します。再計算が必要なら、未確定下書きの対象を確認して選択再計算します。
+5. 再計算結果と最終確定時の結果を照合します。
+
+## なぜこの手順で利用するか
+
+式の変更は複数案件へ影響するため、単価入力より広い範囲の確認が必要です。公開前検証だけでなく金額比較を行うのは、式として正しくても業務期待額が違う可能性があるためです。確定済み帳票は後日の公開で書き換えません。
+
+## 利用例と完了の確認
+
+丸め処理を見直す場合、端数が出る匿名ケースを旧版と新版で比較します。差が意図したケースだけに出るか、請求と支払の両側を確認します。画面の標準例比較は全実データの検証ではないため、対象案件に近いケースも確認します。
+
+## 作成・変更の経緯と根拠
+
+Issue #136の2026-09-12の決定では、再計算と最終確定で同じ税率解決を使うこと、標準例比較の限界を明示することが決まりました。2026-09-13には必須計算の欠落を0円と誤認しないよう、公開前検証と確定時の検証を強化した記録があります。参照: `仕様MD/05_decision_log.md`。
+
+## 利用者・権限
+
+管理者とシステム担当者だけが利用します。業務規則の確定は担当者合意と決定ログを前提とします。
+
+## 前提・入力・処理・出力
+
+ルール集合と式・条件を編集し、構文・参照・匿名ケースを検証します。比較結果、公開版、選択再計算候補を出力します。
+
+## 関連機能・前後工程
+
+金額データの単価と組み合わせて日報を計算し、請求・支払へつなげます。検証用データで公開前に結果を確認します。
+
+## 主要API・データ
+
+`calculation_rule_sets` が版、`calculation_rules` が個別規則、監査ログが操作履歴です。
+
+## 状態・制御・注意点
+
+下書き、検証済み、公開を区別します。公開済み版は上書きせず複製改定し、再計算は未確定対象を選択して行います。
+
+## 現行業務との乖離・確認事項
+
+元Excelの式、丸め、優先順位、例外が現行ルールへ完全に移植されたか継続確認が必要です。
+
+## 今後の改善
+
+期待値ケースの網羅率、影響日報件数、旧版との金額差、承認付き公開を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

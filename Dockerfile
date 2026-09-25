@@ -16,6 +16,7 @@ WORKDIR /app
 COPY backend ./backend
 COPY frontend ./frontend
 COPY ["利用マニュアル", "./利用マニュアル"]
+COPY ["システム設計書", "./システム設計書"]
 COPY db ./db
 
 RUN node /app/backend/scripts/generate_build_info.js

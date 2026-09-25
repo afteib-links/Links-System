@@ -1,0 +1,39 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>今後の改善の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#chapter-05_%E4%BB%8A%E5%BE%8C%E3%81%AE%E6%94%B9%E5%96%84">設計書のこの章へ戻る</a><h1>今後の改善の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/05_今後の改善.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/05_今後の改善.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="chapter-05_%E4%BB%8A%E5%BE%8C%E3%81%AE%E6%94%B9%E5%96%84.md" download="今後の改善.md">今後の改善.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false"># 6. 今後の改善候補
+
+この章は既存仕様・計画・現状スナップショットに記載済みの候補を集約したものです。「将来候補」「業務確認待ち」は実装要件の確定を意味しません。
+
+|候補|背景・現在の制約|期待効果|依存する決定|影響領域|状態・参照|
+|---|---|---|---|---|---|
+|正式FB出力|初期CSVはあるが契約サービス固有列と承認分離が未確定|銀行取込の手作業・誤り削減|正式仕様、承認者、取消・再出力|入出金、銀行形式、口座|業務確認待ち / F-04|
+|銀行明細取込・自動消込|実績は手入力で口座残高へ自動反映しない|予定と実績の照合、資金残高精度|対象銀行、照合キー、例外処理|入出金予定・実績、口座台帳|将来候補|
+|承認専用ビュー|現行入力画面は確認時に編集可能項目も見える|誤更新防止、承認速度向上|表示項目、訂正依頼、通知、履歴|日報、請求、支払、事務作業|将来候補 / 業務要件§11|
+|日報項目・数式の完全照合|元Excelの数式と例外運用の確認が残る|計算結果への業務保証|D-01、税・丸め・休日規則|日報、料金、請求、支払|業務確認待ち|
+|請求・支払の例外規則確定|控除・税・再反映の一部に確認事項が残る|月次締めの再現性と監査性|D-02〜D-05|精算、帳票、入出金|業務確認待ち|
+|前払・分割返済規則|上限、対象外、利子、繰上返済等が未確定|例外処理の自動化|D-06/D-07|先払、支払、入出金|業務確認待ち|
+|NAS実機復旧試験|手順はあるがASUSTOR実機検証が残る|本番移行・障害復旧の確実性|権限、自動起動、バックアップ照合|配備、DB、ファイル|Issue #64継続|
+|設計書の差分可視化|自動一覧は更新漏れを検知するが、業務説明の意味変更は人が確認する|レビュー効率向上|変更分類と責任者|全機能・仕様|将来候補|
+
+## 改善を要件化する条件
+
+1. 現行業務、問題、対象利用者、完了条件を明記する。
+2. 影響する機能、テーブル、帳票、権限、移行・復旧方法を確認する。
+3. 仕様MDと決定ログをコードより先に更新する。
+4. 1 Issue・1ブランチ・1 Draft PRで実装し、匿名データで回帰確認する。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

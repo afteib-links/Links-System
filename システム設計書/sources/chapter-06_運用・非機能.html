@@ -1,0 +1,50 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>運用・非機能の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#chapter-06_%E9%81%8B%E7%94%A8%E3%83%BB%E9%9D%9E%E6%A9%9F%E8%83%BD">設計書のこの章へ戻る</a><h1>運用・非機能の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/06_運用・非機能.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/06_運用・非機能.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="chapter-06_%E9%81%8B%E7%94%A8%E3%83%BB%E9%9D%9E%E6%A9%9F%E8%83%BD.md" download="運用・非機能.md">運用・非機能.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false"># 7. 運用・非機能設計
+
+## セキュリティとデータ保護
+
+- パスワードはハッシュ化し、平文をDB・ログ・Issueへ保存しない。
+- 認証はサーバーセッション、認可は機能権限と操作条件の両方で行う。
+- 顧客、パートナー、口座、実Excel、PDF、FAX画像、FB、DBダンプをGitへ追加しない。
+- テストは `@_` 接頭辞等の匿名データと専用DBを使う。
+- システム設計書は管理者・システム担当者だけに配信し、検索エンジンへ公開しない。
+
+## 性能・同時利用
+
+通常4名程度の同時利用を前提に、一覧は対象年月・検索条件で絞り、API側で集計します。長い処理は状態と結果を記録し、二重実行を避けます。楽観ロック競合は最新状態の再読込を促し、後勝ちで上書きしません。
+
+## 監査・追跡
+
+金額調整、取消、確定、ルール公開、CSV出力等の重要操作は、操作者、日時、理由、変更前後または使用版を追跡できる形で残します。ログだけに依存せず、業務上必要な履歴はDBの監査・版テーブルへ保存します。
+
+## バックアップと復旧
+
+- 更新前バックアップ、migration適用結果、DB疎通、アップロード・PDF件数を確認する。
+- DBバックアップとファイル領域の対応を保ち、片方だけ古い状態に戻さない。
+- 本番・NAS更新は `main` とリポジトリ管理スクリプトを正とする。
+- 復旧後は `/api/health`、`schema_migrations`、主要画面、帳票参照を確認する。
+
+## 保守時の禁止事項
+
+- `main` への直接push。
+- 適用済みmigration、実DB、`.env`、バックアップの削除・上書き。
+- 確定帳票や実績の直接更新。
+- 個人情報・口座情報を含む実データを検証・設計資料へ転用すること。
+- 仕様の矛盾を推測で確定すること。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

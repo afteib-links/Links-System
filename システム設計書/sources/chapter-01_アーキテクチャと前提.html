@@ -1,0 +1,69 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>アーキテクチャと前提の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#chapter-01_%E3%82%A2%E3%83%BC%E3%82%AD%E3%83%86%E3%82%AF%E3%83%81%E3%83%A3%E3%81%A8%E5%89%8D%E6%8F%90">設計書のこの章へ戻る</a><h1>アーキテクチャと前提の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/01_アーキテクチャと前提.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/01_アーキテクチャと前提.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="chapter-01_%E3%82%A2%E3%83%BC%E3%82%AD%E3%83%86%E3%82%AF%E3%83%81%E3%83%A3%E3%81%A8%E5%89%8D%E6%8F%90.md" download="アーキテクチャと前提.md">アーキテクチャと前提.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false"># 2. アーキテクチャと前提
+
+## 構成
+
+```text
+PCブラウザ
+  └─ HTML / CSS / vanilla JavaScript SPA
+       └─ HTTPSまたは社内LAN HTTP / Cookieセッション
+            └─ Node.js 20 + Express API
+                 ├─ MariaDB 10.11（共有データ・セッション・監査履歴）
+                 ├─ PDF生成（確定帳票を永続保存）
+                 ├─ Excel取込・出力
+                 └─ 銀行CSV出力
+
+Docker Compose
+  ├─ app コンテナ
+  └─ db コンテナまたはNAS上のMariaDB
+```
+
+フロントエンドはReact等のフレームワークを使わない単一SPAです。機能キーを基準にJavaScriptモジュールを遅延読込し、REST APIへアクセスします。APIは起動時に未適用migrationを連番で適用します。
+
+## 採用理由
+
+- NASで小規模運用でき、開発PC・テストNAS・本番NASで構成をそろえやすい。
+- ブラウザへ業務データを閉じ込めず、複数利用者が同じ状態を参照できる。
+- ExpressとMariaDBに処理を集約し、権限、計算、確定、トランザクションをクライアント任せにしない。
+- migrationとDockerイメージで、環境差と手作業のDB変更を減らす。
+
+## 認証と権限
+
+ログイン後のセッションはMariaDBの `sessions` に保存し、CookieはHttpOnly・SameSite=Laxです。ユーザーは複数ロールを持ち、ロールから機能権限を解決します。機能ごとの既定ロールはコードにあり、管理画面で上書きできます。
+
+画面が非表示でもAPIへ直接アクセスできないよう、ルート側でも認証・機能権限・操作別条件を確認します。本設計書は内部構造を含むため、管理者・システム担当者だけが閲覧できます。
+
+## 整合性と変更競合
+
+- 請求・支払・先払など複数テーブルを更新する処理はサーバー側トランザクションで行う。
+- 編集対象は `version` 等による楽観ロックを使い、別利用者の更新を黙って上書きしない。
+- 既適用migrationは編集せず、新しい連番SQLを追加する。
+- 確定後の帳票・スナップショットは再生成せず、取消・訂正を別記録として残す。
+
+## 障害・復旧の前提
+
+アプリ更新前に必要なバックアップを取得し、`schema_migrations`、DB件数、アップロード、PDFの対応を確認します。通常更新でDBボリュームや `data/mysql` を削除しません。NAS移行・DB置換はリポジトリ管理の専用スクリプトを使い、`/api/health` が `db: &quot;up&quot;` を返すまで成功扱いにしません。
+
+## 採用していない扱い
+
+- ブラウザローカルDBを共有正本にしない。
+- 発行済み帳票を最新マスタから都度再生成しない。
+- 入出金予定と銀行実績を同じ行の上書きで済ませない。
+- 本番の顧客データをテスト・設計資料・Gitへ複製しない。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

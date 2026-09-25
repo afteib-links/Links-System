@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>基本案件の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-base_projects">設計書のこの章へ戻る</a><h1>基本案件の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/base_projects.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/base_projects.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-base_projects.md" download="基本案件.md">基本案件.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: base_projects
+related_features: companies, projects, price_sets, base_management
+primary_tables: base_projects, projects, project_revisions
+api_prefixes: /api/projects
+specs: 仕様MD/個別機能仕様書：1-3. 案件マスタ管理画面.md, 仕様MD/05_project_price_relationship.md
+---
+# 基本案件
+
+## 目的と設計意図
+
+繰り返し利用する仕事の標準条件をひな形として管理します。ひな形の後日変更が既存契約へ遡及しないよう、個別案件とは別のライフサイクルにしています。
+
+## 利用場面と操作手順
+
+同種の仕事を複数のパートナー・契約で繰り返すとき、その標準条件を登録します。
+
+1. 企業と請求先を確認し、基本案件に名称、標準勤務時間、締日などを設定します。
+2. 基本案件に対応する金額データへ、標準の料金と適用期間を登録します。
+3. この基本案件を元に個別案件を作成し、パートナー、契約期間、個別条件を確認します。
+4. 基本案件を変更した場合は、既存の個別案件へ何を反映する必要があるか別途確認します。
+
+## なぜこの手順で利用するか
+
+基本案件は繰り返し入力を減らすためのひな形です。個別案件へ条件と料金をコピーして独立させるのは、後日のひな形変更で既に合意した契約単価が変わることを防ぐためです。
+
+## 利用例と完了の確認
+
+同じ配送業務に2名を配属する場合、基本案件を1件作り、そこから個別案件を2件作成します。それぞれのパートナーと期間を確認し、片方の個別料金を変更しても、もう片方の料金が変わらないことを検証環境で確認します。
+
+## 作成・変更の経緯と根拠
+
+`仕様MD/05_project_price_relationship.md` §4では、ひな形の全料金セット・料金行を複製する理由を「単価の隔離」と明記しています。§9.0では、基本料金の改定を既存個別案件へ反映する場合も差分比較と競合解決を経て新しい改定版を作る方針が追加されています。
+
+## 利用者・権限
+
+管理者、システム担当者、総務、営業が権限内で扱います。
+
+## 前提・入力・処理・出力
+
+企業、案件名、標準勤務・締め・請求条件等を入力します。個別案件の新規作成時に条件をコピーする元になります。
+
+## 関連機能・前後工程
+
+企業を先に登録し、基本案件から個別案件を作り、個別案件へパートナーと金額データを割り当てます。
+
+## 主要API・データ
+
+`base_projects` がひな形、`projects` が契約実体です。必要な改定履歴は `project_revisions` で追跡します。
+
+## 状態・制御・注意点
+
+基本案件の編集で既存の個別案件を一括上書きしません。適用先を明示したコピー・改定だけを許可します。
+
+## 現行業務との乖離・確認事項
+
+Excel上でひな形と実契約が同じ行に混在していた項目について、コピー時点と変更責任の確認が必要です。
+
+## 今後の改善
+
+基本案件と個別案件の差分比較、改定候補の選択適用、利用中ひな形の影響診断を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

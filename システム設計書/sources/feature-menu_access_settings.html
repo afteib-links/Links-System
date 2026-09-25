@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>利用可能メニュー選択の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-menu_access_settings">設計書のこの章へ戻る</a><h1>利用可能メニュー選択の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/menu_access_settings.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/menu_access_settings.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-menu_access_settings.md" download="利用可能メニュー選択.md">利用可能メニュー選択.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: menu_access_settings
+related_features: users, help_settings
+primary_tables: feature_role_permissions, feature_role_permission_revision
+api_prefixes: /api/menu-access
+specs: 仕様MD/Login.md, 仕様MD/07_auth_and_permissions.md, 仕様MD/計画/30_システム専用メニューとExcel出入.md
+---
+# 利用可能メニュー選択
+
+## 目的と設計意図
+
+役割ごとに利用できる機能を設定し、組織変更に対応します。コード上の安全な既定値を持ちつつ、DBの設定で上書きします。
+
+## 利用場面と操作手順
+
+組織の役割に合わせ、どのロールがどの機能を使えるかを変更します。
+
+1. ユーザー管理で実際の担当者に付いているロールを確認します。
+2. 利用可能メニュー選択で、対象ロールと機能の許可を変更して保存します。
+3. 対象ロールの確認用アカウントで再表示し、メニューと対象機能のアクセスを確認します。
+4. 承認・確定・取消など、機能内の操作権限も別に確認します。
+
+## なぜこの手順で利用するか
+
+この設定は人の名前ではなくロールに適用されます。兼務で複数ロールを持つ人もいるため、チェック表だけでは実際の利用範囲を判断できません。メニューの許可と重要操作の許可は別の制限も持つので、画面が開けるだけで承認権限があるとは限りません。
+
+## 利用例と完了の確認
+
+ある担当グループへ新機能を許可する場合、利用者のロールと保存後の実際のアクセスを照合します。管理権限を持つ経路が残ることも確認します。設計書の閲覧は管理者・システム担当者限定で、このメニュー表だけでは一般利用者へ開放できません。
+
+## 作成・変更の経緯と根拠
+
+2026-09-13の決定ログで、メニューのチェックを表示だけでなくAPI権限にも反映し、既存の操作別制限を維持する方針が決まりました。PR #143のレビューでは、関連APIの権限確認や未認識経路の拒否を補強した記録があります。
+
+## 利用者・権限
+
+管理者とシステム担当者が編集します。最後の管理アクセスを失う設定は禁止します。
+
+## 前提・入力・処理・出力
+
+機能とロールの許可行列を入力し、版競合を検査して保存します。次の操作から各利用者の権限へ反映します。
+
+## 関連機能・前後工程
+
+ユーザー管理で付与したロールと組み合わせ、サイドバー表示とAPI権限を決めます。
+
+## 主要API・データ
+
+許可行列を `feature_role_permissions`、更新競合用の版を `feature_role_permission_revision` に保持します。
+
+## 状態・制御・注意点
+
+メニュー非表示だけを安全対策にせずAPIでも検査します。検証用データ等は権限があっても環境制約を維持します。
+
+## 現行業務との乖離・確認事項
+
+役職名と実際の操作責任が一致するか、承認・取消等の操作別制限と併せて確認します。
+
+## 今後の改善
+
+変更履歴、権限シミュレーション、危険な組合せの警告、操作単位権限を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

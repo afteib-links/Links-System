@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ヘルプ編集設定の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-help_settings">設計書のこの章へ戻る</a><h1>ヘルプ編集設定の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/help_settings.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/help_settings.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-help_settings.md" download="ヘルプ編集設定.md">ヘルプ編集設定.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: help_settings
+related_features: master_settings, ui_builder, menu_access_settings
+primary_tables: help_contents
+api_prefixes: /api/help
+specs: 仕様MD/計画/22_マスターヘルプとUIビルダー一覧項目.md
+---
+# ヘルプ編集設定
+
+## 目的と設計意図
+
+各画面ヘッダーの「ヘルプ」に表示する短い概要と、入力・操作の影響説明を編集します。全体教育を行う利用マニュアルや内部設計書とは役割を分けます。
+
+## 利用場面と操作手順
+
+利用者がその画面で迷う項目や操作について、短い説明を追加・修正します。
+
+1. 対象の画面キーを選び、現在表示されるヘルプを確認します。
+2. 概要と「何を入力すると、どうなるか」を、実際の項目名に合わせて編集します。
+3. 保存後に対象画面の「ヘルプ」を開き、本文と表示を確認します。
+4. 業務の前後関係は利用マニュアル、理由・経緯は本設計書にも反映します。
+
+## なぜこの手順で利用するか
+
+操作中には、その場で必要な短い説明が役立ちます。説明だけ先に変えると実装と食い違うため、対象画面の挙動を確認して記載します。ヘルプの保存は業務条件や計算処理を変える操作ではありません。
+
+## 利用例と完了の確認
+
+日報の確認チェックについて「入力者の日次確認で、月次承認とは別」と追記します。対象画面でその説明が読め、実際の操作と一致していれば完了です。ヘルプ本文の更新番号と、稼働システムのビルド識別子は別物です。
+
+## 作成・変更の経緯と根拠
+
+2026-09-09の決定ログで、管理者・システム担当者が画面概要と操作影響を変更する専用機能が定められました。初期計画の「画面定数でDB化しない」という記述は、後の決定と現行の `help_contents` 保存方式に置き換わっています。2026-09-12、Issue #140ではシステム版情報を本文から独立させました。
+
+## 利用者・権限
+
+管理者とシステム担当者が編集し、保存した説明は該当画面を利用できる全利用者が参照します。
+
+## 前提・入力・処理・出力
+
+画面キー、タイトル、概要、操作説明を入力し、画面別ヘルプモーダルへ出力します。
+
+## 関連機能・前後工程
+
+機能追加時に画面キーとヘルプを追加し、利用マニュアル・設計書の詳細へ必要に応じて誘導します。
+
+## 主要API・データ
+
+`help_contents` に画面キーごとの本文、版、更新日時を保存します。
+
+## 状態・制御・注意点
+
+ヘルプへパスワード、個人情報、口座情報、実データを記載しません。業務仕様をヘルプ編集だけで変更しません。
+
+## 現行業務との乖離・確認事項
+
+利用者がつまずく箇所と説明量が適切か、画面受入時に確認します。
+
+## 今後の改善
+
+設計書・マニュアルへの文脈リンク、変更履歴、公開前プレビューを検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

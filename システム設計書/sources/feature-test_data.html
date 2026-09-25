@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>検証用データの原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-test_data">設計書のこの章へ戻る</a><h1>検証用データの原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/test_data.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/test_data.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-test_data.md" download="検証用データ.md">検証用データ.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: test_data
+related_features: companies, partners, projects, daily_reports, invoices, payments, cash_management
+primary_tables: test_data_drafts, test_data_generation_jobs, test_data_monthly_generation_jobs, test_data_settlement_generation_jobs, test_data_output_generation_jobs
+api_prefixes: /api/test-data
+specs: docs/development/TEST_DATA_TOOL.md, docs/development/TEST_DATA_AND_SECRETS.md, 仕様MD/計画/28_日報起点検証データツール.md
+---
+# 検証用データ
+
+## 目的と設計意図
+
+匿名のマスター・日報・承認・精算・出力を段階生成し、実データを使わず業務フローを検証します。専用環境・専用DBでのみ利用する安全機能です。
+
+## 利用場面と操作手順
+
+業務の受入確認、操作練習、計算や帳票の確認用に、専用検証DBでデータを作ります。
+
+1. 検証用の接続先・環境であることを確認し、件数・期間・通常勤務や例外などのケースを設定します。
+2. サンプルをプレビューし、対象期間や金額・稼働条件を確認して設定版を承認します。
+3. 日報、提出・月次承認、先払・請求・支払、確定・帳票・入出金の順に、前段ジョブの完了を確認して生成します。
+4. 各段階の検証結果を確認し、失敗時はジョブの状況を確認して再開します。
+5. 生成した案件を業務画面で開き、確認したい操作と期待結果を照合します。
+
+## なぜこの手順で利用するか
+
+段階を分けることで、料金計算の問題か、月次承認・精算・出力の問題かを切り分けられます。設定版を承認してから生成するのは、確認した条件と実際の生成条件を一致させるためです。生成完了は業務要件への一致確認そのものではありません。
+
+## 利用例と完了の確認
+
+完了月・前月・当月を用意して、承認済み・差戻し・入力途中の案件をそれぞれ確認します。件数だけでなく、未来日の実績がないこと、不要日の扱い、請求・支払・帳票の根拠一致を確認します。検証専用銀行CSVを銀行へ送信しません。
+
+## 作成・変更の経緯と根拠
+
+決定ログのIssue #117でサンプル設定・承認から開始し、#126で日報、#128で提出・承認、#130で精算、#132で確定・帳票・入出金へ段階拡張されています。通常業務と同じ計算・確定処理を使い、生成側に別の計算を持たせない方針です。参照: `仕様MD/05_decision_log.md`、`docs/development/TEST_DATA_TOOL.md`。
+
+## 利用者・権限
+
+管理者とシステム担当者だけが利用し、検証用環境であることを追加条件とします。
+
+## 前提・入力・処理・出力
+
+匿名化した件数・期間・ケースを入力し、下書き承認後にジョブ単位で日報、月次承認、精算、帳票・予定を生成します。
+
+## 関連機能・前後工程
+
+全業務機能のE2E確認へ使います。生成物は専用テーブルでジョブと紐付け、既存の非検証データを消しません。
+
+## 主要API・データ
+
+各段階のジョブと生成対象対応表を保持し、安全な削除・再生成範囲を限定します。
+
+## 状態・制御・注意点
+
+本番では利用不可にし、`@_` 等の明確な識別を使います。実在名、実口座、実帳票を入力しません。
+
+## 現行業務との乖離・確認事項
+
+検証ケースが業務上の通常・境界・例外を十分に代表するか、業務担当者の確認が必要です。
+
+## 今後の改善
+
+乖離チェック表とケースの対応、失敗再現セット、期待結果の自動比較を検討します。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>

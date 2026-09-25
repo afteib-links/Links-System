@@ -1,0 +1,79 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ユーザー管理の原稿</title><link rel="stylesheet" href="/system-design/source.css"></head>
+<body><main><a href="/system-design/#feature-users">設計書のこの章へ戻る</a><h1>ユーザー管理の原稿</h1>
+<p>編集するファイル：<code id="source-path">仕様MD/システム設計/機能/users.md</code></p>
+<p>下の本文はHTML生成時の閲覧用コピーです。修正はお手元のプロジェクト内のMarkdownへ保存し、設計書を再生成してください。</p>
+<section aria-labelledby="edit-heading"><h2 id="edit-heading">元のMarkdownを編集する</h2>
+<p>初回だけ、このPCにある LinksSystem フォルダーの場所を入力してください。設定はこのブラウザに記憶します。</p>
+<label for="project-folder">編集用プロジェクトフォルダー（絶対パス）</label><input id="project-folder" type="text" placeholder="例：C:\作業\LinksSystem" autocomplete="off" spellcheck="false">
+<label for="editor-choice">編集ソフト</label><select id="editor-choice"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select>
+<p><a id="open-editor" hidden>元のMarkdownを編集ソフトで開く</a> <button id="copy-path" type="button">編集ファイルのパスをコピー</button></p>
+<label for="resolved-path">編集するファイルの場所</label><input id="resolved-path" type="text" readonly value="仕様MD/システム設計/機能/users.md">
+<p id="source-status" role="status" aria-live="polite"></p>
+<p>リンクには選んだ編集ソフトのインストールが必要です。開けない場合はパスをコピーし、お使いの編集ソフトの「ファイルを開く」に貼り付けてください。NASで閲覧している場合も、ここには編集用PC側のフォルダーを指定します。</p></section>
+<h2>原稿の内容（閲覧用）</h2><a href="feature-users.md" download="ユーザー管理.md">ユーザー管理.md をダウンロード</a>
+<p>ダウンロードしたコピーの編集だけでは正本に反映されません。上記の編集元ファイルへ変更内容を反映してください。</p>
+<textarea id="source-content" readonly aria-label="Markdown原稿" spellcheck="false">---
+feature_key: users
+related_features: menu_access_settings, ui_builder, daily_reports, invoices, payments
+primary_tables: users, sessions
+api_prefixes: /api/users, /api/auth
+specs: 仕様MD/Login.md, 仕様MD/07_auth_and_permissions.md
+---
+# ユーザー管理
+
+## 目的と設計意図
+
+ログインID、表示名、複数ロール、所属、担当範囲、企業・パートナー本人紐付け、有効状態を管理します。本人情報と機能権限を分けて扱います。
+
+## 利用場面と操作手順
+
+新しい担当者への利用開始、異動・兼務の変更、利用停止時に使います。
+
+1. ログインIDの重複を確認し、表示名と担当業務に必要なロールを設定します。
+2. 所属・担当範囲を確認します。企業・パートナー用アカウントでは本人に対応する企業・パートナーとの紐付けを確認します。
+3. 保存後、対象アカウントでログインし、必要な機能と対象範囲が表示されるか確認します。
+4. 異動・退職時はロールや有効状態を見直し、業務履歴に残る担当者を追跡できる状態を保ちます。
+
+## なぜこの手順で利用するか
+
+ロールは利用できる機能、本人紐付けや担当範囲は参照する業務データを決めます。片方だけ設定しても適切な利用範囲にはなりません。個人単位のアカウントを使うことで、承認・訂正・設定変更を誰が行ったか確認できます。
+
+## 利用例と完了の確認
+
+検証パートナーAの確認用アカウントなら、パートナーロールに加えてAの本人紐付けを設定します。ログイン後にAの対象が見え、権限外の相手先へアクセスできないか確認します。管理者アカウントだけで確認を終えないようにします。
+
+## 作成・変更の経緯と根拠
+
+`仕様MD/Login.md`と `07_auth_and_permissions.md`が認証・役割・本人範囲の根拠です。2026-09-13の決定ログで、ロールとメニュー許可を組み合わせる運用が追加されています。初回の認証方式選定に至った議論の全経緯は、これらの資料だけでは確認できません。
+
+## 利用者・権限
+
+管理者とシステム担当者が管理します。利用者は自分に付与された範囲だけを利用します。
+
+## 前提・入力・処理・出力
+
+ID、パスワード、表示名、ロール、部署、エリア、本人紐付けを入力します。認証後に公開用ユーザー情報と機能権限をセッションへ出力します。
+
+## 関連機能・前後工程
+
+利用可能メニュー設定がロールから機能権限を決めます。承認、取消、監査ログはユーザーIDを記録します。
+
+## 主要API・データ
+
+`users` にアカウントとハッシュ、`sessions` にログインセッションを保持します。
+
+## 状態・制御・注意点
+
+無効ユーザーはログインできません。パスワードを平文保存・表示せず、最後の管理者を失わないようにします。削除は原則無効化です。
+
+## 現行業務との乖離・確認事項
+
+兼務、代理入力、退職・異動、企業・パートナー本人の閲覧範囲が実運用と一致するか確認します。
+
+## 今後の改善
+
+パスワード再設定、ログイン監査、一定期間未使用の警告、多要素認証を候補とします。
+</textarea>
+<h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
+npm run docs:system-design:check --prefix backend</pre>
+</main><script src="/system-design/source.js" defer></script></body></html>
