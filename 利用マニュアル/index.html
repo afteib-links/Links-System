@@ -134,6 +134,21 @@
           </div>
           <div class="flow-result" aria-live="polite" data-flow-result>機能を選択すると、ここに役割と前後関係が表示されます。</div>
         </section>
+        <section class="operation-image" aria-labelledby="overview-operation-heading">
+          <h2 id="overview-operation-heading">運用イメージ</h2>
+          <p>初めて担当する総務が、9月分の定期便を処理する日を例にします。</p>
+          <ol class="operation-steps"><li>管理者から案内されたURLと自分のIDでログインする。</li><li>企業・パートナー・案件・料金の登録を確認してから、届いた日報を入力する。</li><li>日次確認と月次承認の後、請求・支払へ進み、銀行の実行結果を入出金管理へ記録する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="overview-input-heading">
+          <h2 id="overview-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>ログインID</dt><dd><samp>demo_soumu</samp><small>説明用の架空ID。実際は管理者から割り当てられたIDを使用します。</small></dd></div>
+            <div><dt>パスワード</dt><dd><samp>本人用に案内された値</samp><small>マニュアルに共通パスワードは掲載しません。</small></dd></div>
+            <div><dt>日報で選ぶ月</dt><dd><samp>2026-09</samp><small>ログイン後、各業務画面で対象月を選びます。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>マニュアルを見ても業務データは登録されません。練習は管理者が用意した検証環境で行ってください。</p>
+        </section>
       </article>
 
       <article class="manual-chapter intro-chapter" id="roles" data-chapter="roles">
@@ -145,6 +160,20 @@
           <section><h2>企業・パートナー</h2><p>企業は自社の請求、パートナーは自分の日報・支払を確認します。社内用のマスタや他社情報は表示されません。</p></section>
         </div>
         <p class="warning"><strong>共通の注意：</strong>一覧で絞り込んでもデータは削除されません。確定・取消・実行の操作は履歴や帳票に影響するため、対象月と相手先を必ず確認してください。</p>
+        <section class="operation-image" aria-labelledby="roles-operation-heading">
+          <h2 id="roles-operation-heading">運用イメージ</h2>
+          <p>総務が入力し、営業が内容を確認する分担の例です。</p>
+          <ol class="operation-steps"><li>総務が日報原本と入力内容を照合する。</li><li>営業が担当案件の承認待ちを確認する。</li><li>確定権限を持つ担当が請求・支払を確定する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="roles-input-heading">
+          <h2 id="roles-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>総務の確認対象</dt><dd><samp>2026年9月／見本物流株式会社</samp><small>担当する案件を日報・事務作業で選びます。</small></dd></div>
+            <div><dt>営業の確認対象</dt><dd><samp>定期便A／承認待ち</samp><small>担当範囲外の情報は権限によって表示されません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>この章に登録フォームはありません。担当の選択例です。承認・確定は権限のある担当だけが実施します。</p>
+        </section>
       </article>
 
       <article class="manual-chapter intro-chapter" id="differences" data-chapter="differences">
@@ -165,12 +194,41 @@
           <section><h2>金額データ と 計算ルール管理</h2><p>金額データは契約ごとの単価・料金条件、計算ルールは日次・月次・控除・税などの処理を版管理します。契約単価の改定と計算処理の公開は別の変更です。</p></section>
           <section><h2>ユーザー管理 と 利用可能メニュー選択</h2><p>ユーザー管理は「誰がどの役割か」、利用可能メニュー選択は「その役割が何を使えるか」です。複数役割では許可を合わせて判定し、承認・取消の操作制限は別に適用します。</p></section>
         </div>
+        <section class="operation-image" aria-labelledby="differences-operation-heading">
+          <h2 id="differences-operation-heading">運用イメージ</h2>
+          <p>FAXは届いているが、内容がまだ未入力のケースで使い分けます。</p>
+          <ol class="operation-steps"><li>日報提出で原本の到着を記録する。</li><li>日報で開始・終了・休憩などの実績を入力する。</li><li>事務作業で進捗を見直し、受領と承認を混同していないか確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="differences-input-heading">
+          <h2 id="differences-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>日報提出で記録</dt><dd><samp>1回目：提出済み／提出日 2026-09-11</samp><small>原本の受領を表す値です。</small></dd></div>
+            <div><dt>日報で入力</dt><dd><samp>9月1日：開始 8／終了 17／休憩 1</samp><small>時間が08:00／17:00／1:00に変換されます。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>同じ案件でも入力先が違います。「提出済み」にしても勤務時間の入力や月次承認は完了しません。</p>
+        </section>
       </article>
 
       <article class="manual-chapter feature-chapter" id="base_management" data-chapter="base_management">
         <div class="chapter-head"><div><p class="eyebrow">マスタを横断する</p><h1>基本管理</h1></div><span class="role-badge">管理者・システム・総務</span></div>
         <p class="purpose">企業 → 基本案件 → 個別案件 → 金額データを列でたどり、「この会社のこの仕事に、どの料金がつながっているか」を確認する入口です。登録の正本ではなく、関係を見失わないために作られています。</p>
         <figure><img src="screenshots/base_management.png" alt="企業から金額データまでを横断する基本管理画面"><figcaption>上位を選ぶと下位が絞られます。編集は対象をダブルクリックして各マスタへ進みます。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="base_management-operation-heading">
+          <h2 id="base_management-operation-heading">運用イメージ</h2>
+          <p>総務が、定期便Aの契約と料金のつながりを問い合わせ対応前に確認します。</p>
+          <ol class="operation-steps"><li>企業列で見本物流株式会社を選ぶ。</li><li>基本案件、個別案件、金額データを順に選ぶ。</li><li>適用期間を確認し、訂正が必要なら対象の編集画面へ進む。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="base_management-input-heading">
+          <h2 id="base_management-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>企業列の選択</dt><dd><samp>見本物流株式会社</samp><small>以下の名称は説明用の架空データです。</small></dd></div>
+            <div><dt>基本案件 → 個別案件</dt><dd><samp>定期便A → 定期便A・見本太郎</samp><small>親子の関係を確認します。</small></dd></div>
+            <div><dt>金額データの確認</dt><dd><samp>2026-09-01適用／平日料金</samp><small>この画面では単価を二重入力しません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>対象企業・パートナー・適用開始日がそろっていることを確認します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 料金のつながりを調べる</h3><p>企業を選び、基本案件、個別案件、金額データの順に選びます。右のプレビューで適用期間と単価を確認します。</p></section>
           <section><h3>2. 下位の情報を追加する</h3><p>企業・基本案件などの親を選び、対象列の「追加」から登録画面を開きます。引き継がれた親の情報を確認して保存します。未選択時は先に親を選びます。</p></section>
@@ -182,6 +240,22 @@
         <div class="chapter-head"><div><p class="eyebrow">取引先の正本</p><h1>企業マスタ</h1></div><span class="role-badge">管理者・システム・総務</span></div>
         <p class="purpose">請求先となる企業の基本情報、請求先、車両、担当を管理します。請求書の宛先や案件選択に使われるため、表記を統一します。</p>
         <figure><img src="screenshots/03_companies_list.png" alt="企業マスタの一覧画面"><figcaption>検索で対象企業を絞り、詳細で住所・請求先・担当などを編集します。並び順や絞り込みを確認してから新規登録します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="companies-operation-heading">
+          <h2 id="companies-operation-heading">運用イメージ</h2>
+          <p>総務が、新しい取引先の契約書をもとに請求先を準備します。</p>
+          <ol class="operation-steps"><li>企業名で検索し、同一企業が未登録か確認する。</li><li>新規登録で企業情報を入力して保存する。</li><li>既定の請求先を開き、請求書の印字名称・送付先を照合して案件登録へ進む。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="companies-input-heading">
+          <h2 id="companies-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>企業名（必須）</dt><dd><samp>見本物流株式会社</samp><small>法人の正式名称を契約書と一致させます。</small></dd></div>
+            <div><dt>企業名カナ</dt><dd><samp>ミホンブツリュウ</samp><small>架空の名称です。</small></dd></div>
+            <div><dt>事業所名</dt><dd><samp>見本営業所</samp><small>本社と区別する場合の例です。</small></dd></div>
+            <div><dt>基本締日</dt><dd><samp>末日</samp><small>登録済みの区分から契約に合う値を選びます。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>名称だけで完了とせず、実運用では住所・担当・請求先など必要項目も確認してください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新規取引先を登録する</h3><p>「新規登録」から正式名称、略称、住所、締日などを入力します。保存後、既定の請求先No.0を確認します。</p></section>
           <section><h3>2. 部門別の請求先を追加する</h3><p>企業詳細の請求先欄で企業情報をコピーし、部門名・住所・取纏No.を変更して保存します。</p></section>
@@ -193,6 +267,21 @@
         <div class="chapter-head"><div><p class="eyebrow">委託先・稼働者の正本</p><h1>パートナーマスタ</h1></div><span class="role-badge">管理者・システム・総務</span></div>
         <p class="purpose">業務を担当するパートナーの連絡先、振込先、契約状態を管理します。個別案件への割当と支払の相手先になります。</p>
         <figure><img src="screenshots/05_partners_list.png" alt="パートナーマスタの一覧画面"><figcaption>個人情報や口座情報は権限のある担当者だけが取り扱います。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="partners-operation-heading">
+          <h2 id="partners-operation-heading">運用イメージ</h2>
+          <p>総務が、新しく定期便を担当するパートナーを登録します。</p>
+          <ol class="operation-steps"><li>名称で既存登録を検索する。</li><li>契約書を見て名称・カナ・メールなどを入力し保存する。</li><li>振込先を本人確認資料で照合し、個別案件の担当パートナーとして選択する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="partners-input-heading">
+          <h2 id="partners-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>名称（必須）</dt><dd><samp>見本 太郎</samp><small>実在しない説明用の名前です。</small></dd></div>
+            <div><dt>カナ</dt><dd><samp>ミホン タロウ</samp><small>登録する名称の読みを入力します。</small></dd></div>
+            <div><dt>メールアドレス</dt><dd><samp>taro@example.com</samp><small>説明用の予約ドメイン。実際の連絡先に置き換えます。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>口座番号を見本から流用しないでください。本人の確認済み口座と一致することを確認してから支払に使用します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新しいパートナーを登録する</h3><p>氏名・名称、連絡先、所属、契約状態を登録し、個別案件から選べる状態にします。</p></section>
           <section><h3>2. 振込先を変更する</h3><p>詳細で銀行・支店・口座を確認して変更します。確定済み帳票や実績は過去時点の情報を維持します。</p></section>
@@ -204,6 +293,21 @@
         <div class="chapter-head"><div><p class="eyebrow">仕事のひな形</p><h1>基本案件</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
         <p class="purpose">繰り返し使う業務条件のテンプレートです。ここから個別案件を作ると、属性と料金一式がコピーされ、実契約側を独立して編集できます。</p>
         <figure><img src="screenshots/07_base_projects_list.png" alt="基本案件の一覧画面"><figcaption>一覧から基本案件を登録・編集し、基本時刻や企業、締日など個別案件を作るときの初期値を整えます。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="base_projects-operation-heading">
+          <h2 id="base_projects-operation-heading">運用イメージ</h2>
+          <p>営業が、同じ条件で複数名に割り当てる定期便のひな形を用意します。</p>
+          <ol class="operation-steps"><li>企業を選び、基本案件を新規登録する。</li><li>業務名と標準の開始・終了・休憩を入力する。</li><li>保存後に標準料金を設定し、実際の担当者を持つ個別案件を作る。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="base_projects-input-heading">
+          <h2 id="base_projects-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>企業</dt><dd><samp>見本物流株式会社</samp><small>先に企業マスタへ登録した企業を選択します。</small></dd></div>
+            <div><dt>業務名</dt><dd><samp>定期便A</samp><small>複数の契約で共通利用する名称です。</small></dd></div>
+            <div><dt>基本時刻</dt><dd><samp>開始 08:00／終了 17:00／休憩 1:00</samp><small>日報の実績そのものではなく標準条件の例です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>実契約の担当パートナーは個別案件で設定します。ひな形を変更しても既存案件は自動では変わりません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 定期便のひな形を作る</h3><p>企業、業務名、基本時刻、締日を登録し、標準の金額データを用意します。</p></section>
           <section><h3>2. 似た業務を複製する</h3><p>既存の基本案件をコピーし、名称や時刻だけを変更します。元のひな形は変わりません。</p></section>
@@ -215,6 +319,22 @@
         <div class="chapter-head"><div><p class="eyebrow">実際に動く契約</p><h1>個別案件</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
         <p class="purpose">誰が、どの企業の、どの期間・条件の仕事を担当するかを管理します。日報・請求・支払は個別案件単位でつながります。</p>
         <figure><img src="screenshots/10_projects_detail.png" alt="個別案件の詳細画面"><figcaption>基本案件から作成し、担当パートナー、契約期間、請求先を実契約に合わせます。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="projects-operation-heading">
+          <h2 id="projects-operation-heading">運用イメージ</h2>
+          <p>営業が、見本太郎さんの9月からの契約を作成します。</p>
+          <ol class="operation-steps"><li>定期便Aの基本案件から個別案件を作る。</li><li>パートナー、契約期間、請求先を実契約に合わせる。</li><li>コピーされた料金の適用日と請求・支払額を確認して日報入力へ渡す。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="projects-input-heading">
+          <h2 id="projects-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>担当パートナー</dt><dd><samp>見本 太郎</samp><small>同名の場合は登録番号も確認します。</small></dd></div>
+            <div><dt>開始日</dt><dd><samp>2026-09-01</samp><small>契約書の稼働開始日に合わせます。</small></dd></div>
+            <div><dt>請求先</dt><dd><samp>見本物流株式会社／請求先No.0</samp><small>企業に登録した請求先から選びます。</small></dd></div>
+            <div><dt>支払区分</dt><dd><samp>契約で定めた通常または分割</samp><small>分割契約は先払いの対象となるため契約と照合します。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>個別案件と料金は独立した契約データです。基本案件だけを直して修正完了としないでください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新しい契約を開始する</h3><p>基本案件から個別案件を作り、パートナー、開始日、請求先、支払区分を確認して保存します。</p></section>
           <section><h3>2. 担当者を交代する</h3><p>契約境界を確認し、必要に応じて元案件を終了して新しい案件をコピー作成します。過去日報の担当は維持します。</p></section>
@@ -226,6 +346,21 @@
         <div class="chapter-head"><div><p class="eyebrow">請求と支払の条件</p><h1>金額データ管理</h1></div><span class="role-badge">管理者・システム・総務・営業</span></div>
         <p class="purpose">適用期間ごとの料金カードを管理します。同じ勤務実績でも、企業へ請求する単価とパートナーへ支払う単価を別々に持ちます。</p>
         <figure><img src="screenshots/12_price_sets_detail.png" alt="金額データの編集画面"><figcaption>曜日・料金項目・請求額・支払額を確認し、適用開始日を基準に履歴を残します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="price_sets-operation-heading">
+          <h2 id="price_sets-operation-heading">運用イメージ</h2>
+          <p>営業が、9月開始の平日料金を登録する例です。</p>
+          <ol class="operation-steps"><li>対象案件の金額データを開き、適用開始日と名称を入力する。</li><li>平日カードで曜日と料金項目を設定し、請求と支払を別々に入力する。</li><li>保存後に対象日の未確定日報で適用料金を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="price_sets-input-heading">
+          <h2 id="price_sets-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>適用開始日／名称</dt><dd><samp>2026-09-01／定期便A・9月料金</samp><small>将来の改定は旧版の上書きではなくコピー改定にします。</small></dd></div>
+            <div><dt>料金カードの曜日</dt><dd><samp>月・火・水・木・金</samp><small>ALLとの重複選択を避けます。</small></dd></div>
+            <div><dt>日額基本の請求額／支払額</dt><dd><samp>20000／16000</samp><small>入力は円記号なし。説明用の契約単価です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>請求20,000円と支払16,000円の差額は4,000円ですが、税・経費・控除を含む最終額とは別です。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 初回料金を登録する</h3><p>適用開始日、名称、平日・休日などの料金カードを登録し、請求額と支払額をそれぞれ入力します。</p></section>
           <section><h3>2. 休日・深夜料金を分ける</h3><p>対象曜日と項目種別を確認して専用行を追加します。同じ時間を複数料金へ重複計上しない構成にします。</p></section>
@@ -237,6 +372,21 @@
         <div class="chapter-head"><div><p class="eyebrow">月次進捗の横断確認</p><h1>事務作業</h1></div><span class="role-badge">管理者・総務・営業・経営者</span></div>
         <p class="purpose">企業やパートナーを起点に、日報・請求・支払の進み具合を一画面で確認します。ここで本体を入力するのではなく、遅れている工程を見つけて各機能へ移動します。</p>
         <figure><img src="screenshots/office_work.png" alt="日報・請求・支払の状態を横断する事務作業画面"><figcaption>対象月と状態を確認し、気になる工程から実処理画面へ進みます。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="office_work-operation-heading">
+          <h2 id="office_work-operation-heading">運用イメージ</h2>
+          <p>総務が、9月の月末処理で止まっている工程を探します。</p>
+          <ol class="operation-steps"><li>対象月を9月に合わせ、企業またはパートナーを選ぶ。</li><li>日報・請求・支払の進捗を横並びで確認する。</li><li>未処理の工程から実際の入力画面へ進み、処理後に戻って進捗を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="office_work-input-heading">
+          <h2 id="office_work-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月</dt><dd><samp>2026-09</samp><small>前月の一覧を見ていないか確認します。</small></dd></div>
+            <div><dt>確認する相手先</dt><dd><samp>見本物流株式会社</samp><small>案件名も照合します。</small></dd></div>
+            <div><dt>確認する工程</dt><dd><samp>日報が未入力の案件</samp><small>ここで勤務時間や請求金額を直接入力する例ではありません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>絞り込みは表示を変えるだけです。元データの入力・承認は移動先の画面で行います。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 未入力の日報を先に片付ける</h3><p>対象月を合わせ、日報が未入力の企業・案件を絞り、日報画面へ移動します。</p></section>
           <section><h3>2. 営業確認待ちを担当別に見る</h3><p>担当企業を選び、請求・支払の確認待ちを見つけて該当詳細へ進みます。</p></section>
@@ -252,6 +402,22 @@
         <p>開始・終了・休憩は、230・2.30・2:30を02:30、1730を17:30、8を08:00へ変換します。全角数字も入力できます。2.3は曖昧なためエラーになります。2.03または2.30と入力してください。翌4時は28:00、開始・終了の上限は47:59です。</p>
         <p>Tabで開始→終了→休憩→次行、Shift＋Tabで逆順に移動します。全項目入力では表示中の編集可能な入力欄を移動します。Ctrl＋Sで保存、F2で行詳細、Alt＋↓で時分選択、Escで詳細から行へ戻れます。詳細内にいる間は詳細の入力欄を巡回します。</p>
         <p class="note">時間入力で隠れている距離・経費も保持されます。非表示項目の件数と合計を確認し、必要なら全項目入力へ切り替えます。不正な値は修正してから保存してください。未保存のまま画面を移動すると確認が表示されます。</p>
+        <section class="operation-image" aria-labelledby="daily_reports-operation-heading">
+          <h2 id="daily_reports-operation-heading">運用イメージ</h2>
+          <p>総務が、9月1日分のFAXを原本と照らしながら入力します。</p>
+          <ol class="operation-steps"><li>9月・定期便A・見本太郎の対象行を開く。</li><li>時間入力で開始→終了→休憩をTabで移動し、全項目入力へ切り替えて距離と経費を入力する。</li><li>Ctrl＋Sで保存し、実働時間と請求・支払の計算根拠を原本・契約に照合して日次確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="daily_reports-input-heading">
+          <h2 id="daily_reports-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>勤務日</dt><dd><samp>2026-09-01</samp><small>表示中の案件とパートナーも確認します。</small></dd></div>
+            <div><dt>開始 → 終了 → 休憩</dt><dd><samp>8 → 17 → 1</samp><small>各欄に入力。移動すると08:00／17:00／1:00になります。</small></dd></div>
+            <div><dt>距離／通行料／駐車料</dt><dd><samp>120／1500／500</samp><small>整数km・整数円で入力します。</small></dd></div>
+            <div><dt>自動計算の確認</dt><dd><samp>拘束9時間／実働8時間</samp><small>計算結果の見本です。実働欄へ8を直接入力する操作ではありません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>入力値と計算結果を照合します。月次承認は別工程で、保存しただけでは請求・支払の本番確定へ進めません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. FAXの日報を連続入力する</h3><p>時間入力で開始に8、Tabで終了へ移動して17、Tabで休憩へ移動して1と入力します。次の日へ進み、全項目入力に切り替えて距離120km・通行料1,500円を登録します。Ctrl＋Sで保存し、原本と照合して日次確認を付けます。</p></section>
           <section><h3>2. Excelをまとめて取り込む</h3><p>一覧の「データ取り込み」でファイルと列対応を確認します。外部ファイルの金額は採用せず、システムの料金で再計算します。</p></section>
@@ -263,6 +429,21 @@
         <div class="chapter-head"><div><p class="eyebrow">原本が届いたかを管理</p><h1>日報提出</h1></div><span class="role-badge">管理者・システム・総務・営業・経営者</span></div>
         <p class="purpose">パートナーから紙・FAX・メール等の日報が届いた事実を、案件ごとの月3サイクルで記録します。勤務実績の入力画面ではありません。</p>
         <figure><img src="screenshots/daily_report_submissions.png" alt="日報提出を3サイクルで確認する画面"><figcaption>提出済みは日報入力件数から自動設定されません。届いた原本を確認して記録します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="daily_report_submissions-operation-heading">
+          <h2 id="daily_report_submissions-operation-heading">運用イメージ</h2>
+          <p>9月上旬のFAXが9月11日に届いたため、総務が受領を記録します。</p>
+          <ol class="operation-steps"><li>対象月と案件を検索する。</li><li>1回目の提出をONにし、原本の到着日を入力する。</li><li>保存結果を確認し、日報画面で実績を入力する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="daily_report_submissions-input-heading">
+          <h2 id="daily_report_submissions-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月／検索</dt><dd><samp>2026-09／定期便A</samp><small>対象パートナーが見本太郎であることも確認します。</small></dd></div>
+            <div><dt>1回目の提出</dt><dd><samp>提出済み（ON）</samp><small>FAXの受領を確認してから操作します。</small></dd></div>
+            <div><dt>提出日</dt><dd><samp>2026-09-11</samp><small>入力日ではなく実際に届いた日です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>受領前はOFFのままにします。ONにしても日報の時間や金額は登録されません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 上旬分のFAXが届いた</h3><p>対象月と案件を確認し、1回目の提出をONにします。実際の到着日が今日でなければ提出日を直します。</p></section>
           <section><h3>2. 提出予定日を過ぎた案件を確認する</h3><p>遅延表示を絞り、パートナーへ確認します。受領していないものを推測でONにしません。</p></section>
@@ -274,6 +455,21 @@
         <div class="chapter-head"><div><p class="eyebrow">月途中の前払い</p><h1>先払い</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
         <p class="purpose">支払区分が分割の個別案件について、月3サイクルの先払い予定・手数料・実績を管理します。月次支払の前に渡した金額として、後の支払へ反映されます。</p>
         <figure><img src="screenshots/16_advances.png" alt="先払いを3サイクルで管理する画面"><figcaption>稼働0日でも対象案件は表示されます。対象月・サイクル・案件を必ず確認します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="advances-operation-heading">
+          <h2 id="advances-operation-heading">運用イメージ</h2>
+          <p>総務が、分割契約の9月1回目の先払い予定を作成します。</p>
+          <ol class="operation-steps"><li>対象月と1回目、分割対象の案件を確認する。</li><li>画面の予定額・手数料を確認し、例外変更があれば金額と理由を入力する。</li><li>支払予定を作成・更新し、入出金管理で予定日と金額を照合する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="advances-input-heading">
+          <h2 id="advances-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月／サイクル</dt><dd><samp>2026-09／1回目</samp><small>分割契約として登録済みの案件を対象にします。</small></dd></div>
+            <div><dt>例外の先払い額</dt><dd><samp>50000</samp><small>画面の元値と区別して確認する説明例です。</small></dd></div>
+            <div><dt>変更理由</dt><dd><samp>本人申出により今回のみ5万円へ変更</samp><small>実運用では社内確認を経た具体的な理由を残します。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>手数料や最終振込額は設定によって異なります。予定作成だけで銀行振込済みにはなりません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 上旬グループの予定を作る</h3><p>対象月の1回目を選び、対象案件と金額・手数料を確認して「支払予定を作成・更新」します。</p></section>
           <section><h3>2. 例外金額へ変更する</h3><p>元値を確認し、変更額と理由を入力して予定を更新します。変更履歴が残ります。</p></section>
@@ -285,6 +481,21 @@
         <div class="chapter-head"><div><p class="eyebrow">企業から受け取る金額</p><h1>請求</h1></div><span class="role-badge">管理者・経営者・総務・営業・企業</span></div>
         <p class="purpose">日報の請求側計算を月額明細にまとめ、営業確認・一括承認・帳票発行を行います。請求先や条件が一致する案件は取りまとめられます。</p>
         <figure><img src="screenshots/17_invoices_list.png" alt="請求の対象月と登録内容を確認する一覧画面"><figcaption>対象を選んで下書きを作り、詳細で明細・承認・発行状態を確認します。検証例では未作成のため一覧は空です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="invoices-operation-heading">
+          <h2 id="invoices-operation-heading">運用イメージ</h2>
+          <p>総務が、9月の承認済み日報から企業向け請求を作ります。</p>
+          <ol class="operation-steps"><li>対象月・企業・案件を選び、下書きを作成する。</li><li>日報から再反映し、明細・請求先・税と調整を確認する。</li><li>営業確認と承認を経て発行し、入出金管理の入金予定を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="invoices-input-heading">
+          <h2 id="invoices-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月／企業</dt><dd><samp>2026-09／見本物流株式会社</samp><small>下書き作成時の選択条件です。</small></dd></div>
+            <div><dt>対象案件</dt><dd><samp>定期便A・見本太郎</samp><small>複数案件をまとめる場合は請求先等の条件を確認します。</small></dd></div>
+            <div><dt>明細照合の見本</dt><dd><samp>20日 × 20,000円 ＝ 400,000円</samp><small>日額基本だけの税・経費・調整前の見本。合計欄へ直接入力しません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>日報が20日分でも料金区分が違えばこの金額にはなりません。実際の明細と計算根拠を優先します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 1案件の請求書を作る</h3><p>対象月・企業・案件を確認して下書きを作り、日報から再反映、明細確認、営業確認依頼へ進みます。</p></section>
           <section><h3>2. 同じ請求先の2案件をまとめる</h3><p>請求先・取纏No.・締日などの条件が一致する案件を選び、1枚の請求へまとめます。条件が違う場合は分けます。</p></section>
@@ -296,6 +507,21 @@
         <div class="chapter-head"><div><p class="eyebrow">パートナーへ渡す金額</p><h1>支払</h1></div><span class="role-badge">管理者・経営者・総務・営業・パートナー</span></div>
         <p class="purpose">日報の支払側計算を月額明細にまとめ、先払い、振込手数料、定額控除を反映して最終振込額を確定します。</p>
         <figure><img src="screenshots/19_payments_list.png" alt="支払の対象月と登録内容を確認する一覧画面"><figcaption>対象月から下書きを作り、詳細で内訳と控除を確認して承認後に帳票を発行します。検証例では未作成のため一覧は空です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="payments-operation-heading">
+          <h2 id="payments-operation-heading">運用イメージ</h2>
+          <p>総務が、9月の日報と先払い実績を照合して月次精算します。</p>
+          <ol class="operation-steps"><li>対象月・パートナー・案件を選んで下書きを作成する。</li><li>日報の支払明細と、先払い・手数料・定額控除を確認する。</li><li>確認・承認・発行を経て出金予定へ進み、銀行実行は別に記録する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="payments-input-heading">
+          <h2 id="payments-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月／パートナー</dt><dd><samp>2026-09／見本 太郎</samp><small>作成する案件も確認します。</small></dd></div>
+            <div><dt>支払明細照合の見本</dt><dd><samp>20日 × 16,000円 ＝ 320,000円</samp><small>日額基本のみの計算例です。</small></dd></div>
+            <div><dt>先払い照合の見本</dt><dd><samp>今回精算対象の先払い実績 50,000円</samp><small>手数料等を除いた差額例は270,000円。最終額を手入力する指示ではありません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>画面に反映済みの先払いをさらに手動控除しないでください。税・経費・その他控除を含む実際の最終振込額を確認します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 通常の月次支払を作る</h3><p>対象案件の下書きを作り、日報明細、支払単価、控除を確認して営業確認へ進みます。</p></section>
           <section><h3>2. 先払い済み金額を精算する</h3><p>先払い実績と手数料が控除側に反映されていることを確認し、月次総額との差額を最終振込額とします。</p></section>
@@ -307,6 +533,21 @@
         <div class="chapter-head"><div><p class="eyebrow">銀行で動く予定と実績</p><h1>入出金管理・FB出力</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
         <p class="purpose">請求入金、通常支払、先払いなどを管理回・予定・実績に分けて確認し、銀行CSVを出力します。CSV出力だけでは実行済みになりません。</p>
         <figure><img src="screenshots/21_cash_management.png" alt="入出金予定を一覧とカレンダーで管理する画面"><figcaption>業務上の管理回、銀行予定日、実際の実行日を分けて記録します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="cash_management-operation-heading">
+          <h2 id="cash_management-operation-heading">運用イメージ</h2>
+          <p>経理担当が、銀行で完了した振込を予定と照合して記録します。</p>
+          <ol class="operation-steps"><li>対象月・締日から該当の出金予定を開く。</li><li>銀行の結果に一致する予定だけに実行日と実行額を入力する。</li><li>登録後の状態・実績を確認する。口座残高は別の口座調整台帳で管理する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="cash_management-input-heading">
+          <h2 id="cash_management-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月／締日</dt><dd><samp>2026-09／25日</samp><small>予定日と銀行での実際の実行日は区別します。</small></dd></div>
+            <div><dt>実績の区分／実行日</dt><dd><samp>実行／2026-09-25</samp><small>銀行の完了記録を確認した場合の例です。</small></dd></div>
+            <div><dt>実行額</dt><dd><samp>50000</samp><small>先払いの対象予定と銀行結果が両方50,000円の場合の例です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>CSV出力だけでは実行にしません。実績登録から銀行預金残高は自動更新されません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 締日25日の振込予定を確認する</h3><p>対象月と「締日」の25日を選び、出金予定、口座、金額を確認します。休日の出金は前営業日、入金は翌営業日に調整されます。カレンダーの日付は1回押すと強調表示、ダブルクリックでその日の一覧へ切り替わります。</p></section>
           <section><h3>2. 銀行CSVを出力する</h3><p>公開済みの銀行設定と振込元口座を選び、対象予定からCSVを出力します。出力後の状態は「出力済み」です。</p></section>
@@ -318,6 +559,21 @@
         <div class="chapter-head"><div><p class="eyebrow">結果を比べる</p><h1>収支分析</h1></div><span class="role-badge">管理者・経営者・総務</span></div>
         <p class="purpose">請求と支払の結果を担当者、企業、パートナーなどの切り口で比較し、利益率や稼働日を確認します。元データを変更する画面ではありません。</p>
         <figure><img src="screenshots/analytics.png" alt="一覧表・利益率・稼働日を切り替える収支分析画面"><figcaption>数字に違和感がある場合は、元の案件・日報・請求・支払へ戻って確認します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="analytics-operation-heading">
+          <h2 id="analytics-operation-heading">運用イメージ</h2>
+          <p>管理者が、9月の企業別収支から確認対象を探します。</p>
+          <ol class="operation-steps"><li>対象月を選び、企業別利益率などの表を開く。</li><li>見本物流の売上・原価・利益率を比較する。</li><li>想定と違うときは案件・日報・請求・支払の根拠を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="analytics-input-heading">
+          <h2 id="analytics-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>対象月</dt><dd><samp>2026-09</samp><small>比較する月をそろえます。</small></dd></div>
+            <div><dt>表の選択</dt><dd><samp>企業別利益率</samp><small>分析の切り口を選ぶ例です。</small></dd></div>
+            <div><dt>確認対象</dt><dd><samp>見本物流株式会社</samp><small>結果セルを入力・修正する画面ではありません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>集計範囲や反映状態を確認し、異常があれば元データ側で訂正します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 営業担当者別の状況を見る</h3><p>対象月を選び、一覧表で担当者ごとの請求、支払、差額を比較します。</p></section>
           <section><h3>2. 利益率が低い企業を確認する</h3><p>企業別利益率を並べ替え、基準を下回る企業の案件・料金を確認します。</p></section>
@@ -329,6 +585,21 @@
         <div class="chapter-head"><div><p class="eyebrow">会社共通の業務値</p><h1>マスター設定</h1></div><span class="role-badge">管理者・システム・総務</span></div>
         <p class="purpose">担当者、事業所、採番、区分、祝日、振込手数料、銀行CSV、振込元口座、画面色など、全社で共通利用する設定を管理します。</p>
         <figure><img src="screenshots/22_master_settings_hub.png" alt="マスター設定の機能カード一覧"><figcaption>変更前に、カードのヘルプで影響する画面と登録方法を確認します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="master_settings-operation-heading">
+          <h2 id="master_settings-operation-heading">運用イメージ</h2>
+          <p>管理者が、日報の入力文字を見やすくする共通設定を確認します。</p>
+          <ol class="operation-steps"><li>マスター設定のシステム設定から日報入力画面の設定を開く。</li><li>現在値を控え、入力文字サイズと時間刻みを確認・設定する。</li><li>保存後に日報を開き直し、表示と増減操作を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="master_settings-input-heading">
+          <h2 id="master_settings-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>設定の対象</dt><dd><samp>システム設定／日報入力画面</samp><small>会社共通の設定です。</small></dd></div>
+            <div><dt>入力文字サイズ（px）</dt><dd><samp>16</samp><small>数値だけを入力します。単位のpxは入力しません。</small></dd></div>
+            <div><dt>時間の代替刻み（分）</dt><dd><samp>5</samp><small>数値だけを入力します。契約の時間丸め単位がない場合の増減操作の刻みです。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>入力操作の刻みを変えることと、契約上の料金・計算ルールを変えることは別です。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 来年の祝日を登録する</h3><p>祝日マスターへ日付と名称を登録します。日報の行色と休日料金候補に影響します。</p></section>
           <section><h3>2. 振込元口座を追加する</h3><p>銀行情報と口座を登録し、入出金管理で選べることを確認します。公開前のCSV設定は下書きで検証します。</p></section>
@@ -340,6 +611,21 @@
         <div class="chapter-head"><div><p class="eyebrow">画面内の短い説明</p><h1>ヘルプ編集設定</h1></div><span class="role-badge">管理者・システム</span></div>
         <p class="purpose">各画面上部の「ヘルプ」で表示する概要と、入力がどこへ影響するかの説明を編集します。業務全体を教える利用マニュアルとは役割が違います。</p>
         <figure><img src="screenshots/help_settings.png" alt="画面ごとのヘルプ内容を編集する画面"><figcaption>短く、現在の画面だけで理解できる説明を登録します。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="help_settings-operation-heading">
+          <h2 id="help_settings-operation-heading">運用イメージ</h2>
+          <p>管理者またはシステム担当が、日報の入力担当向けに短い注意を追記します。</p>
+          <ol class="operation-steps"><li>対象の日報画面のヘルプ編集を開く。</li><li>タイトル・概要・操作説明へ案内文を入力する。</li><li>保存し、日報画面のヘルプで表示と改行を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="help_settings-input-heading">
+          <h2 id="help_settings-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>タイトル</dt><dd><samp>日報入力時の確認ポイント</samp><small>対象画面が分かる名前にします。</small></dd></div>
+            <div><dt>画面の概要</dt><dd><samp>勤務実績を入力し、請求・支払の根拠を確認します。</samp><small>簡潔に目的を書きます。</small></dd></div>
+            <div><dt>何を入力するとどうなるか・操作説明</dt><dd><samp>翌4時は28:00で入力。保存後、原本と照合してください。</samp><small>現在利用できる操作だけを記載します。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>ヘルプ文を保存しても日報データや権限は変わりません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新しいボタンの説明を追加する</h3><p>対象機能を選び、画面概要と操作結果を更新します。専門用語だけで説明しないようにします。</p></section>
           <section><h3>2. 誤解されやすい入力の影響を書く</h3><p>例えば「CSV出力では実行済みにならない」など、その画面で特に必要な注意を追記します。</p></section>
@@ -351,6 +637,21 @@
         <div class="chapter-head"><div><p class="eyebrow">一覧の見え方を統一</p><h1>UIビルダー</h1></div><span class="role-badge">管理者・システム</span></div>
         <p class="purpose">主な一覧で表示する列と並び順を会社共通で設定します。データの中身は変えず、必要な情報を見つけやすくします。</p>
         <figure><img src="screenshots/24_ui_builder.png" alt="一覧の表示列を設定するUIビルダー"><figcaption>保存した構成は同じ一覧を使う全利用者へ反映されます。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="ui_builder-operation-heading">
+          <h2 id="ui_builder-operation-heading">運用イメージ</h2>
+          <p>管理者が、企業一覧で締日を見落としにくい列配置にします。</p>
+          <ol class="operation-steps"><li>機能画面で企業一覧を選び、対象の一覧エリアへ進む。</li><li>締日の表示をONにして、必要に応じて列順を変更する。</li><li>保存後に企業一覧を開き、PCと狭い画面で表示を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="ui_builder-input-heading">
+          <h2 id="ui_builder-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>機能画面／エリア</dt><dd><samp>企業一覧／一覧の項目設定</samp><small>実際の画面選択に沿って進みます。</small></dd></div>
+            <div><dt>締日の表示</dt><dd><samp>ON</samp><small>対象一覧で利用可能な列から選びます。</small></dd></div>
+            <div><dt>列順の例</dt><dd><samp>企業名の近くに締日を配置</samp><small>操作列や選択チェックは変更対象外です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>会社共通の見え方に反映されます。締日の登録値そのものは変わりません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 企業一覧に締日を表示する</h3><p>企業一覧を選び、締日の列を表示対象へ追加して保存します。</p></section>
           <section><h3>2. よく見る列を左へ移す</h3><p>対象一覧で列順を変更し、画面幅の狭い端末でも重要列が先に見えるようにします。</p></section>
@@ -362,6 +663,21 @@
         <div class="chapter-head"><div><p class="eyebrow">利用者と権限</p><h1>ユーザー管理</h1></div><span class="role-badge">管理者・システム</span></div>
         <p class="purpose">ログインする人のID、表示名、所属、複数の権限、有効・無効を管理します。権限によってメニューと参照できる範囲が変わります。</p>
         <figure><img src="screenshots/25_users.png" alt="ユーザー一覧と権限を管理する画面"><figcaption>必要最小限の権限を付与し、使わなくなったアカウントは無効にします。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="users-operation-heading">
+          <h2 id="users-operation-heading">運用イメージ</h2>
+          <p>管理者が、日報入力を担当する新入社員のアカウントを準備します。</p>
+          <ol class="operation-steps"><li>既存IDを確認してから新規ユーザー画面を開く。</li><li>ID・名・本人用パスワードと必要な権限・所属を設定する。</li><li>本人の再ログイン後、担当メニューと参照範囲を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="users-input-heading">
+          <h2 id="users-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>ID／名</dt><dd><samp>demo_soumu／見本 総務</samp><small>実在しない説明用IDです。</small></dd></div>
+            <div><dt>権限（複数可）</dt><dd><samp>総務</samp><small>必要な権限だけを選びます。</small></dd></div>
+            <div><dt>パスワード</dt><dd><samp>本人用に個別発行した値</samp><small>見本の共通パスワードは使用しません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>画面を使える権限と担当データの範囲は別です。実運用の所属と担当範囲も確認してください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 新入社員のIDを作る</h3><p>ログインID、表示名、初期パスワード、所属、担当業務に必要な権限を登録します。</p></section>
           <section><h3>2. 総務と営業の両方を担当する</h3><p>必要な複数権限を付与し、再ログイン後に対象メニューと担当範囲を確認します。</p></section>
@@ -373,6 +689,20 @@
         <div class="chapter-head"><div><p class="eyebrow">原本を編集用Excelへ整える</p><h1>マスターデータ取込</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">旧原本Excelを編集用の形式へ変換します。通常の変換では業務データをDBへ登録しません。基盤マスター初期値の選択復旧は、この画面の別操作です。</p>
         <figure><img src="screenshots/master_data_preparation.png" alt="マスターデータ取込の画面"><figcaption>原本Excelを編集用に変換／基盤マスター初期値を選択復旧。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="master_data_preparation-operation-heading">
+          <h2 id="master_data_preparation-operation-heading">運用イメージ</h2>
+          <p>移行担当が、旧Excelを編集用の形式へ変換します。</p>
+          <ol class="operation-steps"><li>匿名の旧原本Excelを選び、変換する。</li><li>件数と要確認箇所を確認して編集用Excelをダウンロードする。</li><li>編集用Excelの不備を修正し、DB取込の検証へ渡す。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="master_data_preparation-input-heading">
+          <h2 id="master_data_preparation-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>原本Excelの選択</dt><dd><samp>移行練習用.xlsx</samp><small>説明用のファイル名。任意のExcelではなく対応する原本形式が必要です。</small></dd></div>
+            <div><dt>操作</dt><dd><samp>変換する → 編集用Excelをダウンロード</samp><small>ファイル名自体を画面の文字欄へ入力する操作ではありません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>通常の変換だけではDBは更新されません。初期値復旧は別の操作なので、この練習では実行しません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 旧Excelを移行する</h3><p>原本Excelを選んで「変換する」を押し、件数と要確認箇所を見て「編集用Excelをダウンロード」します。修正したファイルはDB取込へ渡します。</p></section>
           <section><h3>2. 共通区分を元に戻す</h3><p>マスターデータ出力で取得した同じシステム版の初期値Excelを選び、「初期値との差分を確認」を押します。現在値と初期値を照合し、必要な行だけ選択して復旧します。</p></section>
@@ -384,6 +714,21 @@
         <div class="chapter-head"><div><p class="eyebrow">完成Excelを検証して登録する</p><h1>DB取込</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">編集済みExcelをDBへ登録・更新する工程です。新規、更新、変更なし、エラー、依存先エラー、競合を先に確認し、正常行だけを登録します。</p>
         <figure><img src="screenshots/db_import.png" alt="DB取込の画面"><figcaption>完成Excelを検証・登録。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="db_import-operation-heading">
+          <h2 id="db_import-operation-heading">運用イメージ</h2>
+          <p>移行担当が、DB出力した企業情報の住所1件を修正して取り込みます。</p>
+          <ol class="operation-steps"><li>出力Excelの取込キーなどの管理項目を保持したまま、住所を編集する。</li><li>編集済みExcelを選び、検証する。</li><li>更新対象と内容を照合して正常行を登録し、企業画面で再確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="db_import-input-heading">
+          <h2 id="db_import-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>ファイル選択</dt><dd><samp>企業住所修正_見本.xlsx</samp><small>DB出力した形式を維持したファイルの例です。</small></dd></div>
+            <div><dt>Excel内の住所</dt><dd><samp>見本市見本町1-2-3</samp><small>架空の住所。対応する住所欄だけを編集します。</small></dd></div>
+            <div><dt>検証結果の確認例</dt><dd><samp>更新1件／エラー0件／競合0件</samp><small>期待件数の例。実際の全件数と差分を確認します。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>正常行登録はDBを書き換えます。想定外の更新や競合があれば登録せず、元データを再取得して照合します。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 住所を一括修正する</h3><p>DB出力で取得したExcelの住所を編集し、この画面でファイルを選んで「検証する」を押します。更新件数と内容を確認して「正常行を登録」を実行します。</p></section>
           <section><h3>2. 参照先エラーを直す</h3><p>案件の企業・パートナー参照にエラーがあれば、エラーExcelを取得して取込キーと親データを修正し、再検証します。</p></section>
@@ -395,6 +740,21 @@
         <div class="chapter-head"><div><p class="eyebrow">現在の登録値をExcelへ取り出す</p><h1>DB出力</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">現行DBの企業・請求先・車両・パートナー・案件・料金を編集用Excelに出力します。手入力したレコードも対象です。</p>
         <figure><img src="screenshots/db_export.png" alt="DB出力の画面"><figcaption>現行DBのマスターをExcelへ出力。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="db_export-operation-heading">
+          <h2 id="db_export-operation-heading">運用イメージ</h2>
+          <p>移行担当が、現在の企業住所を一覧で確認するためExcelを取得します。</p>
+          <ol class="operation-steps"><li>DB出力でExcelを作成する。</li><li>ダウンロードしたファイルを保存し、対象の企業を探す。</li><li>修正する場合は管理項目を保持して編集し、DB取込へ渡す。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="db_export-input-heading">
+          <h2 id="db_export-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>画面での操作</dt><dd><samp>Excelを作成 → ダウンロード</samp><small>この画面には企業名や住所の入力は不要です。</small></dd></div>
+            <div><dt>保存後のファイル名の例</dt><dd><samp>現行マスター_20260925.xlsx</samp><small>自分の端末で付ける管理用の名前です。</small></dd></div>
+            <div><dt>Excelで探す値</dt><dd><samp>見本物流株式会社</samp><small>現行登録値を確認する例です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>出力ファイルには業務情報が含まれます。社内の保管場所を使い、DB全体のバックアップとは区別してください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 現在値を確認する</h3><p>「Excelを作成」を押し、作成後に「ダウンロード」します。出力はマスター情報の確認用で、日報・帳票を含むDB全体のバックアップではありません。</p></section>
           <section><h3>2. 複数のマスターを修正する</h3><p>出力Excelの取込キーと項目コードを保持して値を編集し、DB取込で差分を検証します。</p></section>
@@ -406,6 +766,21 @@
         <div class="chapter-head"><div><p class="eyebrow">システムの初期定義を取得する</p><h1>マスターデータ出力</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">システムに同梱された基盤マスター初期値Excelを取得します。現在の企業・パートナーなどの登録値を取り出すDB出力とは内容が異なります。</p>
         <figure><img src="screenshots/master_data_export.png" alt="マスターデータ出力の画面"><figcaption>基盤マスター初期値Excelの出力。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="master_data_export-operation-heading">
+          <h2 id="master_data_export-operation-heading">運用イメージ</h2>
+          <p>管理者が、共通区分の初期定義を調べるため同梱Excelを取得します。</p>
+          <ol class="operation-steps"><li>マスターデータ出力でExcelを作成する。</li><li>ダウンロードし、初期値のシート・項目を確認する。</li><li>復旧が必要ならマスターデータ取込で差分を確認して対象行だけを選ぶ。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="master_data_export-input-heading">
+          <h2 id="master_data_export-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>画面での操作</dt><dd><samp>Excelを作成 → ダウンロード</samp><small>業務企業名などの入力は不要です。</small></dd></div>
+            <div><dt>保存後のファイル名の例</dt><dd><samp>基盤初期値_確認用.xlsx</samp><small>同じシステム版の出力を使います。</small></dd></div>
+            <div><dt>確認したい内容</dt><dd><samp>区分・システム設定の初期値</samp><small>現在の企業住所を確認するならDB出力へ進みます。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>取得しただけでは現在の登録値は変わりません。初期値全体を不用意に復旧しないでください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 初期の区分を調べる</h3><p>「Excelを作成」から「ダウンロード」へ進み、初期値のシートと項目を確認します。</p></section>
           <section><h3>2. 誤変更した区分を復旧する</h3><p>取得した初期値Excelをマスターデータ取込の復旧欄へ渡します。差分を確認し、必要な行だけを選択して復旧します。</p></section>
@@ -417,6 +792,21 @@
         <div class="chapter-head"><div><p class="eyebrow">動作確認用のサンプルを準備する</p><h1>検証用データ</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">検証専用環境・検証専用DBでサンプル確認から日報、月次承認、精算、帳票まで段階的に生成します。メニューが表示されても通常環境では生成できません。</p>
         <figure><img src="screenshots/test_data.png" alt="検証用データの画面"><figcaption>通常環境では生成不可の案内、検証環境ではサンプル設計。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="test_data-operation-heading">
+          <h2 id="test_data-operation-heading">運用イメージ</h2>
+          <p>管理者が用意した検証専用環境で、日報入力の練習用サンプルを確認します。</p>
+          <ol class="operation-steps"><li>検証専用URLと専用DBであることを管理者に確認する。</li><li>期間・スタンスなどを設定し、まずサンプルを表示する。</li><li>補完内容を確認して設定版を承認し、必要な生成段階だけを実行する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="test_data-input-heading">
+          <h2 id="test_data-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>開始日／基準日</dt><dd><samp>2026-09-01／2026-09-25</samp><small>練習期間の設定例です。</small></dd></div>
+            <div><dt>スタンス</dt><dd><samp>現実の稼働中心</samp><small>境界・例外テストとは目的を分けます。</small></dd></div>
+            <div><dt>乱数シード</dt><dd><samp>20260925</samp><small>同じ条件で確認するための値の例です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>通常環境では生成できません。この見本を理由に保護設定を解除したり本番DBにサンプルを作ったりしないでください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 日報入力を練習する</h3><p>管理者が用意した検証環境で元データと稼働パターンを設定し、サンプルを表示します。補完内容を確認してその設定版を承認した後、日報を生成します。</p></section>
           <section><h3>2. 月末処理を確認する</h3><p>日報生成の完了を確認し、日報提出・月次承認、先払・請求・支払、確定・帳票・入出金の順に生成して結果を確認します。</p></section>
@@ -428,6 +818,21 @@
         <div class="chapter-head"><div><p class="eyebrow">計算処理を版ごとに検証する</p><h1>計算ルール管理</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">日次計算、月次集約、控除、税・丸めなどの処理を版管理します。金額データは契約単価、この画面は計算の処理条件を管理するために分かれています。</p>
         <figure><img src="screenshots/calculation_rules.png" alt="計算ルール管理の画面"><figcaption>ルール版一覧から詳細・検証・公開へ。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="calculation_rules-operation-heading">
+          <h2 id="calculation_rules-operation-heading">運用イメージ</h2>
+          <p>システム担当が、既存版から検証用の下書き版を準備します。</p>
+          <ol class="operation-steps"><li>既存版の詳細から、この版から下書きを作る。</li><li>名称・適用期間を設定し、引き継いだ処理を確認して下書き保存する。</li><li>検証と現行版との比較で差分を確認する。公開は社内確認後の別判断とする。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="calculation_rules-input-heading">
+          <h2 id="calculation_rules-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>名称</dt><dd><samp>10月運用確認用</samp><small>説明用の下書き名です。</small></dd></div>
+            <div><dt>適用開始日</dt><dd><samp>2026-10-01</samp><small>実際に適用する合意日を設定します。</small></dd></div>
+            <div><dt>適用終了日</dt><dd><samp>空欄</samp><small>終了が未定の場合の例です。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>この見本では計算式を変更しません。公開しただけで既存下書きは再計算されず、確定済み結果も変更しません。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 次の計算版を準備する</h3><p>既存版の「詳細」から「この版から下書きを作る」を押し、名称・適用期間・処理を確認して下書き保存します。公開済み版は直接編集できません。</p></section>
           <section><h3>2. 変更の影響を確認する</h3><p>下書きで「検証」と「現行版と比較」を行い、問題を修正してから「公開」します。比較は標準例であり、実データ全件の差分ではありません。</p></section>
@@ -439,6 +844,21 @@
         <div class="chapter-head"><div><p class="eyebrow">役割ごとの利用範囲を設定する</p><h1>利用可能メニュー選択</h1></div><span class="role-badge">初期設定：管理者・システム担当者</span></div>
         <p class="purpose">役割と機能のチェック表でメニュー利用を設定します。ユーザー管理で人に役割を付け、この画面で役割に機能を割り当てます。</p>
         <figure><img src="screenshots/menu_access_settings.png" alt="利用可能メニュー選択の画面"><figcaption>役割×機能のチェック表と保存するボタン。画面例は匿名検証環境です。</figcaption></figure>
+        <section class="operation-image" aria-labelledby="menu_access_settings-operation-heading">
+          <h2 id="menu_access_settings-operation-heading">運用イメージ</h2>
+          <p>管理者が、総務に日報提出画面を使わせる設定を確認します。</p>
+          <ol class="operation-steps"><li>対象の役割列と機能行を探す。</li><li>総務列の日報提出をONにし、他の役割に不要な変更がないか確認する。</li><li>保存後、該当担当の次の操作でメニューと実際の利用可否を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="menu_access_settings-input-heading">
+          <h2 id="menu_access_settings-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>役割の列</dt><dd><samp>総務</samp><small>人のIDではなく役割への許可を設定します。</small></dd></div>
+            <div><dt>機能の行／チェック</dt><dd><samp>日報提出／ON</samp><small>承認など操作別の権限まで追加するものではありません。</small></dd></div>
+            <div><dt>操作</dt><dd><samp>保存する</samp><small>同じ役割を持つ利用者へ影響します。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>複数役割は許可の合算です。少なくとも有効な管理者1人がこの画面を利用できる状態を残してください。</p>
+        </section>
         <div class="examples"><h2>具体例</h2>
           <section><h3>1. 総務に必要な機能を許可する</h3><p>総務列の対象機能を確認してチェックし、「保存する」を押します。変更は利用者の次の操作から反映されます。</p></section>
           <section><h3>2. 複数役割の利用者を確認する</h3><p>総務と営業を持つ利用者は、どちらかの役割で許可された機能を利用できます。片方のチェックだけ外しても、もう片方で許可されていれば利用できます。</p></section>
@@ -448,12 +868,26 @@
 
       <article class="manual-chapter intro-chapter" id="release-status" data-chapter="release-status">
         <h1>2026年9月25日版：今回の更新と今後の機能</h1>
-        <p>現行25機能を掲載しています。各機能に画面イメージと3件の運用例があります。画面の役割表示は標準的な担当の目安です。実際の利用可否は「利用可能メニュー選択」と操作別権限で決まります。</p>
+        <p>現行25機能を掲載しています。各機能に画面イメージと3件の運用例があります。導入を含む全29章に「運用イメージ」と架空データによる「入力イメージ」を追加しました。画面の役割表示は標準的な担当の目安です。実際の利用可否は「利用可能メニュー選択」と操作別権限で決まります。</p>
         <h2>今回利用できるようになった操作</h2>
         <p>日報の時間入力・全項目入力切替、テンキー入力、Tab移動、行詳細、保存操作を更新しました。基本管理の追加・コピー、企業・パートナー検索、Excelの出入、計算ルール、メニュー権限も各章で説明しています。</p>
         <h2>合意済み・今後実装する機能</h2>
         <p>社内PDF OCRと欄単位の再取込、案件締め期間への統一、税込燃料費・価格履歴、11月末年度締め・専用帳票は計画段階です。この版の操作手順には含めていません。PDFを選ぶだけで手書き日報を自動読取できる状態ではありません。</p>
         <p>現時点では既存のExcel・CSV取込と手入力を使用します。gogo.gsからの価格自動取得も有効化されていません。</p>
+        <section class="operation-image" aria-labelledby="release-status-operation-heading">
+          <h2 id="release-status-operation-heading">運用イメージ</h2>
+          <p>総務が、紙日報の入力方法を選ぶ前に現在の対応範囲を確認します。</p>
+          <ol class="operation-steps"><li>利用可能な現行機能と、今後実装する計画を区別する。</li><li>現在は手入力、または対応するExcel・CSV取込を選ぶ。</li><li>未提供の機能は既存画面で探し続けず、管理者へ導入状況を確認する。</li></ol>
+        </section>
+        <section class="input-image" aria-labelledby="release-status-input-heading">
+          <h2 id="release-status-input-heading">入力イメージ</h2>
+          <p class="sample-caption">説明用の入力・選択見本です（架空データ）。実画面の完全な再現ではなく、ここでは入力・保存できません。</p>
+          <dl class="sample-fields">
+            <div><dt>現在の日報入力例</dt><dd><samp>開始20:00／終了28:00／休憩1:00</samp><small>日報章の手入力で対応します。</small></dd></div>
+            <div><dt>PDF OCRの入力例</dt><dd><samp>この版では入力・実行できません</samp><small>未実装機能のため、仮の操作ボタンや入力欄は示しません。</small></dd></div>
+          </dl>
+          <p class="sample-check"><strong>操作後の確認・注意：</strong>この章は対応状況の案内です。見本の閲覧による保存・登録はありません。</p>
+        </section>
       </article>
       <footer class="manual-footer">
         <p>画面例は匿名の検証データです。実在する企業・パートナー・口座情報ではありません。</p>

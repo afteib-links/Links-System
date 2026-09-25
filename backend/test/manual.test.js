@@ -40,6 +40,20 @@ test('利用マニュアルのローカル画像と資産参照は存在する',
   }
 });
 
+test('導入章を含む全章に具体的な運用・入力見本と注意がある', () => {
+  const chapters = [...html.matchAll(/<article class="manual-chapter[^>]+>[\s\S]*?<\/article>/g)].map(match => match[0]);
+  assert.equal(chapters.length, featureKeys.length + 4);
+  for (const chapter of chapters) {
+    const id = chapter.match(/data-chapter="([^"]+)"/)[1];
+    assert.match(chapter, new RegExp(`id="${id}-operation-heading">運用イメージ`), id);
+    assert.match(chapter, new RegExp(`id="${id}-input-heading">入力イメージ`), id);
+    assert.match(chapter, /class="operation-steps"/, id);
+    assert.ok((chapter.match(/<samp>/g) || []).length >= 2, `${id}: 入力・選択見本が必要です`);
+    assert.match(chapter, /説明用の入力・選択見本/, id);
+    assert.match(chapter, /操作後の確認・注意/, id);
+  }
+});
+
 test('利用マニュアルJavaScriptに構文エラーがない', () => {
   const file = path.join(manualDir, 'manual.js');
   const checked = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
