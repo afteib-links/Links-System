@@ -82,15 +82,7 @@
     },
 
     parseMinutesInput(value, signed = false) {
-      const text = String(value || '').trim();
-      if (!text) return 0;
-      const match = text.match(signed ? /^(-?)(\d{1,3}):(\d{2})$/ : /^(\d{1,3}):(\d{2})$/);
-      if (!match) throw new Error('時間はH:MM形式で入力してください');
-      const sign = signed && match[1] === '-' ? -1 : 1;
-      const hour = Number(match[signed ? 2 : 1]);
-      const minute = Number(match[signed ? 3 : 2]);
-      if (minute > 59) throw new Error('分は00～59で入力してください');
-      return sign * (hour * 60 + minute);
+      return window.LinksTimeInput.parse(value, { signed }) ?? 0;
     },
 
     parseClockInput(value) {
@@ -105,11 +97,7 @@
     },
 
     normalizeTimeText(value, duration = false) {
-      const text = String(value ?? '').normalize('NFKC').trim();
-      if (!text) return '';
-      const normalized = /^\d{1,2}$/.test(text) ? `${text}:00` : text.replace('.', ':');
-      const minutes = duration ? this.parseMinutesInput(normalized) : this.parseClockInput(normalized);
-      return duration ? this.formatMinutes(minutes) : this.formatClockMinutes(minutes);
+      return window.LinksTimeInput.normalize(value, { maxMinutes: duration ? 59999 : 2879, padHours: !duration });
     },
 
     inputTimeStep(row) {
@@ -307,7 +295,7 @@
           { key: 'template_name', label: '案件名', getValue: (r) => r.template_name || r.manager_name || '-' },
           { key: 'company_name', label: '企業' },
           { key: 'partner_name', label: 'パートナー' },
-          { key: 'closing_date', label: '締日', getValue: (r) => r.closing_date === 'end' ? '末日' : `${r.closing_date || '-'}日` },
+          { key: 'closing_date', label: '締日', getValue: (r) => r.closing_date === 'end' ? '末日' : r.closing_date ? `${r.closing_date}日` : '未設定' },
           { key: 'input_progress', label: '入力進捗', getValue: (r) => `${r.input_days}/${r.days_in_month}（${r.completion_rate}%）` },
           { key: 'workflow_status', label: '月次承認状態', renderCell: (r) => this.kit.statusBadge(r.workflow_status, r.workflow_status_label || r.input_status) },
         ],
@@ -443,6 +431,7 @@
     async showInputGrid(meta) {
       this.ctx.renderLoading();
       this.gridMeta = meta;
+      this.activeEntryIdx = null;
       const params = new URLSearchParams({
         target_year_month: this.ym,
         project_id: meta.project_id,
@@ -482,6 +471,7 @@
       );
       this.monthlyDistance = monthlyDistance.res.ok && monthlyDistance.data?.ok ? monthlyDistance.data.results : {};
       this.projectInputDefaults = inputDefaults.res.ok && inputDefaults.data?.ok ? inputDefaults.data.defaults : {};
+      this.gridMeta = { ...this.projectInputDefaults, ...meta };
       this.dailyReportUiSettings = uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.settings : {};
       this.dailyReportHolidayDates = new Set(uiSettings.res.ok && uiSettings.data?.ok ? uiSettings.data.holiday_dates || [] : []);
       this.renderGrid();
@@ -536,7 +526,7 @@
         const override = overrides?.[side]?.[priceType];
         const value = override !== '' && override != null ? Number(override) : '';
         const reference = original ? this.kit.unitPrice(original) : '-';
-        return `<td><span class="money-input-wrap"><span>￥</span><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /></span><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(info.calc_type)}` : ''}</small></td>`;
+        return `<td><span class="money-input-wrap"><span>￥</span><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /></span><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(({daily:'日額',hourly:'時間単価',distance:'距離単価'})[info.calc_type] || info.calc_type)}` : ''}</small></td>`;
       };
       const types = ['basic', 'shortage', 'overtime', 'night', 'night_overtime'];
       const header = types.map((type) => `<th>${labels[type]}</th>`).join('');
@@ -555,13 +545,14 @@
         ? this.durationInput(row, field, options.decimalField || null)
         : this.kit.timeValue(row[field]);
       const isEmpty = !value || (isDuration && this.parseMinutesInput(value) === 0);
-      if (isEmpty) value = '';
+      if (isEmpty && !row.daily_report_id && !row._dirty) value = '';
       const fieldAttr = isDuration ? `data-minutes-f="${field}"` : `data-f="${field}"`;
       const defaultKind = options.defaultKind || field;
       return `<div class="dr-time-control">
         <button type="button" class="dr-step-button" data-time-step="${field}" data-direction="-1" data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="時間を減らす">−</button>
-        <input class="dr-time-input dr-large-input ${isEmpty ? 'dr-input-empty' : ''}" ${fieldAttr} data-idx="${idx}" data-default-time="${defaultKind}" value="${this.ctx.escapeHtml(value)}" placeholder="${isDuration ? '0:00' : field === 'end_time' ? '28:00' : '08:00'}" ${locked ? 'disabled' : ''} />
+        <input type="text" aria-label="${({start_time:'開始',end_time:'終了',break_minutes:'休憩'})[field] || field}" class="dr-time-input dr-large-input ${isEmpty ? 'dr-input-empty' : ''}" ${fieldAttr} data-idx="${idx}" data-default-time="${defaultKind}" value="${this.ctx.escapeHtml(value)}" placeholder="${isDuration ? '0:00' : field === 'end_time' ? '28:00' : '08:00'}" ${locked ? 'disabled' : ''} />
         <button type="button" class="dr-step-button" data-time-step="${field}" data-direction="1" data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="時間を増やす">＋</button>
+        <button type="button" class="dr-picker-button" data-time-picker data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="時分選択" title="時分選択（Alt＋↓）">▾</button>
       </div>`;
     },
 
@@ -626,6 +617,8 @@
     },
 
     renderGrid(message = '') {
+      const previousWrap = this.ctx.app.querySelector('.dr-grid-wrap');
+      const previousScroll = previousWrap ? { top: previousWrap.scrollTop, left: previousWrap.scrollLeft } : null;
       const sum = this.summaryFromGrid();
       const ui = this.dailyReportUiSettings || {};
       const distanceStep = Number(ui.distance_step || 1);
@@ -649,14 +642,14 @@
               <td>${this.timeInputHtml(r, idx, 'start_time', locked)}</td>
               <td>${this.timeInputHtml(r, idx, 'end_time', locked)}</td>
               <td>${this.timeInputHtml(r, idx, 'break_minutes', locked, { duration: true, decimalField: 'break_time', defaultKind: 'break_minutes' })}</td>
-              <td><span>${this.formatMinutes(Number(r.work_hours || 0) * 60) || '-'}</span></td>
+              <td><span data-worked="${idx}">${r.daily_report_id ? this.formatMinutes(Number(r.work_hours || 0) * 60) : '未入力'}</span></td>
               <td><span>${this.formatMinutes(Number(r.overtime_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.shortage_hours || 0) * 60) || '-'}</span></td>
               <td><input class="dr-large-input dr-distance-input" type="number" step="${distanceStep}" min="0" inputmode="numeric" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><button type="button" class="status-badge status-button status-${this.ctx.escapeHtml(r.status || 'draft')}" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'クリックしてこの日のロックを解除' : 'クリックしてこの日をロック'}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</button></td>
+              <td><button type="button" class="status-badge status-button status-${this.ctx.escapeHtml(r.status || 'draft')}" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'クリックしてこの日のロックを解除' : 'クリックしてこの日をロック'}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</button><small class="dr-entry-state" data-entry-state="${idx}"></small></td>
               <td class="table-action-row dr-ops-cell">
                 <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
                 ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
@@ -667,6 +660,7 @@
           const expand = r._expanded
             ? `<tr class="dr-expand" data-expand-row="${idx}">
                 <td colspan="18">
+                  <h3 class="dr-detail-heading">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} の詳細</h3>
                   <div class="dr-detail-grid">
                     <section class="dr-detail-section">
                       <h4>料金区分</h4>
@@ -675,9 +669,10 @@
                       </label>
                       <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}${r._calcContext?.holiday ? ` / 休日判定: ${this.ctx.escapeHtml(r._calcContext.holiday.name || '休日')}（${r._calcContext.holiday.scope === 'project' ? '案件独自' : '全案件共通'}）` : ''}</small>
                     </section>
-                    <section class="dr-detail-section"><h4>深夜時間</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
-                    <section class="dr-detail-section"><h4>契約料金</h4>${this.rateTableHtml(r, idx, locked)}</section>
-                    <section class="dr-detail-section"><h4>計算結果</h4>${this.calculationSummaryHtml(r)}</section>
+                    <section class="dr-detail-section"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
+                    <section class="dr-detail-section"><h4>日別経費・距離</h4><div class="form-grid">${[['total_distance','業務走行距離（km）'],['toll_fee','通行料（円）'],['parking_fee','駐車料（円）'],['transport_fee','交通費（円）']].map(([field,label]) => `<label>${label}<input type="number" min="0" step="${field === 'total_distance' ? distanceStep : expenseStep}" inputmode="numeric" data-f="${field}" data-idx="${idx}" value="${this.ctx.escapeHtml(r[field] === '' || r[field] == null ? '' : Number(r[field]))}" ${locked ? 'disabled' : ''}></label>`).join('')}</div></section>
+                    <details class="dr-detail-section"><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary>${this.rateTableHtml(r, idx, locked)}</details>
+                    <details class="dr-detail-section"><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
                     <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
                     <div class="full btn-row">
                       <button type="button" class="btn btn-small" data-save-row="${idx}" ${fullyLocked ? 'disabled' : ''}>行保存</button>
@@ -701,6 +696,8 @@
         `<section class="panel dr-grid-screen" style="--dr-input-font-size:${this.ctx.escapeHtml(ui.input_font_size_px || 16)}px;--dr-reference-color:${this.ctx.escapeHtml(ui.reference_text_color || '#A7B0BE')};--dr-saturday-bg:${this.ctx.escapeHtml(ui.saturday_background_color || '#EAF4FF')};--dr-saturday-text:${this.ctx.escapeHtml(ui.saturday_text_color || '#1D4ED8')};--dr-holiday-bg:${this.ctx.escapeHtml(ui.holiday_background_color || '#FDECEC')};--dr-holiday-text:${this.ctx.escapeHtml(ui.holiday_text_color || '#B42318')}">
           ${message ? `<p class="flash">${this.ctx.escapeHtml(message)}</p>` : ''}
           <div class="dr-toolbar">
+            <div class="dr-entry-context">${this.ctx.escapeHtml(this.gridMeta.company_name || `企業#${this.gridMeta.company_id || ''}`)} / ${this.ctx.escapeHtml(this.gridMeta.project_name || `案件#${this.gridMeta.project_id}`)} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} / ${this.ctx.escapeHtml(this.ym)}</div>
+            <div class="dr-entry-modes btn-row"><button type="button" class="btn btn-secondary" data-entry-mode="time">時間入力</button><button type="button" class="btn btn-secondary" data-entry-mode="all">全項目入力</button><small data-hidden-extras></small></div>
             <div class="dr-summary">
               <span>稼働日数: <strong>${sum.workDays}</strong></span>
               <span>超過合計: <strong>${sum.overtime}</strong></span>
@@ -718,6 +715,8 @@
               <button type="button" class="btn btn-ghost" id="back-month">一覧へ</button>
             </div>
           </div>
+          <div class="dr-entry-reference"><span data-entry-totals></span><span data-entry-selected></span></div>
+          <small class="dr-key-help">Tab: 入力欄へ移動 / Shift＋Tab: 戻る / Ctrl＋S: 保存 / F2: 行詳細 / Alt＋↓: 時分選択 / Esc: 詳細から行へ</small>
           <div class="table-wrap table-wrap-sticky dr-grid-wrap">
             <table class="data-table data-table-compact dr-month-table">
               <thead>
@@ -736,16 +735,24 @@
       );
       this.kit.bindShell({ onBack: () => this.showMonthList() });
       this.bindGrid();
+      this.bindEntryUI();
+      if (previousScroll) {
+        const wrap = this.ctx.app.querySelector('.dr-grid-wrap');
+        wrap.scrollTop = previousScroll.top;
+        wrap.scrollLeft = previousScroll.left;
+      }
     },
 
     collectField(el) {
       const idx = Number(el.getAttribute('data-idx'));
       const field = el.getAttribute('data-f');
       const row = this.gridRows[idx];
-      if (!row) return;
-      if (el.type === 'checkbox') row[field] = el.checked ? 1 : 0;
-      else row[field] = el.value;
-      row._dirty = true;
+      if (!row || el.disabled || el.readOnly) return;
+      const value = el.type === 'checkbox' ? (el.checked ? 1 : 0) : el.value;
+      if (String(row[field] ?? '') !== String(value)) {
+        row[field] = value;
+        row._dirty = true;
+      }
     },
 
     bindGrid() {
@@ -756,7 +763,7 @@
             try {
               el.value = this.normalizeTimeText(el.value);
             } catch (error) {
-              window.alert(error.message);
+              this.entryError(el, error.message);
               return;
             }
           }
@@ -770,10 +777,11 @@
           const field = el.getAttribute('data-minutes-f');
           try {
             el.value = this.normalizeTimeText(el.value, true);
-            this.gridRows[idx][field] = this.parseMinutesInput(el.value);
-            this.gridRows[idx]._dirty = true;
+            const value = this.parseMinutesInput(el.value);
+            if (Number(this.gridRows[idx][field] || 0) !== value) this.gridRows[idx]._dirty = true;
+            this.gridRows[idx][field] = value;
           } catch (error) {
-            window.alert(error.message);
+            this.entryError(el, error.message);
           }
         });
       });
@@ -788,10 +796,12 @@
           const idx = Number(el.getAttribute('data-idx'));
           const field = el.getAttribute('data-signed-minutes-f');
           try {
-            this.gridRows[idx][field] = this.parseMinutesInput(el.value, true);
-            this.gridRows[idx]._dirty = true;
+            const value = this.parseMinutesInput(el.value, true);
+            if (Number(this.gridRows[idx][field] || 0) !== value) this.gridRows[idx]._dirty = true;
+            this.gridRows[idx][field] = value;
+            el.value = this.formatMinutes(value);
           } catch (error) {
-            window.alert(error.message);
+            this.entryError(el, error.message);
           }
         });
       });
@@ -804,10 +814,15 @@
             const fields = kind === 'night_break'
               ? ['night_break_minutes_billing', 'night_break_minutes_payment']
               : ['night_adjustment_minutes_billing', 'night_adjustment_minutes_payment'];
-            fields.forEach((field) => { this.gridRows[idx][field] = value; });
-            this.gridRows[idx]._dirty = true;
+            // Empty common fields with differing values mean keep each side.
+            if (el.value === '' && fields.some(field => Number(this.gridRows[idx][field] || 0) !== Number(this.gridRows[idx][fields[0]] || 0))) return;
+            fields.forEach((field) => {
+              if (Number(this.gridRows[idx][field] || 0) !== value) this.gridRows[idx]._dirty = true;
+              this.gridRows[idx][field] = value;
+            });
+            el.value = this.formatMinutes(value);
           } catch (error) {
-            window.alert(error.message);
+            this.entryError(el, error.message);
           }
         });
       });
@@ -852,6 +867,8 @@
           }
           el.classList.toggle('dr-input-empty', !el.value || el.value === '0:00' || el.value === '00:00');
           row._dirty = true;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
         });
       });
       document.querySelectorAll('[data-time-step][data-direction][data-idx]').forEach((btn) => {
@@ -878,8 +895,11 @@
               input.classList.remove('dr-input-empty');
             }
             row._dirty = true;
+            const input = btn.parentElement.querySelector('input');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
           } catch (error) {
-            window.alert(error.message);
+            this.entryError(btn.parentElement.querySelector('input'), error.message);
           }
         });
       });
@@ -950,6 +970,7 @@
       );
       document.querySelectorAll('[data-save-row]').forEach((btn) =>
         btn.addEventListener('click', async () => {
+          if (this.saveInFlight) await this.saveInFlight;
           document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
           const save = this.saveRow(Number(btn.getAttribute('data-save-row')));
           this.saveInFlight = save;
@@ -1071,7 +1092,7 @@
     },
 
     async handleMonthlyAction(action) {
-      if (action === 'submit') await this.saveAll();
+      if (action === 'submit' && !(await this.saveAll())) return;
       let note = null;
       if (action === 'reject') {
         note = window.prompt('差戻し理由を入力してください');
@@ -1140,7 +1161,10 @@
     },
 
     async saveRow(idx) {
+      if (!this.flushEntryInputs(idx)) return false;
       const row = this.gridRows[idx];
+      if (row.status === 'approved') return true;
+      const revision = row._editRevision || 0;
       const hasData =
         row.start_time ||
         row.end_time ||
@@ -1168,13 +1192,28 @@
       }
       const saved = result.data.report;
       if (saved) {
-        this.gridRows[idx] = { ...this.gridRows[idx], ...saved, _dirty: false, _expanded: row._expanded };
+        const latest = this.gridRows[idx];
+        this.gridRows[idx] = (latest._editRevision || 0) !== revision
+          ? { ...saved, ...latest, daily_report_id: saved.daily_report_id, version: saved.version, _dirty: true }
+          : { ...latest, ...saved, _dirty: false, _inputDrafts: {}, _expanded: row._expanded };
         this.updateDayTotalCells(this.kit.dateValue(saved.work_date || row.work_date));
+        this.updateEntrySummary();
+        const worked = this.ctx.app.querySelector(`[data-worked="${idx}"]`);
+        if (worked && !this.gridRows[idx]._dirty) worked.textContent = this.formatMinutes(Number(saved.work_hours || 0) * 60);
       }
       return true;
     },
 
     async saveAll() {
+      if (this.saveInFlight) return this.saveInFlight;
+      const saving = this.performSaveAll();
+      this.saveInFlight = saving;
+      try { return await saving; }
+      finally { if (this.saveInFlight === saving) this.saveInFlight = null; }
+    },
+
+    async performSaveAll() {
+      if (!this.flushEntryInputs()) return false;
       document.querySelectorAll('[data-f][data-idx]').forEach((el) => this.collectField(el));
       for (let i = 0; i < this.gridRows.length; i += 1) {
         const row = this.gridRows[i];
@@ -1184,12 +1223,14 @@
         }
         if (row._dirty || (!row.daily_report_id && (row.start_time || row.is_absent || row.is_training))) {
           const ok = await this.saveRow(i);
-          if (!ok) return;
+          if (!ok) return false;
         }
       }
       this.ctx.showToast('保存しました');
+      return true;
     },
   };
 
+  Object.assign(LinksDailyReports, window.LinksDailyEntryUI);
   window.LinksDailyReports = LinksDailyReports;
 })();
