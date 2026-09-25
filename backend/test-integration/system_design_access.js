@@ -63,4 +63,5 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error(error); process.exit(1); });
+// セッションストアの定期清掃タイマーが残るため、後片付け完了後に終了する。
+main().then(() => process.exit(0)).catch((error) => { console.error(error); process.exit(1); });
