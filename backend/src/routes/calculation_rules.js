@@ -179,9 +179,11 @@ router.post('/:id/recalculate',async (req,res) => {
     const selected = await loadRuleSet(conn,Number(req.params.id));
     if (!selected || selected.rule_set.status !== 'published') { await conn.rollback(); return res.status(409).json({ ok:false,message:'公開済みの計算ルールを指定してください' }); }
     const result = { daily_reports:0,invoices:0,payments:0,skipped:[] };
+    if(ids.daily_reports.length)await conn.query(`SELECT project_id FROM projects WHERE project_id IN (SELECT project_id FROM daily_reports WHERE daily_report_id IN (${ids.daily_reports.map(()=>'?')})) ORDER BY project_id FOR UPDATE`,ids.daily_reports);
     for (const id of ids.daily_reports) {
       const [rows] = await conn.query("SELECT * FROM daily_reports WHERE daily_report_id=? AND is_deleted=0 FOR UPDATE",[id]); const row=rows[0];
       if (!row || row.status !== 'draft' || row.billing_status !== 'none' || row.payment_status !== 'none') { result.skipped.push({ type:'daily_report',id,reason:'未確定の下書きではありません' }); continue; }
+      if((await require('../services/annual_closing').lockedRanges(conn,row.project_id,row.work_date)).length){result.skipped.push({type:'daily_report',id,reason:'年度締めで固定されています'});continue;}
       const calculated = await applyDailyPriceCalcWithRuleSet(row,selected);
       await conn.query('UPDATE daily_reports SET calculated_billing_amount=?,calculated_payment_amount=?,calculation_detail=?,calculation_rule_set_id=?,calculation_engine_code=?,version=version+1 WHERE daily_report_id=?',[calculated.calculated_billing_amount,calculated.calculated_payment_amount,calculated.calculation_detail,selected.rule_set.calculation_rule_set_id,'typed-rules-v1',id]); result.daily_reports += 1;
     }

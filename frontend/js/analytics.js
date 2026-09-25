@@ -54,12 +54,14 @@
       this.ctx.app.innerHTML = this.kit.shell('収支分析', this.screenHtml(), { wide: true });
       this.kit.bindShell();
       this.bind();
+      document.getElementById('analytics-annual').onclick=()=>window.LinksAnnualClosings.open(this.ctx,{onBack:()=>this.show()});
     },
 
     screenHtml() {
       const tab = (key, label) =>
         `<button type="button" class="tab ${this.tab === key ? 'is-active' : ''}" data-tab="${key}">${label}</button>`;
       return `<section class="analytics-screen">
+        <button class="btn btn-secondary" id="analytics-annual">年度締め・年間集計</button>
         <p class="muted">承認済み日報と確定済み請求・支払を集計します。利益率の赤表示基準はマスター設定の利益率警告基準（現在 ${this.meta.profit_warning_percent}%）です。</p>
         <div class="tabs">${tab('pl', '収支分析一覧表')}${tab('margin', '企業別利益率一覧表')}${tab('days', '稼働日一覧表')}</div>
         ${this.tab === 'pl' ? this.plFilters() : this.monthFilters()}

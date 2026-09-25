@@ -119,6 +119,7 @@ async function bindReportPeriod(conn, input) {
     throw periodError(`勤務日は ${period.period_start}〜${period.period_end} の範囲で入力してください`, 400);
   }
   await assertPeriodEditable(conn, input.project_id, input.target_year_month);
+  await require('./annual_closing').assertDailyEditable(conn,input.project_id,input.work_date);
   return period;
 }
 
@@ -130,6 +131,8 @@ async function migrationPreview(conn, projectId) {
   const protectedMonths = new Set(approvals.filter(a => ['submitted', 'approved'].includes(a.status)).map(a => a.target_year_month));
   const [additionalMonths] = await conn.query('SELECT DISTINCT target_year_month FROM daily_additional_items WHERE project_id=? AND is_deleted=0',[projectId]);
   additionalMonths.forEach(row=>protectedMonths.add(row.target_year_month));
+  const [annualRanges]=await conn.query('SELECT period_start,period_end FROM annual_closing_locks WHERE project_id=? AND is_active=1',[projectId]);
+  periods.filter(p=>annualRanges.some(r=>p.period_start<=r.period_end&&p.period_end>=r.period_start)).forEach(p=>protectedMonths.add(p.target_year_month));
   for (const r of reports) if (['confirmed', 'approved'].includes(r.status)
     || (r.billing_status && r.billing_status !== 'none') || (r.payment_status && r.payment_status !== 'none')) protectedMonths.add(r.target_year_month);
   const fixed = periods.filter(p => protectedMonths.has(p.target_year_month));

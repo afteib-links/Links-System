@@ -12,7 +12,7 @@ test('事務作業を既存の日報・請求・支払と併設する', () => {
   assert.deepEqual(dailyKeys, ['office_work', 'daily_reports', 'daily_report_submissions']);
   assert.ok(permissions.FEATURE_KEYS.includes('invoices'));
   assert.ok(permissions.FEATURE_KEYS.includes('payments'));
-  assert.ok(read('frontend/js/feature-loader.js').includes("office_work: [['office_work', 'LinksOfficeWork']]"));
+  assert.match(read('frontend/js/feature-loader.js'), /office_work: \[\['annual_closings', 'LinksAnnualClosings'\], \['office_work', 'LinksOfficeWork'\]\]/);
 });
 
 test('事務作業は日報チェック・PDF表示・案件選択を提供する', () => {

@@ -473,11 +473,20 @@ router.get('/calculation-context', async (req, res) => {
 });
 
 router.get('/distance-monthly', async (req, res) => {
+  const conn=await getPool().getConnection();
   try {
     const projectId = Number(req.query.project_id || 0);
     const ym = String(req.query.target_year_month || '').trim();
     if (!projectId || !/^\d{4}-\d{2}$/.test(ym)) return res.status(400).json({ ok: false, message: '案件と対象年月は必須です' });
-    const rows = await query(
+    await conn.beginTransaction();
+    await conn.query('SELECT project_id FROM projects WHERE project_id=? FOR UPDATE',[projectId]);
+    const period=await getPeriod(projectId,ym,conn);
+    const ranges=await require('../services/annual_closing').lockedRanges(conn,projectId);
+    if(ranges.some(r=>period.period_start>=r.period_start&&period.period_end<=r.period_end)){
+      const [saved]=await conn.query('SELECT side_code,result_data FROM daily_report_distance_monthly_results WHERE project_id=? AND target_year_month=?',[projectId,ym]);
+      await conn.commit();return res.json({ok:true,project_id:projectId,target_year_month:ym,results:{billing:null,payment:null,...Object.fromEntries(saved.map(r=>[r.side_code,parseJson(r.result_data,{})]))},annual_locked:true});
+    }
+    const [rows] = await conn.query(
       `SELECT work_date, total_distance FROM daily_reports
        WHERE project_id = ? AND target_year_month = ? AND is_deleted = 0
        ORDER BY work_date, daily_report_id`, [projectId, ym]
@@ -489,7 +498,7 @@ router.get('/distance-monthly', async (req, res) => {
       if (!rule?.mode) { output[side] = null; continue; }
       const result = calculateMonthlyDistance({ distances: rows.map((r) => r.total_distance || 0), rule });
       output[side] = result;
-      await query(
+      await conn.query(
         `INSERT INTO daily_report_distance_monthly_results
           (project_id, target_year_month, side_code, result_data)
          VALUES (?, ?, ?, ?)
@@ -498,8 +507,9 @@ router.get('/distance-monthly', async (req, res) => {
         [projectId, ym, side, JSON.stringify(result)]
       );
     }
-    return res.json({ ok: true, project_id: projectId, target_year_month: ym, results: output });
-  } catch (err) { return routeError(res, err, '月間距離計算に失敗しました'); }
+    await conn.commit();return res.json({ ok: true, project_id: projectId, target_year_month: ym, results: output });
+  } catch (err) { await conn.rollback();return routeError(res, err, '月間距離計算に失敗しました'); }
+  finally {conn.release();}
 });
 
 router.get('/input-defaults', async (req, res) => {
@@ -908,6 +918,7 @@ router.post('/day-status', async (req, res) => {
     await conn.beginTransaction();
     const period = await periodForDate(projectId, workDate, conn, true);
     await assertPeriodEditable(conn, projectId, period.target_year_month);
+    if(next==='draft')await require('../services/annual_closing').assertDailyEditable(conn,projectId,workDate);
     const [reports] = await conn.query(
       `SELECT * FROM daily_reports
        WHERE project_id = ? AND work_date = ? AND is_deleted = 0
@@ -1099,6 +1110,7 @@ router.put('/:id', async (req, res) => {
     await conn.beginTransaction();
     await getPeriod(current.project_id, current.target_year_month, conn, true);
     await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    await require('../services/annual_closing').assertDailyEditable(conn,current.project_id,current.work_date);
     if((req.body.work_date && req.body.work_date!==current.work_date)||(req.body.project_id && Number(req.body.project_id)!==Number(current.project_id))||(req.body.target_year_month && req.body.target_year_month!==current.target_year_month)) {
       const extras=await additionalItems.loadItems(conn,current.project_id,current.target_year_month);
       if(extras.some(item=>!item.work_date||item.work_date===current.work_date))throw periodError('追加項目が紐付いています。追加項目を確認・削除してから勤務日や案件を変更してください');
@@ -1214,6 +1226,7 @@ router.post('/:id/status', async (req, res) => {
     await assertPeriodEditable(conn, current.project_id, current.target_year_month);
     const [locked] = await conn.query('SELECT version FROM daily_reports WHERE daily_report_id=? FOR UPDATE', [id]);
     if (Number(locked[0]?.version) !== Number(current.version)) throw periodError('日報が更新されました。再読み込みしてください');
+    if(['draft','rejected'].includes(next))await require('../services/annual_closing').assertDailyEditable(conn,current.project_id,current.work_date);
     await conn.query(
       `UPDATE daily_reports
        SET status = ?, rejection_reason = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
@@ -1277,6 +1290,7 @@ router.delete('/:id', async (req, res) => {
     await conn.beginTransaction();
     await getPeriod(current.project_id, current.target_year_month, conn, true);
     await assertPeriodEditable(conn, current.project_id, current.target_year_month);
+    await require('../services/annual_closing').assertDailyEditable(conn,current.project_id,current.work_date);
     const extras=await additionalItems.loadItems(conn,current.project_id,current.target_year_month);
     const [remaining]=await conn.query('SELECT work_date FROM daily_reports WHERE project_id=? AND target_year_month=? AND daily_report_id<>? AND is_deleted=0',[current.project_id,current.target_year_month,id]);
     if(extras.some(item=>item.work_date===current.work_date&&!remaining.some(r=>r.work_date===current.work_date))||(!remaining.length&&extras.length))throw periodError('追加項目の対象日報をすべて削除できません。先に追加項目を確認してください');

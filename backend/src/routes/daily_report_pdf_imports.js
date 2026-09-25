@@ -215,6 +215,7 @@ router.post('/:id/apply', editor, route(async (req, conn) => {
     if (!request.date_confirmed) throw periodError('勤務日を原本で確認してください', 400);
     if (current && current.work_date !== merged.work_date) throw periodError('反映先の日報と勤務日が異なります');
     const period = await periodForDate(projectId, merged.work_date, conn, true);
+    await require('../services/annual_closing').assertDailyEditable(conn,projectId,merged.work_date);
     if (period.target_year_month !== batch.target_year_month) throw periodError('指定した勤務日は取込対象の締め期間外です');
     await assertPeriodEditable(conn, projectId, period.target_year_month);
     if (!current) {

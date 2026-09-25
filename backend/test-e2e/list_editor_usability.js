@@ -62,6 +62,7 @@ async function main() {
       payment_type:'normal',closing_date:'20',price_sets:[],revisions:[],
     }});
     if (url.pathname === '/api/price-sets/calculation-settings') return json({ok:true,settings:{}});
+    if (url.pathname === '/api/price-sets/13') return json({ok:true,price_set:{...capturedPricePayload,price_set_id:13,is_current_revision:1,revision_no:1,version:1,revisions:[]}});
     if (url.pathname === '/api/price-sets' && route.request().method() === 'POST') {
       capturedPricePayload = route.request().postDataJSON();
       return json({ok:true,price_set:{price_set_id:13}});
@@ -71,7 +72,7 @@ async function main() {
     }]});
     if (url.pathname === '/api/invoices/targets') return json({ok:true,targets:[{
       project_id:7,project_name:'定期便',company_id:1,company_name:'東都運送',billing_summary_no:'A',
-      closing_date:'20',subtotal_amount:110000,target_status:'available',report_ids:[11],
+      closing_date:'20',subtotal_amount:110000,target_status:'available',can_create:true,report_ids:[11],
     }]});
     if (url.pathname === '/api/invoices') return json({ok:true,invoices:[{
       invoice_id:5,company_id:1,company_name:'東都運送',billing_print_name:'東都運送',
@@ -135,26 +136,23 @@ async function main() {
     await page.locator('#add-fee-item').click();
     const addForm = page.locator('#add-fee-item-form');
     await addForm.waitFor();
-    await addForm.locator('[name="name"]').fill('距離・独自料金');
-    await addForm.locator('[value="daily"]').uncheck();
-    await addForm.locator('[value="hourly"]').uncheck();
-    await addForm.locator('[value="distance"]').check();
-    await addForm.locator('[value="custom"]').check();
+    await addForm.locator('[name="name"]').fill('距離・時間料金');
     await page.locator('#confirm-add-fee-item').click();
     const addedCard = page.locator('[data-fee-item]').last();
-    await addedCard.getByText('計算未対応').first().waitFor();
-    assert.equal(await addedCard.locator('[data-calc="distance"]').count(), 1, '距離計算行を新規追加できること');
-    assert.equal(await addedCard.locator('[data-calc="custom"]').count(), 1, 'マスター追加計算種別を新規追加できること');
-    await addedCard.locator('[data-calc="distance"] [data-f="billing"]').fill('25');
-    await addedCard.locator('[data-calc="custom"] [data-f="billing"]').fill('300');
+    await addedCard.locator('[data-row-f="item_type"]').selectOption('distance');
+    await addedCard.locator('[data-row-f="billing"]').fill('25');
+    await addedCard.locator('[data-add-row]').click();
+    const secondFeeRow=addedCard.locator('[data-fee-row]').last();
+    await secondFeeRow.locator('[data-row-f="item_type"]').selectOption('hourly');
+    await secondFeeRow.locator('[data-row-f="billing"]').fill('300');
     await page.locator('#ps-form [name="price_set_name"]').fill('新規料金');
     await page.locator('#ps-form [name="apply_start_date"]').fill('2026-09-01');
     await page.locator('#ps-form button[type="submit"]').click();
-    await page.locator('.table-action-row').waitFor();
-    const addedExtra = capturedPricePayload.extra_data.fee_items.find((item) => item.name === '距離・独自料金');
-    assert.deepEqual(addedExtra.calc_types, ['distance','custom'], '選択計算種別をextra_dataへ保持すること');
+    await page.getByRole('heading',{name:/金額データ編集/}).waitFor();
+    const addedExtra = capturedPricePayload.extra_data.fee_items.find((item) => item.name === '距離・時間料金');
+    assert.deepEqual(addedExtra.rows.map(row=>row.item_type), ['distance','hourly'], '料金カード内の行別計算種別をextra_dataへ保持すること');
     assert.ok(capturedPricePayload.lines.some((line) => line.calc_type_code === 'distance' && line.weekday_code === 'all'), '距離行を全日として保存すること');
-    assert.equal(capturedPricePayload.lines.filter((line) => line.calc_type_code === 'custom').length, 5, '距離以外の追加種別を選択曜日ごとに保存すること');
+    assert.equal(capturedPricePayload.lines.filter((line) => line.calc_type_code === 'hourly' && Number(line.billing_unit_price)===300).length, 5, '時間単価を選択曜日ごとに保存すること');
 
     await page.locator('[data-nav-feature="invoices"]').click();
     await page.locator('table.data-table').last().waitFor();
@@ -166,7 +164,7 @@ async function main() {
     await invoiceRow.dblclick();
     await page.getByRole('heading', {name:'請求書 #5'}).waitFor();
     assert.equal(await page.locator('a[href="/api/settlements/invoice/5/preview"]').count(),1,'下書き前後で見本帳票を確認できること');
-    assert.equal(await page.locator('#cancel').count(),1,'精算詳細に取消導線があること');
+    assert.equal(await page.locator('#correct').count(),1,'確定済み精算に発行無効・訂正の導線があること');
 
     await page.locator('[data-nav-feature="daily_reports"]').click();
     const topbar = await page.locator('.daily-list-topbar').evaluate((element) => {
