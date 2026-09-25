@@ -137,10 +137,17 @@ figcaption { padding: 9px 13px; color: var(--muted); border-top: 1px solid var(-
   h2 { font-size: 15pt; }
   h1, h2, h3 { break-after: avoid; }
   figure, .examples section, .difference-list section, .start-card, .role-grid section, .purpose, .connection, .warning, .note { break-inside: avoid; }
-  figure img { max-height: 95mm; }
+  figure { margin: 4mm 0; }
+  figure img { max-height: 78mm; object-fit: contain; }
+  figure figcaption { padding: 2mm 3mm; }
+  .purpose, .connection, .note, .warning { padding: 3mm; margin: 3mm 0; }
+  .manual-chapter p { margin-top: 2mm; margin-bottom: 3mm; }
+  .manual-chapter h2 { margin-top: 5mm; margin-bottom: 2mm; }
   .start-grid, .role-grid { grid-template-columns: 1fr 1fr; }
   .difference-list { grid-template-columns: 1fr 1fr; }
-  .examples { grid-template-columns: 1fr; }
+  .examples { display: block; }
+  .examples section { padding: 3mm; margin: 2mm 0; box-shadow: none; }
+  .examples h3 { margin-top: 0; margin-bottom: 1mm; }
   .flow-map { grid-template-columns: repeat(4, 1fr); }
   .flow-arrow { display: none; }
   .flow-lane button { color: #111; }

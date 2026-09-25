@@ -73,6 +73,9 @@ async function login(page) {
 }
 
 async function main() {
+  if (process.env.MANUAL_ANONYMOUS_CONFIRMED !== '1') {
+    throw new Error('匿名検証環境であることを確認し、MANUAL_ANONYMOUS_CONFIRMED=1 を指定してください');
+  }
   fs.mkdirSync(OUT, { recursive: true });
   const executablePath = localBrowserPath();
   const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
@@ -160,6 +163,11 @@ async function main() {
 
   await openFeature(page, 'users');
   await shot(page, '25_users');
+
+  for (const key of ['master_data_preparation', 'db_import', 'db_export', 'master_data_export', 'test_data', 'calculation_rules', 'menu_access_settings']) {
+    await openFeature(page, key);
+    await shot(page, key);
+  }
 
   await browser.close();
 }
