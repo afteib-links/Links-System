@@ -110,6 +110,10 @@ async function main() {
     assert.equal((await api(endpoint+'/apply',{rows:[reset]})).status,200);
     [expenses]=await pool.query('SELECT * FROM daily_additional_items WHERE request_key=?',[`ocr-expense-${current.daily_report_id}`]);
     assert.equal(expenses.length,1,'再採用で追加項目を重複作成しない');assert.equal(Number(expenses[0].billing_amount),1600);
+    const [beforeLink]=await pool.query('SELECT * FROM daily_reports WHERE daily_report_id=?',[current.daily_report_id]);
+    const linked=await api(xurl+'/apply',{rows:[{import_row_id:xrows[0].daily_report_import_row_id,import_version:xrows[0].version,target_daily_report_id:current.daily_report_id,expected_version:beforeLink[0].version,fields:['work_date'],values:{work_date:'2026-09-01'},date_confirmed:true,reason:'手入力行へ原本だけ紐付け'}]});assert.equal(linked.status,200,JSON.stringify(linked));
+    const [afterLink]=await pool.query('SELECT * FROM daily_reports WHERE daily_report_id=?',[current.daily_report_id]);assert.deepEqual(afterLink[0],beforeLink[0],'原本だけの連携で日報金額・版・入力元は変更しない');
+    assert.equal((await api(`/api/daily-report-imports/pdf/records/${current.daily_report_id}`)).data.records.length,2);
     const jpegForm=new FormData();jpegForm.set('file',new Blob([await page.screenshot({type:'jpeg'})]),`anonymous-${project.insertId}.jpg`);jpegForm.set('target_year_month','2026-09');
     const jpeg=await api('/api/daily-report-imports/pdf/uploads',jpegForm);assert.equal(jpeg.status,201,JSON.stringify(jpeg));
     assert.equal((await api(`/api/daily-report-imports/pdf/${jpeg.data.batch_id}`)).data.file.mime_type,'image/jpeg');

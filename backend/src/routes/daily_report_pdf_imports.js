@@ -312,7 +312,8 @@ router.post('/:id/apply', editor, route(async (req, conn) => {
     if (current && row.daily_report_id && request.quantity_overrides===undefined && !request.expense && !request.evidence_pages?.length && !request.reviewed_observations && sameFields(current, merged)) { output.push({ row_id: row.daily_report_import_row_id, daily_report_id: current.daily_report_id, skipped: true }); continue; }
     const input = { ...merged, project_id: projectId, company_id: project.company_id, partner_id: project.partner_id,
       target_year_month: period.target_year_month, daily_report_period_id: period.daily_report_period_id };
-    const calculated = await applyDailyPriceCalcWithRules(adoption.adoptionInput(input,request));
+    const linkOnly=current && request.quantity_overrides===undefined && !request.expense && sameFields(current,merged);
+    const calculated = linkOnly ? current : await applyDailyPriceCalcWithRules(adoption.adoptionInput(input,request));
     if((request.quantity_overrides!==undefined || request.expense) && request.preview_token!==adoption.previewToken(calculated,request))throw periodError('計算条件が変わったか未確認です。再計算して確認してください');
     const values = {};
     for (const key of [...FIELDS, 'project_id', 'company_id', 'partner_id', 'target_year_month', 'daily_report_period_id']) if (input[key] !== undefined) values[key] = input[key];
@@ -327,7 +328,7 @@ router.post('/:id/apply', editor, route(async (req, conn) => {
     }
     if (current) {
       const keys = Object.keys(values);
-      await conn.query(`UPDATE daily_reports SET ${keys.map(k => `${k}=?`).join(',')},version=version+1 WHERE daily_report_id=?`, [...keys.map(k => values[k]), id]);
+      if(!linkOnly)await conn.query(`UPDATE daily_reports SET ${keys.map(k => `${k}=?`).join(',')},version=version+1 WHERE daily_report_id=?`, [...keys.map(k => values[k]), id]);
     } else {
       values.input_source_type = 'pdf';
       const keys = Object.keys(values);
