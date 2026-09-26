@@ -2850,7 +2850,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 
 /* Issue #182: detail placement and fixed date width in both entry modes. */
 .dr-additional-mark { display:block; font-size:11px; color:#0f6b78; font-weight:700; }
-.dr-grid-screen .dr-detail-grid { grid-template-columns:170px minmax(0,1fr) 240px 260px; grid-template-areas:"sidebar rates time calc" "sidebar comment comment actions"; }
+.dr-grid-screen .dr-detail-grid { grid-template-columns:255px minmax(0,1fr) 240px 260px; grid-template-areas:"sidebar rates time calc" "sidebar comment comment actions"; }
 .dr-detail-sidebar { grid-area:sidebar; display:grid; gap:6px; min-width:0; }
 .dr-grid-screen .dr-detail-section.dr-detail-rates { grid-area:rates; }
 .dr-grid-screen .dr-detail-time { grid-area:time; }
@@ -2872,11 +2872,19 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-grid-screen[data-entry-mode] .dr-main > :nth-child(2) { width:96px; left:28px; }
 }
 @media (min-width:701px) and (max-width:1500px) {
-  .dr-grid-screen .dr-detail-grid { grid-template-columns:160px minmax(0,1fr) 230px; grid-template-areas:"sidebar rates time" "sidebar rates calc" "sidebar comment actions"; }
+  .dr-grid-screen .dr-detail-grid { grid-template-columns:240px minmax(0,1fr) 230px; grid-template-areas:"sidebar rates time" "sidebar rates calc" "sidebar comment actions"; }
 }
 @media (min-width:701px) and (max-width:1099px) {
-  .dr-grid-screen .dr-detail-grid { grid-template-columns:160px minmax(0,1fr); grid-template-areas:"sidebar time" "sidebar calc" "rates rates" "comment actions"; }
+  .dr-grid-screen .dr-detail-grid { grid-template-columns:240px minmax(0,1fr); grid-template-areas:"sidebar time" "sidebar calc" "rates rates" "comment actions"; }
 }
 @media (max-width:700px) {
   .dr-grid-screen .dr-detail-grid { grid-template-areas:"sidebar" "rates" "time" "calc" "comment" "actions"; }
+}
+
+/* Permanent detail sections keep their labels and compact rate spacing. */
+.dr-detail-rates > h4 { max-width:45%; min-height:34px; padding:3px 0; }
+.dr-grid-screen .dr-rate-table { max-width:560px; }
+.dr-grid-screen .dr-rate-table th, .dr-grid-screen .dr-rate-table td { padding:2px; }
+@media (max-width:700px) {
+  .dr-detail-rates > h4 { max-width:none; min-height:0; }
 }
