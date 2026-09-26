@@ -3,7 +3,7 @@ const time = require('../../../frontend/js/time-input');
 const { periodDates, periodError } = require('./daily_report_periods');
 
 const FIELDS = ['work_date', 'start_time', 'end_time', 'break_minutes', 'total_distance', 'toll_fee', 'parking_fee', 'transport_fee', 'row_comment'];
-const SYSTEM_FIELDS = ['applied_price_set_id', 'selected_fee_item_id', 'selected_fee_item_name', 'fee_item_selection_source',
+const SYSTEM_FIELDS = ['quantity_overrides','applied_price_set_id', 'selected_fee_item_id', 'selected_fee_item_name', 'fee_item_selection_source',
   'break_time', 'break_minutes', 'binding_hours', 'work_hours', 'overtime_hours', 'shortage_hours',
   'shortage_minutes_billing', 'shortage_minutes_payment', 'shortage_amount_billing', 'shortage_amount_payment',
   'distance_amount_billing', 'distance_amount_payment', 'distance_calculation_mode', 'night_hours',

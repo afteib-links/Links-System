@@ -556,6 +556,11 @@
       return JSON.stringify(billingRule || {}) === JSON.stringify(paymentRule || {});
     },
 
+    quantityHtml(row, idx, locked) {
+      const values=this.parseJson(row.quantity_overrides,{});
+      const detail=this.parseJson(row.calculation_detail,{});
+      return `<details><summary>超過時間・距離の採用（空欄は自動計算）</summary><p>月間距離契約は総走行距離から計算します。時間超過は小数時間（0.25 = 15分）です。</p>${['billing','payment'].map(side=>`<div class="form-grid"><strong>${side==='billing'?'請求':'支払'}</strong><label>時間超過 (h)<input data-quantity-side="${side}" data-quantity="overtime_minutes" data-idx="${idx}" inputmode="decimal" value="${values[side]?.overtime_minutes==null?'':values[side].overtime_minutes/60}" placeholder="自動 ${Number(detail[side]?.automatic_overtime_minutes??detail[side]?.overtime_minutes??0)/60}" ${locked?'disabled':''}></label><label>距離超過 (km)<input data-quantity-side="${side}" data-quantity="excess_km" data-idx="${idx}" inputmode="decimal" value="${values[side]?.excess_km??''}" placeholder="自動計算" ${locked?'disabled':''}></label><label>採用・解除理由<input data-quantity-side="${side}" data-quantity="reason" data-idx="${idx}" value="${this.ctx.escapeHtml(values[side]?.reason||'')}" ${locked?'disabled':''}></label></div>`).join('')}</details>`;
+    },
     rateTableHtml(row, idx, locked) {
       const labels = { basic: '基本単価', shortage: '不足控除', overtime: '超過', night: '深夜', night_overtime: '深夜超過' };
       const overrides = this.parseJson(row.rate_overrides, {});
@@ -711,7 +716,7 @@
                     ${this.canImport()?`<section class="dr-detail-section dr-detail-additional"><h4>追加請求・支払項目</h4><p>${(this.additionalItems||[]).filter(item=>item.work_date===r.work_date).map(item=>`${this.ctx.escapeHtml(item.item_name)}: 請求 ${this.kit.money(item.billing_amount)} / 支払 ${this.kit.money(item.payment_amount)}`).join('<br>')||'この日の追加項目はありません'}</p><button type="button" class="btn btn-secondary" data-extra-date="${this.ctx.escapeHtml(r.work_date)}">追加項目を確認・登録</button></section>`:''}
                     </div>
                     <section class="dr-detail-section dr-detail-time"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
-                    <section class="dr-detail-section dr-detail-rates"><h4>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</h4><label class="dr-rate-reason">一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(r.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>${this.rateTableHtml(r, idx, locked)}</section>
+                    <section class="dr-detail-section dr-detail-rates"><h4>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</h4><label class="dr-rate-reason">一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(r.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>${this.rateTableHtml(r, idx, locked)}${this.quantityHtml(r,idx,locked)}</section>
                     <section class="dr-detail-section dr-detail-calculation"><h4>計算根拠（参照）</h4>${this.calculationSummaryHtml(r)}</section>
                     <div class="full dr-detail-comment"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
                     <div class="full btn-row dr-detail-actions">
@@ -877,6 +882,18 @@
           this.gridRows[idx]._dirty = true;
         });
       });
+      document.querySelectorAll('[data-quantity-side][data-idx]').forEach(el=>el.addEventListener('change',()=>{
+        const row=this.gridRows[Number(el.dataset.idx)], side=el.dataset.quantitySide, key=el.dataset.quantity;
+        const values=this.parseJson(row.quantity_overrides,{});values[side]||={};
+        if(key==='reason')values[side][key]=el.value;
+        else if(el.value==='')delete values[side][key];
+        else {
+          const n=Number(el.value)*(key==='overtime_minutes'?60:1);
+          if(!Number.isFinite(n)||n<0||(key==='overtime_minutes'&&Math.abs(n-Math.round(n))>1e-6)){this.entryError(el,'時間は1分単位の小数時間、距離は0以上で入力してください');return;}
+          values[side][key]=key==='overtime_minutes'?Math.round(n):n;
+        }
+        row.quantity_overrides=values;row._dirty=true;
+      }));
       document.querySelectorAll('[data-rate-side][data-rate-type][data-idx]').forEach((el) => {
         el.addEventListener('input', () => {
           const idx = Number(el.getAttribute('data-idx'));
@@ -1209,6 +1226,7 @@
         night_adjustment_minutes_payment: Number(row.night_adjustment_minutes_payment || 0),
         night_adjustment_reason_billing: row.night_adjustment_reason_billing || null,
         night_adjustment_reason_payment: row.night_adjustment_reason_payment || null,
+        quantity_overrides: row.quantity_overrides || {},
         rate_overrides: row.rate_overrides || {},
         rate_override_reason: row.rate_override_reason || null,
         row_comment: row.row_comment || null,

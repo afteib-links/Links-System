@@ -98,6 +98,22 @@ def rectify(image, source_quad=None):
             map_y[:, x] = np.interp(np.arange(th), target_y, boundaries[:, x])
         map_x = np.broadcast_to(np.arange(tw, dtype=np.float32), (th, tw)).copy()
         straight = cv2.remap(warped, map_x, map_y, cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255,255,255))
+        # Flatten bowed vertical rules too; keeping only horizontal rules straight
+        # leaves photographed columns drifting across fixed OCR cell boundaries.
+        transposed=Image.fromarray(straight).transpose(Image.Transpose.TRANSPOSE)
+        verticals=traces(transposed)
+        transposed.close()
+        column_targets=[]
+        if len(verticals)>=3 and all(np.min(b-a)>6 for a,b in zip(verticals,verticals[1:])):
+            column_targets=[float(np.median(line)) for line in verticals]
+            source_x=np.vstack([np.zeros(th),*verticals,np.full(th,tw-1)])
+            target_x=np.r_[0,column_targets,tw-1]
+            keep_x=np.r_[True,np.diff(target_x)>1]
+            source_x,target_x=source_x[keep_x],target_x[keep_x]
+            map_x=np.empty((th,tw),np.float32)
+            for y in range(th):map_x[y,:]=np.interp(np.arange(tw),target_x,source_x[:,y])
+            map_y=np.broadcast_to(np.arange(th,dtype=np.float32)[:,None],(th,tw)).copy()
+            straight=cv2.remap(straight,map_x,map_y,cv2.INTER_CUBIC,borderMode=cv2.BORDER_CONSTANT,borderValue=(255,255,255))
         page_matrix = np.float64([[1,0,left],[0,1,top],[0,0,1]]) @ matrix
         result = Image.fromarray(cv2.warpPerspective(np.asarray(image),page_matrix,(w,h),borderValue=(255,255,255)))
         result.paste(Image.fromarray(straight), (int(left), int(top)))
@@ -108,6 +124,7 @@ def rectify(image, source_quad=None):
         edges = [(v+top)/result.height for v in edges]
         return result, {'status':'rectified', 'method':'grid-perspective-curves-v1',
                         'source_quad':quad.tolist(), 'row_edges':edges,
+                        'column_edges':[(v+left)/result.width for v in column_targets],
                         'table_bounds':[float(left)/result.width, edges[0], float(right)/result.width, edges[-1]]}
     return image.copy(), {'status':'needs_review', 'method':'deskew-only', 'row_edges':[],
                           'warning':'表の罫線を検出できません。画像と行の範囲を確認してください'}

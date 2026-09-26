@@ -84,6 +84,14 @@ PDF取込は `/api/daily-report-imports/pdf` で受け付け、独立したCPU�
 ## 今後の改善
 
 承認専用ビュー、入力根拠の説明、数式期待値ケース拡充、差分訂正依頼を検討します。
+
+## 帳票OCRの採用・証憑（2026-09-27、Issue #195）
+
+PDF/画像/Excel帳票を比較し、選択した日報項目だけを反映します。超過数量を変更する場合は請求・支払ごとに理由を入力し、計算値と採用値を確認します。月間距離契約は日別の距離超過を採用せず、総走行距離から計算します。日報詳細からも採用値の修正・自動計算への解除が可能です。
+
+`POST /api/daily-report-imports/pdf/:id/calculation-preview` の確認トークンを反映APIで再検証します。業務経費は税込/税別と対象側を指定し、日報IDを基準に同じ追加項目へ更新します。更新版の不一致・承認ロック・年度締めの保護は既存と同じです。
+
+`daily_reports.quantity_overrides` は理由付き採用値、`daily_report_import_rows.reviewed_observations` は酒気帯び確認・確認印の記入状態を保持します。`daily_report_document_links` は証憑ページと日報・追加経費を結びます。確認印から承認状態は変更しません。日報の「OCR記録」から原本行、原読取、反映値・理由、証憑を閲覧できます。保存期限と閲覧権限を適用します。
 </textarea>
 <h2>保存後の反映</h2><p>プロジェクトフォルダーで次を実行し、稼働環境へ更新します。</p><pre>npm run docs:system-design --prefix backend
 npm run docs:system-design:check --prefix backend</pre>

@@ -2945,3 +2945,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen .data-table.dr-month-table > thead > tr > th {
   position:sticky; top:0; z-index:8; background:#eaf0f6;
 }
+.pdf-observations { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.pdf-adoption fieldset { min-width: 0; padding: 8px; }
+.pdf-adoption .form-grid { grid-template-columns: 50px repeat(2,minmax(0,1fr)); gap: 8px; align-items: end; }
+.pdf-adoption summary { cursor: pointer; font-weight: 600; }
