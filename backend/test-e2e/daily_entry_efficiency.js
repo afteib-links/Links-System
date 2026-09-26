@@ -32,6 +32,16 @@ const frontend = path.resolve(__dirname, '../../frontend');
       dr.renderGrid();
     });
     const time = (field, row) => page.locator(`[data-${field === 'break_minutes' ? 'minutes-f' : 'f'}="${field}"][data-idx="${row}"]`);
+    const rowHeight=async()=> (await page.locator('.dr-main').first().boundingBox()).height;
+    const initialHeight=await rowHeight();
+    await page.locator('[data-entry-mode=all]').click();
+    assert.equal(await rowHeight(),initialHeight,'時間・全項目の行間が一致する');
+    await page.locator('[data-entry-mode=time]').click();
+    async function assertCellBottoms() {
+      const bottoms=await page.locator('.dr-main').first().locator(':scope > td').evaluateAll(cells=>cells.filter(c=>c.getClientRects().length).map(c=>c.getBoundingClientRect().bottom));
+      assert.ok(Math.max(...bottoms)-Math.min(...bottoms)<1,'操作セルの下端は他セルと一致する');
+    }
+    await assertCellBottoms();
     await time('start_time',0).focus();
     for (let i=0; i<20; i++) {
       for (const [field, value] of [['start_time','8'],['end_time','1730'],['break_minutes','1.00']]) {
@@ -78,6 +88,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.locator('[data-entry-mode=time]').click();
     await page.evaluate(() => window.LinksDailyReports.saveAll());
     assert.equal(await page.evaluate(() => window.savedPayloads.length),20);
+    await assertCellBottoms();
     assert.equal(await page.evaluate(() => window.LinksDailyReports.gridRows.some(r => r._dirty)),false);
     // Opening details alone must not create dirty rows or repeat saves.
     await page.locator('[data-expand="1"]').click();

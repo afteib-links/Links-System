@@ -7966,6 +7966,15 @@
           "default": "0.0000",
           "extra": "",
           "comment": ""
+        },
+        {
+          "name": "rectification",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
         }
       ],
       "foreign_keys": [],

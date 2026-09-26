@@ -45,17 +45,19 @@
         const different = current && this.value(field,current[field]) !== this.value(field,draft.values[field]);
         const warning = row.warnings[field];
         return `<div class="pdf-field ${mainFields.includes(field) ? '' : 'pdf-extra-field'} ${different ? 'pdf-different' : ''}" data-field="${field}">
-          <div><label>${labels[field]} ${warning ? '<span class="pdf-warning">? 要確認</span>' : ''}${this.input(field,draft.ocr[field],'ocr')}</label><small>原読取: ${this.escape(row.raw_data[field] || '空欄')}</small>${warning ? `<small class="pdf-warning">${this.escape(warning)}</small>` : ''}</div>
+          <div><label title="${this.escape(warning || '')}">${labels[field]} ${warning ? '<span class="pdf-warning">?</span>' : ''}${this.input(field,draft.ocr[field],'ocr')}</label></div>
           <div><label><input type="checkbox" data-include="${field}" ${draft.fields.has(field) ? 'checked' : ''} ${this.editable ? '' : 'disabled'}> ${labels[field]}を反映</label>
           <small>現在: ${this.escape(current ? this.value(field,current[field]) || '空欄' : '未登録')}${different ? ' / 差分あり' : ''}</small>${this.input(field,draft.values[field],'proposed')}
           <small data-edited="${field}">${draft.edited.has(field) ? '手修正を優先' : ''}</small>
-          ${field !== 'work_date' ? `<label class="pdf-clear"><input type="checkbox" data-clear="${field}" ${draft.clears.has(field) ? 'checked' : ''} ${this.editable ? '' : 'disabled'}> 明示消去</label>` : ''}</div></div>`;
+          </div></div>`;
       }).join('');
       return `<article class="pdf-compare-row" data-row="${id}">
         <div class="pdf-row-select"><label><input type="checkbox" data-select ${draft.selected ? 'checked' : ''} ${this.editable ? '' : 'disabled'}> 取込</label><strong>行${this.escape(row.source_row_number)}</strong><small>${row.previously_imported ? '既取込' : current ? '既存値を保護' : Object.keys(row.warnings).length ? '要確認' : '新規'}</small></div>
         <div class="pdf-original-row">${row.has_image ? `<button class="pdf-crop-button" type="button" data-zoom tabindex="-1"><img src="/api/daily-report-imports/pdf/${this.id}/image/row/${id}" alt="PDF原本の行${this.escape(row.source_row_number)}"></button>` : '<p>原本PDFを開いて確認してください</p>'}<button type="button" class="btn btn-small" data-page tabindex="-1">ページと位置を表示</button></div>
-        <div class="pdf-values"><div class="pdf-target"><label>反映先<select data-target ${this.editable ? '' : 'disabled'}><option value="">${matches.length ? '反映先を選択' : '新規日報'}</option>${matches.map(r => `<option value="${r.daily_report_id}" ${Number(draft.target) === Number(r.daily_report_id) ? 'selected' : ''}>日報#${r.daily_report_id} / ${this.escape(r.start_time || '時刻未入力')} / ${this.escape(r.row_comment || '')}</option>`).join('')}${matches.length ? `<option value="new" ${draft.target === 'new' ? 'selected' : ''}>新しい作業行を追加する</option>` : ''}</select></label>
-          <label><input type="checkbox" data-date-confirmed ${draft.confirmed ? 'checked' : ''}> 原本の勤務日を確認した</label><label>更新・再取込理由<input data-reason value="${this.escape(draft.reason)}" placeholder="既存値の更新時は必須"></label></div>${fields}
+        <div class="pdf-values">${fields}<details class="pdf-row-details"><summary>対応先・原読取・理由 ${Object.keys(row.warnings).length ? '<span class="pdf-warning">要確認</span>' : ''}</summary><div class="pdf-target"><label>反映先<select data-target ${this.editable ? '' : 'disabled'}><option value="">${matches.length ? '反映先を選択' : '新規日報'}</option>${matches.map(r => `<option value="${r.daily_report_id}" ${Number(draft.target) === Number(r.daily_report_id) ? 'selected' : ''}>日報#${r.daily_report_id} / ${this.escape(r.start_time || '時刻未入力')} / ${this.escape(r.row_comment || '')}</option>`).join('')}${matches.length ? `<option value="new" ${draft.target === 'new' ? 'selected' : ''}>新しい作業行を追加する</option>` : ''}</select></label>
+          <label><input type="checkbox" data-date-confirmed ${draft.confirmed ? 'checked' : ''} ${this.editable ? '' : 'disabled'}> 原本の勤務日を確認した</label><label>更新・再取込理由<input data-reason value="${this.escape(draft.reason)}" placeholder="既存値の更新時は必須" ${this.editable ? '' : 'disabled'}></label></div>
+          <div class="pdf-raw-fields">${Object.keys(labels).map(field=>`<div><strong>${labels[field]}</strong> 原読取: ${this.escape(row.raw_data[field] || '空欄')}${row.warnings[field]?`<span class="pdf-warning"> ${this.escape(row.warnings[field])}</span>`:''}${field!=='work_date'?`<label class="pdf-clear"><input type="checkbox" data-clear="${field}" ${draft.clears.has(field)?'checked':''} ${this.editable?'':'disabled'}> 明示消去</label>`:''}</div>`).join('')}</div>
+          ${['time','alignment','duplicate'].map(key=>row.warnings[key]?`<p class="pdf-warning">${this.escape(row.warnings[key])}</p>`:'').join('')}</details>
           <p class="pdf-row-error" role="alert"></p></div></article>`;
     },
     render() {
@@ -66,7 +68,7 @@
           <p role="status">${busy ? `解析 ${this.escape(latest.progress)}%（${latest.status === 'queued' ? '待機' : '処理中'}）。日報入力へ戻っても処理は続きます。` : latest?.error_message ? this.escape(latest.error_message) : '選択した行と項目だけを日報へ反映します。空欄は既存値を消しません。'}</p>
           <div class="btn-row"><a class="btn btn-secondary" href="/api/daily-report-imports/pdf/${this.id}/image/original/0" target="_blank" rel="noopener">PDF原本を開く</a><button class="btn btn-secondary" id="pdf-refresh">現在値・進捗を再取得</button>${this.editable ? `<button class="btn btn-secondary" id="pdf-template">案件・様式を設定</button><button class="btn btn-secondary" id="pdf-manual">原本を見て手入力</button><button class="btn" id="pdf-apply" ${busy ? 'disabled' : ''}>選択内容を反映</button>` : ''}${latest?.status === 'failed' && this.editable ? '<button class="btn" id="pdf-retry">失敗した解析を再試行</button>' : ''}<button class="btn btn-ghost" id="pdf-back">取込一覧へ</button></div>
           <label><input type="checkbox" id="pdf-extra"> 距離・経費・コメントを表示</label><p id="pdf-message" role="status"></p></div>
-        <div class="pdf-comparison-heading"><span>取込</span><span>PDF原本の該当行</span><span>OCR候補・修正</span><span>現在値・反映予定値</span></div>
+        <div class="pdf-comparison-heading"><span>取込</span><span>補正画像の該当行</span><span>OCR候補・修正</span><span>現在値・反映予定値</span></div>
         <div id="pdf-rows">${[...this.drafts.values()].map(d => this.rowHtml(d)).join('') || '<p>解析が終わったら現在値・進捗を再取得してください。OCRが利用できない場合も原本を見て手入力できます。</p>'}</div>
       </section>`, {wide:true,onBack:() => this.leave()});
       this.kit.bindShell({onBack:() => this.leave()});
@@ -123,7 +125,7 @@
         }
       };
     },
-    replaceRow(article,draft) { article.outerHTML = this.rowHtml(draft); this.bindRows(); },
+    replaceRow(article,draft) { const open=article.querySelector('details')?.open; article.outerHTML = this.rowHtml(draft); const next=this.ctx.app.querySelector(`[data-row="${draft.row.daily_report_import_row_id}"] details`); if(next) next.open=Boolean(open); this.bindRows(); },
     entryInputs(root) { return [...root.querySelectorAll('input,select,textarea')].filter(el => !el.disabled && !el.readOnly && el.getClientRects().length); },
     entryTimeOptions() { return {maxMinutes:2879,padHours:true}; },
     openEntryTimePicker(input) { return window.LinksDailyEntryUI.openEntryTimePicker.call(this,input); },
@@ -150,18 +152,46 @@
       const existing = this.data.batch.extra_data.template;
       const projectOptions = await this.projectOptions();
       const defaultPage = page => ({page_number:page.page_number,top:.15,bottom:.9,row_count:31,rotation:0,columns:{work_date:[.03,.17],start_time:[.17,.38],end_time:[.38,.59],break_minutes:[.59,.75]}});
-      const content = `<p>原本に合わせて表の上下・行数・各列の左右を割合（%）で設定します。原本は別タブで開けます。</p><label>個別案件<select id="pdf-project" required>${projectOptions}</select></label><label>保存済み様式<select id="pdf-saved-template"><option value="">新規設定</option>${templates.map(t => `<option value="${t.daily_report_import_mapping_id}">${this.escape(t.mapping_name)}</option>`).join('')}</select></label>
+      const content = `<p>保存した補正画像を基準に、日付・開始・終了などの範囲を指定します。「検出した行を使用」で実際の罫線に合わせます。緑線は行境界です。日付は行番号から推測しません。</p><label>個別案件<select id="pdf-project" required>${projectOptions}</select></label><label>保存済み様式<select id="pdf-saved-template"><option value="">新規設定</option>${templates.map(t => `<option value="${t.daily_report_import_mapping_id}">${this.escape(t.mapping_name)}</option>`).join('')}</select></label>
         <div id="pdf-template-pages"></div><label>再利用する様式名（任意）<input id="pdf-template-name"></label><p id="pdf-template-error" role="alert"></p>`;
       document.body.insertAdjacentHTML('beforeend',this.kit.modalHtml('PDFの様式設定',content,'<button type="button" class="btn" id="pdf-start">様式を保存して解析</button>'));
       const close = this.kit.bindModal();
       const draw = template => { document.getElementById('pdf-template-pages').innerHTML = template.pages.map(p => `<fieldset data-page-config="${p.page_number}"><legend>${p.page_number}ページ</legend><div class="form-grid"><label>回転<select data-config="rotation">${[0,90,180,270].map(v=>`<option ${Number(p.rotation)===v?'selected':''}>${v}</option>`).join('')}</select></label><label>表上端 %<input type="number" data-config="top" step="0.1" value="${p.top*100}"></label><label>表下端 %<input type="number" data-config="bottom" step="0.1" value="${p.bottom*100}"></label><label>行数<input type="number" data-config="row_count" value="${p.row_count}"></label></div>${Object.entries(p.columns).map(([key,bounds])=>`<label>${labels[key]} 左端/右端 % <input type="number" step="0.1" data-column="${key}" data-edge="0" value="${bounds[0]*100}"><input type="number" step="0.1" data-column="${key}" data-edge="1" value="${bounds[1]*100}"></label>`).join('')}</fieldset>`).join(''); };
-      draw(existing || {pages:pages.map(defaultPage)});
-      document.getElementById('pdf-saved-template').onchange = event => { const t = templates.find(t => Number(t.daily_report_import_mapping_id) === Number(event.target.value)); if (t) draw(t.mapping_json); };
+      const drawWithPreview = template => {
+        draw(template);
+        document.querySelectorAll('[data-page-config]').forEach(el => {
+          const page=pages.find(p=>Number(p.page_number)===Number(el.dataset.pageConfig));
+          const config=template.pages.find(p=>Number(p.page_number)===Number(el.dataset.pageConfig));
+          el.querySelectorAll('[data-column][data-edge="0"]').forEach(input=>{
+            if(['work_date','start_time','end_time'].includes(input.dataset.column))return;
+            input.closest('label').insertAdjacentHTML('afterbegin',`<input type="checkbox" data-column-enabled="${input.dataset.column}" checked> 読取 `);
+          });
+          const detected=page?.rectification?.row_edges || [];
+          el.insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-skip-heading checked> 検出した先頭行は見出し</label><button type="button" class="btn btn-secondary" data-use-lines ${detected.length<2?'disabled':''}>検出した行を使用</button><p>${page?.rectification?.status==='rectified'?'台形・罫線の湾曲を補正済み':'罫線を確認してください（自動補正未確定）'}</p><label>行境界 %（上端から下端まで、カンマ区切り。空欄は自動検出）<textarea data-row-edges rows="2">${(config.row_edges||[]).map(v=>+(v*100).toFixed(6)).join(', ')}</textarea></label>${page?.pdf_page_id?`<div class="pdf-template-preview"><img src="/api/daily-report-imports/pdf/${this.id}/image/page/${page.pdf_page_id}" alt="保存した補正画像"><div data-preview-lines></div></div>`:''}`);
+          const edgesInput=el.querySelector('[data-row-edges]');
+          const refresh=()=>{ const layer=el.querySelector('[data-preview-lines]'); if(layer) layer.innerHTML=edgesInput.value.split(/[,\s]+/).filter(Boolean).map(Number).filter(v=>Number.isFinite(v)&&v>=0&&v<=100).map(v=>`<span style="top:${v}%"></span>`).join(''); };
+          el.querySelector('[data-use-lines]').onclick=()=>{
+            const edges=detected.slice(el.querySelector('[data-skip-heading]').checked?1:0);
+            if(edges.length<2) return;
+            el.querySelector('[data-config="top"]').value=edges[0]*100;
+            el.querySelector('[data-config="bottom"]').value=edges.at(-1)*100;
+            el.querySelector('[data-config="row_count"]').value=edges.length-1;
+            edgesInput.value=edges.map(v=>+(v*100).toFixed(6)).join(', '); refresh();
+          };
+          edgesInput.oninput=refresh;
+          el.querySelectorAll('[data-config]').forEach(input=>input.addEventListener('change',()=>{ edgesInput.value='';refresh(); }));
+          refresh();
+        });
+      };
+      drawWithPreview(existing || {pages:pages.map(defaultPage)});
+      document.getElementById('pdf-saved-template').onchange = event => { const t = templates.find(t => Number(t.daily_report_import_mapping_id) === Number(event.target.value)); if (t) drawWithPreview(t.mapping_json); };
       document.getElementById('pdf-start').onclick = async event => {
         const template = {pages:[...document.querySelectorAll('[data-page-config]')].map(el => {
           const p={page_number:Number(el.dataset.pageConfig),columns:{},deskew:true};
           el.querySelectorAll('[data-config]').forEach(input => p[input.dataset.config]=Number(input.value)/(['top','bottom'].includes(input.dataset.config)?100:1));
-          el.querySelectorAll('[data-column]').forEach(input => { p.columns[input.dataset.column] ||= []; p.columns[input.dataset.column][Number(input.dataset.edge)] = Number(input.value)/100; });
+          el.querySelectorAll('[data-column]').forEach(input => { if(el.querySelector(`[data-column-enabled="${input.dataset.column}"]`)?.checked===false)return; p.columns[input.dataset.column] ||= []; p.columns[input.dataset.column][Number(input.dataset.edge)] = Number(input.value)/100; });
+          const edges=el.querySelector('[data-row-edges]').value.trim();
+          if(edges) p.row_edges=edges.split(/[,\s]+/).filter(Boolean).map(v=>Number(v)/100);
           return p;
         })};
         event.currentTarget.disabled = true;

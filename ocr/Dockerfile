@@ -9,4 +9,5 @@ RUN pip install --no-cache-dir -r requirements.lock
 COPY ocr/fetch_models.py ./
 RUN python fetch_models.py
 COPY ocr/worker.py ./
+COPY ocr/geometry.py ./
 CMD ["python", "worker.py"]

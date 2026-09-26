@@ -2654,10 +2654,13 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen input, .dr-grid-screen select, .dr-grid-screen textarea { font-size:var(--dr-input-font-size,16px) !important; }
 .dr-picker-button { background:#edf2f7; color:#183b57; border:1px solid #bac8d3; border-radius:4px; cursor:pointer; min-height:28px; padding:2px 5px; }
 .dr-detail-heading { font-size:16px; margin:8px 0; }
-.dr-grid-screen .dr-detail-grid { align-items:start; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:4px; }
+.dr-grid-screen .dr-detail-grid { align-items:start; grid-template-columns:minmax(160px,.6fr) minmax(360px,1.4fr) minmax(300px,1fr); gap:8px; padding:4px; }
 .dr-grid-screen .dr-detail-section { min-width:0; padding:8px; }
-.dr-grid-screen .dr-detail-section .form-grid { display:flex; flex-wrap:wrap; align-items:end; gap:6px 10px; }
-.dr-grid-screen .dr-detail-section .form-grid label { flex:0 1 160px; }
+.dr-grid-screen .dr-detail-section .form-grid { display:flex; flex-wrap:wrap; align-items:start; gap:6px 8px; }
+.dr-grid-screen .dr-detail-section .form-grid label { flex:1 1 130px; }
+.dr-grid-screen .dr-detail-section:has([data-f="total_distance"]) .form-grid label { flex:1 1 76px; font-size:12px; }
+.dr-detail-time-control { flex-wrap:wrap; }
+.dr-detail-time-control .dr-input-error { flex-basis:100%; order:3; }
 .dr-grid-screen .dr-detail-section .form-grid .full { flex-basis:100%; }
 .dr-grid-screen .dr-detail-section input, .dr-grid-screen .dr-detail-section select { margin:0; padding:4px 6px; min-height:34px; }
 .dr-grid-screen .dr-detail-section p { margin:4px 0; white-space:normal; }
@@ -2708,38 +2711,47 @@ label, .field-label { color: #344054; font-weight: 700; }
 }
 /* PDFの原本・OCR・日報を同じ行で比較する。 */
 .pdf-import-toolbar { position: sticky; top: 0; z-index: 4; background: var(--surface, #fff); padding-bottom: 12px; }
-.pdf-comparison-heading { display: grid; grid-template-columns: 72px minmax(200px, 1fr) minmax(260px, 1fr) minmax(290px, 1fr); gap: 12px; padding: 10px; background: #e8eef7; color: #17263c; font-weight: 700; }
-.pdf-compare-row { display: grid; grid-template-columns: 72px minmax(200px, 1fr) minmax(562px, 2fr); gap: 12px; padding: 16px 10px; border-bottom: 2px solid #d6dfeb; align-items: start; }
-.pdf-row-select, .pdf-original-row { display: grid; gap: 10px; }
+.pdf-comparison-heading { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(326px, 1.3fr) minmax(326px, 1.3fr); gap: 8px; padding: 6px; background: #e8eef7; color: #17263c; font-weight: 700; }
+.pdf-compare-row { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(660px, 2.6fr); gap: 8px; padding: 6px; border-bottom: 1px solid #d6dfeb; align-items: start; }
+.pdf-row-select, .pdf-original-row { display: grid; gap: 3px; }
+.pdf-row-select label { white-space:nowrap; font-size:12px; }
 .pdf-crop-button { border: 1px solid #c3ccda; background: #fff; padding: 0; cursor: zoom-in; width: 100%; }
-.pdf-crop-button img { display: block; width: 100%; min-height: 60px; object-fit: contain; }
+.pdf-crop-button img { display: block; width: 100%; max-height: 64px; object-fit: contain; }
+.pdf-original-row > .btn { min-height:22px; padding:2px 6px; font-size:12px; }
 .pdf-values { min-width: 0; }
 .pdf-target { display: grid; gap: 8px; margin-bottom: 12px; }
 .pdf-target label, .pdf-field label { display: block; }
 .pdf-field { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid #e1e5ec; }
 .pdf-field > div { min-width: 0; }
-.pdf-values { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pdf-values { display: grid; grid-template-columns: minmax(110px,1.4fr) repeat(3,minmax(64px,1fr)) minmax(110px,1.4fr) repeat(3,minmax(64px,1fr)); gap: 4px; }
 .pdf-target, .pdf-row-error { grid-column: 1 / -1; }
 .pdf-field { display: contents; }
-.pdf-field > div { border-top: 1px solid var(--line); padding-top: 8px; }
-.pdf-field[data-field=work_date] > div:first-child { grid-area: 2 / 1; }
-.pdf-field[data-field=start_time] > div:first-child { grid-area: 2 / 2; }
-.pdf-field[data-field=end_time] > div:first-child { grid-area: 3 / 1; }
-.pdf-field[data-field=break_minutes] > div:first-child { grid-area: 3 / 2; }
-.pdf-field[data-field=work_date] > div:last-child { grid-area: 2 / 3; }
-.pdf-field[data-field=start_time] > div:last-child { grid-area: 2 / 4; }
-.pdf-field[data-field=end_time] > div:last-child { grid-area: 3 / 3; }
-.pdf-field[data-field=break_minutes] > div:last-child { grid-area: 3 / 4; }
-.pdf-extra-field > div { grid-column: span 2; }
+.pdf-field > div { padding-top:0; }
+.pdf-field[data-field=work_date] > div:first-child { grid-area: 1 / 1; }
+.pdf-field[data-field=start_time] > div:first-child { grid-area: 1 / 2; }
+.pdf-field[data-field=end_time] > div:first-child { grid-area: 1 / 3; }
+.pdf-field[data-field=break_minutes] > div:first-child { grid-area: 1 / 4; }
+.pdf-field[data-field=work_date] > div:last-child { grid-area: 1 / 5; }
+.pdf-field[data-field=start_time] > div:last-child { grid-area: 1 / 6; }
+.pdf-field[data-field=end_time] > div:last-child { grid-area: 1 / 7; }
+.pdf-field[data-field=break_minutes] > div:last-child { grid-area: 1 / 8; }
+.pdf-extra-field { grid-column:span 4; }
+.pdf-row-details { grid-column:1 / -1; font-size:12px; }
+.pdf-row-details summary { cursor:pointer; }
+.pdf-raw-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+.pdf-row-error:empty, .pdf-values [data-edited]:empty { display:none; }
+.pdf-field label, .pdf-field small { font-size:12px; line-height:1.2; }
 .pdf-import-screen input[type=checkbox] { width: 18px; height: 18px; min-height: 18px; margin: 0 5px 0 0; vertical-align: middle; display: inline-block; }
-.pdf-import-screen label { margin-bottom: 4px; }
+.pdf-import-screen label { margin-bottom: 2px; }
 .pdf-target { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
 .pdf-target > label:last-child { grid-column: 1 / -1; }
 .pdf-clear { font-weight: normal; font-size: 12px; }
 .pdf-field small { display: block; overflow-wrap: anywhere; }
 .pdf-input-control { display: flex; gap: 2px; align-items: center; }
-.pdf-import-screen input:not([type=checkbox]), .pdf-import-screen select { width: 100%; min-width: 0; min-height: 38px; font-size: 16px; }
-.pdf-input-control button { flex: 0 0 30px; padding: 4px; }
+.pdf-import-screen input:not([type=checkbox]), .pdf-import-screen select { width: 100%; min-width: 0; min-height: 30px; height:30px; margin:0; padding:3px 4px; font-size: 16px; }
+.pdf-input-control { position:relative; }
+.pdf-input-control:has(button) input { padding-right:16px; }
+.pdf-input-control button { position:absolute; right:1px; width:16px; min-width:0; min-height:26px; padding:0; font-size:12px; }
 .pdf-warning, .pdf-row-error { color: #9a3a00; }
 .pdf-different { background: #fff8e8; }
 .pdf-extra-field { display: none; }
@@ -2751,12 +2763,18 @@ label, .field-label { color: #344054; font-weight: 700; }
 .pdf-highlight { position: absolute; border: 3px solid #e08400; background: #ffcc3326; pointer-events: none; }
 #pdf-template-pages fieldset { margin: 16px 0; padding: 12px; }
 #pdf-template-pages [data-column] { width: 80px; display: inline-block; margin-left: 8px; }
+.pdf-template-preview { position:relative; max-width:560px; margin:8px auto; }
+.pdf-template-preview img { display:block; width:100%; }
+.pdf-template-preview [data-preview-lines] { position:absolute; inset:0; pointer-events:none; }
+.pdf-template-preview [data-preview-lines] span { position:absolute; left:0; right:0; border-top:1px solid #079455; }
+#pdf-template-pages textarea { width:100%; font-size:14px; }
 @media (max-width: 1050px) {
   .pdf-comparison-heading { display: none; }
   .pdf-compare-row { grid-template-columns: 1fr; }
   .pdf-row-select { display: flex; gap: 16px; align-items: center; }
   .pdf-field { grid-template-columns: 1fr 1fr; }
   .pdf-values { display: block; }
+  .pdf-row-details { margin-top:4px; }
   .pdf-field { display: grid; }
   .pdf-field[data-field] > div { grid-area: auto; }
   .pdf-import-toolbar { position: static; }
@@ -2764,6 +2782,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 @media (max-width: 600px) {
   .pdf-field { grid-template-columns: 1fr; }
   .pdf-target { grid-template-columns: 1fr; }
+  .pdf-raw-fields { grid-template-columns:1fr; }
   .pdf-field > div:first-child::before { content: 'OCR候補・修正'; font-weight: 700; }
   .pdf-field > div:last-child::before { content: '現在値・反映予定'; font-weight: 700; }
 }

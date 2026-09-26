@@ -92,7 +92,8 @@ router.get('/templates', route(async (_req, conn) => {
 router.get('/:id', route(async (req, conn) => {
   const { batch, file } = await loadBatch(conn, req.params.id);
   const [jobs] = await conn.query(`SELECT ocr_job_id,job_type,status,progress,attempts,error_message,metrics,heartbeat_at FROM daily_report_ocr_jobs WHERE daily_report_import_batch_id=? ORDER BY ocr_job_id DESC`, [req.params.id]);
-  const [pages] = await conn.query('SELECT pdf_page_id,page_number,width,height,rotation,deskew_angle FROM daily_report_pdf_pages WHERE source_file_id=? ORDER BY page_number', [file.daily_report_import_file_id]);
+  const [pages] = await conn.query('SELECT pdf_page_id,page_number,width,height,rotation,deskew_angle,rectification FROM daily_report_pdf_pages WHERE source_file_id=? ORDER BY page_number', [file.daily_report_import_file_id]);
+  pages.forEach(p => { p.rectification = json(p.rectification); });
   const [rows] = await conn.query('SELECT * FROM daily_report_import_rows WHERE daily_report_import_batch_id=? ORDER BY source_row_number', [req.params.id]);
   let current = [], period = null;
   const projectId = batch.extra_data.project_id;
@@ -100,10 +101,18 @@ router.get('/:id', route(async (req, conn) => {
     period = await getPeriod(projectId, batch.target_year_month, conn);
     [current] = await conn.query(`SELECT * FROM daily_reports WHERE project_id=? AND is_deleted=0 AND work_date BETWEEN ? AND ? ORDER BY work_date,daily_report_id`, [projectId, period.period_start, period.period_end]);
   }
+  const dates = new Map();
+  if (period) for (const row of rows) {
+    const date=candidate(json(row.raw_data),json(row.ocr_confidence),period).values.work_date;
+    if(date) dates.set(date,(dates.get(date)||0)+1);
+  }
   return { batch, jobs, pages, period, file: { file_id: file.daily_report_import_file_id, name: file.original_filename }, current_reports: current,
     rows: rows.map(row => {
       const raw = json(row.raw_data), confidence = json(row.ocr_confidence);
       const parsed = period ? candidate(raw, confidence, period) : { values: {}, warnings: { date: '案件と対象期間を指定してください' } };
+      const region = json(row.source_region);
+      if (region.alignment_warning) parsed.warnings.alignment = region.alignment_warning;
+      if (dates.get(parsed.values.work_date)>1) parsed.warnings.duplicate='同じ勤務日の候補が複数あります。ページ・作業行を確認してください';
       const matches = current.filter(r => r.work_date === parsed.values.work_date);
       const { source_image_path, ...safe } = row;
       return { ...safe, raw_data: raw, source_region: json(row.source_region), confidence, candidate: parsed.values, warnings: parsed.warnings,
@@ -157,8 +166,11 @@ router.post('/:id/configure', editor, route(async (req, conn) => {
 
 router.post('/:id/retry', editor, route(async (req, conn) => {
   await loadBatch(conn, req.params.id, true);
+  const [applied] = await conn.query('SELECT daily_report_import_row_id FROM daily_report_import_rows WHERE daily_report_import_batch_id=? AND daily_report_id IS NOT NULL LIMIT 1',[req.params.id]);
+  if(applied.length) throw periodError('反映済みの画像・原読取値は再解析できません。理由を付けて別バッチで取り込んでください');
   const [result] = await conn.query(`UPDATE daily_report_ocr_jobs SET status='queued',error_message=NULL,progress=0 WHERE ocr_job_id=? AND daily_report_import_batch_id=? AND status='failed'`, [req.body.job_id, req.params.id]);
   if (!result.affectedRows) throw periodError('再試行可能なジョブではありません');
+  await conn.query("UPDATE daily_report_import_batches SET status='parsing' WHERE daily_report_import_batch_id=?",[req.params.id]);
   return {};
 }, true));
 

@@ -29,7 +29,11 @@ function validateTemplate(value) {
       columns[key] = [left, right];
     }
     if (!columns.work_date || !columns.start_time || !columns.end_time) throw periodError('日付・開始・終了の列を指定してください', 400);
-    return { page_number: number, top, bottom, row_count: count, rotation, deskew: page.deskew !== false, columns };
+    if (page.row_edges != null && !Array.isArray(page.row_edges)) throw periodError('行境界は配列で指定してください',400);
+    const edges = page.row_edges == null ? null : page.row_edges.map(Number);
+    if (edges && (edges.length !== count+1 || edges.some((v,i) => !Number.isFinite(v) || v < 0 || v > 1 || (i && v <= edges[i-1]))
+      || Math.abs(edges[0]-top) > .0001 || Math.abs(edges.at(-1)-bottom) > .0001)) throw periodError('行境界は表の上下を含む昇順で、行数＋1個を指定してください',400);
+    return { page_number: number, top, bottom, row_count: count, rotation, deskew: page.deskew !== false, columns, ...(edges ? {row_edges:edges} : {}) };
   });
   if (new Set(pages.map(p => p.page_number)).size !== pages.length) throw periodError('ページ番号が重複しています', 400);
   return { pages };

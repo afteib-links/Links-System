@@ -157,10 +157,12 @@
         if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', el.closest('label')?.textContent.trim() || el.dataset.f || el.dataset.minutesF);
         if (!el.closest('.dr-time-control')) {
           const button = document.createElement('button');
-          button.type = 'button'; button.className = 'dr-picker-button'; button.textContent = '時分選択';
+          button.type = 'button'; button.className = 'dr-picker-button'; button.textContent = '▾';
+          button.setAttribute('aria-label','時分選択'); button.title='時分選択（Alt＋↓）';
           button.tabIndex = -1; button.disabled = el.disabled;
           button.addEventListener('click', () => this.openEntryTimePicker(el));
-          el.insertAdjacentElement('afterend', button);
+          const control=document.createElement('span'); control.className='dr-time-control dr-detail-time-control';
+          el.before(control); control.append(el,button);
         }
       });
       screen.querySelectorAll('[data-idx]').forEach(el => {

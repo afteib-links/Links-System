@@ -12,6 +12,7 @@ import numpy as np
 import pymysql
 import pypdfium2 as pdfium
 from PIL import Image, ImageOps
+from geometry import rectify, row_regions, clean_cell
 
 ROOT = pathlib.Path(os.environ.get('DAILY_REPORT_IMPORT_DIR', '/app/uploads/daily-report-imports')).resolve()
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -73,7 +74,7 @@ def deskew(image):
 
 def read_cell(engine, crop):
     # Padding prevents handwriting that touches a table border from being clipped.
-    padded = ImageOps.expand(crop.convert('RGB'), border=12, fill='white')
+    padded = ImageOps.expand(clean_cell(crop), border=12, fill='white')
     result = next(iter(engine.predict(np.asarray(padded))))
     texts = result.get('rec_texts', [])
     scores = result.get('rec_scores', [])
@@ -85,6 +86,9 @@ def execute_job(conn, job):
     payload = json.loads(job['payload']) if isinstance(job['payload'], str) else job['payload']
     batch_id = job['daily_report_import_batch_id']
     with conn.cursor() as cursor:
+        cursor.execute('SELECT daily_report_import_row_id FROM daily_report_import_rows WHERE daily_report_import_batch_id=%s AND daily_report_id IS NOT NULL LIMIT 1', (batch_id,))
+        if cursor.fetchone():
+            raise ValueError('Applied source images must not be regenerated')
         cursor.execute('SELECT * FROM daily_report_import_files WHERE daily_report_import_file_id=%s AND daily_report_import_batch_id=%s AND is_active=1 AND retention_until>=CURDATE()', (payload['source_file_id'], batch_id))
         file = cursor.fetchone()
     if not file:
@@ -117,15 +121,28 @@ def execute_job(conn, job):
             angle = 0
             if rotation:
                 image = image.rotate(-rotation, expand=True, fillcolor='white')
-            if config and config.get('deskew', True):
+            if not config or config.get('deskew', True):
                 image, angle = deskew(image)
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT image_path,rotation,deskew_angle,rectification FROM daily_report_pdf_pages WHERE source_file_id=%s AND page_number=%s', (file['daily_report_import_file_id'], index+1))
+                saved_page = cursor.fetchone()
+            if job['job_type'] == 'recognize' and saved_page and saved_page['rectification'] and int(saved_page['rotation']) == rotation:
+                # OCR and crops read the persisted pixels shown during template setup.
+                image.close()
+                with Image.open(safe_path(saved_page['image_path'])) as saved_image:
+                    image = saved_image.convert('RGB')
+                geometry = json.loads(saved_page['rectification']) if isinstance(saved_page['rectification'], str) else saved_page['rectification']
+                angle = float(saved_page['deskew_angle'])
+            else:
+                image, geometry = rectify(image)
             page_path = write_image(image, f"{file['stored_filename']}-p{index + 1}.png")
             with conn.cursor() as cursor:
-                cursor.execute('INSERT INTO daily_report_pdf_pages(source_file_id,page_number,image_path,width,height,rotation,deskew_angle) VALUES (%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE image_path=VALUES(image_path),width=VALUES(width),height=VALUES(height),rotation=VALUES(rotation),deskew_angle=VALUES(deskew_angle)',
-                               (file['daily_report_import_file_id'], index + 1, page_path, image.width, image.height, rotation, angle))
+                cursor.execute('INSERT INTO daily_report_pdf_pages(source_file_id,page_number,image_path,width,height,rotation,deskew_angle,rectification) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE image_path=VALUES(image_path),width=VALUES(width),height=VALUES(height),rotation=VALUES(rotation),deskew_angle=VALUES(deskew_angle),rectification=VALUES(rectification)',
+                               (file['daily_report_import_file_id'], index + 1, page_path, image.width, image.height, rotation, angle, dumps(geometry)))
                 cursor.execute('SELECT pdf_page_id FROM daily_report_pdf_pages WHERE source_file_id=%s AND page_number=%s', (file['daily_report_import_file_id'], index + 1))
                 page_id = cursor.fetchone()['pdf_page_id']
             if config:
+                edges, alignment_warning = row_regions(config, geometry)
                 for row_index in range(config['row_count']):
                     row_number += 1
                     with conn.cursor() as cursor:
@@ -134,8 +151,7 @@ def execute_job(conn, job):
                     conn.commit()
                     if retained:
                         continue
-                    top = config['top'] + (config['bottom'] - config['top']) * row_index / config['row_count']
-                    bottom = config['top'] + (config['bottom'] - config['top']) * (row_index + 1) / config['row_count']
+                    top, bottom = edges[row_index:row_index+2]
                     bounds = [min(c[0] for c in config['columns'].values()), top, max(c[1] for c in config['columns'].values()), bottom]
                     crop = image.crop(tuple(round(v * (image.width if i % 2 == 0 else image.height)) for i, v in enumerate(bounds)))
                     row_path = write_image(crop, f"{file['stored_filename']}-p{index + 1}-r{row_index + 1}.png")
@@ -156,7 +172,7 @@ def execute_job(conn, job):
                         if not cursor.fetchone():
                             fingerprint = hashlib.sha256(f"{file['sha256']}:{index + 1}:{row_index + 1}:{payload['project_id']}".encode()).hexdigest()
                             cursor.execute("INSERT INTO daily_report_import_rows(daily_report_import_batch_id,source_file_id,source_sheet,source_row_number,status,raw_data,parsed_data,validation_errors,validation_warnings,matched_project_id,matched_partner_id,pdf_page_id,source_region,ocr_confidence,source_image_path,extra_data,row_fingerprint) VALUES (%s,%s,%s,%s,'warning',%s,'{}','[]','[]',%s,%s,%s,%s,%s,%s,%s,%s)",
-                                           (batch_id, file['daily_report_import_file_id'], str(index + 1), row_number, dumps(raw), payload['project_id'], payload.get('partner_id'), page_id, dumps({'row': bounds, 'fields': regions}), dumps(confidence), row_path, dumps({'ocr_error': ocr_error, 'parser': 'PP-OCRv5 mobile / PaddleOCR 3.2.0'}), fingerprint))
+                                           (batch_id, file['daily_report_import_file_id'], str(index + 1), row_number, dumps(raw), payload['project_id'], payload.get('partner_id'), page_id, dumps({'row': bounds, 'fields': regions, 'coordinate_space':'rectified-page', 'alignment_warning':alignment_warning or geometry.get('warning')}), dumps(confidence), row_path, dumps({'ocr_error': ocr_error, 'parser': 'PP-OCRv5 mobile / PaddleOCR 3.2.0'}), fingerprint))
                         progress = round(100 * ((index + (row_index + 1) / config['row_count']) / len(document)))
                         cursor.execute('UPDATE daily_report_ocr_jobs SET progress=%s,heartbeat_at=NOW() WHERE ocr_job_id=%s', (progress, job['ocr_job_id']))
                     conn.commit()
