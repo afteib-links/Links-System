@@ -41,3 +41,10 @@ test('様式の範囲外座標・重複ページ・不正列を拒否する', ()
   assert.throws(()=>validateTemplate({pages:[{...p,top:-1}]}));
   assert.throws(()=>validateTemplate({pages:[{...p,columns:{...p.columns,unexpected:[0,1]}}]}));
 });
+
+test('補正画像の非等間隔な行境界を維持し、不正な境界を拒否する',()=>{
+ const p={page_number:1,top:.1,bottom:.8,row_count:3,row_edges:[.1,.25,.6,.8],columns:{work_date:[0,.1],start_time:[.1,.3],end_time:[.3,.5]}};
+ assert.deepEqual(validateTemplate({pages:[p]}).pages[0].row_edges,p.row_edges);
+ for(const edges of [[.1,.6,.25,.8],[.1,.3,.8],[.2,.3,.6,.8],[-.1,.3,.6,.8],'invalid'])
+   assert.throws(()=>validateTemplate({pages:[{...p,row_edges:edges}]}));
+});

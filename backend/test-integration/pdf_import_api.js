@@ -49,6 +49,7 @@ async function main() {
     const configured=await api(endpoint+'/configure',{project_id:project.insertId,template,template_name:'匿名3行帳票'});
     assert.equal(configured.status,200,JSON.stringify(configured));
     const recognized=await waitJob();
+    assert.ok(recognized.pages[0].rectification.method,'保存ページの補正情報を保持する');
     assert.equal(recognized.rows.length,3); assert.ok(recognized.rows.every(row=>row.has_image));
     const metrics=typeof recognized.jobs[0].metrics==='string'?JSON.parse(recognized.jobs[0].metrics):recognized.jobs[0].metrics;
     assert.equal(metrics.mode,'ocr',JSON.stringify(recognized.jobs[0]));
@@ -70,6 +71,7 @@ async function main() {
     const [locked]=await pool.query('SELECT version FROM daily_reports WHERE daily_report_id=?',[newId]);
     const denied=await api(endpoint+'/apply',{rows:[{...next,import_version:imported.version,target_daily_report_id:newId,expected_version:locked[0].version,fields:['end_time'],values:{end_time:'1800'},reason:'ロック検証'}]}); assert.equal(denied.status,409);
     assert.equal((await api(`/api/daily-report-imports/${id}/apply`,{row_ids:[first.daily_report_import_row_id]})).status,400);
+    assert.equal((await api(endpoint+'/retry',{job_id:recognized.jobs[0].ocr_job_id})).status,409,'反映済みの画像を再生成しない');
     const image=await fetch(base+`${endpoint}/image/row/${first.daily_report_import_row_id}`,{headers:{cookie}});
     assert.equal(image.status,200); assert.match(image.headers.get('content-type'),/image\/png/);
     console.log('[integration] PDF render/OCR/field selection/idempotency/concurrency/lock/source preservation passed',JSON.stringify(metrics));

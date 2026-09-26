@@ -4339,14 +4339,16 @@ image_path text NOT NULL
 width int(11) NOT NULL
 height int(11) NOT NULL
 rotation int(11) NOT NULL
-deskew_angle decimal(8,4) NOT NULL 外部キーなし"><h3>daily_report_pdf_pages</h3><div class="schema-grid"><div><h4>カラム</h4><pre>pdf_page_id bigint(20) unsigned NOT NULL [PRI]
+deskew_angle decimal(8,4) NOT NULL
+rectification longtext 外部キーなし"><h3>daily_report_pdf_pages</h3><div class="schema-grid"><div><h4>カラム</h4><pre>pdf_page_id bigint(20) unsigned NOT NULL [PRI]
 source_file_id bigint(20) unsigned NOT NULL [MUL]
 page_number int(11) NOT NULL
 image_path text NOT NULL
 width int(11) NOT NULL
 height int(11) NOT NULL
 rotation int(11) NOT NULL
-deskew_angle decimal(8,4) NOT NULL</pre></div><div><h4>外部キー</h4><pre>外部キーなし</pre><h4>インデックス</h4><pre>PRIMARY: pdf_page_id (UNIQUE)
+deskew_angle decimal(8,4) NOT NULL
+rectification longtext</pre></div><div><h4>外部キー</h4><pre>外部キーなし</pre><h4>インデックス</h4><pre>PRIMARY: pdf_page_id (UNIQUE)
 uq_pdf_page: source_file_id, page_number (UNIQUE)</pre></div></div></article><article class="schema-card searchable" id="table-daily_report_periods" data-search="daily_report_periods daily_report_period_id bigint(20) unsigned NOT NULL [PRI]
 project_id bigint(20) unsigned NOT NULL [MUL]
 target_year_month char(7) NOT NULL
