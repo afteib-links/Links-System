@@ -74,7 +74,11 @@
         const badge = screen.querySelector(`[data-entry-state="${idx}"]`);
         if (badge) { badge.textContent = label; badge.dataset.state = label; }
         const tr = screen.querySelector(`.dr-main[data-idx="${idx}"]`);
-        if (tr) tr.classList.toggle('dr-unsaved', !!row._dirty);
+        if (tr) {
+          tr.classList.toggle('dr-unsaved', !!row._dirty);
+          const status=tr.querySelector('[data-day-status]');
+          if(status) {status.textContent=label;status.setAttribute('aria-label',`${label}：${status.title}`);}
+        }
         if (['total_distance','toll_fee','parking_fee','transport_fee'].some(f => Number(row[f]))) extraCount++;
         expenses += ['toll_fee','parking_fee','transport_fee'].reduce((s, f) => s + Number(row[f] || 0), 0);
         billing += this.rowEffectiveAmount(row, 'billing'); payment += this.rowEffectiveAmount(row, 'payment');
@@ -84,6 +88,15 @@
       const totals = screen.querySelector('[data-entry-totals]');
       const items=this.additionalItems||[],extraBilling=items.reduce((sum,r)=>sum+Number(r.billing_amount),0),extraPayment=items.reduce((sum,r)=>sum+Number(r.payment_amount),0);
       if (totals) totals.textContent = `期間合計（保存時の計算） 請求 ${this.kit.money(billing+extraBilling)} / 支払 ${this.kit.money(payment+extraPayment)}${items.length?`（追加項目 ${items.length}件: 請求 ${this.kit.money(extraBilling)} / 支払 ${this.kit.money(extraPayment)}を含む）`:''}`;
+      const sum=field=>this.gridRows.reduce((n,r)=>n+Number(r[field]||0),0);
+      const working=this.gridRows.filter(r=>!Number(r.is_absent));
+      const minutes=field=>Math.round(working.reduce((n,r)=>n+Number(r[field]||0)*60,0));
+      const footer={absent:this.gridRows.filter(r=>Number(r.is_absent)).length,training:this.gridRows.filter(r=>Number(r.is_training)).length,
+        break:this.formatMinutes(working.reduce((n,r)=>n+Number(r.break_minutes??Number(r.break_time||0)*60),0)),work:this.formatMinutes(minutes('work_hours')),
+        overtime:this.formatMinutes(minutes('overtime_hours')),shortage:this.formatMinutes(minutes('shortage_hours')),distance:sum('total_distance').toLocaleString(),
+        toll:this.kit.money(sum('toll_fee')),parking:this.kit.money(sum('parking_fee')),transport:this.kit.money(sum('transport_fee')),
+        billing:this.kit.money(billing+extraBilling),payment:this.kit.money(payment+extraPayment)};
+      screen.querySelectorAll('[data-footer]').forEach(el=>{el.textContent=footer[el.dataset.footer];el.title=['billing','payment'].includes(el.dataset.footer)?'保存時計算額＋追加項目（未保存の料金変更は保存後に反映）':'表示期間の合計';});
       const selected = this.gridRows[this.activeEntryIdx];
       const active = screen.querySelector('[data-entry-selected]');
       if (active) active.textContent = selected ? `${this.formatDateWithWeekday(selected.work_date)} 選択行: 請求 ${this.kit.money(this.rowEffectiveAmount(selected, 'billing'))} / 支払 ${this.kit.money(this.rowEffectiveAmount(selected, 'payment'))}${selected._dirty ? '（未保存・再計算前）' : ''}` : '入力する行を選択してください';

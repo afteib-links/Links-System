@@ -2675,8 +2675,8 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-picker-fields { display:flex; gap:16px; margin:12px 0; }
 .dr-picker-fields select { font-size:20px; min-width:75px; }
 .dr-grid-screen[data-entry-mode="time"] .dr-month-table { width:100%; min-width:0; table-layout:auto; }
-.dr-grid-screen[data-entry-mode="time"] .dr-month-table > thead > tr > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14),:nth-child(17),:nth-child(18)),
-.dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14),:nth-child(17),:nth-child(18)) { display:none; }
+.dr-grid-screen[data-entry-mode="time"] .dr-month-table > thead > tr > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14)),
+.dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14)) { display:none; }
 .dr-grid-screen .dr-month-table > thead > tr > th,
 .dr-grid-screen .dr-main > td { padding:4px 5px; }
 @media (max-width:700px) {
@@ -2691,7 +2691,7 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-grid-screen[data-entry-mode="time"] .dr-month-table > tbody { display:block; }
   .dr-grid-screen[data-entry-mode="time"] .dr-main { display:grid; grid-template-columns:28px 1fr 1fr; gap:6px; padding:8px; border-bottom:2px solid #ccd6df; }
   .dr-grid-screen[data-entry-mode="time"] .dr-main > td { display:block; position:static; width:auto; min-width:0; padding:2px; box-shadow:none; }
-  .dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14),:nth-child(17),:nth-child(18)) { display:none; }
+  .dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14)) { display:none; }
   .dr-grid-screen[data-entry-mode="time"] .dr-main > :nth-child(2) { grid-column:2 / 4; }
   .dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(3),:nth-child(4)) { grid-column:2 / 4; }
   .dr-grid-screen[data-entry-mode="time"] .dr-main > :nth-child(3)::before { content:'不要 '; }
@@ -2865,6 +2865,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen .dr-ops-cell > .table-action-row { gap:2px; }
 .dr-grid-screen .dr-ops-cell .btn-small { flex:0 0 19px; width:19px; min-width:0; padding:1px 2px; }
 @media (min-width:701px) {
+  .app-main-scroll-body:has(.dr-grid-screen) { padding:8px 12px; }
   .dr-grid-screen[data-entry-mode] .dr-month-table { table-layout:fixed; }
   .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :nth-child(1),
   .dr-grid-screen[data-entry-mode] .dr-main > :nth-child(1) { width:28px; }
@@ -2894,3 +2895,48 @@ label, .field-label { color: #344054; font-weight: 700; }
 }
  .dr-grid-screen[data-entry-mode] .dr-time-control input { min-width:calc(5ch + 14px); }
 @media (min-width:1100px) { .dr-grid-screen[data-entry-mode] .dr-time-control input { min-width:calc(5ch + 4px); } }
+
+/* Compact daily rows and aligned, persistent period totals. */
+.dr-grid-screen .dr-month-table > tfoot > tr > td { position:sticky; bottom:0; z-index:5; background:#e5eef6; border-top:2px solid #a3b8ce; padding:4px 2px; font-size:11px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.dr-grid-screen[data-entry-mode=time] .dr-footer > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14)) { display:none; }
+@media (min-width:701px) {
+  .dr-grid-screen .dr-month-table > thead > tr { height:32px; }
+  .dr-grid-screen .dr-month-table > thead > tr > th { font-size:12px; padding:2px; line-height:13px; }
+  .dr-grid-screen .dr-month-table > thead > tr > th small { font-size:10px; }
+  .dr-grid-screen[data-entry-mode] .dr-main > td { padding:1px 2px; height:28px; vertical-align:middle; }
+  .dr-grid-screen .dr-main input:not([type=checkbox]) { height:24px; min-height:24px; margin:0; }
+  .dr-grid-screen .dr-main input[type=checkbox] { min-height:0; height:16px; padding:0; }
+  .dr-grid-screen .dr-main .dr-step-button, .dr-grid-screen .dr-main .dr-picker-button { min-height:24px; height:24px; }
+  .dr-grid-screen .dr-entry-state { display:none; }
+  .dr-grid-screen .dr-main .status-button { font-size:11px; padding:2px 4px; white-space:nowrap; }
+  .dr-grid-screen .dr-main .dr-additional-mark, .dr-grid-screen .dr-main .dr-source-mark { font-size:10px; line-height:10px; }
+  .dr-grid-screen[data-entry-mode=time] .dr-day-total-cell, .dr-grid-screen[data-entry-mode=time] .dr-day-total-header { display:table-cell; }
+  .dr-grid-screen[data-entry-mode=time] .dr-month-table > thead > tr > :is(:nth-child(17),:nth-child(18)) { width:100px; }
+  .dr-grid-screen .dr-toolbar { gap:4px 8px; margin-bottom:4px; }
+  .dr-grid-screen .dr-toolbar .btn { min-height:30px; padding:4px 8px; }
+  .dr-grid-screen .dr-entry-reference { padding:2px 6px; margin:2px 0; gap:2px 8px; font-size:12px; line-height:16px; }
+}
+@media (max-width:1500px) and (min-width:701px) {
+  .dr-grid-screen[data-entry-mode=all] .dr-footer > :is(:nth-child(17),:nth-child(18)) { display:none; }
+}
+@media (max-width:700px) {
+  .dr-grid-screen[data-entry-mode=time] .dr-main > :is(:nth-child(17),:nth-child(18)) { display:block; grid-column:1 / 4; width:auto; }
+  .dr-grid-screen[data-entry-mode=time] .dr-main > :nth-child(17)::before { content:'請求合計 '; }
+  .dr-grid-screen[data-entry-mode=time] .dr-main > :nth-child(18)::before { content:'支払合計 '; }
+  .dr-grid-screen[data-entry-mode=time] tfoot { display:block; position:sticky; bottom:0; z-index:6; background:#e5eef6; }
+  .dr-grid-screen[data-entry-mode=time] .dr-footer { display:flex; flex-wrap:wrap; gap:4px 10px; }
+  .dr-grid-screen[data-entry-mode=time] .dr-footer > td { display:none; position:static; }
+  .dr-grid-screen[data-entry-mode=time] .dr-footer > [data-footer] { display:block; }
+  .dr-footer [data-footer=training]::before { content:'研修 '; }
+  .dr-footer [data-footer=absent]::before { content:'不要 '; }
+  .dr-footer [data-footer=break]::before { content:'休憩 '; }
+  .dr-footer [data-footer=work]::before { content:'稼働 '; }
+  .dr-footer [data-footer=overtime]::before { content:'超過 '; }
+  .dr-footer [data-footer=shortage]::before { content:'不足 '; }
+  .dr-footer [data-footer=distance]::before { content:'距離 '; }
+  .dr-footer [data-footer=toll]::before { content:'通行料 '; }
+  .dr-footer [data-footer=parking]::before { content:'駐車料 '; }
+  .dr-footer [data-footer=transport]::before { content:'交通費 '; }
+  .dr-footer [data-footer=billing]::before { content:'請求 '; }
+  .dr-footer [data-footer=payment]::before { content:'支払 '; }
+}
