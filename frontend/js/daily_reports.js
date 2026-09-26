@@ -755,7 +755,6 @@
               ${this.canImport() ? '<button type="button" class="btn btn-ghost" id="open-period-migration">締め期間の確認・移行</button>' : ''}
               <button type="button" class="btn btn-ghost" id="amount-check">金額確認</button>
               <button type="button" class="btn btn-ghost" id="expand-all">一括表示</button>
-              <button type="button" class="btn btn-ghost" id="back-month">保存して一覧へ</button>
             </div>
           </div>
           <div class="dr-entry-reference"><span data-entry-totals></span><span data-entry-selected></span></div>
@@ -765,16 +764,17 @@
               <thead>
                 <tr>
                   <th></th><th>日付</th><th>不要</th><th>研修</th><th>開始</th><th>終了</th>
-                  <th>休憩</th><th>稼働</th><th>超過</th><th>不足（請求）</th><th>距離</th>
+                  <th>休憩</th><th>稼働</th><th>超過</th><th>不足<br><small>（請求）</small></th><th>距離</th>
                   <th>通行料</th><th>駐車料</th><th>交通費</th><th>状態</th><th>操作</th>
                   <th class="dr-day-total-header">請求合計</th><th class="dr-day-total-header">支払合計</th>
                 </tr>
               </thead>
               <tbody>${body}</tbody>
+              <tfoot><tr class="dr-footer">${['','合計','absent','training','','','break','work','overtime','shortage','distance','toll','parking','transport','','','billing','payment'].map((key,i)=>`<td${i===16||i===17?' class="dr-day-total-cell"':''}${i>1&&key?` data-footer="${key}"`:''}>${i===1?'合計':i===4||i===5?'—':''}</td>`).join('')}</tr></tfoot>
             </table>
           </div>
         </section>`,
-        { onBack: () => this.leaveGrid(() => this.showMonthList()), wide: true, scrollBodyOnly: true }
+        { onBack: () => this.leaveGrid(() => this.showMonthList()), wide: true, scrollBodyOnly: true, showHistoryBack: false }
       );
       this.kit.bindShell({ onBack: () => this.leaveGrid(() => this.showMonthList()) });
       this.bindGrid();
