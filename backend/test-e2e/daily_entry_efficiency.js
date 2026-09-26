@@ -24,7 +24,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
         if (window.saveDelay) await new Promise(resolve => setTimeout(resolve, window.saveDelay));
         return {res:{ok:true},data:{ok:true,report:{...payload,daily_report_id:payload.work_date.slice(-2) * 1, version:(payload.version || 1)+1, work_hours:8, calculated_billing_amount:20000,calculated_payment_amount:15000}}};
       }};
-      dr.kit = { dateValue: value => String(value).slice(0,10), timeValue: value => String(value || '').slice(0,5), money: value => `${Number(value || 0).toLocaleString()}円`, unitPrice: String, shell: (title, html) => `<h1>${title}</h1>${html}`, bindShell: () => {} };
+      dr.kit = { dateValue: value => String(value).slice(0,10), timeValue: value => String(value || '').slice(0,5), money: value => `${Number(value || 0).toLocaleString()}円`, unitPrice: String, shell: (title, html) => `<div class="app-shell app-shell-wide"><aside class="app-sidebar"></aside><div class="app-frame"><h1>${title}</h1><main class="app-main app-main-wide">${html}</main></div></div>`, bindShell: () => {} };
       dr.ym = '2026-09'; dr.gridMeta = {project_id:1,company_id:1,partner_id:1,company_name:'匿名企業',partner_name:'匿名パートナー',project_name:'匿名案件'};
       dr.gridRows = Array.from({length:20}, (_,idx) => dr.emptyDay(`2026-09-${String(idx+1).padStart(2,'0')}`, dr.gridMeta));
       dr.gridRows[1].toll_fee = 1500;
@@ -124,6 +124,31 @@ const frontend = path.resolve(__dirname, '../../frontend');
       assert.ok(dimensions.scroll <= dimensions.client + 2, `time grid horizontal overflow at ${width}: ${JSON.stringify(dimensions)}`);
       assert.ok(await time('start_time',0).evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16);
       await page.screenshot({path:path.join(output,`${width}.png`),fullPage:false});
+    }
+    // 料金表を含む展開詳細もPC横幅に収まり、7桁を読める。
+    await page.evaluate(() => {
+      const dr=window.LinksDailyReports;
+      dr.gridRows[0].rate_overrides={billing:{basic:'1234567.00',overtime:'123.45'}};
+      dr.renderGrid();
+    });
+    for (const width of [1920,1366,390]) {
+      await page.setViewportSize({width,height:900});
+      await page.locator(`button[data-entry-mode=${width<700?'time':'all'}]`).click();
+      await page.locator('[data-expand-row="0"] details').evaluateAll(items=>items.forEach(el=>el.open=true));
+      const root=page.locator('[data-expand-row="0"]');
+      const basic=root.locator('[data-rate-side=billing][data-rate-type=basic]');
+      assert.equal(await basic.inputValue(),'1234567');
+      assert.equal(await root.locator('[data-rate-side=billing][data-rate-type=overtime]').inputValue(),'123.45');
+      const fit=await basic.evaluate(el=>{
+        const c=document.createElement('canvas').getContext('2d'); const s=getComputedStyle(el); c.font=`${s.fontSize} ${s.fontFamily}`;
+        return el.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)>=c.measureText('1234567').width;
+      });
+      assert.ok(fit,`7桁料金が見える: ${width}`);
+      const dimensions=await page.locator('.dr-grid-wrap').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
+      assert.ok(dimensions.scroll<=dimensions.client+2,`expanded all grid overflow ${width}: ${JSON.stringify(dimensions)}`);
+      const rateDimensions=await root.locator('.dr-rate-wrap').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
+      assert.ok(rateDimensions.scroll<=rateDimensions.client+2,`rate table overflow ${width}`);
+      await root.screenshot({path:path.join(output,`detail-${width}.png`)});
     }
     // 月跨ぎ期間の入力行と移行プレビューを実UIで確認する。
     await page.evaluate(async () => {

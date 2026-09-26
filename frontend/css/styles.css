@@ -1103,30 +1103,30 @@ select {
   text-align: center;
 }
 
-.dr-month-table th:nth-child(1),
-.dr-month-table td:nth-child(1) {
+.dr-month-table > thead > tr > th:nth-child(1),
+.dr-month-table > tbody > .dr-main > td:nth-child(1) {
   width: 1.8rem;
 }
 
-.dr-month-table th:nth-child(2),
-.dr-month-table td:nth-child(2) {
+.dr-month-table > thead > tr > th:nth-child(2),
+.dr-month-table > tbody > .dr-main > td:nth-child(2) {
   width: 4.6rem;
 }
 
-.dr-month-table th:nth-child(3),
-.dr-month-table td:nth-child(3),
-.dr-month-table th:nth-child(4),
-.dr-month-table td:nth-child(4) {
+.dr-month-table > thead > tr > th:nth-child(3),
+.dr-month-table > tbody > .dr-main > td:nth-child(3),
+.dr-month-table > thead > tr > th:nth-child(4),
+.dr-month-table > tbody > .dr-main > td:nth-child(4) {
   width: 2.4rem;
   text-align: center;
 }
 
-.dr-month-table th:nth-child(15),
-.dr-month-table td:nth-child(15) {
+.dr-month-table > thead > tr > th:nth-child(15),
+.dr-month-table > tbody > .dr-main > td:nth-child(15) {
   width: 5rem;
 }
-.dr-month-table th:nth-child(16),
-.dr-month-table td:nth-child(16),
+.dr-month-table > thead > tr > th:nth-child(16),
+.dr-month-table > tbody > .dr-main > td:nth-child(16),
 .dr-ops-cell {
   min-width: 5.6rem;
   width: 5.6rem;
@@ -1143,33 +1143,33 @@ select {
   color: var(--dr-holiday-text, #b42318);
 }
 
-.dr-month-table th:nth-child(5),
-.dr-month-table td:nth-child(5),
-.dr-month-table th:nth-child(6),
-.dr-month-table td:nth-child(6),
-.dr-month-table th:nth-child(7),
-.dr-month-table td:nth-child(7) {
+.dr-month-table > thead > tr > th:nth-child(5),
+.dr-month-table > tbody > .dr-main > td:nth-child(5),
+.dr-month-table > thead > tr > th:nth-child(6),
+.dr-month-table > tbody > .dr-main > td:nth-child(6),
+.dr-month-table > thead > tr > th:nth-child(7),
+.dr-month-table > tbody > .dr-main > td:nth-child(7) {
   width: 7.8rem;
 }
 
-.dr-month-table th:nth-child(11),
-.dr-month-table td:nth-child(11) {
+.dr-month-table > thead > tr > th:nth-child(11),
+.dr-month-table > tbody > .dr-main > td:nth-child(11) {
   width: 5.5rem;
 }
 
-.dr-month-table th:nth-child(12),
-.dr-month-table td:nth-child(12),
-.dr-month-table th:nth-child(13),
-.dr-month-table td:nth-child(13),
-.dr-month-table th:nth-child(14),
-.dr-month-table td:nth-child(14) {
+.dr-month-table > thead > tr > th:nth-child(12),
+.dr-month-table > tbody > .dr-main > td:nth-child(12),
+.dr-month-table > thead > tr > th:nth-child(13),
+.dr-month-table > tbody > .dr-main > td:nth-child(13),
+.dr-month-table > thead > tr > th:nth-child(14),
+.dr-month-table > tbody > .dr-main > td:nth-child(14) {
   width: 7.3rem;
 }
 
-.dr-month-table th:nth-child(17),
-.dr-month-table td:nth-child(17),
-.dr-month-table th:nth-child(18),
-.dr-month-table td:nth-child(18) {
+.dr-month-table > thead > tr > th:nth-child(17),
+.dr-month-table > tbody > .dr-main > td:nth-child(17),
+.dr-month-table > thead > tr > th:nth-child(18),
+.dr-month-table > tbody > .dr-main > td:nth-child(18) {
   width: 7rem;
 }
 
@@ -1695,8 +1695,8 @@ label, .field-label { color: #344054; font-weight: 700; }
 .data-table tbody tr:hover, .document-lines tbody tr:hover { background: #eef7f8; }
 .data-table .num, .data-table td.num, .document-lines .num { font-variant-numeric: tabular-nums; text-align: right; }
 .dt-actions, .data-table th:last-child, .data-table td:last-child { position: sticky; right: 0; background: inherit; z-index: 2; }
-.data-table.dr-month-table th:last-child,
-.data-table.dr-month-table td:last-child,
+.data-table.dr-month-table > thead > tr > th:last-child,
+.data-table.dr-month-table > tbody > .dr-main > td:last-child,
 .data-table.cash-schedule-table th:last-child,
 .data-table.cash-schedule-table td:last-child { position: static; z-index: auto; }
   .data-table thead th:last-child { z-index: 4; background: #eaf0f6; }
@@ -1910,10 +1910,10 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-wrap { border:1px solid var(--line); border-radius:7px; }
 .dr-month-table th, .dr-month-table td { padding:4px 5px; font-size:14px; line-height:1.25; }
 .dr-month-table input[type="number"], .dr-month-table input[type="time"], .dr-month-table input[type="text"] { height:34px; min-height:34px; padding:5px 6px; font-size:14px; }
-.dr-month-table th:nth-child(1), .dr-month-table td:nth-child(1),
-.dr-month-table th:nth-child(2), .dr-month-table td:nth-child(2) { position:sticky; z-index:4; background:inherit; }
-.dr-month-table th:nth-child(1), .dr-month-table td:nth-child(1) { left:0; }
-.dr-month-table th:nth-child(2), .dr-month-table td:nth-child(2) { left:1.8rem; box-shadow:2px 0 0 var(--line); }
+.dr-month-table > thead > tr > th:nth-child(1), .dr-month-table > tbody > .dr-main > td:nth-child(1),
+.dr-month-table > thead > tr > th:nth-child(2), .dr-month-table > tbody > .dr-main > td:nth-child(2) { position:sticky; z-index:4; background:inherit; }
+.dr-month-table > thead > tr > th:nth-child(1), .dr-month-table > tbody > .dr-main > td:nth-child(1) { left:0; }
+.dr-month-table > thead > tr > th:nth-child(2), .dr-month-table > tbody > .dr-main > td:nth-child(2) { left:1.8rem; box-shadow:2px 0 0 var(--line); }
 .dr-month-table thead th:nth-child(1), .dr-month-table thead th:nth-child(2) { z-index:6; background:#eaf0f6; }
 .dr-summary { background:#eef7f8; border-color:#b9dadd; }
 
@@ -2708,6 +2708,67 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-grid-screen .dr-detail-section:has(.dr-rate-table) { grid-column:auto; }
   .dr-entry-reference { display:block; }
   .dr-entry-reference span { display:block; }
+}
+/* 日報の詳細は一覧の列幅から独立させる。 */
+.dr-grid-screen .dr-detail-grid { grid-template-columns:repeat(12,minmax(0,1fr)); gap:6px; padding:2px; }
+.dr-detail-category, .dr-detail-additional { grid-column:span 2; }
+.dr-detail-time, .dr-detail-expenses { grid-column:span 5; }
+.dr-grid-screen .dr-detail-section:has(.dr-rate-table) { grid-column:span 7; }
+.dr-detail-calculation { grid-column:span 3; }
+.dr-grid-screen .dr-detail-section { padding:6px; }
+.dr-detail-section h4 { margin:0 0 4px; font-size:14px; }
+.dr-detail-section summary { font-size:14px; padding:3px 0; }
+.dr-grid-screen .dr-detail-section label { gap:3px; font-size:12px; }
+.dr-grid-screen .dr-detail-section input, .dr-grid-screen .dr-detail-section select { height:30px; min-height:30px; padding:3px 4px; }
+.dr-grid-screen .dr-detail-section .form-grid { gap:4px 6px; }
+.dr-grid-screen .dr-detail-expenses .form-grid { align-items:end; }
+.dr-grid-screen .dr-detail-section .form-grid label { flex:1 1 100px; }
+.dr-grid-screen .dr-detail-section .form-grid label:has([data-common-reason]) { flex:1.5 1 120px; }
+.dr-detail-rates { position:relative; }
+.dr-detail-rates[open] > summary { max-width:45%; min-height:34px; }
+.dr-grid-screen .dr-rate-reason { position:absolute; top:6px; right:6px; width:54%; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.dr-rate-reason input { flex:1; }
+.dr-grid-screen .dr-rate-table { table-layout:fixed; width:100%; min-width:0; }
+.dr-grid-screen .dr-rate-table th, .dr-grid-screen .dr-rate-table td { padding:2px 3px; position:static; white-space:normal; font-size:12px; }
+.dr-grid-screen .dr-rate-table th:first-child { width:32px; }
+.dr-grid-screen .dr-rate-table input { width:100%; max-width:calc(7ch + 14px); font-variant-numeric:tabular-nums; }
+.dr-rate-table .money-input-wrap { display:flex; width:100%; padding:0; gap:1px; }
+.dr-grid-screen .dr-rate-original { white-space:normal; overflow-wrap:anywhere; font-size:11px; line-height:1.2; }
+.dr-grid-screen input[type=number] { appearance:textfield; -moz-appearance:textfield; }
+.dr-grid-screen input[type=number]::-webkit-inner-spin-button, .dr-grid-screen input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.dr-grid-screen .dr-calc-summary { gap:5px; font-size:12px; }
+.dr-grid-screen .dr-calc-card { padding-left:5px; white-space:normal; }
+@media (min-width:1100px) {
+  .dr-grid-screen .dr-month-table { width:100%; min-width:0; table-layout:fixed; }
+  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > th,
+  .dr-grid-screen[data-entry-mode=all] .dr-main > td { width:auto; min-width:0; padding:4px 2px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(1),:nth-child(3),:nth-child(4)),
+  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(1),:nth-child(3),:nth-child(4)) { width:25px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(5),:nth-child(6),:nth-child(7)),
+  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(5),:nth-child(6),:nth-child(7)) { width:112px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)),
+  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)) { width:48px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-step-button { flex:0 0 14px; width:14px; font-size:12px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-picker-button { padding:2px; }
+  .dr-grid-screen[data-entry-mode=all] .dr-time-control input { padding:3px 1px; min-width:5ch; }
+  .dr-grid-screen[data-entry-mode=all] .dr-main input[type=number] { padding:3px 2px; }
+}
+@media (max-width:1099px) {
+  .dr-grid-screen .dr-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .dr-grid-screen .dr-detail-section { grid-column:auto; }
+  .dr-grid-screen .dr-detail-section:has(.dr-rate-table) { grid-column:1 / -1; }
+}
+@media (min-width:1100px) and (max-width:1500px) {
+  .dr-grid-screen .dr-day-total-cell, .dr-grid-screen .dr-day-total-header { display:none; }
+}
+@media (max-width:700px) {
+  .dr-grid-screen .dr-detail-section { grid-column:1 / -1; }
+  .dr-grid-screen .dr-rate-reason { position:static; width:100%; white-space:normal; }
+  .dr-detail-rates[open] > summary { max-width:none; }
+  .dr-grid-screen .dr-rate-table thead { display:none; }
+  .dr-grid-screen .dr-rate-table tbody { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+  .dr-grid-screen .dr-rate-table tr, .dr-grid-screen .dr-rate-table td, .dr-grid-screen .dr-rate-table th { display:block; width:auto; }
+  .dr-rate-table td::before { content:attr(data-rate-label); display:block; }
 }
 /* PDFの原本・OCR・日報を同じ行で比較する。 */
 .pdf-import-toolbar { position: sticky; top: 0; z-index: 4; background: var(--surface, #fff); padding-bottom: 12px; }
