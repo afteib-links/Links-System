@@ -38,6 +38,24 @@ const frontend = path.resolve(__dirname, '../../frontend');
     const initialHeight=await rowHeight();
     assert.equal(await page.locator('#back-month,#back-history').count(),0);
     assert.equal(await page.locator('[data-footer=training]').innerText(),'1');
+    assert.equal(await page.locator('[data-footer=work]').innerText(),'0回');
+    for (const mode of ['time','all']) {
+      await page.setViewportSize({width:1920,height:768});
+      await page.locator(`button[data-entry-mode=${mode}]`).click();
+      const headings=page.locator('.dr-month-table > thead > tr > th');
+      const before=await headings.evaluateAll(els=>els.map(el=>el.getBoundingClientRect().top));
+      await page.locator('.dr-grid-wrap').evaluate(el=>{el.scrollTop=300;});
+      await page.waitForTimeout(50);
+      const fixed=await headings.evaluateAll(els=>els.filter(el=>el.getClientRects().length).map(el=>({index:[...el.parentNode.children].indexOf(el),top:el.getBoundingClientRect().top,bg:getComputedStyle(el).backgroundColor})));
+      for(const cell of fixed) {
+        assert.ok(Math.abs(cell.top-before[cell.index])<2,`${mode} header ${cell.index} remains fixed`);
+        assert.notEqual(cell.bg,'rgba(0, 0, 0, 0)','header is opaque');
+      }
+      await page.locator('.dr-grid-wrap').evaluate(el=>{el.scrollTop=0;});
+    }
+    await page.setViewportSize({width:1366,height:768});
+    await page.locator('button[data-entry-mode=time]').click();
+
     const footerTop=(await page.locator('.dr-footer > td').first().boundingBox()).y;
     assert.ok(footerTop+(await page.locator('.dr-footer > td').first().boundingBox()).height<=768,'フッターは画面内に固定表示');
     assert.ok((await page.locator('.dr-main').nth(13).boundingBox()).y+initialHeight<=footerTop,'1366×768で詳細を閉じた14日分がフッターより上に収まる');
@@ -53,7 +71,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
     assert.deepEqual(await commonColumns(),timeColumns,'共通列幅とヘッダー高さは両モードで一致');
     assert.equal((await page.locator('.dr-date-cell').first().boundingBox()).width,initialDateWidth,'日付幅は入力モードに依存しない');
     assert.equal(await rowHeight(),initialHeight,'時間・全項目の行間が一致する');
-    await page.locator('[data-entry-mode=time]').click();
+    await page.locator('button[data-entry-mode=time]').click();
     async function assertCellBottoms() {
       const bottoms=await page.locator('.dr-main').first().locator(':scope > td').evaluateAll(cells=>cells.filter(c=>c.getClientRects().length).map(c=>c.getBoundingClientRect().bottom));
       assert.ok(Math.max(...bottoms)-Math.min(...bottoms)<1,'操作セルの下端は他セルと一致する');
@@ -103,10 +121,15 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.locator('.dr-main [data-f=toll_fee][data-idx="0"]').fill('12.5'); await page.keyboard.press('Tab');
     assert.equal(await page.locator('.dr-main [data-f=toll_fee][data-idx="0"]').getAttribute('aria-invalid'),'true');
     await page.locator('.dr-main [data-f=toll_fee][data-idx="0"]').fill('100'); await page.keyboard.press('Tab');
-    await page.locator('[data-entry-mode=time]').click();
+    await page.locator('button[data-entry-mode=time]').click();
     await page.evaluate(() => window.LinksDailyReports.saveAll());
     assert.equal(await page.evaluate(() => window.savedPayloads.length),20);
     assert.equal(await page.locator('[data-footer=break]').innerText(),'20:00');
+    assert.equal(await page.locator('[data-footer=work]').innerText(),'20回');
+    await page.evaluate(()=>{window.LinksDailyReports.gridRows[0].is_absent=1;window.LinksDailyReports.updateEntrySummary();});
+    assert.equal(await page.locator('[data-footer=work]').innerText(),'19回');
+    await page.evaluate(()=>{window.LinksDailyReports.gridRows[0].is_absent=0;window.LinksDailyReports.updateEntrySummary();});
+
     assert.equal(await page.locator('[data-footer=billing]').innerText(),'401,000円');
     assert.equal(await page.locator('[data-footer=payment]').innerText(),'300,800円');
     await assertCellBottoms();
