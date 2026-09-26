@@ -2711,8 +2711,8 @@ label, .field-label { color: #344054; font-weight: 700; }
 }
 /* PDFの原本・OCR・日報を同じ行で比較する。 */
 .pdf-import-toolbar { position: sticky; top: 0; z-index: 4; background: var(--surface, #fff); padding-bottom: 12px; }
-.pdf-comparison-heading { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(326px, 1.3fr) minmax(326px, 1.3fr); gap: 8px; padding: 6px; background: #e8eef7; color: #17263c; font-weight: 700; }
-.pdf-compare-row { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(660px, 2.6fr); gap: 8px; padding: 6px; border-bottom: 1px solid #d6dfeb; align-items: start; }
+.pdf-comparison-heading { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(359px, 1.3fr) minmax(359px, 1.3fr); gap: 8px; padding: 6px; background: #e8eef7; color: #17263c; font-weight: 700; }
+.pdf-compare-row { display: grid; grid-template-columns: 48px minmax(180px, 1fr) minmax(726px, 2.6fr); gap: 8px; padding: 6px; border-bottom: 1px solid #d6dfeb; align-items: start; }
 .pdf-row-select, .pdf-original-row { display: grid; gap: 3px; }
 .pdf-row-select label { white-space:nowrap; font-size:12px; }
 .pdf-crop-button { border: 1px solid #c3ccda; background: #fff; padding: 0; cursor: zoom-in; width: 100%; }
@@ -2723,7 +2723,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .pdf-target label, .pdf-field label { display: block; }
 .pdf-field { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid #e1e5ec; }
 .pdf-field > div { min-width: 0; }
-.pdf-values { display: grid; grid-template-columns: minmax(110px,1.4fr) repeat(3,minmax(64px,1fr)) minmax(110px,1.4fr) repeat(3,minmax(64px,1fr)); gap: 4px; }
+.pdf-values { display: grid; grid-template-columns: 145px repeat(3,minmax(64px,1fr)) 145px repeat(3,minmax(64px,1fr)); gap: 4px; }
 .pdf-target, .pdf-row-error { grid-column: 1 / -1; }
 .pdf-field { display: contents; }
 .pdf-field > div { padding-top:0; }

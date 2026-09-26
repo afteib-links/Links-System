@@ -25,6 +25,7 @@ const { chromium } = require('playwright');
     assert.equal(await page.locator('[data-select]').isChecked(),false);
     assert.equal(await page.locator('[data-include]:checked').count(),0);
     assert.ok((await page.locator('.pdf-compare-row').boundingBox()).height < 160,'通常の比較行は160px未満');
+    assert.ok((await page.locator('[data-side="ocr"][data-value="work_date"]').boundingBox()).width >= 140,'日付全体とカレンダーアイコンの幅を確保する');
     const input=(side,field)=>page.locator(`[data-side="${side}"][data-value="${field}"]`);
     await input('proposed','end_time').fill('1730'); await page.keyboard.press('Tab');
     await input('ocr','end_time').fill('1800'); await page.keyboard.press('Tab');
