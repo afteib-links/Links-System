@@ -19,11 +19,28 @@ const assert=require('node:assert/strict');const path=require('node:path');const
     }},{projectId:1,ym:'2026-09',projectName:'匿名案件',onBack:()=>{}});
   });
   await page.locator('#extra-new').click();assert.equal(await page.locator('#extra-save').isDisabled(),true);
+  assert.equal(await page.locator('[name=item_scope]').inputValue(),'period');
+  assert.equal(await page.locator('[name=work_date]').isDisabled(),true);
   await page.locator('[name=reference_date]').fill('2026-09-01');await page.locator('#extra-calc').click();
   assert.match(await page.locator('#extra-preview').innerText(),/9,920円/);assert.equal(await page.locator('#extra-save').isDisabled(),false);
   await page.locator('[name=reason]').fill('確認');assert.equal(await page.locator('#extra-save').isDisabled(),true);
   await page.locator('#extra-calc').click();await page.locator('#extra-save').click();await page.locator('#modal-backdrop').waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>window.saved.preview_token),'anonymous');assert.equal(await page.evaluate(()=>window.saved.reason),'確認');
+  assert.equal(await page.evaluate(()=>window.saved.work_date),null,'月単位は勤務日を送信しない');
+  assert.equal(await page.evaluate(()=>window.saved.target_year_month),'2026-09');
+  await page.evaluate(()=>{window.LinksAdditionalItems.options.workDate='2026-09-04';});
+  await page.locator('#extra-new').click();
+  assert.equal(await page.locator('[name=item_scope]').inputValue(),'day');
+  await page.locator('[name=item_scope]').selectOption('period');
+  await page.locator('#extra-calc').click();
+  assert.equal(await page.evaluate(()=>window.previewBody.work_date),null,'日別入口から月単位に切替可能');
+  await page.locator('#extra-save').click();await page.locator('#modal-backdrop').waitFor({state:'detached'});
+  await page.evaluate(()=>window.LinksAdditionalItems.editItem({additional_item_id:1,work_date:null,additional_item_master_id:2,calculation_data:{inputs:{}},applies_to:'both'}));
+  assert.equal(await page.locator('[name=item_scope]').inputValue(),'period','月単位の再編集は入口の勤務日を継承しない');
+  await page.locator('[name=item_scope]').selectOption('day');
+  await page.locator('#extra-calc').click();
+  assert.match(await page.locator('#extra-error').innerText(),/勤務日を入力/);
+  await page.locator('#modal-close').click();
   await page.locator('#extra-fuel').click();fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
   for(const width of [1920,1366,390]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.resolve(__dirname,`../test-results/fuel-settings-${width}.png`),fullPage:true});}
   assert.deepEqual(errors,[]);console.log('[e2e] fuel preview/save invalidation and settings responsive passed');

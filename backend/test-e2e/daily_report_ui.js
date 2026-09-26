@@ -215,8 +215,8 @@ async function main() {
       /自動: E2E通常料金/,
       '自動選択された料金名を料金名欄に表示すること'
     );
-    await detail.locator('summary').filter({hasText:'計算根拠'}).click();
-    await detail.locator('summary').filter({hasText:'料金の一時変更'}).click();
+    await detail.locator('.dr-detail-calculation .dr-calc-summary').waitFor({state:'visible'});
+    await detail.locator('.dr-detail-rates .dr-rate-table').waitFor({state:'visible'});
     await detail.getByText(/不足 5:00 \/ ￥-6,000/).waitFor();
     await detail.getByText(/不足 6:00 \/ ￥-5,400/).waitFor();
     assert.equal(await detail.locator('.dr-rate-table .dt-filter-row').count(), 0, '契約料金表へ一覧検索行を追加しないこと');
