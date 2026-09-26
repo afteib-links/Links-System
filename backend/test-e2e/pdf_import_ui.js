@@ -58,6 +58,11 @@ const { chromium } = require('playwright');
     assert.equal(financial.quantity_overrides.billing.overtime_minutes,15);assert.equal(financial.preview_token,'checked');
     await page.locator('[data-adoption=billing_hours]').fill('0.5');
     assert.equal(await page.evaluate(()=>window.LinksPdfImports.drafts.get(1).previewToken),null,'変更で計算確認を破棄');
+    for(const width of [1366,390]){
+      await page.setViewportSize({width,height:900});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${width}px adoption overflow`);
+    }
+    await page.setViewportSize({width:1366,height:900});
     await page.locator('#pdf-extra').uncheck();
     fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
     for(const width of [1920,1366,390]) {
