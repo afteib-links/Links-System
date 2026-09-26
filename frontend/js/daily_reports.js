@@ -564,8 +564,8 @@
         const original = Number(info.original_rate ?? info.rate ?? 0);
         const override = overrides?.[side]?.[priceType];
         const value = override !== '' && override != null ? Number(override) : '';
-        const reference = original ? this.kit.unitPrice(original) : '-';
-        return `<td><span class="money-input-wrap"><span>￥</span><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /></span><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(({daily:'日額',hourly:'時間単価',distance:'距離単価'})[info.calc_type] || info.calc_type)}` : ''}</small></td>`;
+        const reference = original ? original.toLocaleString('ja-JP', { maximumFractionDigits: 20 }) : '-';
+        return `<td data-rate-label="${labels[priceType]}"><span class="money-input-wrap"><span>￥</span><input class="dr-rate-input" type="number" step="1" inputmode="numeric" data-rate-side="${side}" data-rate-type="${priceType}" data-idx="${idx}" data-original="${original}" value="${this.ctx.escapeHtml(value)}" placeholder="${this.ctx.escapeHtml(original || '')}" ${locked ? 'disabled' : ''} /></span><small class="dr-rate-original">元: ${this.ctx.escapeHtml(reference)}${info.calc_type ? ` / ${this.ctx.escapeHtml(({daily:'日額',hourly:'時間単価',distance:'距離単価'})[info.calc_type] || info.calc_type)}` : ''}</small></td>`;
       };
       const types = ['basic', 'shortage', 'overtime', 'night', 'night_overtime'];
       const header = types.map((type) => `<th>${labels[type]}</th>`).join('');
@@ -574,8 +574,7 @@
         .join('');
       return `<div class="dr-rate-wrap"><table class="data-table data-table-compact dr-rate-table" data-no-list-enhance>
         <thead><tr><th></th>${header}</tr></thead><tbody>${rows}</tbody>
-      </table></div>
-      <label>一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(row.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>`;
+      </table></div>`;
     },
 
     timeInputHtml(row, idx, field, locked, options = {}) {
@@ -701,18 +700,18 @@
                 <td colspan="18">
                   <h3 class="dr-detail-heading">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} の詳細</h3>
                   <div class="dr-detail-grid">
-                    <section class="dr-detail-section">
+                    <section class="dr-detail-section dr-detail-category">
                       <h4>料金区分</h4>
                       <label>料金名
                         <select data-fee-item="${idx}" ${locked ? 'disabled' : ''}>${this.feeItemOptions(r) || '<option value="">料金設定なし</option>'}</select>
                       </label>
                       <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}${r._calcContext?.holiday ? ` / 休日判定: ${this.ctx.escapeHtml(r._calcContext.holiday.name || '休日')}（${r._calcContext.holiday.scope === 'project' ? '案件独自' : '全案件共通'}）` : ''}</small>
                     </section>
-                    <section class="dr-detail-section"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
-                    <section class="dr-detail-section"><h4>日別経費・距離</h4><div class="form-grid">${[['total_distance','業務走行距離（km）'],['toll_fee','通行料（円）'],['parking_fee','駐車料（円）'],['transport_fee','交通費（円）']].map(([field,label]) => `<label>${label}<input type="number" min="0" step="${field === 'total_distance' ? distanceStep : expenseStep}" inputmode="numeric" data-f="${field}" data-idx="${idx}" value="${this.ctx.escapeHtml(r[field] === '' || r[field] == null ? '' : Number(r[field]))}" ${locked ? 'disabled' : ''}></label>`).join('')}</div></section>
-                    ${this.canImport()?`<section class="dr-detail-section"><h4>追加請求・支払項目</h4><p>${(this.additionalItems||[]).filter(item=>item.work_date===r.work_date).map(item=>`${this.ctx.escapeHtml(item.item_name)}: 請求 ${this.kit.money(item.billing_amount)} / 支払 ${this.kit.money(item.payment_amount)}`).join('<br>')||'この日の追加項目はありません'}</p><button type="button" class="btn btn-secondary" data-extra-date="${this.ctx.escapeHtml(r.work_date)}">追加項目を確認・登録</button></section>`:''}
-                    <details class="dr-detail-section"><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary>${this.rateTableHtml(r, idx, locked)}</details>
-                    <details class="dr-detail-section"><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
+                    <section class="dr-detail-section dr-detail-time"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
+                    <section class="dr-detail-section dr-detail-expenses"><h4>日別経費・距離</h4><div class="form-grid">${[['total_distance','業務走行距離（km）'],['toll_fee','通行料（円）'],['parking_fee','駐車料（円）'],['transport_fee','交通費（円）']].map(([field,label]) => `<label>${label}<input type="number" min="0" step="${field === 'total_distance' ? distanceStep : expenseStep}" inputmode="numeric" data-f="${field}" data-idx="${idx}" value="${this.ctx.escapeHtml(r[field] === '' || r[field] == null ? '' : Number(r[field]))}" ${locked ? 'disabled' : ''}></label>`).join('')}</div></section>
+                    ${this.canImport()?`<section class="dr-detail-section dr-detail-additional"><h4>追加請求・支払項目</h4><p>${(this.additionalItems||[]).filter(item=>item.work_date===r.work_date).map(item=>`${this.ctx.escapeHtml(item.item_name)}: 請求 ${this.kit.money(item.billing_amount)} / 支払 ${this.kit.money(item.payment_amount)}`).join('<br>')||'この日の追加項目はありません'}</p><button type="button" class="btn btn-secondary" data-extra-date="${this.ctx.escapeHtml(r.work_date)}">追加項目を確認・登録</button></section>`:''}
+                    <details class="dr-detail-section dr-detail-rates"><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary><label class="dr-rate-reason">一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(r.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>${this.rateTableHtml(r, idx, locked)}</details>
+                    <details class="dr-detail-section dr-detail-calculation"><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
                     <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
                     <div class="full btn-row">
                       <button type="button" class="btn btn-small" data-save-row="${idx}" ${fullyLocked ? 'disabled' : ''}>行保存</button>

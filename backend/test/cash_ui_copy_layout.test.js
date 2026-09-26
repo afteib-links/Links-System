@@ -33,7 +33,7 @@ test('入出金・日報・支払の画面仕様がコードに残っている',
   assert.match(cash, /data-new-schedule="outgoing"/);
   assert.match(cash, /modalHtml\('手動予定'/);
   assert.match(cash, /ondblclick=/);
-  assert.match(css, /data-table\.dr-month-table td:last-child/);
+  assert.match(css, /data-table\.dr-month-table > tbody > \.dr-main > td:last-child/);
   assert.match(css, /\.settlement-editor \{ display:flex; flex-direction:column/);
   assert.match(css, /\.settlement-deduction-block \{ min-height:220px/);
   assert.match(daily, /dr-ops-cell/);
