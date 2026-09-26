@@ -669,12 +669,13 @@
           const sameDateRows = this.gridRows.filter((row) => this.kit.dateValue(row.work_date) === date);
           const firstOfDate = idx === 0 || this.kit.dateValue(this.gridRows[idx - 1].work_date) !== date;
           const totals = this.dayTotals(date);
+          const extraItems = (this.additionalItems || []).filter(item => this.kit.dateValue(item.work_date || '') === date);
           const dayConfirmed = sameDateRows.some((row) => row.daily_report_id) &&
             sameDateRows.filter((row) => row.daily_report_id).every((row) => ['confirmed', 'approved'].includes(row.status));
           const main = `
             <tr class="dr-main ${this.dayRowClass(date)}" data-idx="${idx}" data-work-date="${this.ctx.escapeHtml(date)}">
               <td class="dr-expand-cell"><button type="button" class="btn btn-ghost btn-small" data-expand="${idx}" aria-label="行を展開">${r._expanded ? '▼' : '▶'}</button></td>
-              <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}${r.input_source_type && r.input_source_type !== 'manual' ? `<small class="dr-source-mark">${this.ctx.escapeHtml({excel:'Excel',email:'メール',fax:'FAX'}[r.input_source_type] || r.input_source_type)}${this.canViewImportSource() && r.source_file_id ? ` <a href="/api/daily-report-imports/files/${Number(r.source_file_id)}" target="_blank" rel="noopener">原本</a>` : ''}</small>` : ''}</td>
+              <td class="dr-date-cell">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))}${extraItems.length ? `<small class="dr-additional-mark" title="追加請求・支払項目あり">追加 ${extraItems.length}件</small>` : ''}${r.input_source_type && r.input_source_type !== 'manual' ? `<small class="dr-source-mark">${this.ctx.escapeHtml({excel:'Excel',email:'メール',fax:'FAX'}[r.input_source_type] || r.input_source_type)}${this.canViewImportSource() && r.source_file_id ? ` <a href="/api/daily-report-imports/files/${Number(r.source_file_id)}" target="_blank" rel="noopener">原本</a>` : ''}</small>` : ''}</td>
               <td><input type="checkbox" data-f="is_absent" data-idx="${idx}" ${r.is_absent ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td><input type="checkbox" data-f="is_training" data-idx="${idx}" ${r.is_training ? 'checked' : ''} ${locked ? 'disabled' : ''} /></td>
               <td>${this.timeInputHtml(r, idx, 'start_time', locked)}</td>
@@ -683,10 +684,10 @@
               <td><span data-worked="${idx}">${r.daily_report_id ? this.formatMinutes(Number(r.work_hours || 0) * 60) : '未入力'}</span></td>
               <td><span>${this.formatMinutes(Number(r.overtime_hours || 0) * 60) || '-'}</span></td>
               <td><span>${this.formatMinutes(Number(r.shortage_hours || 0) * 60) || '-'}</span></td>
-              <td><input class="dr-large-input dr-distance-input" type="number" step="${distanceStep}" min="0" inputmode="numeric" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
-              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-distance-input" type="number" step="${distanceStep}" min="0" inputmode="numeric" data-f="total_distance" data-idx="${idx}" value="${this.ctx.escapeHtml(r.total_distance == null || r.total_distance === '' ? '' : Number(r.total_distance))}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="toll_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.toll_fee == null || r.toll_fee === '' ? '' : Number(r.toll_fee))}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee == null || r.parking_fee === '' ? '' : Number(r.parking_fee))}" ${locked ? 'disabled' : ''} /></td>
+              <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee == null || r.transport_fee === '' ? '' : Number(r.transport_fee))}" ${locked ? 'disabled' : ''} /></td>
               <td><button type="button" class="status-badge status-button status-${this.ctx.escapeHtml(r.status || 'draft')}" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'クリックしてこの日のロックを解除' : 'クリックしてこの日をロック'}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</button><small class="dr-entry-state" data-entry-state="${idx}"></small></td>
               <td class="dr-ops-cell"><div class="table-action-row">
                 <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
@@ -700,20 +701,20 @@
                 <td colspan="18">
                   <h3 class="dr-detail-heading">${this.ctx.escapeHtml(this.formatDateWithWeekday(r.work_date))} / ${this.ctx.escapeHtml(this.gridMeta.partner_name || 'パートナー未設定')} の詳細</h3>
                   <div class="dr-detail-grid">
-                    <section class="dr-detail-section dr-detail-category">
+                    <div class="dr-detail-sidebar"><section class="dr-detail-section dr-detail-category">
                       <h4>料金区分</h4>
                       <label>料金名
                         <select data-fee-item="${idx}" ${locked ? 'disabled' : ''}>${this.feeItemOptions(r) || '<option value="">料金設定なし</option>'}</select>
                       </label>
                       <small>${r.fee_item_selection_source === 'manual' ? '手動選択' : `自動選択: ${this.ctx.escapeHtml(r.selected_fee_item_name || r._calcContext?.selected_fee_item_name || '-')}`}${r._calcContext?.holiday ? ` / 休日判定: ${this.ctx.escapeHtml(r._calcContext.holiday.name || '休日')}（${r._calcContext.holiday.scope === 'project' ? '案件独自' : '全案件共通'}）` : ''}</small>
                     </section>
-                    <section class="dr-detail-section dr-detail-time"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
-                    <section class="dr-detail-section dr-detail-expenses"><h4>日別経費・距離</h4><div class="form-grid">${[['total_distance','業務走行距離（km）'],['toll_fee','通行料（円）'],['parking_fee','駐車料（円）'],['transport_fee','交通費（円）']].map(([field,label]) => `<label>${label}<input type="number" min="0" step="${field === 'total_distance' ? distanceStep : expenseStep}" inputmode="numeric" data-f="${field}" data-idx="${idx}" value="${this.ctx.escapeHtml(r[field] === '' || r[field] == null ? '' : Number(r[field]))}" ${locked ? 'disabled' : ''}></label>`).join('')}</div></section>
                     ${this.canImport()?`<section class="dr-detail-section dr-detail-additional"><h4>追加請求・支払項目</h4><p>${(this.additionalItems||[]).filter(item=>item.work_date===r.work_date).map(item=>`${this.ctx.escapeHtml(item.item_name)}: 請求 ${this.kit.money(item.billing_amount)} / 支払 ${this.kit.money(item.payment_amount)}`).join('<br>')||'この日の追加項目はありません'}</p><button type="button" class="btn btn-secondary" data-extra-date="${this.ctx.escapeHtml(r.work_date)}">追加項目を確認・登録</button></section>`:''}
-                    <details class="dr-detail-section dr-detail-rates"><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary><label class="dr-rate-reason">一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(r.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>${this.rateTableHtml(r, idx, locked)}</details>
-                    <details class="dr-detail-section dr-detail-calculation"><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
-                    <div class="full"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
-                    <div class="full btn-row">
+                    </div>
+                    <section class="dr-detail-section dr-detail-time"><h4>時間の詳細</h4><div class="form-grid">${this.nightInputHtml(r, idx, locked)}</div></section>
+                    <details class="dr-detail-section dr-detail-rates" open><summary>料金の一時変更${Object.values(this.parseJson(r.rate_overrides, {})).some(side => Object.keys(side || {}).length) ? '（変更あり）' : ''}</summary><label class="dr-rate-reason">一時変更理由<input data-f="rate_override_reason" data-idx="${idx}" value="${this.ctx.escapeHtml(r.rate_override_reason || '')}" ${locked ? 'disabled' : ''} /></label>${this.rateTableHtml(r, idx, locked)}</details>
+                    <details class="dr-detail-section dr-detail-calculation" open><summary>計算根拠（参照）</summary>${this.calculationSummaryHtml(r)}</details>
+                    <div class="full dr-detail-comment"><label>行コメント</label><input data-f="row_comment" data-idx="${idx}" value="${this.ctx.escapeHtml(r.row_comment || '')}" ${fullyLocked ? 'disabled' : ''} /></div>
+                    <div class="full btn-row dr-detail-actions">
                       <button type="button" class="btn btn-small" data-save-row="${idx}" ${fullyLocked ? 'disabled' : ''}>行保存</button>
                       ${firstOfDate && !dayConfirmed && sameDateRows.some((row) => row.daily_report_id)
                         ? `<button type="button" class="btn btn-small" data-day-status="confirmed" data-idx="${idx}">この日を確認</button>`

@@ -653,8 +653,8 @@ select {
 .dr-large-input { font-size: var(--dr-input-font-size, 16px) !important; font-variant-numeric: tabular-nums; }
 .dr-grid-screen input::placeholder { color: var(--dr-reference-color, #a7b0be); opacity: 1; }
 .dr-input-empty { color: var(--dr-reference-color, #a7b0be) !important; }
-.dr-distance-input { width: 5.2rem !important; }
-.dr-fee-input { width: 7rem !important; }
+.dr-distance-input { width:100%; }
+.dr-fee-input { width:100%; }
 .dr-source-mark { display:block; margin-top:.2rem; font-size:.72rem; color:#475467; white-space:nowrap; }
 .dr-import-entry { justify-content:flex-end; margin:.5rem 0; }
 .dr-import-upload { display:grid; grid-template-columns:minmax(12rem,18rem) minmax(18rem,1fr) auto; gap:1rem; align-items:end; }
@@ -2846,4 +2846,37 @@ label, .field-label { color: #344054; font-weight: 700; }
   .pdf-raw-fields { grid-template-columns:1fr; }
   .pdf-field > div:first-child::before { content: 'OCR候補・修正'; font-weight: 700; }
   .pdf-field > div:last-child::before { content: '現在値・反映予定'; font-weight: 700; }
+}
+
+/* Issue #182: detail placement and fixed date width in both entry modes. */
+.dr-additional-mark { display:block; font-size:11px; color:#0f6b78; font-weight:700; }
+.dr-grid-screen .dr-detail-grid { grid-template-columns:170px minmax(0,1fr) 240px 260px; grid-template-areas:"sidebar rates time calc" "sidebar comment comment actions"; }
+.dr-detail-sidebar { grid-area:sidebar; display:grid; gap:6px; min-width:0; }
+.dr-grid-screen .dr-detail-section.dr-detail-rates { grid-area:rates; }
+.dr-grid-screen .dr-detail-time { grid-area:time; }
+.dr-grid-screen .dr-detail-calculation { grid-area:calc; }
+.dr-grid-screen .dr-detail-grid > .dr-detail-comment { grid-area:comment; }
+.dr-grid-screen .dr-detail-grid > .dr-detail-actions { grid-area:actions; align-self:end; margin:0; gap:6px; }
+.dr-grid-screen .dr-detail-time .form-grid label:has([data-common-reason]),
+.dr-grid-screen .dr-detail-time .form-grid label:has([data-f^="night_adjustment_reason"]) { order:-1; flex:1 1 100%; }
+.dr-grid-screen .dr-detail-time .form-grid label { flex:1 1 95px; }
+.dr-grid-screen .dr-main input[type=number] { width:100%; max-width:100%; }
+.dr-grid-screen .dr-month-table > thead > tr > th { white-space:normal; overflow-wrap:anywhere; }
+.dr-grid-screen .dr-ops-cell > .table-action-row { gap:2px; }
+.dr-grid-screen .dr-ops-cell .btn-small { flex:0 0 19px; width:19px; min-width:0; padding:1px 2px; }
+@media (min-width:701px) {
+  .dr-grid-screen[data-entry-mode] .dr-month-table { table-layout:fixed; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :nth-child(1),
+  .dr-grid-screen[data-entry-mode] .dr-main > :nth-child(1) { width:28px; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :nth-child(2),
+  .dr-grid-screen[data-entry-mode] .dr-main > :nth-child(2) { width:96px; left:28px; }
+}
+@media (min-width:701px) and (max-width:1500px) {
+  .dr-grid-screen .dr-detail-grid { grid-template-columns:160px minmax(0,1fr) 230px; grid-template-areas:"sidebar rates time" "sidebar rates calc" "sidebar comment actions"; }
+}
+@media (min-width:701px) and (max-width:1099px) {
+  .dr-grid-screen .dr-detail-grid { grid-template-columns:160px minmax(0,1fr); grid-template-areas:"sidebar time" "sidebar calc" "rates rates" "comment actions"; }
+}
+@media (max-width:700px) {
+  .dr-grid-screen .dr-detail-grid { grid-template-areas:"sidebar" "rates" "time" "calc" "comment" "actions"; }
 }
