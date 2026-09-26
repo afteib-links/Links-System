@@ -1,3 +1,4 @@
+const { EXTRA_FIELDS, documentFields } = require('./document_fields');
 const time = require('../../../frontend/js/time-input');
 const { periodDates, periodError } = require('./daily_report_periods');
 
@@ -20,20 +21,26 @@ function validateTemplate(value) {
     const top = Number(page.top), bottom = Number(page.bottom), count = Number(page.row_count);
     const rotation = Number(page.rotation || 0);
     if (!Number.isInteger(number) || number < 1 || number > 20 || ![0, 90, 180, 270].includes(rotation)
-      || !(top >= 0 && bottom <= 1 && bottom > top) || !Number.isInteger(count) || count < 1 || count > 100) throw periodError('表の範囲・行数・回転を確認してください', 400);
+      || ((page.page_kind || 'daily') === 'daily' && (!(top >= 0 && bottom <= 1 && bottom > top) || !Number.isInteger(count) || count < 1 || count > 100))) throw periodError('表の範囲・行数・回転を確認してください', 400);
+    const pageKind = page.page_kind || 'daily';
+    if (!['daily','evidence','pending'].includes(pageKind)) throw periodError('ページ種別が不正です',400);
+    if (pageKind !== 'daily') return {page_number:number,page_kind:pageKind,rotation};
     const columns = {};
     for (const [key, region] of Object.entries(page.columns || {})) {
-      if (!FIELDS.includes(key) || !Array.isArray(region) || region.length !== 2) throw periodError('様式の列指定が不正です', 400);
+      if (!(FIELDS.includes(key) || EXTRA_FIELDS.includes(key) || /^extra_[a-z0-9_]{1,40}$/.test(key)) || !Array.isArray(region) || region.length !== 2) throw periodError('様式の列指定が不正です', 400);
       const [left, right] = region.map(Number);
       if (!(left >= 0 && right <= 1 && right > left)) throw periodError('列の左端・右端は0〜100%の範囲で指定してください', 400);
       columns[key] = [left, right];
     }
-    if (!columns.work_date || !columns.start_time || !columns.end_time) throw periodError('日付・開始・終了の列を指定してください', 400);
+    if (!columns.work_date || (!columns.work_interval && (!columns.start_time || !columns.end_time))) throw periodError('日付・開始・終了の列を指定してください', 400);
     if (page.row_edges != null && !Array.isArray(page.row_edges)) throw periodError('行境界は配列で指定してください',400);
     const edges = page.row_edges == null ? null : page.row_edges.map(Number);
     if (edges && (edges.length !== count+1 || edges.some((v,i) => !Number.isFinite(v) || v < 0 || v > 1 || (i && v <= edges[i-1]))
       || Math.abs(edges[0]-top) > .0001 || Math.abs(edges.at(-1)-bottom) > .0001)) throw periodError('行境界は表の上下を含む昇順で、行数＋1個を指定してください',400);
-    return { page_number: number, top, bottom, row_count: count, rotation, deskew: page.deskew !== false, columns, ...(edges ? {row_edges:edges} : {}) };
+    const quad = page.source_quad;
+    if (quad != null && (!Array.isArray(quad) || quad.length !== 4 || quad.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!Number.isFinite(v)||v<0||v>1)))) throw periodError('四隅の座標を確認してください',400);
+    const column_labels = Object.fromEntries(Object.keys(columns).map(k=>[k,String(page.column_labels?.[k] || k).slice(0,100)]));
+    return { page_kind:pageKind, column_labels, ...(quad?{source_quad:quad}:{}), page_number: number, top, bottom, row_count: count, rotation, deskew: page.deskew !== false, columns, ...(edges ? {row_edges:edges} : {}) };
   });
   if (new Set(pages.map(p => p.page_number)).size !== pages.length) throw periodError('ページ番号が重複しています', 400);
   return { pages };
@@ -58,7 +65,10 @@ function normalizeField(key, value) {
   return number;
 }
 function candidate(raw, confidence, period) {
-  const values = {}, warnings = {};
+  const doc = documentFields(raw || {});
+  const values = {}, warnings = {...doc.warnings};
+  raw = doc.normalized;
+  if (raw.work_interval) confidence = {...confidence,start_time:confidence?.work_interval,end_time:confidence?.work_interval};
   for (const field of FIELDS) {
     const text = String(raw?.[field] ?? '').normalize('NFKC').trim();
     if (!text) { values[field] = null; continue; }
@@ -78,8 +88,11 @@ function candidate(raw, confidence, period) {
   }
   if (!values.work_date) warnings.work_date ||= '勤務日の確認が必要です';
   if (!values.start_time || !values.end_time) warnings.time = '開始・終了の確認が必要です';
-  if (values.start_time && values.end_time && time.parse(values.end_time) <= time.parse(values.start_time)) warnings.end_time = '終了は開始より後の時刻を指定してください。翌日は24時以降で入力します';
-  return { values, warnings };
+  if (values.start_time && values.end_time && time.parse(values.end_time) < time.parse(values.start_time) && time.parse(values.end_time)<1440) {
+    values.end_time = time.format(time.parse(values.end_time)+1440);
+    warnings.end_time = '翌日の終了時刻を候補にしました。原本で確認してください';
+  } else if (values.start_time && values.end_time && time.parse(values.end_time) === time.parse(values.start_time)) warnings.end_time = '開始と終了が同じです。原本で確認してください';
+  return { values, warnings, observations:doc.observations };
 }
 function mergeFields(current, request) {
   if (!request || !Array.isArray(request.fields) || (request.clear_fields != null && !Array.isArray(request.clear_fields))

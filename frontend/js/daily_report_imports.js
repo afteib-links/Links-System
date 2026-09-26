@@ -43,8 +43,8 @@
           <div class="section-title-row"><div><h3>Excel／CSV／PDFを取り込む</h3><p class="muted">PDFは社内で読取り、原本・OCR・現在の日報を比較して選択反映します。</p></div></div>
           <form id="daily-import-upload" class="dr-import-upload">
             <label>対象年月<input type="month" name="target_year_month" value="${this.ctx.escapeHtml(this.ym)}" required></label>
-            <label>ファイル（.xlsx／.csv／.pdf、50MBまで）<input type="file" name="file" accept=".xlsx,.csv,.pdf" required></label>
-            <button type="submit" class="btn">アップロードして確認</button>
+            <label>ファイル（.xlsx／.csv／.pdf／.jpg／.png、50MBまで）<input type="file" name="file" accept=".xlsx,.csv,.pdf,.jpg,.jpeg,.png" required></label>
+            <label><input type="checkbox" name="document_layout"> Excelを帳票として比較（通常のExcel/CSV取込はOFF）</label><button type="submit" class="btn">アップロードして確認</button>
           </form>
           <p class="muted">同一内容のファイルは二重取込を防ぐため警告します。外部ファイル内の請求額・支払額は使用せず、既存の日報計算で再計算します。</p>
         </section>
@@ -71,7 +71,7 @@
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
       submit.textContent = 'アップロード中…';
-      const isPdf = /\.pdf$/i.test(formData.get('file')?.name || '');
+      const isPdf = (formData.get('document_layout')==='on' && /\.xlsx$/i.test(formData.get('file')?.name||'')) || /\.(pdf|jpe?g|png)$/i.test(formData.get('file')?.name || '');
       const result = await this.ctx.api(isPdf ? '/api/daily-report-imports/pdf/uploads' : '/api/daily-report-imports', { method: 'POST', body: formData });
       submit.disabled = false;
       submit.textContent = 'アップロードして確認';

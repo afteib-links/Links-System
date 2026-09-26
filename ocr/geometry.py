@@ -46,8 +46,15 @@ def traces(image):
     return found
 
 
-def rectify(image):
+def rectify(image, source_quad=None):
     """Return a straightened table and explicit detection metadata, or safe fallback."""
+    if source_quad:
+        h, w = image.height, image.width
+        quad = np.float32([[x*w,y*h] for x,y in source_quad])
+        if not cv2.isContourConvex(quad.astype(np.int32)) or abs(cv2.contourArea(quad)) < w*h*.05:
+            raise ValueError('Invalid document corners')
+        matrix=cv2.getPerspectiveTransform(quad,np.float32([[0,0],[w-1,0],[w-1,h-1],[0,h-1]]))
+        image=Image.fromarray(cv2.warpPerspective(np.asarray(image),matrix,(w,h),borderValue=(255,255,255)))
     binary = ink(image)
     h, w = binary.shape
     # A connected printed grid is more reliable than the outline of a photographed page.
@@ -132,3 +139,12 @@ def clean_cell(image):
     vertical[:,max(2,w//12):w-max(2,w//12)] = 0
     a[(horizontal|vertical)>0] = 255
     return Image.fromarray(a)
+
+
+def recognition_image(image):
+    """Illumination normalization only; the colour original is never replaced."""
+    cleaned = clean_cell(image)
+    gray = np.asarray(cleaned.convert('L'))
+    background = cv2.GaussianBlur(gray,(0,0),max(5,min(gray.shape)/5))
+    normalized = cv2.divide(gray,background,scale=255)
+    return Image.fromarray(normalized).convert('RGB')
