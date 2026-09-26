@@ -19,26 +19,30 @@ def compact(value):
 def orientation(image, engine):
     if engine is None:
         return image, 0
-    best = (0, 0)
-    for angle in (0, 180, 90, 270):
-        sample = image.rotate(-angle, expand=True)
-        sample.thumbnail((1000,1000))
-        result = next(iter(engine.predict(np.asarray(sample))))
-        joined = compact(' '.join(result.get('rec_texts', [])))
-        score = sum(word in joined for word in ['日付','稼働','委託','受託','備考','確認印'])
-        sample.close()
-        if score > best[0]:
-            best = (score, angle)
-        if score >= 4:
-            break
-    return (image.rotate(-best[1], expand=True) if best[1] else image), best[1]
+    # Dense portrait tables contain tiny headings. OCR only the upper half at
+    # near-source resolution; a whole-page thumbnail destroys those characters.
+    angles=(0,180) if image.height>=image.width else (90,270,0,180)
+    best=(0,angles[0])
+    for angle in angles:
+        rotated=image.rotate(-angle,expand=True)
+        sample=rotated.crop((0,0,rotated.width,rotated.height*.5))
+        sample.thumbnail((1800,1800))
+        result=next(iter(engine.predict(np.asarray(sample))))
+        joined=compact(' '.join(result.get('rec_texts',[])))
+        score=sum(word in joined for word in ['日付','稼働','委託','受託','備考','確認印','時間超過'])
+        sample.close();rotated.close()
+        if score>best[0]:best=(score,angle)
+        if score>=4:break
+    # Weak recognition must not turn a readable portrait sideways.
+    angle=best[1] if best[0]>=2 else angles[0]
+    return (image.rotate(-angle,expand=True) if angle else image),angle
 
 
 def propose(image, geometry, engine):
     edges = geometry.get('row_edges', [])
     proposal = {'page_kind':'pending','columns':{},'column_labels':{},'header_text':[], 'needs_confirmation':True}
     if len(edges) < 10:
-        proposal['page_kind'] = 'evidence'
+        proposal['page_kind'] = 'pending'
         return proposal
     proposal.update(page_kind='daily',top=edges[1],bottom=edges[-1],row_edges=edges[1:],row_count=len(edges)-2)
     if engine is None:
