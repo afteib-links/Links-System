@@ -134,7 +134,7 @@
       const result = await this.ctx.api(`/api/daily-reports/month-projects?target_year_month=${encodeURIComponent(this.data.batch.target_year_month)}`);
       if (!result.res.ok) throw new Error(result.data?.message || '案件一覧の取得に失敗しました');
       const selected = Number(this.data.batch.extra_data.project_id || this.options.projectId);
-      const clean=v=>String(v||'').normalize('NFKC').replace(/[\s株式会社有限会社御中]/g,'');
+      const clean=v=>String(v||'').normalize('NFKC').replace(/株式会社|有限会社|御中|\s/g,'');
       const headers=clean((this.data.pages||[]).flatMap(p=>p.rectification?.proposal?.header_text||[]).concat((this.data.batch.extra_data.workbook_sheets||[]).filter(s=>s.name==='原本').flatMap(s=>s.header||[])).join(' '));
       const ranked=(result.data.rows||[]).map(r=>({...r,match:[r.company_name,r.partner_name].reduce((n,v)=>n+(clean(v).length>=2&&headers.includes(clean(v))?1:0),0)})).sort((a,b)=>b.match-a.match);
       return '<option value="">案件を選択してください</option>' + ranked.map(r => `<option value="${r.project_id}" ${Number(r.project_id) === selected ? 'selected' : ''}>${r.match?'照合候補 / ':''}#${r.project_id} ${this.escape(r.company_name)} / ${this.escape(r.template_name || r.manager_name || '')} / ${this.escape(r.partner_name)}</option>`).join('');
