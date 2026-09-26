@@ -98,6 +98,13 @@
         el.tabIndex = this.entryMode === 'all' || el.matches(timeSelector) ? 0 : -1;
       });
       screen.querySelectorAll('[data-entry-mode]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.entryMode === (this.entryMode || 'time'))));
+      this.updateEntryColumns();
+    },
+    updateEntryColumns() {
+      const screen=this.ctx.app.querySelector('.dr-grid-screen');
+      if (!screen) return;
+      const count=Array.from(screen.querySelectorAll('.dr-month-table > thead > tr > th')).filter(el=>getComputedStyle(el).display!=='none').length;
+      screen.querySelectorAll('.dr-expand > td').forEach(cell=>{ if(cell.colSpan!==count) cell.colSpan=count; });
     },
     async openEntryDetail(idx) {
       if (!this.gridRows[idx]) return;
@@ -143,6 +150,9 @@
       this.ctx.app.append(dialog); dialog.showModal();
     },
     bindEntryUI() {
+      this.entryResizeObserver?.disconnect();
+      this.entryResizeObserver=new ResizeObserver(()=>this.updateEntryColumns());
+      this.entryResizeObserver.observe(this.ctx.app);
       const screen = this.ctx.app.querySelector('.dr-grid-screen');
       if (!screen) return;
       this.applyEntryMode();

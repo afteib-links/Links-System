@@ -28,13 +28,18 @@ const frontend = path.resolve(__dirname, '../../frontend');
       dr.ym = '2026-09'; dr.gridMeta = {project_id:1,company_id:1,partner_id:1,company_name:'匿名企業',partner_name:'匿名パートナー',project_name:'匿名案件'};
       dr.gridRows = Array.from({length:20}, (_,idx) => dr.emptyDay(`2026-09-${String(idx+1).padStart(2,'0')}`, dr.gridMeta));
       dr.gridRows[1].toll_fee = 1500;
+      dr.additionalItems=[{work_date:'2026-09-01',item_name:'匿名追加項目',billing_amount:1000,payment_amount:800}];
       window.savedPayloads = [];
       dr.renderGrid();
     });
     const time = (field, row) => page.locator(`[data-${field === 'break_minutes' ? 'minutes-f' : 'f'}="${field}"][data-idx="${row}"]`);
     const rowHeight=async()=> (await page.locator('.dr-main').first().boundingBox()).height;
     const initialHeight=await rowHeight();
+    assert.equal(await page.locator('.dr-main').first().locator('.dr-additional-mark').innerText(),'追加 1件');
+    assert.equal(await page.locator('.dr-expand').count(),0,'詳細を開かず追加項目が分かる');
+    const initialDateWidth=(await page.locator('.dr-date-cell').first().boundingBox()).width;
     await page.locator('[data-entry-mode=all]').click();
+    assert.equal((await page.locator('.dr-date-cell').first().boundingBox()).width,initialDateWidth,'日付幅は入力モードに依存しない');
     assert.equal(await rowHeight(),initialHeight,'時間・全項目の行間が一致する');
     await page.locator('[data-entry-mode=time]').click();
     async function assertCellBottoms() {
@@ -75,6 +80,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.waitForSelector('[data-expand-row="0"]');
     assert.equal(await page.evaluate(() => !!document.activeElement.closest('.dr-expand')),true);
     const detail = page.locator('[data-expand-row="0"]');
+    assert.equal(await detail.locator('[data-f=total_distance],[data-f=toll_fee],[data-f=parking_fee],[data-f=transport_fee]').count(),0,'経費は一覧に集約');
     await detail.locator('[data-common-minutes=night_adjustment]').fill('－０．３０'); await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => window.LinksDailyReports.gridRows[0].night_adjustment_minutes_billing),-30);
     await page.keyboard.press('Escape');
@@ -129,6 +135,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
     await page.evaluate(() => {
       const dr=window.LinksDailyReports;
       dr.gridRows[0].rate_overrides={billing:{basic:'1234567.00',overtime:'123.45'}};
+      dr.gridRows[0].toll_fee='1234567.00';
       dr.renderGrid();
     });
     for (const width of [1920,1366,390]) {
@@ -136,6 +143,20 @@ const frontend = path.resolve(__dirname, '../../frontend');
       await page.locator(`button[data-entry-mode=${width<700?'time':'all'}]`).click();
       await page.locator('[data-expand-row="0"] details').evaluateAll(items=>items.forEach(el=>el.open=true));
       const root=page.locator('[data-expand-row="0"]');
+      await root.locator('[data-common-minutes=night_adjustment]').fill('0:00');
+      await page.keyboard.press('Tab');
+      const comment=await root.locator('[data-f=row_comment]').boundingBox();
+      const save=await root.locator('[data-save-row]').boundingBox();
+      assert.ok(save.x>=comment.x+comment.width || save.y>=comment.y+comment.height,'行保存とコメント欄は重ならない');
+      if(width>=700) {
+        assert.equal(await page.locator('.dr-main [data-f=toll_fee]').first().inputValue(),'1234567');
+        const escaped=await page.locator('.dr-main input, .dr-main button').evaluateAll(inputs=>inputs.filter(el=>el.getClientRects().length).filter(el=>{
+          const rect=el.getBoundingClientRect(),cell=el.closest('td').getBoundingClientRect();
+          return rect.left<cell.left-1 || rect.right>cell.right+1;
+        }).map(el=>el.dataset.f||el.dataset.minutesF||JSON.stringify({html:el.outerHTML,x:el.getBoundingClientRect().x,w:el.getBoundingClientRect().width,c:el.closest("td").getBoundingClientRect().toJSON(),p:getComputedStyle(el).padding,flex:getComputedStyle(el).flex})));
+        assert.deepEqual(escaped,[],`入力枠は各列内に収まる: ${width}`);
+        assert.equal(await root.locator(':scope > td').evaluate(el=>el.colSpan),await page.locator('.dr-month-table > thead > tr > th').evaluateAll(cells=>cells.filter(el=>getComputedStyle(el).display!=='none').length),'詳細の結合列数は表示列数と一致');
+      }
       const basic=root.locator('[data-rate-side=billing][data-rate-type=basic]');
       assert.equal(await basic.inputValue(),'1234567');
       assert.equal(await root.locator('[data-rate-side=billing][data-rate-type=overtime]').inputValue(),'123.45');
@@ -149,6 +170,7 @@ const frontend = path.resolve(__dirname, '../../frontend');
       const rateDimensions=await root.locator('.dr-rate-wrap').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
       assert.ok(rateDimensions.scroll<=rateDimensions.client+2,`rate table overflow ${width}`);
       await root.screenshot({path:path.join(output,`detail-${width}.png`)});
+      await page.screenshot({path:path.join(output,`all-${width}.png`)});
     }
     // 月跨ぎ期間の入力行と移行プレビューを実UIで確認する。
     await page.evaluate(async () => {
