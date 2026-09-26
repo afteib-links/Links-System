@@ -74,6 +74,19 @@ async function main() {
     assert.equal((await api(endpoint+'/retry',{job_id:recognized.jobs[0].ocr_job_id})).status,409,'反映済みの画像を再生成しない');
     const image=await fetch(base+`${endpoint}/image/row/${first.daily_report_import_row_id}`,{headers:{cookie}});
     assert.equal(image.status,200); assert.match(image.headers.get('content-type'),/image\/png/);
+    const records=await api(`/api/daily-report-imports/pdf/records/${current.daily_report_id}`);
+    assert.equal(records.status,200);assert.ok(records.data.records.some(r=>r.daily_report_import_batch_id===id));
+    const ExcelJS=require('exceljs'),book=new ExcelJS.Workbook();
+    for(const name of ['見本','原本']){const sheet=book.addWorksheet(name);sheet.addRow(['日付','開始','終了','業務経費']);sheet.addRow([2,'08:00','17:00','1500円']);}
+    const excelForm=new FormData();excelForm.set('file',new Blob([await book.xlsx.writeBuffer()]),`anonymous-${project.insertId}.xlsx`);excelForm.set('target_year_month','2026-09');
+    const excel=await api('/api/daily-report-imports/pdf/uploads',excelForm);assert.equal(excel.status,201,JSON.stringify(excel));
+    const xurl=`/api/daily-report-imports/pdf/${excel.data.batch_id}`;
+    assert.equal((await api(xurl)).data.rows.length,0,'シート確認前に日報候補を作らない');
+    assert.equal((await api(xurl+'/workbook',{project_id:project.insertId,sheet_name:'原本'})).status,200);
+    const xrows=(await api(xurl)).data.rows;assert.equal(xrows.length,1);assert.equal(xrows[0].source_sheet,'原本');assert.equal(xrows[0].observations.business_expense,1500);
+    const jpegForm=new FormData();jpegForm.set('file',new Blob([await page.screenshot({type:'jpeg'})]),`anonymous-${project.insertId}.jpg`);jpegForm.set('target_year_month','2026-09');
+    const jpeg=await api('/api/daily-report-imports/pdf/uploads',jpegForm);assert.equal(jpeg.status,201,JSON.stringify(jpeg));
+    assert.equal((await api(`/api/daily-report-imports/pdf/${jpeg.data.batch_id}`)).data.file.mime_type,'image/jpeg');
     console.log('[integration] PDF render/OCR/field selection/idempotency/concurrency/lock/source preservation passed',JSON.stringify(metrics));
   } finally {
     if(browser) await browser.close();

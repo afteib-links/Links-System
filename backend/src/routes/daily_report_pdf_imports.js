@@ -9,13 +9,14 @@ const { requireAuth, requirePermission, requireRole } = require('../middleware/a
 const { getPeriod, periodForDate, assertPeriodEditable, periodError, validMonth } = require('../services/daily_report_periods');
 const { applyDailyPriceCalcWithRules } = require('../services/price_calc_rules');
 const { FIELDS, SYSTEM_FIELDS, json, validateTemplate, candidate, mergeFields, sameFields } = require('../services/pdf_import');
+const {readWorkbook,inspectSheet} = require('../services/document_workbook');
 const router = express.Router();
 router.use(requireAuth, requirePermission('daily_reports'), requireRole('admin', 'soumu', 'executive'));
 const editor = requireRole('admin', 'soumu');
 const root = process.env.DAILY_REPORT_IMPORT_DIR || path.resolve(__dirname, '../../../data/uploads/daily-report-imports');
 fs.mkdirSync(root, { recursive: true });
-const upload = multer({ storage: multer.diskStorage({ destination: root, filename: (_req, _file, cb) => cb(null, `${crypto.randomUUID()}.pdf`) }),
-  limits: { files: 1, fileSize: 50 * 1024 * 1024 }, fileFilter: (_req, file, cb) => cb(null, path.extname(file.originalname).toLowerCase() === '.pdf') });
+const upload = multer({ storage: multer.diskStorage({ destination: root, filename: (_req, _file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(_file.originalname).toLowerCase()}`) }),
+  limits: { files: 1, fileSize: 50 * 1024 * 1024 }, fileFilter: (_req, file, cb) => cb(null, ['.pdf','.jpg','.jpeg','.png','.xlsx'].includes(path.extname(file.originalname).toLowerCase())) });
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 function errorResponse(res, error) {
   if (!error.status) console.error('[pdf-import]', error);
@@ -54,7 +55,13 @@ router.post('/uploads', editor, (req, res) => upload.single('file')(req, res, as
   const conn = await getPool().getConnection();
   try {
     const buffer = await fsp.readFile(req.file.path);
-    if (!buffer.subarray(0, 1024).includes(Buffer.from('%PDF-'))) throw periodError('PDF形式のファイルではありません', 400);
+    const ext=path.extname(req.file.originalname).toLowerCase();
+    const mime = ext==='.pdf' && buffer.subarray(0,1024).includes(Buffer.from('%PDF-')) ? 'application/pdf'
+      : ['.jpg','.jpeg'].includes(ext) && buffer[0]===255 && buffer[1]===216 && buffer[2]===255 ? 'image/jpeg'
+      : ext==='.png' && buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'image/png' : ext==='.xlsx' && buffer.subarray(0,2).toString()==='PK' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : null;
+    if (!mime) throw periodError('PDF/JPEG/PNG形式を確認してください',400);
+    let workbookSheets=null;
+    if(ext==='.xlsx') { const book=await readWorkbook(req.file.path);workbookSheets=book.worksheets.map(sheet=>{const data=inspectSheet(sheet);return {name:data.name,header:data.header||[],row_count:data.rows.length,warning:data.warning};}); }
     const digest = hash(buffer);
     const [existing] = await conn.query(`SELECT f.daily_report_import_batch_id FROM daily_report_import_files f
       JOIN daily_report_import_batches b USING(daily_report_import_batch_id)
@@ -69,12 +76,12 @@ router.post('/uploads', editor, (req, res) => upload.single('file')(req, res, as
     await conn.beginTransaction();
     const [result] = await conn.query(`INSERT INTO daily_report_import_batches
       (source_type,status,target_year_month,parser_name,parser_version,created_by_user_id,extra_data)
-      VALUES ('pdf','uploaded',?,'PP-OCRv5','3.2.0',?,?)`, [req.body.target_year_month, req.session.user.user_id, JSON.stringify({ duplicate_reason: reason })]);
+      VALUES ('pdf','uploaded',?,'PP-OCRv5','3.2.0',?,?)`, [req.body.target_year_month, req.session.user.user_id, JSON.stringify({ duplicate_reason: reason, workbook_sheets:workbookSheets })]);
     const id = Number(result.insertId);
     const [file] = await conn.query(`INSERT INTO daily_report_import_files
       (daily_report_import_batch_id,original_filename,stored_filename,storage_path,mime_type,file_size,sha256,retention_until)
-      VALUES (?,?,?,?,'application/pdf',?,?,DATE_ADD(CURDATE(),INTERVAL 3 YEAR))`, [id, req.file.originalname, req.file.filename, req.file.path, req.file.size, digest]);
-    await conn.query(`INSERT INTO daily_report_ocr_jobs(daily_report_import_batch_id,job_type,payload) VALUES (?,'render',?)`, [id, JSON.stringify({ source_file_id: file.insertId })]);
+      VALUES (?,?,?,?,?,?,?,DATE_ADD(CURDATE(),INTERVAL 3 YEAR))`, [id, req.file.originalname, req.file.filename, req.file.path, mime, req.file.size, digest]);
+    if (!workbookSheets) await conn.query(`INSERT INTO daily_report_ocr_jobs(daily_report_import_batch_id,job_type,payload) VALUES (?,'render',?)`, [id, JSON.stringify({ source_file_id: file.insertId })]);
     await audit(conn, id, null, null, { file_id: file.insertId }, reason, req.session.user.user_id, 'pdf_upload');
     await conn.commit();
     return res.status(201).json({ ok: true, batch_id: id, source_type: 'pdf' });
@@ -85,6 +92,42 @@ router.post('/uploads', editor, (req, res) => upload.single('file')(req, res, as
   } finally { conn.release(); }
 }));
 
+router.get('/records/:dailyId', route(async (req,conn)=>{
+  const [reports]=await conn.query('SELECT daily_report_id FROM daily_reports WHERE daily_report_id=? AND is_deleted=0',[req.params.dailyId]);
+  if(!reports.length)throw periodError('日報が見つかりません',404);
+  const [records]=await conn.query(`SELECT r.daily_report_import_row_id,r.daily_report_import_batch_id,r.source_row_number,r.source_sheet,r.raw_data,r.reviewed_data,r.extra_data,r.source_region,
+    f.original_filename,f.is_active,f.retention_until,(f.is_active=1 AND f.retention_until>=CURDATE()) AS available
+    FROM daily_report_import_rows r JOIN daily_report_import_files f ON f.daily_report_import_file_id=r.source_file_id
+    WHERE r.daily_report_id=? ORDER BY r.daily_report_import_row_id`,[req.params.dailyId]);
+  for(const row of records){
+    for(const key of ['raw_data','reviewed_data','extra_data','source_region'])row[key]=json(row[key]);
+    const [history]=await conn.query('SELECT before_data,after_data,reason,created_at FROM daily_report_import_applications WHERE daily_report_import_row_id=? ORDER BY import_application_id',[row.daily_report_import_row_id]);
+    row.history=history.map(h=>({...h,before_data:json(h.before_data),after_data:json(h.after_data)}));
+    if(!row.available){row.raw_data={};row.reviewed_data={};row.extra_data={};row.history=[];}
+  }
+  return {records};
+}));
+router.post('/:id/workbook',editor,route(async(req,conn)=>{
+  const {batch,file}=await loadBatch(conn,req.params.id,true);
+  if(!batch.extra_data.workbook_sheets)throw periodError('Excel帳票ではありません',400);
+  const [applied]=await conn.query('SELECT daily_report_import_row_id FROM daily_report_import_rows WHERE daily_report_import_batch_id=? AND daily_report_id IS NOT NULL LIMIT 1',[req.params.id]);
+  if(applied.length)throw periodError('反映済み原本は変更できません');
+  const projectId=Number(req.body.project_id),period=await getPeriod(projectId,batch.target_year_month,conn);
+  const [projects]=await conn.query('SELECT partner_id FROM projects WHERE project_id=? AND is_deleted=0',[projectId]);
+  if(!projects.length)throw periodError('案件が見つかりません',404);
+  const workbook=await readWorkbook(file.storage_path),sheet=workbook.getWorksheet(String(req.body.sheet_name||''));
+  if(!sheet)throw periodError('シートを選択してください',400);
+  const data=inspectSheet(sheet);if(!data.rows.length)throw periodError(data.warning||'日付行がありません',400);
+  await conn.query('DELETE FROM daily_report_import_rows WHERE daily_report_import_batch_id=? AND daily_report_id IS NULL',[req.params.id]);
+  for(const row of data.rows)await conn.query(`INSERT INTO daily_report_import_rows
+    (daily_report_import_batch_id,source_file_id,source_sheet,source_row_number,status,raw_data,parsed_data,matched_project_id,matched_partner_id,ocr_confidence,extra_data,row_fingerprint)
+    VALUES (?,?,?,?,'warning',?,'{}',?,?,?,?,?)`,[req.params.id,file.daily_report_import_file_id,sheet.name,row.source_row,JSON.stringify(row.raw),projectId,projects[0].partner_id,
+    JSON.stringify(Object.fromEntries(Object.keys(row.raw).map(k=>[k,1]))),JSON.stringify({source_cells:row.cells,column_labels:row.column_labels,parser:'excel-cells'}),hash(`${file.sha256}:${sheet.name}:${row.source_row}:${projectId}`)]);
+  await conn.query("UPDATE daily_report_import_batches SET status='needs_review',row_count=?,extra_data=? WHERE daily_report_import_batch_id=?",[data.rows.length,JSON.stringify({...batch.extra_data,project_id:projectId,partner_id:projects[0].partner_id,period,sheet_name:sheet.name}),req.params.id]);
+  await audit(conn,req.params.id,null,null,{sheet_name:sheet.name,project_id:projectId},'Excelシート確認',req.session.user.user_id,'workbook_configure');
+  return {};
+},true));
+
 router.get('/templates', route(async (_req, conn) => {
   const [templates] = await conn.query("SELECT * FROM daily_report_import_mappings WHERE source_type='pdf' AND is_deleted=0 AND is_active=1 ORDER BY mapping_name");
   return { templates: templates.map(t => ({ ...t, mapping_json: json(t.mapping_json) })) };
@@ -93,12 +136,14 @@ router.get('/:id', route(async (req, conn) => {
   const { batch, file } = await loadBatch(conn, req.params.id);
   const [jobs] = await conn.query(`SELECT ocr_job_id,job_type,status,progress,attempts,error_message,metrics,heartbeat_at FROM daily_report_ocr_jobs WHERE daily_report_import_batch_id=? ORDER BY ocr_job_id DESC`, [req.params.id]);
   const [pages] = await conn.query('SELECT pdf_page_id,page_number,width,height,rotation,deskew_angle,rectification FROM daily_report_pdf_pages WHERE source_file_id=? ORDER BY page_number', [file.daily_report_import_file_id]);
-  pages.forEach(p => { p.rectification = json(p.rectification); });
+  pages.forEach(p => { p.rectification = {...json(p.rectification)};delete p.rectification.original_image_path; });
   const [rows] = await conn.query('SELECT * FROM daily_report_import_rows WHERE daily_report_import_batch_id=? ORDER BY source_row_number', [req.params.id]);
-  let current = [], period = null;
+  let current = [], period = null, defaultBreak = null;
   const projectId = batch.extra_data.project_id;
   if (projectId) {
     period = await getPeriod(projectId, batch.target_year_month, conn);
+    const [defaults]=await conn.query('SELECT break_time FROM projects WHERE project_id=?',[projectId]);
+    if(defaults[0]?.break_time!=null)defaultBreak=Math.max(0,Math.round(Number(defaults[0].break_time)*60));
     [current] = await conn.query(`SELECT * FROM daily_reports WHERE project_id=? AND is_deleted=0 AND work_date BETWEEN ? AND ? ORDER BY work_date,daily_report_id`, [projectId, period.period_start, period.period_end]);
   }
   const dates = new Map();
@@ -106,16 +151,24 @@ router.get('/:id', route(async (req, conn) => {
     const date=candidate(json(row.raw_data),json(row.ocr_confidence),period).values.work_date;
     if(date) dates.set(date,(dates.get(date)||0)+1);
   }
-  return { batch, jobs, pages, period, file: { file_id: file.daily_report_import_file_id, name: file.original_filename }, current_reports: current,
+  return { batch, jobs, pages, period, file: { file_id: file.daily_report_import_file_id, name: file.original_filename, mime_type:file.mime_type }, current_reports: current,
     rows: rows.map(row => {
       const raw = json(row.raw_data), confidence = json(row.ocr_confidence);
+      const extra=json(row.extra_data);
       const parsed = period ? candidate(raw, confidence, period) : { values: {}, warnings: { date: '案件と対象期間を指定してください' } };
+      for(const key of ['alcohol_check','confirmation_mark'])if(extra.marks?.[key]==='unknown' && parsed.observations?.[key]==='blank')parsed.observations[key]='unknown';
+      if(extra.marks?.date_highlight && parsed.observations)parsed.observations.date_annotation=(parsed.observations.date_annotation||'')+' 黄色背景';
       const region = json(row.source_region);
       if (region.alignment_warning) parsed.warnings.alignment = region.alignment_warning;
       if (dates.get(parsed.values.work_date)>1) parsed.warnings.duplicate='同じ勤務日の候補が複数あります。ページ・作業行を確認してください';
       const matches = current.filter(r => r.work_date === parsed.values.work_date);
+      let supplements={};
+      if(parsed.values.break_minutes==null) {
+        if(matches.length===1) {parsed.values.break_minutes=matches[0].break_minutes;supplements.break_minutes='既存の日報';}
+        else if(!matches.length && defaultBreak!=null) {parsed.values.break_minutes=defaultBreak;supplements.break_minutes='案件の標準休憩';parsed.warnings.break_minutes='案件設定から補完しました。原本・勤務条件を確認してください';}
+      }
       const { source_image_path, ...safe } = row;
-      return { ...safe, raw_data: raw, source_region: json(row.source_region), confidence, candidate: parsed.values, warnings: parsed.warnings,
+      return { ...safe, extra_data:extra, supplements, raw_data: raw, source_region: json(row.source_region), confidence, candidate: parsed.values, warnings: parsed.warnings, observations:parsed.observations || {},
         has_image: Boolean(source_image_path), previously_imported: Boolean(row.daily_report_id), current_ids: matches.map(r => r.daily_report_id),
         initially_selected: !row.daily_report_id && !matches.length && !Object.keys(parsed.warnings).length };
     }) };
@@ -126,10 +179,10 @@ router.get('/:id/image/:kind/:imageId', async (req, res) => {
     const conn = getPool();
     const { file } = await loadBatch(conn, req.params.id);
     let stored, mime = 'image/png';
-    if (req.params.kind === 'original') { stored = file.storage_path; mime = 'application/pdf'; }
-    else if (req.params.kind === 'page') {
-      const [rows] = await conn.query('SELECT image_path FROM daily_report_pdf_pages WHERE pdf_page_id=? AND source_file_id=?', [req.params.imageId, file.daily_report_import_file_id]);
-      stored = rows[0]?.image_path;
+    if (req.params.kind === 'original') { stored = file.storage_path; mime = file.mime_type; }
+    else if (['page','source'].includes(req.params.kind)) {
+      const [rows] = await conn.query('SELECT image_path,rectification FROM daily_report_pdf_pages WHERE pdf_page_id=? AND source_file_id=?', [req.params.imageId, file.daily_report_import_file_id]);
+      stored = req.params.kind==='source' ? json(rows[0]?.rectification).original_image_path : rows[0]?.image_path;
     } else if (req.params.kind === 'row') {
       const [rows] = await conn.query('SELECT source_image_path FROM daily_report_import_rows WHERE daily_report_import_row_id=? AND daily_report_import_batch_id=?', [req.params.imageId, req.params.id]);
       stored = rows[0]?.source_image_path;
@@ -159,7 +212,7 @@ router.post('/:id/configure', editor, route(async (req, conn) => {
   const config = { ...batch.extra_data, project_id: projectId, partner_id: projects[0]?.partner_id, template, period };
   await conn.query("UPDATE daily_report_import_batches SET status='parsing',mapping_template_id=?,extra_data=? WHERE daily_report_import_batch_id=?", [templateId, JSON.stringify(config), req.params.id]);
   await conn.query("DELETE FROM daily_report_import_rows WHERE daily_report_import_batch_id=? AND daily_report_id IS NULL", [req.params.id]);
-  await conn.query(`INSERT INTO daily_report_ocr_jobs(daily_report_import_batch_id,job_type,payload) VALUES (?,'recognize',?)`, [req.params.id, JSON.stringify({ source_file_id: file.daily_report_import_file_id, ...config })]);
+  await conn.query(`INSERT INTO daily_report_ocr_jobs(daily_report_import_batch_id,job_type,payload) VALUES (?,?,?)`, [req.params.id, req.body.preview ? 'render' : 'recognize', JSON.stringify({ source_file_id: file.daily_report_import_file_id, ...config })]);
   await audit(conn, req.params.id, null, batch.extra_data, config, '様式設定', req.session.user.user_id, 'pdf_configure');
   return {};
 }, true));

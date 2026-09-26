@@ -57,7 +57,7 @@ const { chromium } = require('playwright');
       await page.screenshot({path:path.resolve(__dirname,`../test-results/pdf-import-${width}.png`),fullPage:true});
     }
     assert.deepEqual(errors,[]);
-    await page.evaluate(()=>{window.LinksPdfImports.data.pages=[{page_number:1,pdf_page_id:1,rectification:{status:'rectified',row_edges:[.1,.2,.4,.7,.9]}}];});
+    await page.evaluate(()=>{window.LinksPdfImports.data.pages=[{page_number:1,pdf_page_id:1,rectification:{proposal:{columns:{work_date:[.03,.17],start_time:[.17,.38],end_time:[.38,.59],break_minutes:[.59,.75]}},status:'rectified',row_edges:[.1,.2,.4,.7,.9]}}];});
     await page.locator('#pdf-template').click();
     await page.locator('[data-use-lines]').click();
     assert.equal(await page.locator('[data-config=row_count]').inputValue(),'3');
