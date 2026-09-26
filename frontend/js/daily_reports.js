@@ -689,10 +689,10 @@
               <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="parking_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.parking_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><input class="dr-large-input dr-fee-input" type="number" step="${expenseStep}" min="0" inputmode="numeric" data-f="transport_fee" data-idx="${idx}" value="${this.ctx.escapeHtml(r.transport_fee ?? '')}" ${locked ? 'disabled' : ''} /></td>
               <td><button type="button" class="status-badge status-button status-${this.ctx.escapeHtml(r.status || 'draft')}" data-day-status="${dayConfirmed ? 'draft' : 'confirmed'}" data-idx="${idx}" ${fullyLocked ? 'disabled' : ''} title="${dayConfirmed ? 'クリックしてこの日のロックを解除' : 'クリックしてこの日をロック'}">${this.ctx.escapeHtml(this.statusLabel(r.status))}</button><small class="dr-entry-state" data-entry-state="${idx}"></small></td>
-              <td class="table-action-row dr-ops-cell">
+              <td class="dr-ops-cell"><div class="table-action-row">
                 <button type="button" class="btn btn-ghost btn-small" data-add-work="${idx}" ${dayConfirmed ? 'disabled' : ''} title="同じ日に作業行を追加">＋</button>
                 ${sameDateRows.length > 1 || r.daily_report_id ? `<button type="button" class="btn btn-ghost btn-small" data-remove-work="${idx}" ${locked ? 'disabled' : ''} title="作業行を削除">×</button>` : ''}
-              </td>
+              </div></td>
               <td class="dr-day-total-cell" data-day-total="billing" data-work-date="${this.ctx.escapeHtml(date)}">${this.kit.money(totals.billing)}</td>
               <td class="dr-day-total-cell" data-day-total="payment" data-work-date="${this.ctx.escapeHtml(date)}">${this.kit.money(totals.payment)}</td>
             </tr>`;

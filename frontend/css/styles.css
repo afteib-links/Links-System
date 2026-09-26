@@ -2654,7 +2654,16 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen input, .dr-grid-screen select, .dr-grid-screen textarea { font-size:var(--dr-input-font-size,16px) !important; }
 .dr-picker-button { background:#edf2f7; color:#183b57; border:1px solid #bac8d3; border-radius:4px; cursor:pointer; min-height:28px; padding:2px 5px; }
 .dr-detail-heading { font-size:16px; margin:8px 0; }
-.dr-grid-screen .dr-detail-grid { align-items:start; }
+.dr-grid-screen .dr-detail-grid { align-items:start; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:4px; }
+.dr-grid-screen .dr-detail-section { min-width:0; padding:8px; }
+.dr-grid-screen .dr-detail-section .form-grid { display:flex; flex-wrap:wrap; align-items:end; gap:6px 10px; }
+.dr-grid-screen .dr-detail-section .form-grid label { flex:0 1 160px; }
+.dr-grid-screen .dr-detail-section .form-grid .full { flex-basis:100%; }
+.dr-grid-screen .dr-detail-section input, .dr-grid-screen .dr-detail-section select { margin:0; padding:4px 6px; min-height:34px; }
+.dr-grid-screen .dr-detail-section p { margin:4px 0; white-space:normal; }
+.dr-grid-screen .dr-detail-grid > .full { grid-column:1 / -1; }
+.dr-grid-screen .dr-detail-section:has(.dr-rate-table) { grid-column:span 2; }
+.dr-grid-screen .dr-ops-cell > .table-action-row { justify-content:center; }
 .dr-detail-grid label { display:grid; gap:5px; white-space:normal; min-width:0; }
 .dr-detail-grid label input, .dr-detail-grid label select { width:100%; min-width:0; }
 .dr-detail-section summary { cursor:pointer; font-size:16px; font-weight:700; padding:8px 0; }
@@ -2665,8 +2674,8 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen[data-entry-mode="time"] .dr-month-table { width:100%; min-width:0; table-layout:auto; }
 .dr-grid-screen[data-entry-mode="time"] .dr-month-table > thead > tr > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14),:nth-child(17),:nth-child(18)),
 .dr-grid-screen[data-entry-mode="time"] .dr-main > :is(:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(12),:nth-child(13),:nth-child(14),:nth-child(17),:nth-child(18)) { display:none; }
-.dr-grid-screen[data-entry-mode="time"] .dr-month-table > thead > tr > th,
-.dr-grid-screen[data-entry-mode="time"] .dr-main > td { padding:6px 4px; }
+.dr-grid-screen .dr-month-table > thead > tr > th,
+.dr-grid-screen .dr-main > td { padding:4px 5px; }
 @media (max-width:700px) {
   .dr-grid-screen[data-entry-mode="time"] .dr-month-table { display:block; }
   .dr-grid-screen[data-entry-mode="time"] .dr-detail-grid,
@@ -2693,6 +2702,7 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-grid-screen[data-entry-mode="time"] .dr-expand { display:block; }
   .dr-grid-screen[data-entry-mode="time"] .dr-expand > td { display:block; width:auto; position:static; }
   .dr-detail-grid { grid-template-columns:1fr !important; }
+  .dr-grid-screen .dr-detail-section:has(.dr-rate-table) { grid-column:auto; }
   .dr-entry-reference { display:block; }
   .dr-entry-reference span { display:block; }
 }
