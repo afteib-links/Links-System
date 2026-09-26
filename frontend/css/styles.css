@@ -2740,18 +2740,18 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen .dr-calc-card { padding-left:5px; white-space:normal; }
 @media (min-width:1100px) {
   .dr-grid-screen .dr-month-table { width:100%; min-width:0; table-layout:fixed; }
-  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > th,
-  .dr-grid-screen[data-entry-mode=all] .dr-main > td { width:auto; min-width:0; padding:4px 2px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(1),:nth-child(3),:nth-child(4)),
-  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(1),:nth-child(3),:nth-child(4)) { width:25px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(5),:nth-child(6),:nth-child(7)),
-  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(5),:nth-child(6),:nth-child(7)) { width:112px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-month-table > thead > tr > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)),
-  .dr-grid-screen[data-entry-mode=all] .dr-main > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)) { width:48px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-step-button { flex:0 0 14px; width:14px; font-size:12px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-picker-button { padding:2px; }
-  .dr-grid-screen[data-entry-mode=all] .dr-time-control input { padding:3px 1px; min-width:5ch; }
-  .dr-grid-screen[data-entry-mode=all] .dr-main input[type=number] { padding:3px 2px; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > th,
+  .dr-grid-screen[data-entry-mode] .dr-main > td { width:auto; min-width:0; padding:4px 2px; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :is(:nth-child(1),:nth-child(3),:nth-child(4)),
+  .dr-grid-screen[data-entry-mode] .dr-main > :is(:nth-child(1),:nth-child(3),:nth-child(4)) { width:25px; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :is(:nth-child(5),:nth-child(6),:nth-child(7)),
+  .dr-grid-screen[data-entry-mode] .dr-main > :is(:nth-child(5),:nth-child(6),:nth-child(7)) { width:112px; }
+  .dr-grid-screen[data-entry-mode] .dr-month-table > thead > tr > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)),
+  .dr-grid-screen[data-entry-mode] .dr-main > :is(:nth-child(8),:nth-child(9),:nth-child(10),:nth-child(11),:nth-child(16)) { width:48px; }
+  .dr-grid-screen[data-entry-mode] .dr-step-button { flex:0 0 14px; width:14px; font-size:12px; }
+  .dr-grid-screen[data-entry-mode] .dr-picker-button { padding:2px; }
+  .dr-grid-screen[data-entry-mode] .dr-time-control input { padding:3px 1px; min-width:5ch; }
+  .dr-grid-screen[data-entry-mode] .dr-main input[type=number] { padding:3px 2px; }
 }
 @media (max-width:1099px) {
   .dr-grid-screen .dr-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -2888,3 +2888,9 @@ label, .field-label { color: #344054; font-weight: 700; }
 @media (max-width:700px) {
   .dr-detail-rates > h4 { max-width:none; min-height:0; }
 }
+
+@media (min-width:1100px) {
+  .dr-grid-screen .dr-month-table > thead > tr { height:58px; }
+}
+ .dr-grid-screen[data-entry-mode] .dr-time-control input { min-width:calc(5ch + 14px); }
+@media (min-width:1100px) { .dr-grid-screen[data-entry-mode] .dr-time-control input { min-width:calc(5ch + 4px); } }
