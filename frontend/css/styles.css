@@ -2721,6 +2721,7 @@ label, .field-label { color: #344054; font-weight: 700; }
 .dr-grid-screen .dr-detail-section label { gap:3px; font-size:12px; }
 .dr-grid-screen .dr-detail-section input, .dr-grid-screen .dr-detail-section select { height:30px; min-height:30px; padding:3px 4px; }
 .dr-grid-screen .dr-detail-section .form-grid { gap:4px 6px; }
+.dr-grid-screen .dr-detail-expenses .form-grid { align-items:end; }
 .dr-grid-screen .dr-detail-section .form-grid label { flex:1 1 100px; }
 .dr-grid-screen .dr-detail-section .form-grid label:has([data-common-reason]) { flex:1.5 1 120px; }
 .dr-detail-rates { position:relative; }
