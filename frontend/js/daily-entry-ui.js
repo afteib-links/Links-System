@@ -92,7 +92,7 @@
       const working=this.gridRows.filter(r=>!Number(r.is_absent));
       const minutes=field=>Math.round(working.reduce((n,r)=>n+Number(r[field]||0)*60,0));
       const footer={absent:this.gridRows.filter(r=>Number(r.is_absent)).length,training:this.gridRows.filter(r=>Number(r.is_training)).length,
-        break:this.formatMinutes(working.reduce((n,r)=>n+Number(r.break_minutes??Number(r.break_time||0)*60),0)),work:this.formatMinutes(minutes('work_hours')),
+        break:this.formatMinutes(working.reduce((n,r)=>n+Number(r.break_minutes??Number(r.break_time||0)*60),0)),work:`${working.filter(r=>r.start_time && r.end_time).length}回`,
         overtime:this.formatMinutes(minutes('overtime_hours')),shortage:this.formatMinutes(minutes('shortage_hours')),distance:sum('total_distance').toLocaleString(),
         toll:this.kit.money(sum('toll_fee')),parking:this.kit.money(sum('parking_fee')),transport:this.kit.money(sum('transport_fee')),
         billing:this.kit.money(billing+extraBilling),payment:this.kit.money(payment+extraPayment)};

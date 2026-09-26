@@ -2940,3 +2940,8 @@ label, .field-label { color: #344054; font-weight: 700; }
   .dr-footer [data-footer=billing]::before { content:'請求 '; }
   .dr-footer [data-footer=payment]::before { content:'支払 '; }
 }
+
+/* Keep all daily report headings opaque and above the scrolling date cells. */
+.dr-grid-screen .data-table.dr-month-table > thead > tr > th {
+  position:sticky; top:0; z-index:8; background:#eaf0f6;
+}
