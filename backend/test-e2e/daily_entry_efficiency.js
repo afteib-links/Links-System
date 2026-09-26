@@ -38,7 +38,10 @@ const frontend = path.resolve(__dirname, '../../frontend');
     assert.equal(await page.locator('.dr-main').first().locator('.dr-additional-mark').innerText(),'追加 1件');
     assert.equal(await page.locator('.dr-expand').count(),0,'詳細を開かず追加項目が分かる');
     const initialDateWidth=(await page.locator('.dr-date-cell').first().boundingBox()).width;
+    const commonColumns=()=>page.locator('.dr-month-table > thead > tr > th').evaluateAll(cells=>cells.slice(0,8).map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height})));
+    const timeColumns=await commonColumns();
     await page.locator('[data-entry-mode=all]').click();
+    assert.deepEqual(await commonColumns(),timeColumns,'共通列幅とヘッダー高さは両モードで一致');
     assert.equal((await page.locator('.dr-date-cell').first().boundingBox()).width,initialDateWidth,'日付幅は入力モードに依存しない');
     assert.equal(await rowHeight(),initialHeight,'時間・全項目の行間が一致する');
     await page.locator('[data-entry-mode=time]').click();
@@ -123,6 +126,11 @@ const frontend = path.resolve(__dirname, '../../frontend');
     const output = path.resolve(__dirname,'../test-results/daily-entry'); fs.mkdirSync(output,{recursive:true});
     for (const width of [1920,1366,390]) {
       await page.setViewportSize({width,height:900});
+      const textFits=await time('end_time',0).evaluate(el=>{
+        const s=getComputedStyle(el),c=document.createElement('canvas').getContext('2d');c.font=`${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+        return el.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)>=c.measureText('28:15').width;
+      });
+      assert.ok(textFits,`時間入力の5文字が欠けない: ${width}`);
       await page.evaluate(() => window.scrollTo(0,0));
       const dimensions = await page.locator('.dr-grid-wrap').evaluate(el => ({client:el.clientWidth,scroll:el.scrollWidth}));
       await page.screenshot({path:path.join(output,`${width}.png`),fullPage:false});
