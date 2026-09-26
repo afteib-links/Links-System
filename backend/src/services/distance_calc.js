@@ -57,14 +57,17 @@ function tierForDistance(tiers, distance) {
   return null;
 }
 
-function calculateDistanceSide({ distance = 0, monthDistance = null, rule }) {
+function calculateDistanceSide({ distance = 0, monthDistance = null, rule, adoptedExcess = null }) {
   const config = normalizeRule(rule);
   const inputDistance = Number(distance || 0);
   if (!Number.isInteger(inputDistance) || inputDistance < 0) throw validationError('走行距離は0以上の整数kmで入力してください');
   const accumulated = monthDistance == null ? inputDistance : Number(monthDistance || 0);
   if (!Number.isInteger(accumulated) || accumulated < 0) throw validationError('月間走行距離は0以上の整数kmで指定してください');
   const target = config.mode === 'monthly_excess' ? accumulated : inputDistance;
-  const excess = Math.max(0, target - config.base_distance);
+  const automaticExcess=Math.max(0,target-config.base_distance);
+  if(adoptedExcess!=null && (!Number.isFinite(adoptedExcess)||adoptedExcess<0))throw validationError('採用する超過距離を確認してください');
+  if(adoptedExcess!=null && (config.mode==='monthly_excess' || (config.mode==='tiered' && config.tier_mode!=='excess_distance')))throw validationError('この距離方式は総走行距離を確認・修正して計算してください');
+  const excess = adoptedExcess ?? automaticExcess;
   let rawAmount = 0;
   let quantity = excess;
   let tier = null;
@@ -91,7 +94,7 @@ function calculateDistanceSide({ distance = 0, monthDistance = null, rule }) {
   return {
     rule: config,
     mode: config.mode, distance_km: inputDistance, accumulated_distance_km: accumulated,
-    base_distance_km: config.base_distance, target_distance_km: target, excess_distance_km: excess,
+    base_distance_km: config.base_distance, target_distance_km: target, excess_distance_km: excess, automatic_excess_distance_km:automaticExcess,
     tier_index: tier?.index ?? null, tier_lower_distance_km: tier?.lower_distance ?? null,
     quantity_km: quantity, unit_price: tier?.unit_price ?? config.unit_price,
     fixed_amount: tier?.fixed_amount ?? config.fixed_amount, raw_amount: rawAmount, amount,

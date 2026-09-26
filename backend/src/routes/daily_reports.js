@@ -54,6 +54,7 @@ const FIELDS = [
   'selected_fee_item_id',
   'selected_fee_item_name',
   'fee_item_selection_source',
+  'quantity_overrides',
   'rate_overrides',
   'rate_override_reason',
   'spot_amount',
@@ -70,6 +71,7 @@ const FIELDS = [
 ];
 
 const SYSTEM_FIELDS = [
+  'quantity_overrides',
   'applied_price_set_id',
   'selected_fee_item_id',
   'selected_fee_item_name',
@@ -101,7 +103,7 @@ const SYSTEM_FIELDS = [
   'calculation_engine_code',
 ];
 
-const JSON_FIELDS = new Set(['expenses_json', 'rate_overrides', 'calculation_detail']);
+const JSON_FIELDS = new Set(['quantity_overrides','expenses_json', 'rate_overrides', 'calculation_detail']);
 const AUDIT_FIELDS = [
   'selected_fee_item_id',
   'fee_item_selection_source',
@@ -111,6 +113,7 @@ const AUDIT_FIELDS = [
   'night_adjustment_minutes_payment',
   'night_adjustment_reason_billing',
   'night_adjustment_reason_payment',
+  'quantity_overrides',
   'rate_overrides',
   'rate_override_reason',
 ];
@@ -1127,6 +1130,14 @@ router.put('/:id', async (req, res) => {
       };
     } else {
       const input = pick(req.body || {});
+      if(input.quantity_overrides!==undefined){
+        const validate=require('../services/quantity_overrides').validateQuantityOverrides;
+        const before=validate(current.quantity_overrides),after=validate(input.quantity_overrides);
+        for(const side of ['billing','payment']){
+          const changed=['overtime_minutes','excess_km'].some(key=>(before[side]?.[key]??null)!==(after[side]?.[key]??null));
+          if(changed&&!after[side]?.reason)throw periodError('超過値の採用・解除理由を入力してください',400);
+        }
+      }
       // 初回入力元は作成後に変更しない。
       delete input.input_source_type;
       delete input.scanned_image_url;
@@ -1162,7 +1173,7 @@ router.put('/:id', async (req, res) => {
         'manual_change',
         changes.before,
         changes.after,
-        data.rate_override_reason || data.night_adjustment_reason_billing || data.night_adjustment_reason_payment,
+        data.rate_override_reason || data.night_adjustment_reason_billing || data.night_adjustment_reason_payment || Object.values(jsonValue(data.quantity_overrides)||{}).map(v=>v.reason).filter(Boolean).join(' / '),
         req.session.user.user_id
       );
     }

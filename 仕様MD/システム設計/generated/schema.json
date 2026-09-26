@@ -5872,6 +5872,15 @@
           "default": "NULL",
           "extra": "",
           "comment": ""
+        },
+        {
+          "name": "quantity_overrides",
+          "type": "longtext",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
         }
       ],
       "foreign_keys": [
@@ -6258,6 +6267,100 @@
             "project_id",
             "target_year_month",
             "side_code"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "daily_report_document_links",
+      "comment": "",
+      "columns": [
+        {
+          "name": "document_link_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "PRI",
+          "default": null,
+          "extra": "auto_increment",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_import_row_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "daily_report_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "MUL",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "pdf_page_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "additional_item_id",
+          "type": "bigint(20) unsigned",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "bigint(20) unsigned",
+          "nullable": false,
+          "key": "",
+          "default": null,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "key": "",
+          "default": "current_timestamp()",
+          "extra": "",
+          "comment": ""
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_document_daily",
+          "unique": false,
+          "columns": [
+            "daily_report_id"
+          ]
+        },
+        {
+          "name": "PRIMARY",
+          "unique": true,
+          "columns": [
+            "document_link_id"
+          ]
+        },
+        {
+          "name": "uq_document_link",
+          "unique": true,
+          "columns": [
+            "daily_report_import_row_id",
+            "pdf_page_id"
           ]
         }
       ]
@@ -7466,6 +7569,15 @@
         {
           "name": "source_image_path",
           "type": "text",
+          "nullable": true,
+          "key": "",
+          "default": "NULL",
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "name": "reviewed_observations",
+          "type": "longtext",
           "nullable": true,
           "key": "",
           "default": "NULL",

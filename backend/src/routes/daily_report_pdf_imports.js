@@ -1,3 +1,4 @@
+const adoption=require('../services/document_adoption');
 const express = require('express');
 const multer = require('multer');
 const fs = require('node:fs');
@@ -95,15 +96,17 @@ router.post('/uploads', editor, (req, res) => upload.single('file')(req, res, as
 router.get('/records/:dailyId', route(async (req,conn)=>{
   const [reports]=await conn.query('SELECT daily_report_id FROM daily_reports WHERE daily_report_id=? AND is_deleted=0',[req.params.dailyId]);
   if(!reports.length)throw periodError('日報が見つかりません',404);
-  const [records]=await conn.query(`SELECT r.daily_report_import_row_id,r.daily_report_import_batch_id,r.source_row_number,r.source_sheet,r.raw_data,r.reviewed_data,r.extra_data,r.source_region,
+  const [records]=await conn.query(`SELECT r.daily_report_import_row_id,r.daily_report_import_batch_id,r.source_row_number,r.source_sheet,r.raw_data,r.reviewed_data,r.reviewed_observations,r.extra_data,r.source_region,
     f.original_filename,f.is_active,f.retention_until,(f.is_active=1 AND f.retention_until>=CURDATE()) AS available
     FROM daily_report_import_rows r JOIN daily_report_import_files f ON f.daily_report_import_file_id=r.source_file_id
     WHERE r.daily_report_id=? ORDER BY r.daily_report_import_row_id`,[req.params.dailyId]);
   for(const row of records){
-    for(const key of ['raw_data','reviewed_data','extra_data','source_region'])row[key]=json(row[key]);
+    for(const key of ['raw_data','reviewed_data','reviewed_observations','extra_data','source_region'])row[key]=json(row[key]);
     const [history]=await conn.query('SELECT before_data,after_data,reason,created_at FROM daily_report_import_applications WHERE daily_report_import_row_id=? ORDER BY import_application_id',[row.daily_report_import_row_id]);
+    const [evidence]=await conn.query('SELECT l.pdf_page_id,l.additional_item_id,p.page_number FROM daily_report_document_links l JOIN daily_report_pdf_pages p USING(pdf_page_id) WHERE l.daily_report_import_row_id=?',[row.daily_report_import_row_id]);
+    row.evidence=evidence;
     row.history=history.map(h=>({...h,before_data:json(h.before_data),after_data:json(h.after_data)}));
-    if(!row.available){row.raw_data={};row.reviewed_data={};row.extra_data={};row.history=[];}
+    if(!row.available){row.raw_data={};row.reviewed_data={};row.extra_data={};row.history=[];row.evidence=[];row.reviewed_observations={};}
   }
   return {records};
 }));
@@ -138,7 +141,7 @@ router.get('/:id', route(async (req, conn) => {
   const [pages] = await conn.query('SELECT pdf_page_id,page_number,width,height,rotation,deskew_angle,rectification FROM daily_report_pdf_pages WHERE source_file_id=? ORDER BY page_number', [file.daily_report_import_file_id]);
   pages.forEach(p => { p.rectification = {...json(p.rectification)};delete p.rectification.original_image_path; });
   const [rows] = await conn.query('SELECT * FROM daily_report_import_rows WHERE daily_report_import_batch_id=? ORDER BY source_row_number', [req.params.id]);
-  let current = [], period = null, defaultBreak = null;
+  let current = [], period = null, defaultBreak = null, expenseItems=[];
   const projectId = batch.extra_data.project_id;
   if (projectId) {
     period = await getPeriod(projectId, batch.target_year_month, conn);
@@ -146,12 +149,13 @@ router.get('/:id', route(async (req, conn) => {
     if(defaults[0]?.break_time!=null)defaultBreak=Math.max(0,Math.round(Number(defaults[0].break_time)*60));
     [current] = await conn.query(`SELECT * FROM daily_reports WHERE project_id=? AND is_deleted=0 AND work_date BETWEEN ? AND ? ORDER BY work_date,daily_report_id`, [projectId, period.period_start, period.period_end]);
   }
+  if(projectId)expenseItems=await require('../services/additional_items').loadItems(conn,projectId,batch.target_year_month);
   const dates = new Map();
   if (period) for (const row of rows) {
     const date=candidate(json(row.raw_data),json(row.ocr_confidence),period).values.work_date;
     if(date) dates.set(date,(dates.get(date)||0)+1);
   }
-  return { batch, jobs, pages, period, file: { file_id: file.daily_report_import_file_id, name: file.original_filename, mime_type:file.mime_type }, current_reports: current,
+  return { batch, jobs, pages, period, expense_items:expenseItems, file: { file_id: file.daily_report_import_file_id, name: file.original_filename, mime_type:file.mime_type }, current_reports: current,
     rows: rows.map(row => {
       const raw = json(row.raw_data), confidence = json(row.ocr_confidence);
       const extra=json(row.extra_data);
@@ -248,6 +252,23 @@ router.post('/:id/manual-rows', editor, route(async (req, conn) => {
   return {};
 }, true));
 
+router.post('/:id/calculation-preview',editor,route(async(req,conn)=>{
+  const {batch}=await loadBatch(conn,req.params.id);
+  const projectId=Number(batch.extra_data.project_id);
+  const [sources]=await conn.query('SELECT version FROM daily_report_import_rows WHERE daily_report_import_row_id=? AND daily_report_import_batch_id=?',[req.body.import_row_id,req.params.id]);
+  if(!sources.length || Number(sources[0].version)!==Number(req.body.import_version))throw periodError('取込行が変更されています');
+  let current={};
+  if(req.body.target_daily_report_id){const [rows]=await conn.query('SELECT * FROM daily_reports WHERE daily_report_id=? AND project_id=? AND is_deleted=0',[req.body.target_daily_report_id,projectId]);current=rows[0];if(!current||Number(current.version)!==Number(req.body.expected_version))throw periodError('日報が更新されています');}
+  const merged=mergeFields(current,req.body);
+  const period=await periodForDate(projectId,merged.work_date,conn);
+  if(period.target_year_month!==batch.target_year_month)throw periodError('対象期間外です');
+  const [projects]=await conn.query('SELECT company_id,partner_id FROM projects WHERE project_id=?',[projectId]);
+  const input={...merged,...projects[0],project_id:projectId,target_year_month:period.target_year_month,daily_report_period_id:period.daily_report_period_id};
+  const automatic=await applyDailyPriceCalcWithRules({...input,quantity_overrides:'{}'});
+  const calculated=await applyDailyPriceCalcWithRules(adoption.adoptionInput(input,req.body));
+  return {automatic:json(automatic.calculation_detail),calculated:json(calculated.calculation_detail),billing_amount:calculated.calculated_billing_amount,payment_amount:calculated.calculated_payment_amount,expense:adoption.expenseValues(req.body),preview_token:adoption.previewToken(calculated,req.body)};
+}));
+
 router.post('/:id/apply', editor, route(async (req, conn) => {
   const { batch } = await loadBatch(conn, req.params.id, true);
   if (['cancelled', 'parsing'].includes(batch.status)) throw periodError('解析中または取消済みの取込は反映できません');
@@ -288,29 +309,42 @@ router.post('/:id/apply', editor, route(async (req, conn) => {
       if (sameDay.some(r => ['confirmed', 'approved'].includes(r.status) || [r.billing_status, r.payment_status].some(s => s && s !== 'none'))) throw periodError('確認・承認・精算で保護された勤務日に作業行を追加できません');
       if (sameDay.length && (!request.allow_new_work_row || !String(request.reason || '').trim())) throw periodError('同日に日報があります。反映先を選ぶか、新しい作業行の理由を指定してください');
     }
-    if (current && sameFields(current, merged)) { output.push({ row_id: row.daily_report_import_row_id, daily_report_id: current.daily_report_id, skipped: true }); continue; }
+    if (current && row.daily_report_id && request.quantity_overrides===undefined && !request.expense && !request.evidence_pages?.length && !request.reviewed_observations && sameFields(current, merged)) { output.push({ row_id: row.daily_report_import_row_id, daily_report_id: current.daily_report_id, skipped: true }); continue; }
     const input = { ...merged, project_id: projectId, company_id: project.company_id, partner_id: project.partner_id,
       target_year_month: period.target_year_month, daily_report_period_id: period.daily_report_period_id };
-    const calculated = await applyDailyPriceCalcWithRules(input);
+    const linkOnly=current && request.quantity_overrides===undefined && !request.expense && sameFields(current,merged);
+    const calculated = linkOnly ? current : await applyDailyPriceCalcWithRules(adoption.adoptionInput(input,request));
+    if((request.quantity_overrides!==undefined || request.expense) && request.preview_token!==adoption.previewToken(calculated,request))throw periodError('計算条件が変わったか未確認です。再計算して確認してください');
     const values = {};
     for (const key of [...FIELDS, 'project_id', 'company_id', 'partner_id', 'target_year_month', 'daily_report_period_id']) if (input[key] !== undefined) values[key] = input[key];
     for (const key of SYSTEM_FIELDS) if (calculated[key] !== undefined) values[key] = calculated[key];
     if (values.calculation_detail && typeof values.calculation_detail !== 'string') values.calculation_detail = JSON.stringify(values.calculation_detail);
     let id = current?.daily_report_id;
+    const evidencePages=request.evidence_pages||[];
+    if(!Array.isArray(evidencePages)||evidencePages.length>20)throw periodError('証憑ページを確認してください',400);
+    for(const pageId of evidencePages){
+      const [pages]=await conn.query('SELECT p.rectification FROM daily_report_pdf_pages p JOIN daily_report_import_files f ON f.daily_report_import_file_id=p.source_file_id WHERE p.pdf_page_id=? AND f.daily_report_import_batch_id=?',[pageId,req.params.id]);
+      if(!pages.length||json(pages[0].rectification).page_kind!=='evidence')throw periodError('証憑として確認したページを選択してください',400);
+    }
     if (current) {
       const keys = Object.keys(values);
-      await conn.query(`UPDATE daily_reports SET ${keys.map(k => `${k}=?`).join(',')},version=version+1 WHERE daily_report_id=?`, [...keys.map(k => values[k]), id]);
+      if(!linkOnly)await conn.query(`UPDATE daily_reports SET ${keys.map(k => `${k}=?`).join(',')},version=version+1 WHERE daily_report_id=?`, [...keys.map(k => values[k]), id]);
     } else {
       values.input_source_type = 'pdf';
       const keys = Object.keys(values);
       const [created] = await conn.query(`INSERT INTO daily_reports(${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`, keys.map(k => values[k]));
       id = created.insertId;
     }
+    const expenseId=await adoption.saveExpense(conn,{...input,daily_report_id:id},batch,row,request,req.session.user.user_id);
+    for(const pageId of evidencePages)await conn.query('INSERT IGNORE INTO daily_report_document_links(daily_report_import_row_id,daily_report_id,pdf_page_id,additional_item_id,created_by_user_id) VALUES (?,?,?,?,?)',[row.daily_report_import_row_id,id,pageId,expenseId,req.session.user.user_id]);
+    const observations={};
+    for(const key of ['alcohol_check','confirmation_mark'])if(request.reviewed_observations?.[key]!=null){if(!['marked','blank','unknown'].includes(request.reviewed_observations[key]))throw periodError('記入状態を確認してください',400);observations[key]=request.reviewed_observations[key];}
+    if(request.reviewed_observations)await conn.query('UPDATE daily_report_import_rows SET reviewed_observations=? WHERE daily_report_import_row_id=?',[JSON.stringify(observations),row.daily_report_import_row_id]);
     await conn.query(`INSERT INTO daily_report_import_applications(daily_report_import_row_id,request_hash,daily_report_id,before_data,after_data,reason,actor_user_id)
       VALUES (?,?,?,?,?,?,?)`, [row.daily_report_import_row_id, digest, id, current ? JSON.stringify(current) : null, JSON.stringify(values), request.reason || null, req.session.user.user_id]);
     await conn.query(`INSERT INTO daily_report_audit_logs(daily_report_id,action_code,before_data,after_data,reason,actor_user_id)
       VALUES (?,'pdf_import',?,?,?,?)`, [id, current ? JSON.stringify(current) : null, JSON.stringify(values), request.reason || 'PDF初回取込', req.session.user.user_id]);
-    await audit(conn, req.params.id, row.daily_report_import_row_id, current, { ...values, selected_fields: request.fields, clear_fields: request.clear_fields }, request.reason, req.session.user.user_id);
+    await audit(conn, req.params.id, row.daily_report_import_row_id, current, { ...values, selected_fields: request.fields, clear_fields: request.clear_fields, reviewed_observations:observations,expense_item_id:expenseId,evidence_pages:evidencePages }, request.reason, req.session.user.user_id);
     await conn.query(`UPDATE daily_report_import_rows SET status='applied',reviewed_data=?,daily_report_id=COALESCE(daily_report_id,?),applied_by_user_id=?,applied_at=CURRENT_TIMESTAMP,version=version+1 WHERE daily_report_import_row_id=?`, [JSON.stringify(values), id, req.session.user.user_id, row.daily_report_import_row_id]);
     output.push({ row_id: row.daily_report_import_row_id, daily_report_id: id, skipped: false });
   }

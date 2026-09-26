@@ -136,12 +136,13 @@ def execute_job(conn, job):
             if rotation and not applied_rotation:
                 image = image.rotate(-rotation, expand=True, fillcolor='white')
             original_path = write_image(image, f"{file['stored_filename']}-p{index+1}-source.png")
-            if not config or config.get('deskew', True):
+            if (not config or config.get('deskew', True)) and not (config or {}).get('source_quad'):
                 image, angle = deskew(image)
             with conn.cursor() as cursor:
                 cursor.execute('SELECT image_path,rotation,deskew_angle,rectification FROM daily_report_pdf_pages WHERE source_file_id=%s AND page_number=%s', (file['daily_report_import_file_id'], index+1))
                 saved_page = cursor.fetchone()
-            if job['job_type'] == 'recognize' and saved_page and saved_page['rectification'] and int(saved_page['rotation']) == rotation and json.loads(saved_page['rectification']).get('configured_quad') == config.get('source_quad'):
+            saved_geometry=(json.loads(saved_page['rectification']) if isinstance(saved_page['rectification'],str) else saved_page['rectification']) if saved_page and saved_page['rectification'] else {}
+            if job['job_type'] == 'recognize' and saved_page and saved_page['rectification'] and int(saved_page['rotation']) == rotation and saved_geometry.get('configured_quad') == config.get('source_quad'):
                 # OCR and crops read the persisted pixels shown during template setup.
                 image.close()
                 with Image.open(safe_path(saved_page['image_path'])) as saved_image:

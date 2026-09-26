@@ -1,3 +1,4 @@
+const {validateQuantityOverrides}=require('./quantity_overrides');
 const { query } = require('../db');
 const { listPriceSetsForProject } = require('./price_set_lifecycle');
 const {
@@ -177,6 +178,8 @@ function validateAdjustmentReason(data, side) {
 
 async function applyDailyPriceCalc(data) {
   if (!data.project_id || !data.work_date) return data;
+  const quantityOverrides=validateQuantityOverrides(data.quantity_overrides);
+  data.quantity_overrides=JSON.stringify(quantityOverrides);
   const manuallySelected = data.fee_item_selection_source === 'manual';
   const selectedIdForResolution = manuallySelected ? data.selected_fee_item_id : null;
   const context = await buildDailyCalculationContext(
@@ -187,6 +190,7 @@ async function applyDailyPriceCalc(data) {
     data
   );
   if (!context || !context.fee_item) {
+    if(Object.keys(quantityOverrides).length)throw validationError('料金設定がないため超過値を採用できません');
     data.applied_price_set_id = context?.price_set_id || null;
     data.calculated_billing_amount = 0;
     data.calculated_payment_amount = 0;
@@ -223,6 +227,7 @@ async function applyDailyPriceCalc(data) {
       night_break_minutes: data[`night_break_minutes_${side}`] || 0,
       night_adjustment_minutes: data[`night_adjustment_minutes_${side}`] || 0,
       standard_minutes: context.work_rules[side].standard_minutes,
+      adopted_overtime_minutes:quantityOverrides[side]?.overtime_minutes,
       rule: context.night_rules[side],
       rounding: context.rounding[side],
     });
@@ -249,8 +254,11 @@ async function applyDailyPriceCalc(data) {
       rounding: context.rounding[side],
     });
     const distanceRule = context.distance_rules?.[side];
+    const adoptedExcess=quantityOverrides[side]?.excess_km;
+    if(adoptedExcess!=null && !distanceRule?.mode)throw validationError('距離料金の設定がありません');
+    if(adoptedExcess!=null && distanceRule?.mode==='tiered' && (data.total_distance==null || data.total_distance===''))throw validationError('段階料金の判定に総走行距離が必要です');
     distanceResults[side] = distanceRule?.mode
-      ? calculateDistanceSide({ distance: distanceKm, rule: distanceRule })
+      ? calculateDistanceSide({ distance: distanceKm, rule: distanceRule, adoptedExcess })
       : null;
   }
 
@@ -302,6 +310,7 @@ async function applyDailyPriceCalc(data) {
     distance: { billing: distanceResults.billing, payment: distanceResults.payment },
     warnings: feeRuleWarnings,
     rate_override_reason: data.rate_override_reason || null,
+    quantity_overrides:quantityOverrides,
   });
   return data;
 }

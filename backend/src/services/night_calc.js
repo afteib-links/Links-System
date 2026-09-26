@@ -143,7 +143,10 @@ function calculateNightSide(input) {
   if (totalBreak > duration) throw validationError('合計休憩時間は拘束時間以下にしてください');
   const workMinutes = Math.max(0, duration - totalBreak);
   const standardMinutes = Math.max(0, Number(input.standard_minutes ?? 480));
-  const overtimeMinutes = Math.max(0, workMinutes - standardMinutes);
+  const automaticOvertime = Math.max(0, workMinutes - standardMinutes);
+  const adopted=input.adopted_overtime_minutes;
+  if(adopted!=null && (!Number.isInteger(adopted)||adopted<0||adopted>workMinutes))throw validationError('採用する超過時間は実働時間以内の整数分で指定してください');
+  const overtimeMinutes = adopted ?? automaticOvertime;
   const shortageMinutes = Math.max(0, standardMinutes - workMinutes);
   const overtimeStart = end - overtimeMinutes;
   const rule = normalizeSideRule(input.rule);
@@ -198,6 +201,7 @@ function calculateNightSide(input) {
     work_minutes: workMinutes,
     standard_minutes: standardMinutes,
     overtime_minutes: overtimeMinutes,
+    automatic_overtime_minutes: automaticOvertime,
     raw_shortage_minutes: shortageMinutes,
     raw_night_minutes: rawNight,
     night_adjustment_minutes: adjustment,

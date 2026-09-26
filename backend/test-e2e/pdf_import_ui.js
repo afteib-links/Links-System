@@ -18,6 +18,7 @@ const { chromium } = require('playwright');
       const escape=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
       await window.LinksPdfImports.open({app:document.getElementById('app'),currentUser:{roles:['soumu']},escapeHtml:escape,api:async(url,options={})=> {
         if(url.includes('month-projects'))return {res:{ok:true},data:{ok:true,rows:[{project_id:1,company_name:'匿名企業',partner_name:'匿名担当'}]}};
+        if(url.endsWith('/calculation-preview'))return {res:{ok:true},data:{ok:true,preview_token:'checked',automatic:{billing:{overtime_minutes:30}},calculated:{billing:{overtime_minutes:15}},billing_amount:10500,payment_amount:8000}};
         if(options.body) { window.applied=JSON.parse(options.body); return {res:{ok:true},data:{ok:true,applied:[{skipped:false}]}}; }
         return {res:{ok:true},data:{ok:true,...window.fixture}};
       }},{batchId:1,onBack:()=>{}});
@@ -48,6 +49,21 @@ const { chromium } = require('playwright');
     await page.locator('#pdf-apply').click();
     const request=await page.evaluate(()=>window.applied.rows[0]);
     assert.deepEqual(request.fields,['end_time']); assert.equal(request.values.end_time,'28:01'); assert.equal(request.expected_version,2);
+    await page.locator('#pdf-extra').check();await page.locator('.pdf-adoption summary').click();
+    await page.locator('[data-adoption=quantity]').check();await page.locator('[data-adoption=billing_hours]').fill('0.25');await page.locator('[data-adoption=billing_hours]').blur();
+    await page.locator('.pdf-row-details summary').click();await page.locator('[data-reason]').fill('採用根拠');
+    await page.locator('[data-preview-adoption]').click();
+    assert.match(await page.locator('[data-adoption-preview]').textContent(),/30 → 15/);
+    const financial=await page.evaluate(()=>window.LinksPdfImports.rowRequest(window.LinksPdfImports.drafts.get(1)));
+    assert.equal(financial.quantity_overrides.billing.overtime_minutes,15);assert.equal(financial.preview_token,'checked');
+    await page.locator('[data-adoption=billing_hours]').fill('0.5');
+    assert.equal(await page.evaluate(()=>window.LinksPdfImports.drafts.get(1).previewToken),null,'変更で計算確認を破棄');
+    for(const width of [1366,390]){
+      await page.setViewportSize({width,height:900});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${width}px adoption overflow`);
+    }
+    await page.setViewportSize({width:1366,height:900});
+    await page.locator('#pdf-extra').uncheck();
     fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
     for(const width of [1920,1366,390]) {
       await page.setViewportSize({width,height:900});
@@ -58,6 +74,7 @@ const { chromium } = require('playwright');
     }
     assert.deepEqual(errors,[]);
     await page.evaluate(()=>{window.LinksPdfImports.data.pages=[{page_number:1,pdf_page_id:1,rectification:{proposal:{columns:{work_date:[.03,.17],start_time:[.17,.38],end_time:[.38,.59],break_minutes:[.59,.75]}},status:'rectified',row_edges:[.1,.2,.4,.7,.9]}}];});
+    page.once('dialog',dialog=>dialog.accept());
     await page.locator('#pdf-template').click();
     await page.locator('[data-use-lines]').click();
     assert.equal(await page.locator('[data-config=row_count]').inputValue(),'3');

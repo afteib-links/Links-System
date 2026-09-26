@@ -48,23 +48,37 @@ def propose(image, geometry, engine):
     if engine is None:
         return proposal
     # Preserve full-page header text separately from table mapping.
-    header = image.crop((0,0,image.width,int(edges[1]*image.height)))
+    header = image.crop((0,0,image.width,int(edges[min(3,len(edges)-1)]*image.height)))
     result = next(iter(engine.predict(np.asarray(header))))
     texts = result.get('rec_texts', [])
     boxes = result.get('rec_polys', [])
     proposal['header_text'] = [str(t) for t in texts]
-    band = ink(image)[max(0,int(edges[0]*image.height)):min(image.height,int(edges[-1]*image.height))]
-    mask = cv2.morphologyEx(band,cv2.MORPH_OPEN,np.ones((max(12,band.shape[0]//4),1),np.uint8))
-    xs = np.flatnonzero((mask>0).sum(axis=0)>band.shape[0]*.35)
+    # The grid may include an extra rule above the column headings. Locate
+    # the actual heading band from several recognized labels, not its ordinal.
+    scores=[]
+    for top,bottom in zip(edges[:3],edges[1:4]):
+        score=sum(any(alias in compact(t) for _,aliases in HEADERS for alias in aliases)
+                  for t,b in zip(texts,boxes) if top*image.height<=np.asarray(b).mean(axis=0)[1]<bottom*image.height)
+        scores.append(score)
+    heading=int(np.argmax(scores)) if max(scores,default=0)>=2 else 0
+    proposal.update(top=edges[heading+1],row_edges=edges[heading+1:],row_count=len(edges)-heading-2)
+    top,bottom=edges[heading],edges[heading+1]
+    band = ink(image)[max(0,int(top*image.height)+2):min(image.height,int(bottom*image.height)-2)]
+    mask = cv2.morphologyEx(band,cv2.MORPH_OPEN,np.ones((max(8,band.shape[0]//2),1),np.uint8))
+    xs = np.flatnonzero((mask>0).sum(axis=0)>band.shape[0]*.55)
     groups = np.split(xs,np.where(np.diff(xs)>4)[0]+1)
-    bounds = [float(np.mean(g))/image.width for g in groups if len(g)]
+    bounds = geometry.get('column_edges') or [float(np.mean(g))/image.width for g in groups if len(g)]
+    table=geometry.get('table_bounds')
+    if table and bounds:
+        if bounds[0]-table[0]>.015:bounds=[table[0],*bounds]
+        if table[2]-bounds[-1]>.015:bounds=[*bounds,table[2]]
     if len(bounds)<3:
         return proposal
     for i,(left,right) in enumerate(zip(bounds,bounds[1:])):
         words=[]
         for t,b in zip(texts,boxes):
             center=np.asarray(b).mean(axis=0)
-            if left<=center[0]/image.width<=right and center[1]>=edges[0]*image.height:
+            if left<=center[0]/image.width<=right and top*image.height<=center[1]<bottom*image.height:
                 words.append(str(t))
         label=' '.join(words)
         key=next((k for k,aliases in HEADERS if any(a in compact(label) for a in aliases)),f'extra_col_{i+1}')
